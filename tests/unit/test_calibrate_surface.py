@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pytest
 
-RECORDS = {"computer-use": "docs/research/d194-computer-use-calibration.json"}
+RECORDS = {"computer-use": "docs/research/d194-computer-use-calibration.json",
+           "abstract": "docs/research/d194-abstract-calibration.json"}
 
 
 def _script():  # imported lazily, so this file collects before the script exists

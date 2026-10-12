@@ -1,0 +1,120 @@
+"""ARC-AGI-2 from ARC Prize's own MIT public-evaluation runs (#265, D-194) — cite REQ-SRC-012.
+
+`abstract` ranked on Epoch's copy of the ARC Prize leaderboard, whose terms bar commercial use. ARC Prize
+publishes its own runs on the 120 public evaluation tasks under MIT (`arcprize/arc_agi_v2_public_eval`).
+Scoring every model setting reads about 4,300 files and the dataset has not changed since 2026-06-04, so
+`scripts/derive_arc_public_eval.py` derives the scores once at a pinned revision into
+`data/arc-agi-2-public-eval.json`, and the build reads that file.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+from pathlib import Path
+
+import pytest
+
+REVISION = "026789c1c12a" + "0" * 28
+RECORD = {
+    "dataset": "arcprize/arc_agi_v2_public_eval",
+    "url": "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval",
+    "revision": REVISION,
+    "licence": "MIT",
+    "publisher": "ARC Prize Foundation",
+    "tasks": 120,
+    "min_tasks": 114,
+    "settings": {
+        "claude-opus-4-8-high": {"tasks_run": 120, "solved": 92.333333, "score": 76.9444, "cost_usd": 375.81},
+        "gpt-5-4-xhigh": {"tasks_run": 119, "solved": 88.5, "score": 73.75, "cost_usd": None},
+        "grok-4.20-beta-0309b-reasoning": {"tasks_run": 120, "solved": 30.0, "score": 25.0, "cost_usd": 12.5},
+    },
+}
+
+
+def _arc():  # imported lazily, so this file collects before the module exists
+    return importlib.import_module("app.clients.arc_prize")
+
+
+def _derive():
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+    return importlib.import_module("derive_arc_public_eval")
+
+
+def test_each_setting_is_a_row_at_its_derived_percentage() -> None:
+    """covers REQ-SRC-012: the setting's folder is the raw name (its effort is read from it at the store);
+    ARC Prize's harness; no evaluation date, as the dataset gives none; provenance at the revision."""
+    rows, skipped = _arc().parse_arc_agi_2(json.dumps(RECORD))
+    assert skipped == 0
+    by_name = {r.raw_name: r for r in rows}
+    opus = by_name["claude-opus-4-8-high"]
+    assert (opus.score, opus.harness, opus.run_date, opus.cost_total) == (76.9444, "arc-prize", None, 375.81)
+    assert (opus.benchmark, opus.metric, opus.source) == ("ARC-AGI-2 (public eval)", "% correct", "arc_agi_2")
+    assert opus.source_url == f"https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval/tree/{REVISION}"
+    assert by_name["gpt-5-4-xhigh"].cost_total is None
+
+
+@pytest.mark.parametrize(("field", "value"), [("score", 101.0), ("score", -1.0), ("score", "76"),
+                                              ("tasks_run", 113), ("tasks_run", None)])
+def test_a_setting_out_of_range_or_partial_is_skipped_and_counted(field: str, value: object) -> None:
+    """covers REQ-SRC-012: the file's own rule (`min_tasks`) holds at the build too."""
+    record = json.loads(json.dumps(RECORD))
+    record["settings"]["claude-opus-4-8-high"][field] = value
+    rows, skipped = _arc().parse_arc_agi_2(json.dumps(record))
+    assert "claude-opus-4-8-high" not in {r.raw_name for r in rows} and skipped == 1
+
+
+@pytest.mark.parametrize("change", [{"licence": "CC-BY-NC-4.0"}, {"revision": ""}, {"settings": []}, {"tasks": 0}])
+def test_a_record_that_is_not_the_licensed_derivation_is_refused(change: dict[str, object]) -> None:
+    """covers REQ-SRC-012: a file that names another licence, no revision, or no settings fails the source."""
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError):
+        _arc().parse_arc_agi_2(json.dumps({**RECORD, **change}))
+    for raw in ("[]", "not json"):
+        with pytest.raises(SourceError):
+            _arc().parse_arc_agi_2(raw)
+
+
+def test_a_pair_is_solved_by_either_attempt_and_a_task_scores_its_share_of_pairs() -> None:
+    """covers REQ-SRC-012: ARC Prize's rule, as its own `results.json` sums it."""
+    solved = {"attempt_1": {"correct": False}, "attempt_2": {"correct": True}}
+    missed = {"attempt_1": {"correct": False}, "attempt_2": None}
+    assert _derive().task_score([solved]) == 1.0
+    assert _derive().task_score([solved, missed]) == 0.5
+    assert _derive().task_score([{"attempt_1": {"correct": "true"}}]) == 0.0
+    assert _derive().task_score([]) == 0.0
+
+
+def test_the_committed_record_is_the_licensed_derivation_and_parses() -> None:
+    """covers REQ-SRC-012: the file the build reads, as committed."""
+    record = json.loads(Path("data/arc-agi-2-public-eval.json").read_text(encoding="utf-8"))
+    assert (record["dataset"], record["licence"], record["tasks"]) == ("arcprize/arc_agi_v2_public_eval", "MIT", 120)
+    assert len(record["revision"]) == 40
+    rows, skipped = _arc().parse_arc_agi_2(json.dumps(record))
+    assert len(rows) >= 40 and skipped == 0
+
+
+def test_abstract_ranks_on_arc_agi_2_and_epochs_copy_is_gone() -> None:
+    """covers REQ-SRC-012 (D-194 clause 2): the surface, its family and the source list."""
+    from app.workflows import board_tables, categories, families, sources
+
+    spec = categories.CATEGORIES["abstract"]
+    assert (spec.primary_source, spec.primary_benchmark) == ("arc_agi_2", "ARC-AGI-2 (public eval)")
+    assert families.FAMILIES["abstract"] == ("arc_agi_2", "epoch_chess", "epoch_mystery")
+    assert "arc_agi_2" in {s.name for s in sources.REMOTE_SOURCES}
+    assert "epoch_arc_agi" not in {b.source_name for b in board_tables.EPOCH_BOARDS}
+
+
+def test_arc_prize_is_credited_under_mit_with_its_dataset() -> None:
+    """covers REQ-SRC-012 (D-194 clause 5): the citation and the Credits screen name the licence."""
+    from app.workflows import board_tables, rank
+
+    citation = rank.SOURCE_ATTRIBUTION["arc_agi_2"]
+    assert "(MIT)" in citation and "huggingface.co/datasets/arcprize/arc_agi_v2_public_eval" in citation
+    assert "public evaluation" in citation and citation in rank.ATTRIBUTIONS
+    credit = board_tables.CREDITS["arc_prize"]
+    assert (credit.licence, credit.url) == ("MIT", "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval")
+    assert [c["id"] for c in rank.credits_for([citation])] == ["arc_prize"]
