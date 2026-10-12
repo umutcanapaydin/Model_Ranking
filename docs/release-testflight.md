@@ -41,8 +41,10 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    `client-decls` (condition 2).
 4. **Let the Mac's engine refresh once with the new release** (§1 step 1; condition 1). The data names
    `web-dev`'s board (D-190) and the split DeepSeek releases (D-189), and the deploy refuses data another
-   release built (#198). Wait for a night that *publishes*: a night whose data is unchanged keeps the old
-   builder's name, and a refresh run by hand without `APP_BUILD` records `unknown`. Then
+   release built (#198). Since #258 the engine starts that refresh itself, a minute after the install,
+   when the data it serves was built by another release; a cycle usually takes a few minutes and is
+   stopped at 27. It must *publish*: a cycle whose data is unchanged keeps the old builder's name (then
+   wait for a night that publishes), and a refresh run by hand without `APP_BUILD` records `unknown`. Then
    `<served>.refresh.json` names `release-<sha>` for `main`'s tip. Do not use `DEPLOY_ACCEPT_DATA_FROM`
    for v2.
 5. **Deploy** (§1 steps 5 and 6). The build is stamped `release-<sha>-data-<digest>-from-<sha>`.
@@ -61,8 +63,9 @@ The M21 closure security seat says the release verdict stands for v2, on six con
 1. **Update your checkout and your Mac's engine.** `git checkout main && git pull`, then `make
    install`, then `scripts/install_engine_service.sh` (it keeps the home-network mode it finds). The
    hosted engine serves a copy of the data your Mac's engine built, so the Mac must run the code you
-   deploy: let it refresh once after the install (the next night, between 23:00 and 01:00), and check
-   that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. The refresh
+   deploy: let it refresh once after the install (since #258 it starts a minute after the install when
+   the served data was built by another release; otherwise the next night, between 23:00 and 01:00),
+   and check that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. The refresh
    records which release built the served data (`<served>.refresh.json`, `served_built_by`, #198), and
    the deploy refuses data another release built: a night whose data is unchanged keeps the old
    builder's name, and a refresh run by hand without `APP_BUILD` records `unknown`.

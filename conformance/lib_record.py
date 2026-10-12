@@ -35,17 +35,24 @@ _GIT_LOCAL_FALLBACK = ("GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CO
                        "GIT_IMPLICIT_WORK_TREE", "GIT_GRAFT_FILE", "GIT_INDEX_FILE",
                        "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE", "GIT_PREFIX",
                        "GIT_SHALLOW_FILE", "GIT_COMMON_DIR")
+#: `git commit` also exports the commit's identity and dates to its hooks, and the commit-msg gate runs
+#: the controls there: a throwaway repository's planted authors and dates were overwritten by the
+#: commit being made, and the identity control's self-test went wrong (#258). A control that wants an
+#: identity passes it in `extra`.
+_GIT_IDENTITY = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_AUTHOR_DATE", "GIT_COMMITTER_NAME",
+                 "GIT_COMMITTER_EMAIL", "GIT_COMMITTER_DATE")
 
 
 def scrubbed_env(extra: dict | None = None) -> dict:
-    """os.environ without the repository-local git variables, plus `extra`."""
+    """os.environ without the repository-local git variables or a commit's identity, plus `extra`."""
     try:
         names = subprocess.run(["git", "rev-parse", "--local-env-vars"], capture_output=True,
                                encoding="utf-8", errors="replace",
                                timeout=10).stdout.split() or list(_GIT_LOCAL_FALLBACK)
     except (OSError, subprocess.SubprocessError):
         names = list(_GIT_LOCAL_FALLBACK)
-    env = {k: v for k, v in os.environ.items() if k not in names and not k.startswith("GIT_CONFIG_KEY_")
+    env = {k: v for k, v in os.environ.items() if k not in names and k not in _GIT_IDENTITY
+           and not k.startswith("GIT_CONFIG_KEY_")
            and not k.startswith("GIT_CONFIG_VALUE_")}
     env.update(extra or {})
     return env

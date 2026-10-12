@@ -9,6 +9,7 @@ version alone, so a close written today could declare v5.0 and skip three fields
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -214,3 +215,16 @@ def _wave_check_all_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: 
                                                          encoding="utf-8")
     monkeypatch.setattr(module, "ROOT", tmp_path)
     return module
+
+
+def test_the_trailer_check_holds_under_the_identity_git_hands_a_commit_hook() -> None:
+    """`git commit` exports GIT_AUTHOR_NAME, GIT_AUTHOR_EMAIL and GIT_AUTHOR_DATE to its hooks, and the
+    commit-msg gate runs `make check-fast` there. The self-test's throwaway commits inherited them:
+    the planted identities and dates were overwritten, 7 of 11 cases went wrong, and every commit
+    that ran the tests through the hook was refused (#258)."""
+    hook_env = {**os.environ, "GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.invalid",
+                "GIT_AUTHOR_DATE": "@1790000000 +0300"}
+    result = subprocess.run([sys.executable, str(ROOT / "conformance/test-commit-identity.py"),
+                             "--self-test"], cwd=ROOT, capture_output=True, encoding="utf-8",
+                            check=False, env=hook_env)
+    assert result.returncode == 0, result.stdout
