@@ -138,3 +138,21 @@ def test_a_model_another_maker_made_is_not_read_from_the_catalogue_that_resells_
     rows, skipped = _client().parse_models_dev(catalogue)
     assert sorted(r.alias for r in rows) == ["alibaba/qwen3-32b", "mistral/mistral-large-3", "nvidia/nemotron-ultra-4"]
     assert skipped == 5
+
+
+def test_the_makers_whose_models_only_openrouter_priced_are_read() -> None:
+    """covers REQ-ING-005 (#265): measured against main's build of 2026-10-13, six served models lost
+    their only price with OpenRouter. Four have a maker that sells them and that models.dev lists:
+    Upstage (Solar), StepFun (Step) and Arcee (Trinity). Their routes name a vendor the registry knows."""
+    from app.workflows import registry
+
+    catalogue = json.dumps({
+        "upstage": {"models": {"solar-pro4": {"cost": {"input": 0.3, "output": 1.2}}}},
+        "stepfun": {"models": {"step-3.5-flash": {"cost": {"input": 0.1, "output": 0.3}}}},
+        "arcee": {"models": {"trinity-large-thinking": {"cost": {"input": 0.25, "output": 0.8}}}},
+    })
+    rows, _ = _client().parse_models_dev(catalogue)
+    assert sorted(r.alias for r in rows) == [
+        "arcee-ai/trinity-large-thinking", "stepfun/step-3.5-flash", "upstage/solar-pro4"]
+    assert [registry.route_vendor(r.alias.split("/")[0]) for r in sorted(rows, key=lambda r: r.alias)] == [
+        "Arcee", "StepFun", "Upstage"]
