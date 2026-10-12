@@ -55,8 +55,11 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    `CURRENT_PROJECT_VERSION` is 4 in the project already. Archive only after the deploy's `/health`
    check passes; the `plutil` readback of the signed archive must say `https://model-ranking.fly.dev`.
 9. **Keep the habits** (condition 5): `fly auth logout` after each deploy, watch the usage page while
-   people test, and `fly scale count 0` stops the engine at once. **Before external testers**, rule on
-   D-185's table (D-186 clause 3; condition 6).
+   people test, and `fly scale count 0` stops the engine at once. D-185's table is ruled (D-193,
+   2026-10-12; condition 6): no source is left out, and the app's Credits screen credits each publisher.
+   **Before external testers**, have ARC Prize's, Datacurve's and OpenRouter's permissions in hand: App
+   Review may ask for them (guideline 5.2.2). The Credits screen needs a deploy of an engine with #260
+   and a build after build 4.
 
 ## 1. The engine on Fly.io (once)
 
