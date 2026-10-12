@@ -197,15 +197,17 @@ CATEGORIES: dict[str, CategorySpec] = {
     "abstract": CategorySpec(
         id="abstract",
         title="Puzzles & pattern finding",
-        primary_benchmark="ARC-AGI",
+        primary_benchmark="ARC-AGI-2 (public eval)",
         metric="% correct",
         score_unit="points",
         secondary_benchmark=None,
-        primary_source="epoch_arc_agi",
-        # 168 on the board, 39 ranked. A 5-point window leaves 8 candidates; the 8-point window an
-        # earlier draft proposed was sized on the board and admitted all 20 above the floor.
-        value_window=5.0,
-        close_call=1.0,
+        primary_source="arc_agi_2",
+        # D-194 clause 4 (#265): measured on ARC-AGI-2's public evaluation by `scripts/calibrate_surface.py`
+        # (`docs/research/d194-abstract-calibration.json`). 24 models ranked; the tie margin is twice the
+        # binomial standard error over 120 tasks, and the window ends in the 12.2-point gap below the third
+        # model. Epoch's copy's 5.0 / 1.0 were measured on another board (D-105).
+        value_window=9.5,
+        close_call=4.1,
     ),
     "web-dev": CategorySpec(
         id="web-dev",

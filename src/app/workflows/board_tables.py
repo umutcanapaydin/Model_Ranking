@@ -45,7 +45,6 @@ EPOCH_ATTRIBUTION = f"{EPOCH_CITATION} ({CC_BY_4})"
 EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
     source: f"{credit}. Via {EPOCH_CITATION}"
     for source, credit in (
-        ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
         ("epoch_deepswe_external", "DeepSWE scores: Datacurve's DeepSWE leaderboard, https://deepswe.datacurve.ai/"),
         ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
                        "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model makers' "
@@ -98,8 +97,9 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
     Credit("models_dev", "models.dev (SST)", "Model prices, from each model maker's own entry", "https://models.dev",
            "MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
-    Credit("arc_prize", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI", "https://arcprize.org/leaderboard",
-           "ARC Prize Terms", "https://arcprize.org/terms"),
+    Credit("arc_prize", "ARC Prize Foundation", "ARC-AGI-2 public evaluation runs, scored by this app",
+           "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval", "MIT",
+           "https://opensource.org/license/mit"),
     Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
            "\u00a9 Datacurve; no licence published", None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
@@ -355,13 +355,6 @@ EPOCH_BOARDS: tuple[EpochBoard, ...] = (
         metric="% correct",
         score_column="mean_score",
         date_column="Started at",
-    ),
-    EpochBoard(
-        file="arc_agi_external.csv",
-        source_name="epoch_arc_agi",
-        benchmark="ARC-AGI",
-        metric="% correct",
-        score_column="Score",
     ),
     EpochBoard(
         file="webdev_arena_external.csv",

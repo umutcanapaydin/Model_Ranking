@@ -1,0 +1,51 @@
+{
+  "surface": "abstract",
+  "source": "arc_agi_2",
+  "benchmark": "ARC-AGI-2 (public eval)",
+  "ranked_population": 24,
+  "floor": 27.4,
+  "above_floor": [
+    [
+      "Claude Opus 4.6",
+      79.0278
+    ],
+    [
+      "Claude Opus 4.8",
+      76.9444
+    ],
+    [
+      "GPT-5.4",
+      75.8333
+    ],
+    [
+      "Grok 4.20",
+      63.6111
+    ],
+    [
+      "Grok 4.20 Multi-Agent Beta (0309)",
+      63.6111
+    ],
+    [
+      "GPT-5.2 Pro",
+      51.6667
+    ],
+    [
+      "Claude Opus 4.5",
+      40.2778
+    ],
+    [
+      "GPT-5.2",
+      39.5833
+    ],
+    [
+      "Gemini 3 Flash",
+      34.0278
+    ]
+  ],
+  "stderr": 2.066,
+  "stderr_from": "binomial over ARC-AGI-2's 120 public tasks, sqrt(p(1-p)/120), the median over the 61 derived settings at revision 026789c1",
+  "rule": "close_call = 2 x stderr; value_window ends mid-gap in the first gap wider than close_call past 3 candidates, else at the floor (D-194 clause 4)",
+  "close_call": 4.1,
+  "value_window": 9.5,
+  "candidates": 3
+}

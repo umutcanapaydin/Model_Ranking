@@ -12,6 +12,7 @@ import sqlite3
 from datetime import date
 
 from app.clients.aider import parse_polyglot, staleness_flag
+from app.clients.arc_prize import parse_arc_agi_2
 from app.clients.arena import ARENA_BOARDS, parse_arena
 from app.clients.deepswe import parse_deepswe
 from app.clients.epoch import (
@@ -179,6 +180,15 @@ def ingest_arena(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
         skipped=skipped,
         effort_unknown=unclassified,
     )
+    run.reports.append(report)
+    return report
+
+
+def ingest_arc_agi_2(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Read ARC Prize's committed public-evaluation derivation and replace its working set (REQ-SRC-012)."""
+    rows, skipped = parse_arc_agi_2(source.fetch_raw(), source=source.name)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
     run.reports.append(report)
     return report
 

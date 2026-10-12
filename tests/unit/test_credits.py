@@ -54,12 +54,12 @@ def test_an_attribution_with_no_credit_is_refused() -> None:
 
 
 def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() -> None:
-    owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
-    assert _ids(owed) == ["arc_prize", "epoch_compilation", "epoch", "litellm", "models_dev"]
+    owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
+    assert _ids(owed) == ["datacurve", "epoch_compilation", "epoch", "litellm", "models_dev"]
 
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
-    for source, publisher in (("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
+    for source, publisher in (("epoch_deepswe_external", "datacurve"),
                               ("epoch_mmlu", "helm"),
                               ("epoch_webdev", "arena_site")):
         assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch_compilation"], source
@@ -205,7 +205,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "aider": ("Apache-2.0", "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
         "litellm": ("MIT", "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
         "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
-        "arc_prize": ("ARC Prize Terms", "https://arcprize.org/terms"),
+        "arc_prize": ("MIT", "https://opensource.org/license/mit"),
         "datacurve": ("\u00a9 Datacurve; no licence published", None),
         "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",

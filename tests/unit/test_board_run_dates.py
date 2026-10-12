@@ -49,7 +49,7 @@ DATED_BOARDS = {
 #: engine discloses it (REQ-API-004). Pinned so a later edit cannot quietly invent a date for them
 #: by pointing `date_column` at "Release date" — which would report the model's birthday as the
 #: date its score was measured.
-UNDATED_BOARDS = {"epoch_eci", "epoch_arc_agi", "epoch_mmlu", "epoch_webdev"}
+UNDATED_BOARDS = {"epoch_eci", "epoch_mmlu", "epoch_webdev"}
 
 
 @pytest.mark.parametrize("source_name, column", sorted(DATED_BOARDS.items()))

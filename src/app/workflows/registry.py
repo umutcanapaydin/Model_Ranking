@@ -684,6 +684,7 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen2.5-7b-instruct": "Qwen2.5 7B Instruct",
     "qwen3-4b": "Qwen3 4B",
     "qwen3.5-122b-a10b": "Qwen3.5 122B A10B",
+    "qwen3-235b-a22b-instruct2507": "Qwen3 235B A22B Instruct 2507",  # #265: ranked by ARC-AGI-2 since D-194
     "qwen3.5-flash": "Qwen3.5 Flash",  # #265: priced by models.dev since D-194, so served
     "qwen3.5-plus": "Qwen3.5 Plus",
     "qwq-plus": "QwQ Plus",
@@ -708,6 +709,7 @@ DISPLAY_NAMES: dict[str, str] = {
     "codellama34b-instruct": "Code Llama 34B Instruct",  # huggingface.co/meta-llama/CodeLlama-34b-Instruct-hf
     "codellama70b-instruct": "Code Llama 70B Instruct",  # huggingface.co/meta-llama/CodeLlama-70b-Instruct-hf
     "llama2-7b-chat": "Llama 2 7B Chat",                 # huggingface.co/meta-llama/Llama-2-7b-chat-hf
+    "llama4-maverick17b128e-instruct": "Llama 4 Maverick 17B 128E Instruct",  # #265: ranked by ARC-AGI-2
     "llama3-70b-instruct": "Llama 3 70B Instruct",       # huggingface.co/meta-llama/Meta-Llama-3-70B-Instruct
     # Mistral: the names its model list gives each version (docs.mistral.ai/models)
     "devstral-small2505": "Devstral Small 1.0",                  # .../models/devstral-small-1-0-25-05

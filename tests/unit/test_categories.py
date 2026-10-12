@@ -275,7 +275,7 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
     the agreement can be computed rather than restated. That is what makes it a gate and not a
     second copy of the table.
     """
-    from app.clients import terminalbench
+    from app.clients import arc_prize, terminalbench
     from app.clients.arena import ARENA_BOARDS, METRIC
     from app.workflows.sources import EPOCH_BOARDS
 
@@ -289,6 +289,7 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
     boards |= {b.id: Declared(b.benchmark, METRIC) for b in ARENA_BOARDS.values()}
     # D-194 (#265): TB 4.0's client declares the benchmark and metric its rows carry.
     boards[terminalbench.SOURCE_NAME] = Declared(terminalbench.BENCHMARK, terminalbench.METRIC)
+    boards[arc_prize.SOURCE_NAME] = Declared(arc_prize.BENCHMARK, arc_prize.METRIC)
     checked = 0
     for name, spec in CATEGORIES.items():
         board = boards.get(spec.primary_source)
@@ -425,7 +426,7 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "expert": "epoch_gpqa",
         "mathematics": "epoch_aime",
         "computer-use": "terminalbench_4",  # D-194 (#265): TB 4.0's leaderboard, Apache-2.0
-        "abstract": "epoch_arc_agi",
+        "abstract": "arc_agi_2",  # D-194 (#265): ARC Prize's MIT public-evaluation runs
         "web-dev": "arena_webdev",  # #185 (M21-W1): LMArena's own board, under CC-BY-4.0
     }
     assert set(pairs) == set(CATEGORIES), "a surface was added or removed without pinning its source"

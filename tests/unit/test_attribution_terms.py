@@ -21,7 +21,6 @@ from app.workflows.rank import ATTRIBUTIONS, PRICING_ATTRIBUTION, SOURCE_ATTRIBU
 
 #: Each board Epoch compiles from another publisher -> the name and link its `Source` column gives.
 EXTERNAL = {
-    "epoch_arc_agi": ("ARC Prize", "https://arcprize.org/leaderboard"),
     "epoch_deepswe_external": ("DeepSWE", "https://deepswe.datacurve.ai/"),
     "epoch_webdev": ("WebDev Arena", "https://arena.ai/leaderboard"),
     "epoch_mmlu": ("Stanford CRFM", "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu"),

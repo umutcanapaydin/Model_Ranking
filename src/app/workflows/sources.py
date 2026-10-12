@@ -24,6 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.clients.aider import AiderClient, parse_polyglot
+from app.clients.arc_prize import ArcAgi2Client, parse_arc_agi_2
 from app.clients.arena import (
     ARENA_BOARDS,
     ArenaClient,
@@ -49,6 +50,7 @@ from app.workflows.ingest import (
     RunContext,
     SourceReport,
     ingest_aider,
+    ingest_arc_agi_2,
     ingest_arena,
     ingest_deepswe,
     ingest_epoch,
@@ -158,6 +160,16 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
     ),
     # D-194 (#265): TB 4.0's leaderboard, Apache-2.0, in place of Epoch's copy of TB 2.0. 21 submissions
     # on 2026-10-13; ten is a broken listing, not a quiet month.
+    # D-194 (#265): ARC Prize's own runs on ARC-AGI-2's public evaluation set, MIT, in place of Epoch's copy
+    # of its leaderboard. Read from the derivation committed at a pinned revision (`app.clients.arc_prize`),
+    # so it fails only on a broken file; 30 settings is well under the 50 the derivation holds.
+    RemoteSource(
+        name="arc_agi_2",
+        client=ArcAgi2Client,
+        ingest=ingest_arc_agi_2,
+        parse=parse_arc_agi_2,
+        minimum_rows=30,
+    ),
     RemoteSource(
         name="terminalbench_4",
         client=TerminalBench4Client,
