@@ -44,6 +44,35 @@ final class CreditsTests: OfflineTestCase {
         XCTAssertEqual(standings.attributions, ["a"])
     }
 
+    /// The Tester's B1: which empty text the sheet shows is decided here.
+    func testTheSheetSaysNotLoadedWithNoBoardsAndNotSentWithBoardsThatCarryNone() throws {
+        XCTAssertEqual(CreditsScreen.state(nil, .english), .notLoaded(UIText.creditsUnavailable(.english)))
+        let older = Data(#"{"api_version": "v1", "attributions": ["a"], "boards": [], "models": []}"#.utf8)
+        let standings = try JSONDecoder().decode(Standings.self, from: older)
+        XCTAssertEqual(CreditsScreen.state(standings, .turkish), .notSent(UIText.creditsNotSent(.turkish)))
+    }
+
+    /// The Tester's B1: each credit is listed with both links, each on a line of its own, so selecting
+    /// one copies the address alone; a publisher with no licence link has none.
+    func testEachCreditIsListedWithItsLinksOnLinesOfTheirOwn() throws {
+        let standings = try JSONDecoder().decode(Standings.self, from: payload)
+        guard case let .listed(rows) = CreditsScreen.state(standings, .english) else {
+            return XCTFail("the credits were not listed")
+        }
+        XCTAssertEqual(rows.map(\.id), ["swebench", "datacurve"])
+        XCTAssertEqual(rows[0].publisher, "SWE-bench")
+        XCTAssertEqual(rows[0].data, "SWE-bench leaderboard")
+        XCTAssertEqual(rows[0].dataLabel, UIText.creditsData(.english))
+        XCTAssertEqual(rows[0].dataLink, "https://www.swebench.com")
+        XCTAssertEqual(rows[0].licence, "\(UIText.creditsLicence(.english)): CC BY-NC 4.0")
+        XCTAssertEqual(rows[0].licenceLink, "https://creativecommons.org/licenses/by-nc/4.0/")
+        XCTAssertNil(rows[1].licenceLink)
+        guard case let .listed(turkish) = CreditsScreen.state(standings, .turkish) else {
+            return XCTFail("the credits were not listed in Turkish")
+        }
+        XCTAssertEqual(turkish[0].licence, "\(UIText.creditsLicence(.turkish)): CC BY-NC 4.0")
+    }
+
     func testTheCreditsScreenSpeaksBothLanguages() {
         let texts: [(Language) -> String] = [UIText.creditsTitle, UIText.creditsPurpose, UIText.creditsLicence,
                                              UIText.creditsData, UIText.creditsUnavailable, UIText.creditsNotSent]

@@ -205,6 +205,10 @@ def attributions_for(
             raise ValueError(msg)
         owed.add(citation)
     catalogue = [pricing if c == PRICING_ATTRIBUTION else c for c in ATTRIBUTIONS]
+    # The #260 Tester's M4: a citation outside the catalogue was dropped here, and served uncredited.
+    if stray := owed - set(catalogue):
+        msg = f"citations outside the catalogue (ATTRIBUTIONS): {sorted(stray)}"
+        raise ValueError(msg)
     return tuple(c for c in catalogue if c in owed)
 
 

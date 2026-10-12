@@ -389,6 +389,45 @@ struct Credit: Codable, Equatable, Identifiable {
     }
 }
 
+/// What the Credits sheet shows (#260), decided here, where `swift test` reaches it (the Tester's B1);
+/// the view only draws it.
+enum CreditsScreen: Equatable {
+    /// No boards yet: the credits come with them.
+    case notLoaded(String)
+    /// Boards from an engine older than the screen, which carry no credits.
+    case notSent(String)
+    case listed([CreditRow])
+
+    static func state(_ standings: Standings?, _ language: Language) -> CreditsScreen {
+        guard let standings else { return .notLoaded(UIText.creditsUnavailable(language)) }
+        guard let credits = standings.credits, !credits.isEmpty else {
+            return .notSent(UIText.creditsNotSent(language))
+        }
+        return .listed(credits.map { CreditRow($0, language) })
+    }
+}
+
+/// One credit's lines. Each link is a line of its own, so selecting it copies the address alone.
+struct CreditRow: Equatable, Identifiable {
+    let id: String
+    let publisher: String
+    let data: String
+    let dataLabel: String
+    let dataLink: String
+    let licence: String
+    let licenceLink: String?
+
+    init(_ credit: Credit, _ language: Language) {
+        id = credit.id
+        publisher = credit.publisher
+        data = credit.data
+        dataLabel = UIText.creditsData(language)
+        dataLink = credit.url
+        licence = "\(UIText.creditsLicence(language)): \(credit.licence)"
+        licenceLink = credit.licenceUrl
+    }
+}
+
 /// One board: its identity, dates and attribution, and its rankable models in order.
 struct BoardStandings: Codable, Equatable, Identifiable {
     let id: String

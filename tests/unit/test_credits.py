@@ -172,3 +172,43 @@ def test_the_credits_sheet_shows_what_the_engine_layer_decides() -> None:
     for line in ("row.publisher", "row.data", "row.dataLabel", "row.dataLink", "row.licence", "licenceLink"):
         assert re.search(rf"Text\({re.escape(line)}\)", sheet), line
 
+
+def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() -> None:
+    """The #260 Tester's M1: every credit's licence and licence link, pinned whole, so a credit cannot
+    claim a licence D-193 and `docs/research/data-licences-2026-10-04.md` do not give it."""
+    from app.workflows.board_tables import CREDITS
+
+    cc_by, cc_by_nc = "https://creativecommons.org/licenses/by/4.0/", "https://creativecommons.org/licenses/by-nc/4.0/"
+    assert {credit.id: (credit.licence, credit.licence_url) for credit in CREDITS.values()} == {
+        "lmarena": ("CC BY 4.0", cc_by),
+        "epoch": ("CC BY 4.0", cc_by),
+        "epoch_compilation": ("Each board keeps its publisher's licence or terms, named in that publisher's credit",
+                              None),
+        "swebench": ("CC BY-NC 4.0", cc_by_nc),
+        "aider": ("Apache-2.0", "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
+        "litellm": ("MIT", "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
+        "openrouter": ("OpenRouter Terms of Service", "https://openrouter.ai/terms"),
+        "arc_prize": ("ARC Prize Terms", "https://arcprize.org/terms"),
+        "datacurve": ("\u00a9 Datacurve; no licence published", None),
+        "terminal_bench": ("No licence stated on the leaderboard", None),
+        "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
+                 "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
+        "arena_site": ("Arena Terms of Use", "https://help.arena.ai/articles/5629909088-terms-of-use"),
+    }
+
+
+def test_the_boards_payload_refuses_a_served_citation_with_no_credit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The #260 Tester's M3: refused where the payload is built, not only in `credits_for`."""
+    conn = _conn()
+    _chess(conn)
+    monkeypatch.delitem(rank.CREDITS_BY_ATTRIBUTION, EPOCH_ATTRIBUTION)
+    with pytest.raises(ValueError, match="no credit"):
+        _payload(conn)
+
+
+def test_every_citation_a_source_can_owe_is_in_the_catalogue() -> None:
+    """The #260 Tester's M4: the maps' citations are the catalogue's, so none is dropped."""
+    catalogue = {*ATTRIBUTIONS, PRICING_ATTRIBUTION_LITELLM}
+    assert set(SOURCE_ATTRIBUTION.values()) <= catalogue
+    assert set(rank.METADATA_ATTRIBUTION.values()) <= catalogue
+

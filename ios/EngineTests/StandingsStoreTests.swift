@@ -80,23 +80,24 @@ final class StandingsStoreTests: OfflineTestCase {
         XCTAssertEqual(store().load()?.standings.credits, [])
     }
 
-    /// The #260 round-2 review's M1: an engine that sends no credits (before the #260 deploy, or after
-    /// a rollback) is asked once in a launch, not on every load. Dated by the clock, because the rule is
-    /// "kept since before this launch".
-    func testAnEngineThatSendsNoCreditsIsAskedOncePerLaunch() async throws {
+    /// The #260 round-2 review's M1 and the Tester's M2: an engine that sends no credits (before the
+    /// #260 deploy, or after a rollback) is asked at most once an hour, not on every load.
+    func testAnEngineThatSendsNoCreditsIsAskedAtMostHourly() async throws {
         let older = Data(String(decoding: standingsPayload, as: UTF8.self)
             .replacingOccurrences(of: #","credits":[]"#, with: "").utf8)
-        let earlier = Date().addingTimeInterval(-7200)
-        store().save(try FetchedStandings(payload: older), at: earlier)
+        store().save(try FetchedStandings(payload: older), at: arrived)
         var fetches = 0
         let fetch: () async throws -> FetchedStandings = {
             fetches += 1
             return try FetchedStandings(payload: older)
         }
-        _ = await store().current(now: Date(), fetch: fetch)
-        _ = await store().current(now: Date().addingTimeInterval(60), fetch: fetch)
-        _ = await store().current(now: Date().addingTimeInterval(120), fetch: fetch)
-        XCTAssertEqual(fetches, 1, "an engine with no credits was asked on every load")
+        _ = await store().current(now: arrived.addingTimeInterval(3_600), fetch: fetch)
+        XCTAssertEqual(fetches, 1, "a copy without credits an hour old was not fetched again")
+        _ = await store().current(now: arrived.addingTimeInterval(3_660), fetch: fetch)
+        _ = await store().current(now: arrived.addingTimeInterval(7_000), fetch: fetch)
+        XCTAssertEqual(fetches, 1, "an engine with no credits was asked again within the hour")
+        _ = await store().current(now: arrived.addingTimeInterval(7_200), fetch: fetch)
+        XCTAssertEqual(fetches, 2, "an engine with no credits was not asked again after the hour")
     }
 
     func testTheSecondDayServesAndStoresTheRefetchAndWaitsADayAgain() async throws {

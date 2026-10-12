@@ -743,29 +743,25 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Text(UIText.creditsPurpose(language)).font(.footnote).foregroundStyle(.secondary)
-                if let credits = standings?.credits, !credits.isEmpty {
-                    ForEach(credits) { credit in
+                // The Tester's B1: what is shown is `CreditsScreen`'s, held by `swift test`.
+                switch CreditsScreen.state(standings, language) {
+                case let .listed(rows):
+                    ForEach(rows) { row in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(credit.publisher).font(.headline)
-                            Text(credit.data).font(.subheadline)
-                            // The link has a `Text` of its own, so selecting it copies the address
-                            // alone (the round-2 review's M4).
-                            Text(UIText.creditsData(language)).font(.caption)
-                            Text(credit.url).font(.caption).foregroundStyle(.secondary)
-                            Text("\(UIText.creditsLicence(language)): \(credit.licence)")
-                                .font(.caption)
-                            if let licenceUrl = credit.licenceUrl {
-                                Text(licenceUrl).font(.caption).foregroundStyle(.secondary)
+                            Text(row.publisher).font(.headline)
+                            Text(row.data).font(.subheadline)
+                            Text(row.dataLabel).font(.caption)
+                            Text(row.dataLink).font(.caption).foregroundStyle(.secondary)
+                            Text(row.licence).font(.caption)
+                            if let licenceLink = row.licenceLink {
+                                Text(licenceLink).font(.caption).foregroundStyle(.secondary)
                             }
                         }
                         .textSelection(.enabled)
                         .accessibilityElement(children: .combine)
                     }
-                } else if standings != nil {
-                    // Loaded from an engine older than the screen (the round-2 review's M1).
-                    Text(UIText.creditsNotSent(language)).foregroundStyle(.secondary)
-                } else {
-                    Text(UIText.creditsUnavailable(language)).foregroundStyle(.secondary)
+                case let .notSent(text), let .notLoaded(text):
+                    Text(text).foregroundStyle(.secondary)
                 }
             }
             .navigationTitle(UIText.creditsTitle(language))
