@@ -165,7 +165,9 @@ engine's lifespan (`src/app/adapter/nightly.py`). It is on only with
 environment.
 
 - **When:** once a night, at a random minute between 23:00 and 01:00 local time.
-  - At startup, after 60 seconds, it runs once if the last good cycle is more than a day old.
+  - At startup, after 60 seconds, it runs once if the last good cycle is more than a day old, or
+    if the served data was built by a release other than the engine's own `APP_BUILD` (#258: a
+    deploy refuses such data, #198, so a newly installed release would otherwise wait a night).
   - A run that falls due after its window closed (a Mac asleep) runs only if the data is a day old.
   - A nightly run is skipped when a good cycle ran in the last 4 hours.
 - **How:** a child process, `python -m app.workflows.refresh --db ... --fetch-epoch`. It takes

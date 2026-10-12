@@ -1,7 +1,8 @@
 """The engine's own nightly refresh (D-149 clauses 2 and 4, D-151, D-154).
 
 Once a night, at a minute picked at random inside 23:00-01:00 local, and once at startup when the
-last good cycle is more than a day old, the engine runs `python -m app.workflows.refresh` -- the
+last good cycle is more than a day old or the served data was built by another release (#258), the
+engine runs `python -m app.workflows.refresh` -- the
 existing entry point and nothing else, so the lock, the safe publish and the refusal to publish a
 worse candidate stay the one definition of "safe to serve" (D-149 clause 2).
 
@@ -159,6 +160,15 @@ def needs_catch_up(record: dict[str, object] | None, now: float) -> bool:
     return now - at > CATCH_UP_AFTER.total_seconds()
 
 
+def built_by_another(record: dict[str, object] | None, build: str) -> bool:
+    """#258: the served data names a builder other than this engine's release. A deploy refuses such
+    data (#198), so a release installed after the night's window waited a day to be deployable; it
+    catches up at startup instead. An engine that cannot name itself (`unknown`) keeps D-151's rule."""
+    if record is None or build == "unknown":
+        return False
+    return record.get("served_built_by") != build
+
+
 async def read_tail(stream: asyncio.StreamReader, tail: bytearray) -> None:
     """Read `stream` to its end, keeping only its last `OUTPUT_TAIL_BYTES` in `tail`."""
     while chunk := await stream.read(65536):
@@ -238,6 +248,8 @@ class NightlyRefresh:
     rng: random.Random = field(default_factory=random.Random)
     timeout: float = TIMEOUT_SECONDS
     grace: float = STARTUP_GRACE_SECONDS
+    #: The server's `APP_BUILD` (#258): served data another release built is caught up at startup.
+    build: str = "unknown"
     #: What `/health` reports. Written only by this object, on the event loop.
     next_run: dt.datetime | None = None
     running_since: float | None = None
@@ -261,7 +273,8 @@ class NightlyRefresh:
             _LOG.error("nightly refresh: not started: %s", problem)
             return None
         db = Path(raw).resolve()
-        return cls(db=db, command=refresh_command(db, os.environ.get(EPOCH_DIR, "").strip()))
+        return cls(db=db, command=refresh_command(db, os.environ.get(EPOCH_DIR, "").strip()),
+                   build=os.environ.get("APP_BUILD", "").strip() or "unknown")
 
     async def run_once(self, trigger: str) -> int | None:
         """One cycle in a child process. Returns its exit code, or None if it had to be killed or
@@ -362,7 +375,8 @@ class NightlyRefresh:
     async def serve(self) -> None:
         """The whole schedule. Runs until cancelled; nothing a cycle does can end it."""
         try:
-            if needs_catch_up(read_record(self.db), self.wall()):
+            record = read_record(self.db)
+            if needs_catch_up(record, self.wall()) or built_by_another(record, self.build):
                 await self.sleep(self.grace)
                 await self.run_once("catch-up")
         except Exception:
