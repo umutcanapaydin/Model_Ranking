@@ -4400,6 +4400,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-193 (2026-10-12)**: the owner ruled on clause 3's table source by source; no source is left out, and every served publisher is credited on the app's Credits screen (#260).
 
+**Amended by D-194 (2026-10-13)**: clause 3's table -- `epoch_arc_agi`, `epoch_deepswe_external`, `epoch_terminalbench` and `openrouter` are replaced by their publishers' licensed data and no longer built (#265).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -4563,6 +4565,8 @@ answer to the family list on more questions than ours (`docs/judgement-sheet.md`
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
 
 **Amended by D-190 (2026-10-09)**: clause 1's table -- `web-dev`'s family is `arena_webdev`, `arena_text_coding`; Epoch's copy of the same board stands outside (#185).
+
+**Amended by D-194 (2026-10-13)**: clause 1's table -- `agentic-coding`, `computer-use` and `abstract` rank on licensed boards (`deepswe`, `terminalbench_4`, `arc_agi_2`), with `terminalbench_2` and `arc_agi_1` in their families (#265).
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -4810,3 +4814,67 @@ testers or the App Store (guideline 5.2.2). A paid app ends SWE-bench's place (C
 
 **Revisit when:** a publisher answers, the app becomes paid, or the owner rules on Terminal-Bench 4.0.
 
+**Amended by D-194 (2026-10-13)**: clauses 1 and 2 -- ARC-AGI, DeepSWE, Terminal-Bench and OpenRouter move to their publishers' licensed data instead of waiting for permission (#265).
+
+## D-194 — The unlicensed boards and OpenRouter's prices move to their publishers' licensed data
+
+**Status:** accepted -- decided by the owner on 2026-10-13. They first wrote "Terminal-Bench to the TB 4.0
+repository rows (Apache); ARC-AGI, DeepSWE, OpenRouter left out, no search for alternatives; do not touch
+web-dev (D-190); update D-185's table". Asked how that sat with their ruling of 2026-10-12 ("do not hide
+any data"), they chose "move them to the licensed alternatives", and "yes, do it" for the Terminal-Bench
+move and the table (owner, translated from Turkish) · **Date:** 2026-10-13 · **Amends** D-185 clause 3,
+D-188 clause 1 (the families table) and D-193 clauses 1 and 2 · from #265.
+
+**Context.** D-193 served ARC-AGI (`epoch_arc_agi`, ARC Prize's terms bar commercial use), DeepSWE
+(`epoch_deepswe_external`, no licence published), Terminal-Bench (`epoch_terminalbench`, Epoch's copy of
+TB 2.0, no licence stated) and OpenRouter's prices (`openrouter`, its terms bar use of its data) while the
+owner asked each publisher. On 2026-10-12 and 2026-10-13 the agent found that each publisher, or the
+benchmark's maintainer, puts out the same kind of data under a licence:
+
+| replaced | by | licence | what it holds |
+|---|---|---|---|
+| `epoch_terminalbench` | `terminalbench_4`: `harbor-framework/terminal-bench`, `leaderboard/submissions/*.json` | Apache-2.0 | TB 4.0's official leaderboard, 21 submissions, live |
+| | `terminalbench_2`: `harborframework/terminal-bench-2-leaderboard` on Hugging Face | Apache-2.0 | TB 2.0's raw submissions, 76 folders, closed 2026-05-14; each job's `result.json` carries its mean reward |
+| `epoch_arc_agi` | `arc_agi_2` and `arc_agi_1`: `arcprize/arc_agi_v2_public_eval`, `arcprize/arc_agi_v1_public_eval` on Hugging Face | MIT | ARC Prize's own runs on the **public** evaluation set, a `results.json` per model setting (32 and 34 today) |
+| `epoch_deepswe_external` | `deepswe`: `datacurve/deep-swe-leaderboard` on Hugging Face | CC BY 4.0 | Datacurve's runs, one job dated 2026-06-06, whose `result.json` carries each agent and model's mean; gated, approved automatically, read with a Hugging Face token |
+| `openrouter` | `models_dev`: `models.dev/api.json` (`sst/models.dev`) | MIT | about 8,500 models' prices per million tokens |
+
+**Decision.**
+1. **Each unlicensed source is replaced, not left out.** The four sources above are no longer ingested;
+   their replacements are declared sources with a parser test on a recorded fixture and a contract test.
+   `public.LEFT_OUT` stays empty: nothing unlicensed is built, so nothing is removed.
+2. **Surfaces and families** (D-188 clause 1, amended):
+   - `computer-use` ranks on `terminalbench_4`; its family is `terminalbench_4`, `terminalbench_2`,
+     `arena_agent`. The two versions are two boards (D-105): their task sets differ.
+   - `abstract` ranks on `arc_agi_2`; its family is `arc_agi_2`, `arc_agi_1`, `epoch_chess`, `epoch_mystery`.
+     These are public-evaluation scores, so they are higher than arcprize.org's semi-private ones, and the
+     surface says so in its benchmark name.
+   - `agentic-coding` ranks on `deepswe`; its family is `deepswe`, `terminalbench_4`, `terminalbench_2`,
+     `arena_agent`.
+   - `models_dev` takes `openrouter`'s place as the second price source; the median's shape is unchanged.
+3. **DeepSWE is optional.** Its data is read with the owner's Hugging Face token (`HF_TOKEN` in the
+   engine's environment). Without it, or before the owner accepts the dataset's terms, the source fails
+   like an optional Arena source: the build exits 3 and names it, last good data is carried forward
+   (D-156), and with none `agentic-coding` says it has no evidence (D-121). It is the one optional source
+   that is not Arena's.
+4. **Each new board's window and close-call margin are measured on it** under D-148 clause 2 (M8's rule:
+   candidates within reach on the ranked population), and the record is kept beside the code.
+5. **Credits:** each new publisher is credited with its licence and link (D-193 clause 3). ARC Prize,
+   Datacurve and Harbor (Terminal-Bench) are credited for their own data, no longer as compiled by Epoch.
+6. **The calls are new external APIs from production code** (`permission-matrix.md` §3, ASK). This ruling
+   is the owner's answer; each goes through `app.clients`, with the bounded fetch and a host list.
+
+**The alternatives not taken.** Leaving the three out (the owner's first wording of 2026-10-13): it
+darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refused, and they chose the
+move when asked. Waiting for permission (D-193): the licensed data is already published.
+
+**The cost.**
+- `abstract` ranks fewer models: 66 model settings carry a `results.json` today, against Epoch's 79 models.
+  The other folders hold per-task attempts that carry `correct`; scoring them is follow-up work.
+- `computer-use` ranks on about 17 priced models from TB 4.0, where it ranked 42 from TB 2.0. TB 2.0's
+  models stay in its family.
+- `agentic-coding` goes dark on the hosted engine until the owner's token is in place.
+- About 500 fetches to Hugging Face a night, most for TB 2.0's job files.
+
+**Revisit when:** a publisher changes its licence, ARC Prize publishes its leaderboard's scores under a
+licence, or TB 4.0 ranks as many priced models as TB 2.0.
