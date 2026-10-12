@@ -370,6 +370,39 @@ public enum UIText {
         language == .turkish ? "Temizle" : "Clear"
     }
 
+    // MARK: #260, the Credits screen (the owner's D-185 ruling of 2026-10-12)
+
+    public static func creditsButton(_ language: Language) -> String {
+        language == .turkish ? "Kaynaklar" : "Credits"
+    }
+
+    public static func creditsTitle(_ language: Language) -> String {
+        language == .turkish ? "Kaynaklar ve lisanslar" : "Sources and licences"
+    }
+
+    /// What the screen is for, and the two notices an attribution licence asks for: that the lists are
+    /// this app's own combination of the data, and that the data comes without warranty.
+    public static func creditsPurpose(_ language: Language) -> String {
+        language == .turkish
+            ? "Sıralamalar bu yayıncıların ölçümlerinden ve fiyatlarından kurulur. Uygulamadaki listeler bu verilerin uygulamanın kendi birleştirmesidir. Veriler her yayıncının yayımladığı gibi, hiçbir garanti olmadan gösterilir."
+            : "The rankings are built from these publishers' measurements and prices. The lists in this app are its own combination of that data. The data is shown as each publisher published it, without any warranty."
+    }
+
+    public static func creditsLicence(_ language: Language) -> String {
+        language == .turkish ? "Lisans" : "Licence"
+    }
+
+    public static func creditsData(_ language: Language) -> String {
+        language == .turkish ? "Veri" : "Data"
+    }
+
+    /// The credits come with the boards; an engine that sends none, or no boards yet, leaves this.
+    public static func creditsUnavailable(_ language: Language) -> String {
+        language == .turkish
+            ? "Kaynaklar tablolarla birlikte gelir. Uygulamayı bir kez internete bağlıyken açın."
+            : "The credits come with the boards. Open the app once while it is online."
+    }
+
     // MARK: - The screen's chrome (M15 UI refresh)
     //
     // **These eleven were written for the 2026-09-22 refresh and then DELETED by accident**, when

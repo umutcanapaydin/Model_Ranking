@@ -65,6 +65,53 @@ ARENA_ATTRIBUTION = (
 
 
 @dataclass(frozen=True)
+class Credit:
+    """One publisher as the Credits screen names it (#260): who, what, where the data is published,
+    and the licence or terms it is published under. `licence_url` is `None` where the publisher states
+    none. The engine sends these as data; the phone shows the links as text it can select."""
+
+    id: str
+    publisher: str
+    data: str
+    url: str
+    licence: str
+    licence_url: str | None
+
+
+_CC_BY_URL = "https://creativecommons.org/licenses/by/4.0/"
+#: The owner's D-185 ruling of 2026-10-12 (#260): every publisher whose data the engine serves. What
+#: each licence says is `docs/research/data-licences-2026-10-04.md`; the ruling is D-193.
+CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
+    Credit("lmarena", "LMArena", "Arena leaderboard dataset: the text, vision, document, search, WebDev "
+           "and agent boards", "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+           "CC BY 4.0", _CC_BY_URL),
+    Credit("epoch", "Epoch AI", "Capabilities & benchmarking: its own boards, and its compilations of the "
+           "boards credited to their publishers here", "https://epoch.ai/benchmarks", "CC BY 4.0", _CC_BY_URL),
+    Credit("swebench", "SWE-bench", "SWE-bench leaderboard", "https://www.swebench.com", "CC BY-NC 4.0",
+           "https://creativecommons.org/licenses/by-nc/4.0/"),
+    Credit("aider", "Aider", "Aider polyglot leaderboard", "https://github.com/Aider-AI/aider", "Apache-2.0",
+           "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
+    Credit("litellm", "BerriAI", "LiteLLM model prices", "https://github.com/BerriAI/litellm", "MIT",
+           "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
+    Credit("openrouter", "OpenRouter", "Public model catalogue: prices", "https://openrouter.ai/api/v1/models",
+           "OpenRouter Terms of Service", "https://openrouter.ai/terms"),
+    Credit("arc_prize", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI", "https://arcprize.org/leaderboard",
+           "ARC Prize Terms", "https://arcprize.org/terms"),
+    Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
+           "\u00a9 Datacurve; no licence published", None),
+    Credit("terminal_bench", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
+           "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
+    Credit("helm", "Stanford CRFM HELM and the model makers", "MMLU scores: HELM Lite, and the model makers' "
+           "technical reports on arXiv, compiled by Epoch AI", "https://crfm.stanford.edu/helm/lite/latest/",
+           "Apache-2.0 (HELM); each report as its authors published it",
+           "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
+    Credit("arena_site", "LMArena (arena.ai)", "WebDev Arena leaderboard, compiled by Epoch AI",
+           "https://arena.ai/leaderboard", "Arena Terms of Use",
+           "https://help.arena.ai/articles/5629909088-terms-of-use"),
+)}
+
+
+@dataclass(frozen=True)
 class ArenaSlice:
     """One category slice of one config, declared as data and stored as its own board."""
 

@@ -344,12 +344,38 @@ struct Standings: Codable, Equatable {
     let attributions: [String]
     let boards: [BoardStandings]
     let models: [StandingModel]
+    /// #260: each publisher the attributions credit, for the Credits screen. `nil` from an engine
+    /// that predates them, so a phone ahead of its engine still reads the boards.
+    var credits: [Credit]? = nil
 
     enum CodingKeys: String, CodingKey {
         case apiVersion = "api_version"
         case attributions
         case boards
         case models
+        case credits
+    }
+}
+
+/// One publisher on the Credits screen (#260): who, what, where its data is published, and the licence
+/// or terms it is under. The links stay text: D-126's compiled gate refuses a `URL` made from a string
+/// and every way to open one, so the reader selects and copies them.
+struct Credit: Codable, Equatable, Identifiable {
+    let id: String
+    let publisher: String
+    let data: String
+    let url: String
+    let licence: String
+    /// `nil` where the publisher states no licence.
+    let licenceUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case publisher
+        case data
+        case url
+        case licence
+        case licenceUrl = "licence_url"
     }
 }
 

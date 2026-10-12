@@ -20,6 +20,7 @@ from app.workflows.board_tables import (
     ARENA_ATTRIBUTION,
     ARENA_SLICES,
     CC_BY_NC_4,
+    CREDITS,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
 )
@@ -103,6 +104,35 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "epoch_chess": EPOCH_ATTRIBUTION,
     "epoch_mystery": EPOCH_ATTRIBUTION,
 }
+
+
+#: #260: the publishers each citation credits, in the order the Credits screen names them. Keyed by the
+#: citation, so a payload's credits follow from the attributions it already owes: a source cannot be
+#: attributed and left off the screen, and a citation with no entry here is refused (`credits_for`).
+CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
+    ARENA_ATTRIBUTION: ("lmarena",),
+    PRICING_ATTRIBUTION: ("litellm", "openrouter"),
+    PRICING_ATTRIBUTION_LITELLM: ("litellm",),
+    SWEBENCH_ATTRIBUTION: ("swebench",),
+    AIDER_ATTRIBUTION: ("aider",),
+    EPOCH_ATTRIBUTION: ("epoch",),
+    # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124).
+    **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch") for source, publisher in (
+        ("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
+        ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
+}
+
+
+def credits_for(attributions: Iterable[str]) -> list[dict[str, str | None]]:
+    """#260: the publishers a payload's attributions credit, each once, in the order they come."""
+    ids: list[str] = []
+    for citation in attributions:
+        owed = CREDITS_BY_ATTRIBUTION.get(citation)
+        if owed is None:
+            msg = f"no credit for the attribution {citation!r}; add it to CREDITS_BY_ATTRIBUTION"
+            raise ValueError(msg)
+        ids.extend(credit for credit in owed if credit not in ids)
+    return [asdict(CREDITS[credit]) for credit in ids]
 
 
 def secondary_evidence_sources(conn: sqlite3.Connection, spec: CategorySpec) -> set[str]:

@@ -48,6 +48,8 @@ struct ContentView: View {
     /// REQ-GAP-001/002 (M14-W3). What people asked that nothing here measures, kept on this device.
     @State private var gaps = GapRegisterStore.onDevice.load()
     @State private var showingGaps = false
+    /// #260: the Credits screen, every publisher the boards credit.
+    @State private var showingCredits = false
     /// D-167/D-168 (M17-W5). Every board's standings, kept on this device for a day and fetched the
     /// same way whatever the reader asks, and the refinements the reader removed from this question.
     @State private var standings: Standings?
@@ -124,6 +126,19 @@ struct ContentView: View {
                     .accessibilityLabel(UIText.gapsTitle(language))
                     .accessibilityIdentifier("gaps")
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    // #260: the publishers, their licences and links, beside the register.
+                    Button { showingCredits = true } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "info.circle")
+                            Text(UIText.creditsButton(language))
+                        }
+                        .font(.footnote)
+                        .padding(.horizontal, 4)
+                    }
+                    .accessibilityLabel(UIText.creditsTitle(language))
+                    .accessibilityIdentifier("credits")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     // D-136. Two flags, because a flag is the one label that needs no language to
                     // read — which is the whole problem this milestone is about.
@@ -146,6 +161,7 @@ struct ContentView: View {
             .toolbar { ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) } }
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
+            .sheet(isPresented: $showingCredits) { creditsSheet }
             .task { await load() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { onDevice = TieredRouter.onDeviceState() }
@@ -721,6 +737,39 @@ struct ContentView: View {
                     .disabled(gaps.entries.isEmpty)
                 }
             }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    /// #260 (the owner's D-185 ruling): every publisher the served boards credit, with what it
+    /// publishes, its licence and both links. The links are selectable text: D-126 keeps every way to
+    /// open a URL out of the client, so the reader copies one into a browser.
+    private var creditsSheet: some View {
+        NavigationStack {
+            List {
+                Text(UIText.creditsPurpose(language)).font(.footnote).foregroundStyle(.secondary)
+                if let credits = standings?.credits, !credits.isEmpty {
+                    ForEach(credits) { credit in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(credit.publisher).font(.headline)
+                            Text(credit.data).font(.subheadline)
+                            Text("\(UIText.creditsData(language)): \(credit.url)")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text("\(UIText.creditsLicence(language)): \(credit.licence)")
+                                .font(.caption)
+                            if let licenceUrl = credit.licenceUrl {
+                                Text(licenceUrl).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .textSelection(.enabled)
+                        .accessibilityElement(children: .combine)
+                    }
+                } else {
+                    Text(UIText.creditsUnavailable(language)).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle(UIText.creditsTitle(language))
+            .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
     }

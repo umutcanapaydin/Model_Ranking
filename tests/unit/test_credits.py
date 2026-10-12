@@ -84,7 +84,7 @@ def test_the_boards_payload_carries_the_credits_its_attributions_owe() -> None:
     _chess(conn)
     payload = _payload(conn)
     assert payload["credits"] == credits_for(payload["attributions"])
-    assert [c["id"] for c in payload["credits"]] == ["epoch", "litellm"]
+    assert [c["id"] for c in payload["credits"]] == ["litellm", "epoch"]  # the catalogue order
 
 
 def test_the_boards_payload_credits_openrouter_when_it_serves_its_prices() -> None:
