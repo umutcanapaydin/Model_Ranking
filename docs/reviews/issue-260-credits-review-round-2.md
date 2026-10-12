@@ -144,7 +144,7 @@ None
 
 | finding | disposition |
 |---|---|
-| M1 | Fixed in `2a4bb34`, red in `0cfa146`. A kept copy without credits is fetched again once in a launch (`StandingsStore.launched`, dated when a store is made); a copy fetched since is kept. The first try read the launch only in the check, and `--parallel` measured two fetches: a `static let` starts on first use, after the fetch's own time. The empty sheet's text is right again: with an engine that sends none, the boards loaded once this launch and carry none, which the sheet states as "not loaded" only before the first fetch. |
+| M1 | Fixed in `2a4bb34`, red in `0cfa146`. A kept copy without credits is fetched again once in a launch (`StandingsStore.launched`, dated when a store is made); a copy fetched since is kept. The first try read the launch only in the check, and `--parallel` measured two fetches: a `static let` starts on first use, after the fetch's own time. The empty sheet's text: with boards that carry no credits it says the server sends none yet, and it says "not loaded" only when no boards are loaded (`b5e1adf`). |
 | M2 | Fixed in `2a4bb34`. The modification and warranty sentences are asserted in both languages, and LMArena's copyright notice in Python. `CreditsTests.swift` is in `.language-allow` for its Turkish assertions, as `LanguageTests.swift` is. |
 | M3 | Fixed in `2a4bb34`, red in `0cfa146`. `attributions_for` checks boards against `SOURCE_ATTRIBUTION` alone and metadata against `METADATA_ATTRIBUTION`; an unknown metadata source is named there. |
 | M4 | Fixed in `2a4bb34`. The data link is a `Text` of its own. |
