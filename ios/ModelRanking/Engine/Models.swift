@@ -398,6 +398,12 @@ enum CreditsScreen: Equatable {
     case notSent(String)
     case listed([CreditRow])
 
+    /// The notices CC BY 4.0 section 3(a)(1) asks for, at the top of the sheet: how the app changes the
+    /// data, and that it comes without warranty (the Tester's round-2 B1: owned here, so a test holds it).
+    static func notice(_ language: Language) -> String {
+        UIText.creditsPurpose(language)
+    }
+
     static func state(_ standings: Standings?, _ language: Language) -> CreditsScreen {
         guard let standings else { return .notLoaded(UIText.creditsUnavailable(language)) }
         guard let credits = standings.credits, !credits.isEmpty else {

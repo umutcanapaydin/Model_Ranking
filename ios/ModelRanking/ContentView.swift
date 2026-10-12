@@ -742,7 +742,7 @@ struct ContentView: View {
     private var creditsSheet: some View {
         NavigationStack {
             List {
-                Text(UIText.creditsPurpose(language)).font(.footnote).foregroundStyle(.secondary)
+                Text(CreditsScreen.notice(language)).font(.footnote).foregroundStyle(.secondary)
                 // The Tester's B1: what is shown is `CreditsScreen`'s, held by `swift test`.
                 switch CreditsScreen.state(standings, language) {
                 case let .listed(rows):

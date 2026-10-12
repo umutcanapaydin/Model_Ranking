@@ -44,12 +44,25 @@ final class CreditsTests: OfflineTestCase {
         XCTAssertEqual(standings.attributions, ["a"])
     }
 
-    /// The Tester's B1: which empty text the sheet shows is decided here.
+    /// The Tester's B1: which empty text the sheet shows is decided here. An empty list is no credits
+    /// either (the round-2 seat's F8).
     func testTheSheetSaysNotLoadedWithNoBoardsAndNotSentWithBoardsThatCarryNone() throws {
         XCTAssertEqual(CreditsScreen.state(nil, .english), .notLoaded(UIText.creditsUnavailable(.english)))
         let older = Data(#"{"api_version": "v1", "attributions": ["a"], "boards": [], "models": []}"#.utf8)
         let standings = try JSONDecoder().decode(Standings.self, from: older)
         XCTAssertEqual(CreditsScreen.state(standings, .turkish), .notSent(UIText.creditsNotSent(.turkish)))
+        let none = Data(#"{"api_version": "v1", "attributions": ["a"], "boards": [], "models": [], "credits": []}"#.utf8)
+        XCTAssertEqual(CreditsScreen.state(try JSONDecoder().decode(Standings.self, from: none), .english),
+                       .notSent(UIText.creditsNotSent(.english)))
+    }
+
+    /// The Tester's round-2 B1: the notice the sheet draws carries CC BY's two notices in both languages.
+    func testTheSheetsNoticeSaysHowTheDataIsChangedAndThatItComesWithoutWarranty() {
+        XCTAssertEqual(CreditsScreen.notice(.english), UIText.creditsPurpose(.english))
+        XCTAssertTrue(CreditsScreen.notice(.english).contains("ranks each board again"))
+        XCTAssertTrue(CreditsScreen.notice(.english).contains("without any warranty"))
+        XCTAssertTrue(CreditsScreen.notice(.turkish).contains("yeniden sıralar"))
+        XCTAssertTrue(CreditsScreen.notice(.turkish).contains("garanti olmadan"))
     }
 
     /// The Tester's B1: each credit is listed with both links, each on a line of its own, so selecting
