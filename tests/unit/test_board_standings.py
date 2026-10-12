@@ -19,7 +19,7 @@ from app.workflows.schema import connect
 
 from .test_api_v1 import _seeded_db
 
-ENVELOPE_KEYS = {"api_version", "attributions", "boards", "models"}
+ENVELOPE_KEYS = {"api_version", "attributions", "credits", "boards", "models"}  # #260: credits
 PAYLOAD_KEYS = ENVELOPE_KEYS - {"api_version"}  # the route adds the version (review M5)
 BOARD_KEYS = {"id", "benchmark", "metric", "ranking_effort", "evidence_date", "observed_at",
               "attribution", "standings"}
