@@ -113,3 +113,28 @@ def test_the_pricing_credit_names_models_dev_and_its_licence() -> None:
     credit = board_tables.CREDITS["models_dev"]
     assert (credit.licence, credit.url) == ("MIT", "https://models.dev")
     assert "openrouter" not in board_tables.CREDITS
+
+
+def test_a_model_another_maker_made_is_not_read_from_the_catalogue_that_resells_it() -> None:
+    """covers REQ-ING-005 (#265): the live catalogue lists Zhipu's GLM under Mistral and Alibaba, and
+    DeepSeek under Alibaba and NVIDIA. Read as the maker's price, each was a reseller's, and its route
+    named the wrong vendor for the registry (`alibaba/glm-5.2`)."""
+    catalogue = json.dumps({
+        "alibaba": {"models": {
+            "qwen3-32b": {"cost": {"input": 0.7, "output": 2.8}},
+            "glm-5.2": {"cost": {"input": 1.4, "output": 4.4}},
+            "deepseek-v4-flash-0731": {"cost": {"input": 0.2, "output": 0.4}},
+        }},
+        "mistral": {"models": {
+            "mistral-large-3": {"cost": {"input": 2, "output": 6}},
+            "zai-glm-5-2": {"cost": {"input": 1.4, "output": 4.4}},
+        }},
+        "nvidia": {"models": {
+            "nemotron-ultra-4": {"cost": {"input": 0.6, "output": 1.8}},
+            "deepseek-ai/deepseek-v4-flash": {"cost": {"input": 0.14, "output": 0.28}},
+            "llama-3.3-nemotron-super-49b": {"cost": {"input": 0.1, "output": 0.4}},
+        }},
+    })
+    rows, skipped = _client().parse_models_dev(catalogue)
+    assert sorted(r.alias for r in rows) == ["alibaba/qwen3-32b", "mistral/mistral-large-3", "nvidia/nemotron-ultra-4"]
+    assert skipped == 5
