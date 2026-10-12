@@ -186,7 +186,7 @@ def test_export_carries_attribution(tmp_path: Path) -> None:
     attributions = " ".join(payload["attribution"])
     assert "CC-BY-4.0" in attributions
     assert "lmarena-ai/leaderboard-dataset" in attributions
-    assert "OpenRouter" in attributions
+    assert "models.dev" in attributions
     # W4 review BLOCKING-2: an export cites the sources IT carries. This ranking is
     # Arena-only, so claiming SWE-bench/Aider/Epoch here would be a false provenance
     # claim — the exact defect the static catalogue produced in every payload.

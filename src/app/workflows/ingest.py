@@ -19,7 +19,7 @@ from app.clients.epoch import (
 )
 from app.clients.epoch import validate_last_verified
 from app.clients.litellm import parse_pricing
-from app.clients.openrouter import parse_models
+from app.clients.models_dev import parse_models_dev
 from app.clients.protocols import RawSource, SourceError
 from app.clients.swebench import parse_verified
 from app.workflows.registry import resolve_effort
@@ -71,9 +71,9 @@ def ingest_litellm(conn: sqlite3.Connection, source: RawSource, run: RunContext)
     return report
 
 
-def ingest_openrouter(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
-    """Fetch + parse OpenRouter catalog pricing (REQ-ING-005/-004)."""
-    rows, skipped = parse_models(source.fetch_raw(), source=source.name, source_url=source.url)
+def ingest_models_dev(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse the models.dev makers' prices (REQ-ING-005/-004, D-194)."""
+    rows, skipped = parse_models_dev(source.fetch_raw(), source=source.name, source_url=source.url)
     _store_pricing(conn, source.name, rows, run)
     report = SourceReport(source=source.name, stored=len(rows), skipped=skipped)
     run.reports.append(report)

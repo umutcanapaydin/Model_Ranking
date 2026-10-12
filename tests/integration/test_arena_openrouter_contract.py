@@ -1,4 +1,6 @@
-"""Contract tests vs the real Arena datasets-server + OpenRouter APIs — env-gated.
+"""Contract tests vs the real Arena datasets-server and models.dev — env-gated.
+
+The file keeps its name from before D-194, when the second price source was OpenRouter (#265).
 
 These CANNOT run in the build sandbox (network allowlist); they run on the
 owner's machine or in GitHub CI with RUN_CONTRACT_TESTS=1 (REQ-CI-001).
@@ -13,13 +15,20 @@ from app.clients.arena_slices import SLICE_CONFIGS
 pytestmark = pytest.mark.needs("contract")  # #137: RUN_CONTRACT_TESTS=1 and the network
 
 
-def test_real_openrouter_catalog_satisfies_parser_contract() -> None:
-    """REQ-ING-005 acceptance: live catalog yields ≥100 priced models."""
-    from app.clients.openrouter import OpenRouterClient, parse_models
+def test_real_models_dev_catalogue_satisfies_parser_contract() -> None:
+    """REQ-ING-005 acceptance: the live catalogue yields ≥100 priced models from the makers' own entries,
+    every maker `MAKERS` names is still listed, and Anthropic's prices read in $/1M."""
+    import json
 
-    rows, skipped = parse_models(OpenRouterClient().fetch_raw())
+    from app.clients.models_dev import MAKERS, ModelsDevClient, parse_models_dev
+
+    raw = ModelsDevClient().fetch_raw()
+    assert set(MAKERS) <= set(json.loads(raw)), sorted(set(MAKERS) - set(json.loads(raw)))
+    rows, skipped = parse_models_dev(raw)
     assert len(rows) >= 100, f"only {len(rows)} priced models (skipped={skipped})"
     assert all(r.input_per_m > 0 for r in rows)
+    anthropic = [r for r in rows if r.alias.startswith("anthropic/")]
+    assert anthropic and all(0.1 <= r.input_per_m <= 100 for r in anthropic), anthropic
 
 
 def test_real_arena_latest_satisfies_parser_contract() -> None:

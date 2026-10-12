@@ -126,20 +126,22 @@ def test_a_public_answer_credits_only_the_prices_it_serves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
 ) -> None:
     """MJ1: every priced answer credited "OpenRouter's public model catalog", whose prices the public
-    artifact does not carry. The credit follows the price sources present; the full artifact keeps it."""
+    artifact did not carry. The credit follows the price sources present; the full artifact keeps it.
+    Since D-194 the second price source is models.dev, planted as left out here to test the machinery."""
     from app.adapter import main
 
+    monkeypatch.setitem(public.LEFT_OUT, "models_dev", "planted for the test")
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
     with sqlite3.connect(built) as conn:
         conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
-                     " observed_at) SELECT alias, model_id, input_per_m, output_per_m, 'openrouter',"
-                     " 'https://openrouter.ai/api/v1/models', observed_at FROM pricing WHERE source = 'litellm'")
+                     " observed_at) SELECT alias, model_id, input_per_m, output_per_m, 'models_dev',"
+                     " 'https://models.dev/api.json', observed_at FROM pricing WHERE source = 'litellm'")
     public.derive(built, served)
-    for path, credits_openrouter in ((built, True), (served, False)):
+    for path, credits_second in ((built, True), (served, False)):
         monkeypatch.setenv("MODEL_RANKING_DB", str(path))
         credits = " ".join(TestClient(main.app).get("/v1/boards").json()["attributions"])
-        assert ("OpenRouter" in credits) is credits_openrouter, (path.name, credits)
+        assert ("models.dev" in credits) is credits_second, (path.name, credits)
         assert "litellm" in credits, credits
 
 
@@ -264,7 +266,8 @@ def test_a_priced_payload_must_say_which_price_sources_it_serves() -> None:
     assert attributions_for(["swebench"], priced=False) == (SWEBENCH_ATTRIBUTION,), "an unpriced payload names none"
     assert attributions_for([], priced=True, pricing_sources=None) == (PRICING_ATTRIBUTION,)
     assert attributions_for([], priced=True, pricing_sources={"litellm"}) == (PRICING_ATTRIBUTION_LITELLM,)
-    assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (PRICING_ATTRIBUTION,)
+    assert attributions_for([], priced=True, pricing_sources={"litellm", "models_dev"}) == (PRICING_ATTRIBUTION,)
+    assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (PRICING_ATTRIBUTION_LITELLM,)
 
 
 def test_d186_supersedes_d185s_list_and_says_so() -> None:

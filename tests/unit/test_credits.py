@@ -55,7 +55,7 @@ def test_an_attribution_with_no_credit_is_refused() -> None:
 
 def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() -> None:
     owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
-    assert _ids(owed) == ["arc_prize", "epoch_compilation", "epoch", "litellm", "openrouter"]
+    assert _ids(owed) == ["arc_prize", "epoch_compilation", "epoch", "litellm", "models_dev"]
 
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
@@ -75,8 +75,8 @@ def test_epochs_licence_is_claimed_for_its_own_boards_only() -> None:
     assert "compil" not in CREDITS["epoch"].data.lower()
 
 
-def test_prices_credit_openrouter_only_where_its_prices_are_served() -> None:
-    assert _ids([PRICING_ATTRIBUTION]) == ["litellm", "openrouter"]
+def test_prices_credit_models_dev_only_where_its_prices_are_served() -> None:
+    assert _ids([PRICING_ATTRIBUTION]) == ["litellm", "models_dev"]
     assert _ids([PRICING_ATTRIBUTION_LITELLM]) == ["litellm"]
 
 
@@ -98,12 +98,12 @@ def test_the_boards_payload_carries_the_credits_its_attributions_owe() -> None:
     assert [c["id"] for c in payload["credits"]] == ["litellm", "epoch"]  # the catalogue order
 
 
-def test_the_boards_payload_credits_openrouter_when_it_serves_its_prices() -> None:
+def test_the_boards_payload_credits_models_dev_when_it_serves_its_prices() -> None:
     conn: sqlite3.Connection = _conn()
     _chess(conn)
     conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url, observed_at) "
-                 "VALUES ('a', 'a', 1.0, 2.0, 'openrouter', 'u', '2026-09-25')")
-    assert "openrouter" in [c["id"] for c in _payload(conn)["credits"]]
+                 "VALUES ('a', 'a', 1.0, 2.0, 'models_dev', 'u', '2026-09-25')")
+    assert "models_dev" in [c["id"] for c in _payload(conn)["credits"]]
 
 
 def test_the_accessibility_epoch_publishes_is_credited_whatever_boards_are_served() -> None:
@@ -204,7 +204,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "swebench": ("CC BY-NC 4.0", cc_by_nc),
         "aider": ("Apache-2.0", "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
         "litellm": ("MIT", "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
-        "openrouter": ("OpenRouter Terms of Service", "https://openrouter.ai/terms"),
+        "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
         "arc_prize": ("ARC Prize Terms", "https://arcprize.org/terms"),
         "datacurve": ("\u00a9 Datacurve; no licence published", None),
         "terminal_bench": ("No licence stated on the leaderboard", None),

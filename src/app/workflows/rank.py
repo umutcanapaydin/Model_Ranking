@@ -37,11 +37,10 @@ BLEND_NOTE = "blended $/1M = input*0.75 + output*0.25"
 # an `assistant` answer ranks purely on Arena Elo, and claiming SWE-bench, Aider and
 # Epoch alongside it is a false provenance claim in a machine contract. Payloads build
 # their list from the evidence they actually used, via `attributions_for`.
-# #124: each publisher under its own licence, with links. OpenRouter's terms state no attribution
-# clause for its catalogue, so the credit claims none (`app.clients.openrouter`).
+# #124: each publisher under its own licence, with links. D-194: the second price source is models.dev
+# (MIT) in OpenRouter's place, whose terms licensed no use of its catalogue.
 PRICING_ATTRIBUTION = (
-    "Pricing data: BerriAI/litellm (MIT) and OpenRouter's public model catalog, "
-    "https://openrouter.ai/api/v1/models"
+    "Pricing data: BerriAI/litellm (MIT) and models.dev (MIT), https://models.dev"
 )
 #: The credit where the served prices are LiteLLM's alone, as in the hosted engine's public artifact
 #: (#88, D-185; the M19-W5 review's MJ1): crediting a catalogue the artifact does not carry is a
@@ -117,7 +116,7 @@ METADATA_ATTRIBUTION: dict[str, str] = {
 #: attributed and left off the screen, and a citation with no entry here is refused (`credits_for`).
 CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     ARENA_ATTRIBUTION: ("lmarena",),
-    PRICING_ATTRIBUTION: ("litellm", "openrouter"),
+    PRICING_ATTRIBUTION: ("litellm", "models_dev"),
     PRICING_ATTRIBUTION_LITELLM: ("litellm",),
     SWEBENCH_ATTRIBUTION: ("swebench",),
     AIDER_ATTRIBUTION: ("aider",),
@@ -180,14 +179,14 @@ def attributions_for(
     ``priced`` adds the pricing citation for payloads that rank on $/1M (the model
     engine). The subscription engine ranks on the curated plan table's monthly price
     and must not claim the per-token pricing feeds it never read. ``pricing_sources`` names the
-    price sources the served artifact holds (`served_pricing_sources`): OpenRouter is credited only
+    price sources the served artifact holds (`served_pricing_sources`): models.dev is credited only
     where its prices are; with `None`, the whole catalogue's credit (an export on the owner's Mac). A
-    priced call must say which: one that forgot would credit OpenRouter again.
+    priced call must say which: one that forgot would credit a catalogue it does not serve.
     """
     if priced and pricing_sources is _UNSAID:
         msg = "a priced payload names the price sources it serves (served_pricing_sources), or None"
         raise TypeError(msg)
-    pricing = (PRICING_ATTRIBUTION if pricing_sources is None or "openrouter" in set(pricing_sources)
+    pricing = (PRICING_ATTRIBUTION if pricing_sources is None or "models_dev" in set(pricing_sources)
                else PRICING_ATTRIBUTION_LITELLM)
     owed = {pricing} if priced else set()
     for source in evidence_sources:

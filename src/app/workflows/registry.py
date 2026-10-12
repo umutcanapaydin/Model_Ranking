@@ -488,6 +488,8 @@ _VENDOR_SLUGS: dict[str, str] = {
     "x-ai": "xAI", "xai": "xAI", "moonshotai": "Moonshot", "z-ai": "Zhipu", "zai-org": "Zhipu",
     "amazon": "Amazon", "microsoft": "Microsoft", "nvidia": "NVIDIA", "minimax": "MiniMax",
     "cohere": "Cohere", "ai21": "AI21", "xiaomi": "Xiaomi", "baidu": "Baidu", "tencent": "Tencent",
+    # #265: makers models.dev lists, whose models only OpenRouter priced before D-194.
+    "upstage": "Upstage", "stepfun": "StepFun", "arcee-ai": "Arcee",
 }
 #: When no route names a vendor, the family word a derived id starts with.
 _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
@@ -500,6 +502,19 @@ _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
     ("mimo", "Xiaomi"), ("command", "Cohere"), ("jamba", "AI21"),
 )
 
+
+
+def route_vendor(slug: str) -> str | None:
+    """The vendor a price feed's route segment names (`x-ai` is xAI), or None for one this registry
+    does not know."""
+    return _VENDOR_SLUGS.get(slug.lower())
+
+
+def named_vendors(name: str) -> frozenset[str]:
+    """The vendors whose family words begin a word of ``name`` (D-194, #265): a maker's catalogue also
+    lists other makers' models (`zai-glm-5-2` under Mistral), and its price for one is a reseller's."""
+    words = re.split(r"[^a-z0-9]+", name.lower())
+    return frozenset(vendor for word in words for prefix, vendor in _FAMILY_VENDORS if word.startswith(prefix))
 
 
 _FIRST_WORD = re.compile(r"[A-Za-z]+")

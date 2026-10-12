@@ -279,21 +279,20 @@ def test_o3_mini_high_is_stored_as_o3_mini_at_high_effort_on_the_path_a_build_ta
     import json
 
     from app.clients.fakes import FakeRawSource
-    from app.workflows.ingest import RunContext, ingest_arena, ingest_openrouter
+    from app.workflows.ingest import RunContext, ingest_arena, ingest_models_dev
 
     board = json.dumps({"rows": [
         {"row_idx": i, "row": {"model_name": name, "rating": rating, "category": "overall",
                                "leaderboard_publish_date": "2026-09-13"}}
         for i, (name, rating) in enumerate([("o3-mini", 1300.0), ("o3-mini-high", 1320.0)])
     ], "num_rows_total": 2})
-    catalog = json.dumps({"data": [
-        {"id": slug, "pricing": {"prompt": "0.0000011", "completion": "0.0000044"}}
-        for slug in ("openai/o3-mini", "openai/o3-mini-high")
-    ]})
+    catalog = json.dumps({"openai": {"models": {
+        name: {"cost": {"input": 1.1, "output": 4.4}} for name in ("o3-mini", "o3-mini-high")
+    }}})
     conn = connect(":memory:")
     run = RunContext(observed_at="t")
     ingest_arena(conn, FakeRawSource("arena", board), run)
-    ingest_openrouter(conn, FakeRawSource("openrouter", catalog), run)
+    ingest_models_dev(conn, FakeRawSource("models_dev", catalog), run)
     report = reconcile(conn)
     assert conn.execute("SELECT raw_name, model_id, effort FROM scores ORDER BY raw_name").fetchall() == [
         ("o3-mini", "o3-mini", "unspecified"), ("o3-mini-high", "o3-mini", "high")]

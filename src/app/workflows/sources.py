@@ -40,7 +40,7 @@ from app.clients.deepswe import DeepSWEClient
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
-from app.clients.openrouter import OpenRouterClient, parse_models
+from app.clients.models_dev import ModelsDevClient, parse_models_dev
 from app.clients.protocols import RawSource
 from app.clients.swebench import SweBenchClient, parse_verified
 from app.workflows.board_tables import EPOCH_BOARDS as _EPOCH_BOARDS
@@ -52,7 +52,7 @@ from app.workflows.ingest import (
     ingest_deepswe,
     ingest_epoch,
     ingest_litellm,
-    ingest_openrouter,
+    ingest_models_dev,
     ingest_swebench,
 )
 
@@ -78,7 +78,7 @@ class RemoteSource:
     """Whether this source contributes EVIDENCE rows (`scores`) rather than pricing.
 
     The distinction was implicit until M8 and cost a test its meaning: a guard asserting that
-    every ingested source can be attributed swept in `litellm` and `openrouter`, which write
+    every ingested source can be attributed swept in `litellm` and `openrouter` (then the second price source), which write
     `pricing` and never appear in `scores.source`, so it demanded citations for data that is
     never cited. Only evidence needs attribution, and only this field says which is which.
     """
@@ -132,10 +132,11 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         writes_scores=False,  # pricing, not evidence
     ),
     RemoteSource(
-        name="openrouter",
-        client=OpenRouterClient,
-        ingest=ingest_openrouter,
-        parse=parse_models,
+        # D-194: the second price source, in OpenRouter's place; the makers' own entries only.
+        name="models_dev",
+        client=ModelsDevClient,
+        ingest=ingest_models_dev,
+        parse=parse_models_dev,
         minimum_rows=50,
         writes_scores=False,  # pricing, not evidence
     ),
