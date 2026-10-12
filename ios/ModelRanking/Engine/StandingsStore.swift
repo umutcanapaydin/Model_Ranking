@@ -27,12 +27,19 @@ struct LoadedStandings {
 public struct StandingsStore {
     public let url: URL
 
+    /// When this launch began, as the first store made in it saw the clock (the #260 round-2 review's
+    /// M1): a copy without credits kept from before it is fetched again once, and a copy fetched since
+    /// is kept, whatever the engine sent. A `static let` starts on first use, so `init` reads it: a
+    /// store is made before it fetches, and so the launch is dated before any fetch it makes.
+    static let launched = Date()
+
     /// A day, the refresh cadence the owner ruled (D-167 clause 1). The engine itself refreshes
     /// nightly (D-151), so asking more often would fetch the same bytes.
     static let maxAge: TimeInterval = 86_400
 
     public init(url: URL) {
         self.url = url
+        _ = Self.launched
     }
 
     /// The caches directory: public data the phone can always fetch again, so the system may purge
@@ -92,9 +99,10 @@ public struct StandingsStore {
     func currentKept(now: Date, fetch: () async throws -> FetchedStandings) async -> KeptStandings? {
         let stored = load()
         // The #260 review's M2: a copy kept by a build from before the Credits screen holds no credits,
-        // and is fetched again at once rather than leaving the screen empty for up to a day.
-        if let stored, stored.standings.credits != nil, stored.fetchedAt <= now,
-           now.timeIntervalSince(stored.fetchedAt) < Self.maxAge {
+        // and is fetched again rather than leaving the screen empty for up to a day; once a launch
+        // (round 2's M1), so an engine that sends none is not asked on every load.
+        if let stored, stored.standings.credits != nil || stored.fetchedAt >= Self.launched,
+           stored.fetchedAt <= now, now.timeIntervalSince(stored.fetchedAt) < Self.maxAge {
             return KeptStandings(standings: stored.standings, fetchedAt: stored.fetchedAt)
         }
         do {

@@ -748,8 +748,10 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(credit.publisher).font(.headline)
                             Text(credit.data).font(.subheadline)
-                            Text("\(UIText.creditsData(language)): \(credit.url)")
-                                .font(.caption).foregroundStyle(.secondary)
+                            // The link has a `Text` of its own, so selecting it copies the address
+                            // alone (the round-2 review's M4).
+                            Text(UIText.creditsData(language)).font(.caption)
+                            Text(credit.url).font(.caption).foregroundStyle(.secondary)
                             Text("\(UIText.creditsLicence(language)): \(credit.licence)")
                                 .font(.caption)
                             if let licenceUrl = credit.licenceUrl {

@@ -372,10 +372,6 @@ public enum UIText {
 
     // MARK: #260, the Credits screen (the owner's D-185 ruling of 2026-10-12)
 
-    public static func creditsButton(_ language: Language) -> String {
-        language == .turkish ? "Kaynaklar" : "Credits"
-    }
-
     public static func creditsTitle(_ language: Language) -> String {
         language == .turkish ? "Kaynaklar ve lisanslar" : "Sources and licences"
     }

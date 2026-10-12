@@ -138,3 +138,12 @@ def test_an_accessibility_source_nobody_credits_is_refused_by_its_own_map() -> N
     with pytest.raises(ValueError, match="METADATA_ATTRIBUTION"):
         _payload(conn)
 
+
+def test_lmarenas_credit_keeps_its_copyright_notice() -> None:
+    """CC BY 4.0 section 3(a)(1)(A)(ii): the copyright notice the dataset's own credit carries (the
+    #260 review's M3, held since round 2's M2)."""
+    from app.workflows.board_tables import ARENA_ATTRIBUTION
+
+    assert "\u00a9 LMArena" in ARENA_ATTRIBUTION
+    assert credits_for([ARENA_ATTRIBUTION])[0]["data"].startswith("\u00a9 LMArena")
+

@@ -172,7 +172,8 @@ _UNSAID: frozenset[str] = frozenset({"<unsaid>"})
 
 
 def attributions_for(
-    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = _UNSAID
+    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = _UNSAID,
+    metadata_sources: Iterable[str] = (),
 ) -> tuple[str, ...]:
     """The citations a payload actually owes, in catalogue order.
 
@@ -190,9 +191,17 @@ def attributions_for(
                else PRICING_ATTRIBUTION_LITELLM)
     owed = {pricing} if priced else set()
     for source in evidence_sources:
-        citation = SOURCE_ATTRIBUTION.get(source) or METADATA_ATTRIBUTION.get(source)
+        citation = SOURCE_ATTRIBUTION.get(source)
         if citation is None:
             msg = f"unattributed evidence source {source!r}; add it to SOURCE_ATTRIBUTION"
+            raise ValueError(msg)
+        owed.add(citation)
+    # The #260 round-2 review's M3: metadata is looked up in its own map, so a board never passes the
+    # board check on a metadata source's citation, and an unknown one is named where it belongs.
+    for source in metadata_sources:
+        citation = METADATA_ATTRIBUTION.get(source)
+        if citation is None:
+            msg = f"unattributed metadata source {source!r}; add it to METADATA_ATTRIBUTION"
             raise ValueError(msg)
         owed.add(citation)
     catalogue = [pricing if c == PRICING_ATTRIBUTION else c for c in ATTRIBUTIONS]

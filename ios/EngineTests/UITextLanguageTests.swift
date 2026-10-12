@@ -29,7 +29,6 @@ final class UITextLanguageTests: OfflineTestCase {
             ("gapsTitle", { UIText.gapsTitle($0) }),
             ("noGaps", { UIText.noGaps($0) }),
             ("clearGaps", { UIText.clearGaps($0) }),
-            ("creditsButton", { UIText.creditsButton($0) }),
             ("creditsTitle", { UIText.creditsTitle($0) }),
             ("creditsPurpose", { UIText.creditsPurpose($0) }),
             ("creditsLicence", { UIText.creditsLicence($0) }),

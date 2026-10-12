@@ -45,13 +45,19 @@ final class CreditsTests: OfflineTestCase {
     }
 
     func testTheCreditsScreenSpeaksBothLanguages() {
-        let texts: [(Language) -> String] = [UIText.creditsButton, UIText.creditsTitle, UIText.creditsPurpose,
-                                             UIText.creditsLicence, UIText.creditsData, UIText.creditsUnavailable]
+        let texts: [(Language) -> String] = [UIText.creditsTitle, UIText.creditsPurpose, UIText.creditsLicence,
+                                             UIText.creditsData, UIText.creditsUnavailable]
         for text in texts {
             XCTAssertFalse(text(.english).isEmpty)
             XCTAssertNotEqual(text(.english), text(.turkish))
         }
+        // CC BY 4.0 section 3(a)(1): the notice of modification and the warranty disclaimer, in both
+        // languages (the round-2 review's M2).
+        XCTAssertTrue(UIText.creditsPurpose(.english).contains("ranks each board again"))
+        XCTAssertTrue(UIText.creditsPurpose(.english).contains("combines boards"))
         XCTAssertTrue(UIText.creditsPurpose(.english).contains("without any warranty"))
+        XCTAssertTrue(UIText.creditsPurpose(.turkish).contains("yeniden sıralar"))
+        XCTAssertTrue(UIText.creditsPurpose(.turkish).contains("birleştirir"))
         XCTAssertTrue(UIText.creditsPurpose(.turkish).contains("garanti olmadan"))
     }
 }

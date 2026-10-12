@@ -139,8 +139,9 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
     ]
     # The #260 review's M1: the accessibility served is credited too, whatever boards are served.
     accessible = {model["id"] for model in models if model["accessibility"] is not None}
-    credited = [b["id"] for b in boards] + sorted(access_served.sources(conn, accessible))
-    attributions = list(attributions_for(credited, priced=True, pricing_sources=served_pricing_sources(conn)))
+    attributions = list(attributions_for([b["id"] for b in boards], priced=True,
+                                         pricing_sources=served_pricing_sources(conn),
+                                         metadata_sources=sorted(access_served.sources(conn, accessible))))
     return {
         "attributions": attributions,
         # #260: each publisher those attributions credit, with its licence and links, for the
