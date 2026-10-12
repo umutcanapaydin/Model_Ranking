@@ -147,3 +147,28 @@ def test_lmarenas_credit_keeps_its_copyright_notice() -> None:
     assert "\u00a9 LMArena" in ARENA_ATTRIBUTION
     assert credits_for([ARENA_ATTRIBUTION])[0]["data"].startswith("\u00a9 LMArena")
 
+
+def test_a_citation_outside_the_catalogue_is_refused_not_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The #260 Tester's M4: `attributions_for` kept only the catalogue's citations, so a metadata source
+    whose citation was credited but not catalogued was served with no attribution and no credit."""
+    stray = "Metadata: somebody's model list"
+    monkeypatch.setitem(rank.METADATA_ATTRIBUTION, "somebody_meta", stray)
+    monkeypatch.setitem(rank.CREDITS_BY_ATTRIBUTION, stray, ("epoch",))
+    with pytest.raises(ValueError, match="catalogue"):
+        rank.attributions_for([], priced=False, metadata_sources=["somebody_meta"])
+
+
+def test_the_credits_sheet_shows_what_the_engine_layer_decides() -> None:
+    """The #260 Tester's B1: the sheet's state and lines are decided in the Engine (`CreditsScreen`),
+    where `swift test` holds them; the view draws them, each link in a `Text` of its own, selectable."""
+    import pathlib
+    import re
+
+    view = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(encoding="utf-8")
+    sheet = view[view.index("private var creditsSheet"):]
+    sheet = sheet[: sheet.index("\n    }\n") + 6]
+    assert "CreditsScreen.state(standings, language)" in sheet
+    assert ".textSelection(.enabled)" in sheet
+    for line in ("row.publisher", "row.data", "row.dataLabel", "row.dataLink", "row.licence", "licenceLink"):
+        assert re.search(rf"Text\({re.escape(line)}\)", sheet), line
+
