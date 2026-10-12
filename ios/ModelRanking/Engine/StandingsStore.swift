@@ -27,6 +27,12 @@ struct LoadedStandings {
 public struct StandingsStore {
     public let url: URL
 
+    /// A copy kept without credits, by a build from before the Credits screen or from an engine older
+    /// than it, is kept this long rather than a day (#260): the screen fills within the hour, and an
+    /// engine that sends none is asked at most once an hour. Dated by `now` alone, so the rule holds
+    /// in any order (the Tester's M2; a launch date, read lazily, did not).
+    static let maxAgeWithoutCredits: TimeInterval = 3_600
+
     /// A day, the refresh cadence the owner ruled (D-167 clause 1). The engine itself refreshes
     /// nightly (D-151), so asking more often would fetch the same bytes.
     static let maxAge: TimeInterval = 86_400
@@ -91,7 +97,11 @@ public struct StandingsStore {
     /// newer one could not be fetched can be said on screen (M18-W2 review M3, #72).
     func currentKept(now: Date, fetch: () async throws -> FetchedStandings) async -> KeptStandings? {
         let stored = load()
-        if let stored, stored.fetchedAt <= now, now.timeIntervalSince(stored.fetchedAt) < Self.maxAge {
+        // The #260 review's M2: a copy without credits is fetched again within the hour rather than
+        // leaving the screen empty for up to a day; and only hourly (round 2's M1), so an engine that
+        // sends none is not asked on every load.
+        let kept = stored?.standings.credits == nil ? Self.maxAgeWithoutCredits : Self.maxAge
+        if let stored, stored.fetchedAt <= now, now.timeIntervalSince(stored.fetchedAt) < kept {
             return KeptStandings(standings: stored.standings, fetchedAt: stored.fetchedAt)
         }
         do {

@@ -78,3 +78,5 @@ MMLU) keep their publishers' own licences, as Epoch says; each is credited to it
 that carry it (#124).
 This citation also travels in every ranking export and recommendation payload source list
 (REQ-LIC-001).
+The app's Credits screen names every publisher the served boards credit, with its licence or terms and
+its links, from `/v1/boards`' `credits` (D-193, #260).

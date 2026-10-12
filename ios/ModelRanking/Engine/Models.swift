@@ -344,12 +344,93 @@ struct Standings: Codable, Equatable {
     let attributions: [String]
     let boards: [BoardStandings]
     let models: [StandingModel]
+    /// #260: each publisher the attributions credit, for the Credits screen. `nil` from an engine
+    /// that predates them, so a phone ahead of its engine still reads the boards. A `let`: the store
+    /// reads it, and a privacy sink reads no mutable state (INV-66).
+    let credits: [Credit]?
+
+    init(apiVersion: String, attributions: [String], boards: [BoardStandings], models: [StandingModel],
+         credits: [Credit]? = nil) {
+        self.apiVersion = apiVersion
+        self.attributions = attributions
+        self.boards = boards
+        self.models = models
+        self.credits = credits
+    }
 
     enum CodingKeys: String, CodingKey {
         case apiVersion = "api_version"
         case attributions
         case boards
         case models
+        case credits
+    }
+}
+
+/// One publisher on the Credits screen (#260): who, what, where its data is published, and the licence
+/// or terms it is under. The links stay text: D-126's compiled gate refuses a `URL` made from a string
+/// and every way to open one, so the reader selects and copies them.
+struct Credit: Codable, Equatable, Identifiable {
+    let id: String
+    let publisher: String
+    let data: String
+    let url: String
+    let licence: String
+    /// `nil` where the publisher states no licence.
+    let licenceUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case publisher
+        case data
+        case url
+        case licence
+        case licenceUrl = "licence_url"
+    }
+}
+
+/// What the Credits sheet shows (#260), decided here, where `swift test` reaches it (the Tester's B1);
+/// the view only draws it.
+enum CreditsScreen: Equatable {
+    /// No boards yet: the credits come with them.
+    case notLoaded(String)
+    /// Boards from an engine older than the screen, which carry no credits.
+    case notSent(String)
+    case listed([CreditRow])
+
+    /// The notices CC BY 4.0 section 3(a)(1) asks for, at the top of the sheet: how the app changes the
+    /// data, and that it comes without warranty (the Tester's round-2 B1: owned here, so a test holds it).
+    static func notice(_ language: Language) -> String {
+        UIText.creditsPurpose(language)
+    }
+
+    static func state(_ standings: Standings?, _ language: Language) -> CreditsScreen {
+        guard let standings else { return .notLoaded(UIText.creditsUnavailable(language)) }
+        guard let credits = standings.credits, !credits.isEmpty else {
+            return .notSent(UIText.creditsNotSent(language))
+        }
+        return .listed(credits.map { CreditRow($0, language) })
+    }
+}
+
+/// One credit's lines. Each link is a line of its own, so selecting it copies the address alone.
+struct CreditRow: Equatable, Identifiable {
+    let id: String
+    let publisher: String
+    let data: String
+    let dataLabel: String
+    let dataLink: String
+    let licence: String
+    let licenceLink: String?
+
+    init(_ credit: Credit, _ language: Language) {
+        id = credit.id
+        publisher = credit.publisher
+        data = credit.data
+        dataLabel = UIText.creditsData(language)
+        dataLink = credit.url
+        licence = "\(UIText.creditsLicence(language)): \(credit.licence)"
+        licenceLink = credit.licenceUrl
     }
 }
 

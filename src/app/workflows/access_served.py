@@ -10,6 +10,14 @@ from __future__ import annotations
 import sqlite3
 
 
+def sources(conn: sqlite3.Connection, model_ids: set[str]) -> set[str]:
+    """The sources of the accessibility served for `model_ids`, so a payload credits them (#260)."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'access'").fetchone():
+        return set()
+    return {source for model_id, source in conn.execute(
+        "SELECT DISTINCT model_id, source FROM access WHERE model_id IS NOT NULL") if model_id in model_ids}
+
+
 def served(conn: sqlite3.Connection) -> dict[str, str]:
     """model id -> accessibility, for the models whose names agree.
 

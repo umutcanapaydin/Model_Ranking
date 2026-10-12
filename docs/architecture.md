@@ -153,6 +153,10 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 - **Credits follow what is served.** Each answer's `sources` and `attributions` name the boards it
   ranks on, each with its own licence and original source (#124), and the price sources the artifact
   carries (`rank.served_pricing_sources`, D-185): the public artifact credits LiteLLM alone.
+  `/v1/boards` also carries `credits`: each publisher its attributions credit, with what it publishes,
+  its link, its licence or terms and the licence's link (`board_tables.CREDITS`, derived through
+  `rank.CREDITS_BY_ATTRIBUTION`; a citation with no credit is refused). The app's Credits screen shows
+  them, the links as selectable text (D-193, #260).
 - **The serving process loads no ingestion code.** Importing `app.adapter.main` loads no
   `app.clients` module, no `app.workflows.ingest`, no `httpx` and no `pyarrow` (W-125, fixed in
   M18-W6). The record types and tables both sides need live in client-free modules.

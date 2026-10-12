@@ -370,6 +370,42 @@ public enum UIText {
         language == .turkish ? "Temizle" : "Clear"
     }
 
+    // MARK: #260, the Credits screen (the owner's D-185 ruling of 2026-10-12)
+
+    public static func creditsTitle(_ language: Language) -> String {
+        language == .turkish ? "Kaynaklar ve lisanslar" : "Sources and licences"
+    }
+
+    /// What the screen is for, and the two notices an attribution licence asks for (CC BY 4.0 section
+    /// 3(a)(1)): how the app changed the data, and that it comes without warranty (the #260 review's M3).
+    public static func creditsPurpose(_ language: Language) -> String {
+        language == .turkish
+            ? "Sıralamalar bu yayıncıların ölçümlerinden ve fiyatlarından kurulur. Uygulama bunları değiştirerek gösterir: her tabloyu fiyatını bildiği modeller arasında yeniden sıralar ve tabloları kendi listelerinde birleştirir. Veriler yayıncılarından hiçbir garanti olmadan gelir."
+            : "The rankings are built from these publishers' measurements and prices. The app changes how they are shown: it ranks each board again among the models it can price, and combines boards into lists of its own. The data comes from its publishers without any warranty."
+    }
+
+    public static func creditsLicence(_ language: Language) -> String {
+        language == .turkish ? "Lisans" : "Licence"
+    }
+
+    public static func creditsData(_ language: Language) -> String {
+        language == .turkish ? "Veri" : "Data"
+    }
+
+    /// The boards loaded, from an engine older than the Credits screen (the #260 round-2 review's M1).
+    public static func creditsNotSent(_ language: Language) -> String {
+        language == .turkish
+            ? "Uygulamanın bağlandığı sunucu kaynak bilgisini henüz göndermiyor."
+            : "The server this app reads does not send its credits yet."
+    }
+
+    /// The credits come with the boards, which have not loaded yet.
+    public static func creditsUnavailable(_ language: Language) -> String {
+        language == .turkish
+            ? "Kaynaklar tablolarla birlikte gelir. Tablolar henüz yüklenmedi."
+            : "The credits come with the boards, which have not loaded yet."
+    }
+
     // MARK: - The screen's chrome (M15 UI refresh)
     //
     // **These eleven were written for the 2026-09-22 refresh and then DELETED by accident**, when

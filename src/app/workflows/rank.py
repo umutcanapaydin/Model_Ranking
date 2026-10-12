@@ -20,6 +20,7 @@ from app.workflows.board_tables import (
     ARENA_ATTRIBUTION,
     ARENA_SLICES,
     CC_BY_NC_4,
+    CREDITS,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
 )
@@ -103,6 +104,42 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "epoch_chess": EPOCH_ATTRIBUTION,
     "epoch_mystery": EPOCH_ATTRIBUTION,
 }
+#: Sources a payload serves that are not boards, and the citation each obliges (the #260 review's
+#: M1). Apart from `SOURCE_ATTRIBUTION`, whose keys are the boards the engine can serve.
+METADATA_ATTRIBUTION: dict[str, str] = {
+    # Each model's accessibility, from Epoch's model metadata (CC BY, the licence review's row 2).
+    "epoch_access": EPOCH_ATTRIBUTION,
+}
+
+
+#: #260: the publishers each citation credits, in the order the Credits screen names them. Keyed by the
+#: citation, so a payload's credits follow from the attributions it already owes: a source cannot be
+#: attributed and left off the screen, and a citation with no entry here is refused (`credits_for`).
+CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
+    ARENA_ATTRIBUTION: ("lmarena",),
+    PRICING_ATTRIBUTION: ("litellm", "openrouter"),
+    PRICING_ATTRIBUTION_LITELLM: ("litellm",),
+    SWEBENCH_ATTRIBUTION: ("swebench",),
+    AIDER_ATTRIBUTION: ("aider",),
+    EPOCH_ATTRIBUTION: ("epoch",),
+    # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
+    # no licence of its own (the #260 review's B1).
+    **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
+        ("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
+        ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
+}
+
+
+def credits_for(attributions: Iterable[str]) -> list[dict[str, str | None]]:
+    """#260: the publishers a payload's attributions credit, each once, in the order they come."""
+    ids: list[str] = []
+    for citation in attributions:
+        owed = CREDITS_BY_ATTRIBUTION.get(citation)
+        if owed is None:
+            msg = f"no credit for the attribution {citation!r}; add it to CREDITS_BY_ATTRIBUTION"
+            raise ValueError(msg)
+        ids.extend(credit for credit in owed if credit not in ids)
+    return [asdict(CREDITS[credit]) for credit in ids]
 
 
 def secondary_evidence_sources(conn: sqlite3.Connection, spec: CategorySpec) -> set[str]:
@@ -135,7 +172,8 @@ _UNSAID: frozenset[str] = frozenset({"<unsaid>"})
 
 
 def attributions_for(
-    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = _UNSAID
+    evidence_sources: Iterable[str], *, priced: bool, pricing_sources: Iterable[str] | None = _UNSAID,
+    metadata_sources: Iterable[str] = (),
 ) -> tuple[str, ...]:
     """The citations a payload actually owes, in catalogue order.
 
@@ -158,7 +196,19 @@ def attributions_for(
             msg = f"unattributed evidence source {source!r}; add it to SOURCE_ATTRIBUTION"
             raise ValueError(msg)
         owed.add(citation)
+    # The #260 round-2 review's M3: metadata is looked up in its own map, so a board never passes the
+    # board check on a metadata source's citation, and an unknown one is named where it belongs.
+    for source in metadata_sources:
+        citation = METADATA_ATTRIBUTION.get(source)
+        if citation is None:
+            msg = f"unattributed metadata source {source!r}; add it to METADATA_ATTRIBUTION"
+            raise ValueError(msg)
+        owed.add(citation)
     catalogue = [pricing if c == PRICING_ATTRIBUTION else c for c in ATTRIBUTIONS]
+    # The #260 Tester's M4: a citation outside the catalogue was dropped here, and served uncredited.
+    if stray := owed - set(catalogue):
+        msg = f"citations outside the catalogue (ATTRIBUTIONS): {sorted(stray)}"
+        raise ValueError(msg)
     return tuple(c for c in catalogue if c in owed)
 
 

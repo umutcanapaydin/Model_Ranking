@@ -747,3 +747,23 @@ deleted after its merge read as an unreadable range.
   were reopened (#255).
 - v2 is 0.2.0, build 4. It is not deployed yet; the runbook's v2 section is the owner's.
 Lesson: a gate's exceptions are part of the gate. A hook that the DevFlow's own red commits cannot pass would have been bypassed at the first fix.
+
+## 2026-10-12 — v2 deployed, a startup refresh, and the owner's ruling on the licences
+
+- The owner merged the M21 closure (#257) and asked for v2's steps. `make check` was red on two tests
+  that read the clone's own `advisor.db`, built on 2026-09-24; a copy the new code built made it green.
+- The Mac's engine would have waited a night for a refresh its release built, which the deploy needs
+  (#198). At the owner's request it now refreshes at startup when the served data was built by another
+  release (#258, #259); it published a minute after the install, and the owner deployed.
+- Committing #258 found that the commit-msg hook refused every commit that ran the tests: git exports
+  the commit's author and dates to the hook, and the identity self-test's throwaway commits took them.
+  `scrubbed_env` drops them. The hook had never run a test-running commit before the owner's `make hooks`.
+- The owner ruled on D-185's table (D-193): no source is left out, MMLU and SWE-bench are credited, and
+  every publisher is credited on a Credits screen (#260). Terminal-Bench 4.0 is feasible in one wave,
+  at about 17 models against 42 (`docs/research/terminalbench-4-feasibility-2026-10-12.md`).
+- #260 took two review rounds and a Tester. Round 1 was BLOCKING (Epoch's CC BY claimed for its
+  compilations), round 2 MINOR, and the Tester BLOCKING (the sheet's behaviour had no citing test). All
+  are fixed; #261 and #262 are filed.
+Lesson: a hook is tested by the commits it gates. The commit-msg gate passed its own tests and every
+commit in the closure, and still refused the first ordinary commit in the owner's clone.
+

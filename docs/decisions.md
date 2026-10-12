@@ -4398,6 +4398,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-190 (2026-10-09)**: `web-dev` ranks on LMArena's own WebDev board (CC-BY-4.0), so the public artifact keeps the surface while `epoch_webdev` stays in clause 3's table (#185).
 
+**Amended by D-193 (2026-10-12)**: the owner ruled on clause 3's table source by source; no source is left out, and every served publisher is credited on the app's Credits screen (#260).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -4424,6 +4426,8 @@ filter gone wrong.
 **The cost.** The hosted engine serves data whose terms do not clearly permit a public app (D-185's
 table), to the owner's internal testers. **Revisit when:** external testers or an App Store
 submission are planned.
+
+**Amended by D-193 (2026-10-12)**: clause 3's ruling is made; `LEFT_OUT` stays empty beyond TestFlight's internal testers, with the permissions the owner is getting.
 
 ## D-187 — An understood question is answered from the closest board, never "not measured"
 
@@ -4756,3 +4760,53 @@ owner. The Bash guard's changes (#189) are in their own commits marked OWNER APP
 reading does not hold is listed by class in its docstring and in G-7. A PreToolUse command hook that times
 out does not block (Claude Code's hook docs), so the Bash hook carries `timeout: 30` and
 `onFailure: "block"`, and the guard keeps its own bound (5 s, 32 KB).
+
+## D-193 — The owner's ruling on D-185's table: every source served, each publisher credited on a Credits screen
+
+**Status:** accepted -- decided by the owner on 2026-10-12 ("MMLU is settled (HELM Apache plus the arXiv
+reports, credited). SWE-bench's CC BY-NC is confirmed; it stays in the free version, credited.
+Terminal-Bench: the CSV is TB 2.0, and only 4.0 is Apache in the repo; look at moving to 4.0. ARC-AGI,
+DeepSWE, OpenRouter: left out until permission comes. Add each source's licence and link to the Credits
+screen"; then "I will get every permission somehow; do not hide any data", and `epoch_webdev` "stays",
+owner, translated from Turkish) · **Date:** 2026-10-12 · **Amends** D-185 clause 3 and D-186 clause 3 ·
+from #88, #124, #260.
+
+**Context.** D-186 served every source to TestFlight's internal testers and left D-185's table for the
+owner to rule on before external testers or the App Store. The licence review
+(`docs/research/data-licences-2026-10-04.md`) asked six questions; its sixth was where attribution must
+appear. The app showed a board's attribution string only on the combined-list detail screen.
+
+**Decision.**
+1. **No source is left out.** `public.LEFT_OUT` stays empty. The owner's second message replaced the first's
+   left-out list: ARC-AGI (`epoch_arc_agi`), DeepSWE (`epoch_deepswe_external`) and OpenRouter (`openrouter`)
+   are served while the owner gets each publisher's permission.
+2. **Per source:**
+   - `epoch_mmlu`: settled. Credited to Stanford CRFM's HELM (Apache-2.0) and the model makers' technical
+     reports on arXiv, as compiled by Epoch AI.
+   - `swebench`: CC BY-NC 4.0, confirmed. It stays while the app is free, credited with its licence.
+   - `epoch_terminalbench`: Epoch's copy is Terminal-Bench 2.0. The move to 4.0, whose leaderboard is in an
+     Apache-2.0 repository, is studied in `docs/research/terminalbench-4-feasibility-2026-10-12.md`; the
+     move itself is the owner's next ruling.
+   - `epoch_webdev`: stays.
+3. **Attribution is a Credits screen** (the review's question 6). The engine declares one credit per
+   publisher (`board_tables.CREDITS`: who, what, the data's link, the licence or terms, and its link) and
+   derives a payload's credits from the attributions it owes (`rank.CREDITS_BY_ATTRIBUTION`). A citation
+   with no credit is refused. `/v1/boards` carries them as `credits`, an additive key. The app shows them
+   from a button at the end of its answers, with the notices CC BY asks for: how the app changes the data
+   (each board ranked again among the models it can price, boards combined into its own lists), and that
+   the data comes without warranty.
+4. **The links are selectable text, not tappable.** D-126's compiled gate (`scripts/client_decl_gate.py`)
+   refuses `Link`, `openURL` and a `URL` made from a string in the client. A tappable link would change
+   that invariant, which is a ruling of its own.
+
+**The alternatives not taken.** Leaving the three sources out (the owner's first message): it darkens
+`abstract` and `agentic-coding` on the hosted engine, which the owner's second message refused. A credits
+list typed into the app: a second list beside the engine's attributions, which would drift (AGENTS.md
+section 3.5).
+
+**The cost.** The hosted engine serves ARC-AGI, DeepSWE and OpenRouter data before their publishers have
+given permission; the screen names their terms. App Review may ask for that permission before external
+testers or the App Store (guideline 5.2.2). A paid app ends SWE-bench's place (CC BY-NC).
+
+**Revisit when:** a publisher answers, the app becomes paid, or the owner rules on Terminal-Bench 4.0.
+

@@ -27,6 +27,7 @@ from app.workflows.rank import (
     BLEND_OUTPUT_WEIGHT,
     SOURCE_ATTRIBUTION,
     attributions_for,
+    credits_for,
     served_pricing_sources,
 )
 
@@ -136,9 +137,16 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
             "JOIN px_median p ON p.model_id = m.id ORDER BY m.id")
         if mid in standing_models
     ]
+    # The #260 review's M1: the accessibility served is credited too, whatever boards are served.
+    accessible = {model["id"] for model in models if model["accessibility"] is not None}
+    attributions = list(attributions_for([b["id"] for b in boards], priced=True,
+                                         pricing_sources=served_pricing_sources(conn),
+                                         metadata_sources=sorted(access_served.sources(conn, accessible))))
     return {
-        "attributions": list(attributions_for([b["id"] for b in boards], priced=True,
-                                              pricing_sources=served_pricing_sources(conn))),
+        "attributions": attributions,
+        # #260: each publisher those attributions credit, with its licence and links, for the
+        # phone's Credits screen.
+        "credits": credits_for(attributions),
         "boards": boards,
         "models": models,
     }
