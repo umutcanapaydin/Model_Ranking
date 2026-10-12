@@ -156,6 +156,44 @@ def test_a_fresh_engine_does_not_catch_up(tmp_path: Path) -> None:
     assert runs == ["nightly@24 00:00"]
 
 
+@pytest.mark.parametrize(
+    ("served_built_by", "build", "expected"),
+    [
+        ("release-old", "release-new", ["catch-up@23 12:01"]),  # a new release: its data, now
+        (None, "release-new", ["catch-up@23 12:01"]),  # a record from before #198 names no builder
+        ("release-new", "release-new", ["nightly@24 00:00"]),  # its own data: the night as before
+        ("release-old", "unknown", ["nightly@24 00:00"]),  # an engine that cannot name itself
+    ],
+)
+def test_a_new_release_catches_up_at_startup_on_data_another_release_built(
+    tmp_path: Path, served_built_by: str | None, build: str, expected: list[str]
+) -> None:
+    """#258: a deploy refuses data another release built (#198), so a release installed after the
+    night's window waited a whole day to be deployable. Fresh data built by another release is
+    caught up once at startup, the way day-old data is."""
+    record = {"at": NOW - 5 * 3600, "exit_code": 1, "served_built_by": served_built_by}
+    (tmp_path / "advisor.db.refresh.json").write_text(json.dumps(record), encoding="utf-8")
+    clock, runs = _Clock(D(2026, 9, 23, 12, 0)), []
+    schedule = _schedule(tmp_path, clock, runs, stop_after=1)
+    schedule.build = build
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(schedule.serve())
+    assert runs == expected
+
+
+def test_the_schedule_knows_which_build_it_runs_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#258: the build the startup catch-up compares the served data's builder with is the server's."""
+    monkeypatch.setenv(nightly.SWITCH, "nightly")
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.setenv("MODEL_RANKING_DB", str(tmp_path / "advisor.db"))
+    monkeypatch.setenv("APP_BUILD", " release-abc1234 ")
+    schedule = nightly.NightlyRefresh.from_environment(main.RELAXED_ENVS)
+    assert schedule is not None and schedule.build == "release-abc1234"
+    monkeypatch.delenv("APP_BUILD")
+    schedule = nightly.NightlyRefresh.from_environment(main.RELAXED_ENVS)
+    assert schedule is not None and schedule.build == "unknown"
+
+
 def test_an_error_in_the_schedule_does_not_end_it(tmp_path: Path) -> None:
     (tmp_path / "advisor.db.refresh.json").write_text(json.dumps({"at": NOW - 5 * 3600, "exit_code": 1}), encoding="utf-8")
     clock, runs = _Clock(D(2026, 9, 23, 12, 0)), []
