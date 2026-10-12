@@ -57,11 +57,21 @@ def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() ->
     assert _ids(owed) == ["arc_prize", "epoch", "litellm", "openrouter"]
 
 
-def test_a_board_epoch_compiles_credits_its_publisher_and_epoch() -> None:
+def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
     for source, publisher in (("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
                               ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"),
                               ("epoch_webdev", "arena_site")):
-        assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch"], source
+        assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch_compilation"], source
+
+
+def test_epochs_licence_is_claimed_for_its_own_boards_only() -> None:
+    """The #260 review's B1: Epoch's external data "retains its original licensing", so the credit for
+    Epoch's compilation claims no licence, and the CC BY credit names Epoch's own boards."""
+    from app.workflows.board_tables import CREDITS
+
+    compilation = CREDITS["epoch_compilation"]
+    assert compilation.licence_url is None and "CC BY" not in compilation.licence
+    assert "compil" not in CREDITS["epoch"].data.lower()
 
 
 def test_prices_credit_openrouter_only_where_its_prices_are_served() -> None:
@@ -93,3 +103,18 @@ def test_the_boards_payload_credits_openrouter_when_it_serves_its_prices() -> No
     conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url, observed_at) "
                  "VALUES ('a', 'a', 1.0, 2.0, 'openrouter', 'u', '2026-09-25')")
     assert "openrouter" in [c["id"] for c in _payload(conn)["credits"]]
+
+
+def test_the_accessibility_epoch_publishes_is_credited_whatever_boards_are_served() -> None:
+    """The #260 review's M1: `/v1/boards` serves each model's accessibility from Epoch's metadata, so
+    Epoch is credited even where no Epoch board is served."""
+    from .test_board_standings import _score
+
+    conn = _conn()
+    _score(conn, "arena", "Arena text", "elo", "a", "a", 1300.0)
+    conn.execute("INSERT INTO access (raw_name, model_id, accessibility, source, source_url, observed_at) "
+                 "VALUES ('a', 'a', 'api', 'epoch_access', 'u', '2026-09-25')")
+    payload = _payload(conn)
+    assert payload["models"][0]["accessibility"] == "api"
+    assert "epoch" in [c["id"] for c in payload["credits"]]
+

@@ -11,7 +11,7 @@ private let standingsPayload = Data(#"""
     {"api_version":"v1","attributions":["a"],"boards":[{"id":"epoch_chess","benchmark":"Chess puzzles",\#
     "metric":"% correct","ranking_effort":null,"evidence_date":null,"observed_at":"2026-09-25","attribution":"a",\#
     "standings":[{"model":"a","position":1,"effort":"unspecified"}]}],"models":[{"id":"a","display":"A","vendor":"V",\#
-    "blended_per_m":1.25,"accessibility":null}]}
+    "blended_per_m":1.25,"accessibility":null}],"credits":[]}
     """#.utf8)
 
 final class StandingsStoreTests: OfflineTestCase {
@@ -62,6 +62,22 @@ final class StandingsStoreTests: OfflineTestCase {
         XCTAssertEqual(fetches, 0, "a payload younger than a day was fetched again")
         _ = await store().current(now: arrived.addingTimeInterval(24 * 3600), fetch: fetch)
         XCTAssertEqual(fetches, 1, "a payload a day old was not fetched again")
+    }
+
+    /// The #260 review's M2: a copy kept by a build from before the Credits screen holds no credits, so
+    /// it is fetched again at once rather than leaving the screen empty for up to a day.
+    func testACopyKeptWithoutCreditsIsFetchedAgainBeforeItsDay() async throws {
+        let older = String(decoding: standingsPayload, as: UTF8.self).replacingOccurrences(of: #","credits":[]"#, with: "")
+        store().save(try FetchedStandings(payload: Data(older.utf8)), at: arrived)
+        XCTAssertNil(store().load()?.standings.credits)
+        var fetches = 0
+        let kept = await store().current(now: arrived.addingTimeInterval(3600)) {
+            fetches += 1
+            return try FetchedStandings(payload: standingsPayload)
+        }
+        XCTAssertEqual(fetches, 1, "a copy with no credits waited for its day")
+        XCTAssertEqual(kept?.credits, [])
+        XCTAssertEqual(store().load()?.standings.credits, [])
     }
 
     func testTheSecondDayServesAndStoresTheRefetchAndWaitsADayAgain() async throws {
