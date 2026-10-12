@@ -62,7 +62,7 @@ A third way keeps TB 2.0 under a licence: rebuild it from its own Apache-2.0 sub
 
 The licence review (`docs/research/data-licences-2026-10-04.md`, note 5) found the raw TB 2.0 submissions
 in [`harborframework/terminal-bench-2-leaderboard`](https://huggingface.co/datasets/harborframework/terminal-bench-2-leaderboard),
-tagged **apache-2.0**. On 2026-10-12 it holds **76** agent-and-model folders under
+tagged **apache-2.0**. On 2026-10-12 it holds **75** agent-and-model folders under
 `submissions/terminal-bench/2.0/`, and its card says "SUBMISSIONS CLOSED".
 
 - **What it keeps.** The models TB 2.0 ranks today, under a licence, where Epoch's copy states none.

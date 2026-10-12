@@ -4792,8 +4792,9 @@ appear. The app showed a board's attribution string only on the combined-list de
    publisher (`board_tables.CREDITS`: who, what, the data's link, the licence or terms, and its link) and
    derives a payload's credits from the attributions it owes (`rank.CREDITS_BY_ATTRIBUTION`). A citation
    with no credit is refused. `/v1/boards` carries them as `credits`, an additive key. The app shows them
-   from its toolbar, with the notices CC BY asks for: the lists are the app's own combination of the data,
-   and the data comes without warranty.
+   from a button at the end of its answers, with the notices CC BY asks for: how the app changes the data
+   (each board ranked again among the models it can price, boards combined into its own lists), and that
+   the data comes without warranty.
 4. **The links are selectable text, not tappable.** D-126's compiled gate (`scripts/client_decl_gate.py`)
    refuses `Link`, `openURL` and a `URL` made from a string in the client. A tappable link would change
    that invariant, which is a ruling of its own.
