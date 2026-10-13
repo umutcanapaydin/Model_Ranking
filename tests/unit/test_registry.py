@@ -979,3 +979,89 @@ def test_a_model_whose_own_name_says_fast_keeps_its_prices(alias: str) -> None:
     assert rule is not None
     assert conn.execute("SELECT model_id FROM pricing").fetchone()[0] == rule.canonical_id
 
+
+
+# --- The backlog-data Tester: criteria whose planted faults survived the wave's own tests ----------------
+
+
+@pytest.mark.parametrize("name", ["fireworks_ai/accounts/fireworks/models/deepseek-v3p9", "fireworks_ai/kimi-k2p9",
+                                  "fireworks/deepseek-v3p9-instruct", "fireworks_ai/kimi-k2p8-preview"])
+def test_a_p_spelled_point_release_no_rule_names_never_falls_into_the_major(name: str) -> None:
+    """#234 and D-195 clause 4 (covers the backlog-data Tester's F03 and F06): a provider's `p` spelling of a
+    point release is that release, so the major's own guard refuses it even where no point-release rule takes it
+    first. Every name in the wave's tests was taken by an earlier rule, so removing the `p` from DeepSeek V3's or
+    Kimi K2's guard failed no test."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-v3", "kimi-k2"}, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["gpt-5.6-luna-cyber", "gpt-5.6-terra-cyber", "GPT-5.6 Luna Cyber",
+                                  "openai/gpt-5.6-terra_cyber"])
+def test_a_cyber_model_is_not_luna_or_terra_either(name: str) -> None:
+    """#269 and D-195 clause 5, "in every GPT-5.4 to GPT-5.6 rule's spelling" (covers the backlog-data Tester's
+    F23 and F24): the Luna and Terra rules' `cyber` guards held no test."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6"}, (name, rule)
+
+
+@pytest.mark.parametrize(("alias", "model"), [
+    ("moonshotai/kimi-k2.5-turbo", "kimi-k2.5"),
+    ("fireworks_ai/accounts/fireworks/routers/kimi-k2p5-fast", "kimi-k2.5"),
+    ("moonshotai/kimi-k2.6-highspeed", "kimi-k2.6"),
+])
+def test_every_kimi_release_refuses_a_speed_tiers_price(alias: str, model: str) -> None:
+    """D-195 clause 4 (covers the backlog-data Tester's F33): the Kimi family's tiers were read, so each Kimi
+    release refuses a tier's price for its reason and keeps a score under its name. Taking K2.5 out of the
+    tiered set failed no test."""
+    conn = connect()
+    conn.execute("INSERT INTO pricing (alias, input_per_m, output_per_m, source, source_url, observed_at)"
+                 " VALUES (?, 2, 8, 'litellm', 'u', 't')", (alias,))
+    conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, source_url,"
+                 " observed_at) VALUES (?, 'B', 'elo', 1200, 'arena-crowd', 'unspecified', 'arena', 'u', 't')",
+                 (alias.rsplit("/", 1)[-1],))
+    report = reconcile(conn)
+    assert conn.execute("SELECT model_id FROM pricing").fetchone()[0] is None
+    assert conn.execute("SELECT model_id FROM scores").fetchone()[0] == model
+    assert (alias, "speed-tier") in report.modality_drops, report.modality_drops
+
+
+@pytest.mark.parametrize(("name", "model"), [
+    ("deepinfra/Qwen/Qwen3-Max-Thinking", "qwen3-max"),
+    ("qwen3-max-thinking", "qwen3-max"),
+    ("qwen3.7-max-preview", "qwen3.7-max"),
+    ("grok-4-fast-reasoning", "grok-4-fast"),
+    ("azure_ai/grok-4-fast-non-reasoning", "grok-4-fast"),
+    ("grok-4-fast-chat", "grok-4-fast"),
+    ("moonshotai/Kimi-K2-Instruct-0905", "kimi-k2"),
+])
+def test_what_d195_keeps_gathered_stays_one_model(name: str, model: str) -> None:
+    """D-195 clause 2: Kimi K2-Instruct-0905, grok-4-fast's reasoning and non-reasoning modes ("a unified
+    architecture"), Qwen3-Max-Thinking and qwen3.7-max-preview are snapshots or modes of one model. Each name is
+    in the artifact of 2026-10-13; a later split must supersede the clause, not slip past it."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+def test_a_pro_mode_run_is_its_model_at_no_stated_effort() -> None:
+    """D-195 clause 3 (the backlog-data review's K2): GPT-5.6's Pro is a mode of the model it runs, and its rows
+    hold no effort level the schema holds, so Epoch's `gpt-5.6-sol_promax` (Chess, 64.0) is GPT-5.6 Sol at
+    `unspecified`, beside its `_max` run at `max`."""
+    from app.workflows.registry import resolve_effort
+
+    pro, top = resolve_effort("gpt-5.6-sol_promax"), resolve_effort("gpt-5.6-sol_max")
+    assert pro.effort is None and top.effort == "max", (pro, top)
+    conn = connect()
+    conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, source_url,"
+                 " observed_at) VALUES ('gpt-5.6-sol_promax', 'Chess puzzles', '%', 64.0, 'none', 'unspecified',"
+                 " 'epoch_chess', 'u', 't')")
+    reconcile(conn)
+    assert conn.execute("SELECT model_id, effort FROM scores").fetchone() == ("gpt-5.6-sol", "unspecified")
+
+
+@pytest.mark.parametrize("name", ["gemini-3.8-flash-cyber", "vertex_ai/gemini-3.8-flash-cyber"])
+def test_gemini_3_8_flash_cyber_derives_apart_from_gemini_3_8_flash(name: str) -> None:
+    """#269 names Gemini 3.8 Flash's Cyber spellings too; no curated rule holds Gemini 3.8 Flash, so the derive
+    grammar is what keeps them apart (both are in the artifact of 2026-10-13, at twice the base's price)."""
+    assert canonicalize(name) is None
+    derived = derive_identity(name)
+    assert derived is None or derived.model_id != derive_identity("gemini-3.8-flash").model_id, (name, derived)

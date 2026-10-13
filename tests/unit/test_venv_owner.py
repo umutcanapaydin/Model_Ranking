@@ -110,3 +110,18 @@ def test_every_make_install_checks_the_venv_not_only_the_one_that_installs() -> 
     recipe = re.search(r"^install:.*\n(?:#.*\n)*((?:\t.*\n)+)", (ROOT / "Makefile").read_text(encoding="utf-8"), re.MULTILINE)
     assert recipe is not None
     assert "scripts/venv_owner.py" in recipe.group(1).splitlines()[0], recipe.group(1)
+
+
+def test_a_windows_venv_whose_editable_install_names_another_tree_is_refused(tmp_path: Path) -> None:
+    """#264 on Windows (round 2's M2; covers the backlog-data Tester's F61): a Windows venv keeps its packages in
+    `Lib/site-packages`, with no Python version between, and INSTALL.md supports Windows. Reading only the
+    POSIX layout let such a venv through, and removing the second glob failed no test."""
+    other, tree = tmp_path / "other", tmp_path / "tree"
+    other.mkdir()
+    info = tree / ".venv" / "Lib" / "site-packages" / "model_ranking-0.1.0.dist-info"
+    info.mkdir(parents=True)
+    (tree / ".venv" / "pyvenv.cfg").write_text("home = C:\\Python312\n", encoding="utf-8")
+    (info / "direct_url.json").write_text(json.dumps({"dir_info": {"editable": True}, "url": other.resolve().as_uri()}),
+                                          encoding="utf-8")
+    problems = _owner().problems(tree, tree / ".venv")
+    assert problems and str(other.resolve()) in problems[0], problems

@@ -361,3 +361,65 @@ def test_a_board_the_baseline_emptied_is_judged_against_its_live_rows() -> None:
     live, baseline, candidate = summary({"x": rows}), summary({}), summary({"x": rows | {"e"}})
     assert largest_board_change(live, candidate, baseline) == {"board": "board x", "changed": 1, "of": 5,
                                                                "limit": 0.25}
+
+
+# --- The backlog-data Tester: #230's figure, where planted faults survived the wave's own tests ----------
+
+
+def test_an_expiry_night_through_the_cycle_records_the_figure_against_its_baseline(tmp_path: Path) -> None:
+    """#230 and round 3's M2 (covers the backlog-data Tester's F46 and F47): the cycle itself, not a direct call,
+    must hand the baseline in. On the night `litellm` expires, a build without it unlinks a third of `SLICE`;
+    the guards excuse that against the baseline, and so must the recorded figure. With the baseline dropped
+    from the one call, or `live` passed in its place, the record named `SLICE` 4 of 12 lost."""
+    import json
+    import shutil
+
+    target = _priced_by_two_feeds(tmp_path / "advisor.db")
+    built = _built_without(target, tmp_path / "without-litellm.db", "litellm")
+
+    def expiring(argv: list[str]) -> int:
+        shutil.copyfile(built, argv[argv.index("--db") + 1])
+        Path(argv[argv.index("--report-out") + 1]).write_text(json.dumps(
+            {"arrived": [], "carried": {}, "expired": {"litellm": None}, "since": {}}), encoding="utf-8")
+        return 0
+
+    outcome, code = refresh(target, builder=expiring)
+    assert outcome.expired, ("the fixture proves nothing", outcome)
+    line = json.loads(outcome.as_json())
+    assert line["largest_board_change"] is None, (code, outcome.reason, line)
+
+
+def test_of_several_boards_that_changed_the_figure_names_the_one_nearest_its_limit(tmp_path: Path) -> None:
+    """#230 (covers the backlog-data Tester's F53): every test changed one board, so a figure that kept the
+    smallest change passed them all. Here `coding`'s board gains 1 row of 13 and `SLICE` loses 2 of 12."""
+
+    def both(conn: sqlite3.Connection) -> None:
+        conn.execute("DELETE FROM scores WHERE source = ? AND raw_name IN ('Probe 00', 'Probe 01')", (SLICE.source,))
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort, source_url,"
+            " observed_at) VALUES ('fresh-0', 'Fresh 0', 'swebench', 'SWE-bench Verified', '% resolved', 40, 'none',"
+            " 'unspecified', 'fixture://x', 't')")
+
+    line, code = _night(tmp_path, both)
+    assert code == EXIT_PUBLISHED, line
+    assert line["largest_board_change"] == {"board": f"board {SLICE.source}", "changed": 2, "of": 12, "limit": 0.25}
+
+
+def test_a_loss_reports_the_loss_limit_and_a_gain_the_gain_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#230 ("the board, its changed rows and the limit"; covers the backlog-data Tester's F54): the two limits
+    are both 0.25 today, so a figure that swapped them passed every test. They are set apart here."""
+    from app.workflows import refresh as module
+    from app.workflows.refresh import ServingSummary, largest_board_change
+
+    monkeypatch.setattr(module, "MAX_SURFACE_LOSS", 0.2)
+    monkeypatch.setattr(module, "MAX_SURFACE_GAIN", 0.3)
+
+    def summary(boards: dict[str, frozenset[str]]) -> ServingSummary:
+        return ServingSummary(digest="d", surfaces={}, models={}, median_price={}, eligible={}, boards=boards)
+
+    rows = frozenset({"a", "b", "c", "d"})
+    live = summary({"x": rows})
+    assert largest_board_change(live, summary({"x": rows - {"a"}}), live) == {
+        "board": "board x", "changed": 1, "of": 4, "limit": 0.2}
+    assert largest_board_change(live, summary({"x": rows | {"e"}}), live) == {
+        "board": "board x", "changed": 1, "of": 5, "limit": 0.3}
