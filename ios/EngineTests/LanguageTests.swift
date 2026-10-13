@@ -429,6 +429,19 @@ final class RouterLanguageTests: OfflineTestCase {
         }
     }
 
+    /// #218: one word beyond model names ("almanca", German) left this question not confidently Turkish, so the
+    /// embedding read it as English and routed it to `coding`. A Turkish particle or letter is enough to decline;
+    /// English words that merely contain one (`minimum`, `mutual`) are not.
+    func testAShortQuestionWithATurkishParticleOrLetterIsNotReadAsEnglish() {
+        for question in ["claude mu chatgpt mi almanca", "gemini mı claude mu", "hangisi daha ucuz",
+                         "kod için gpt mi", "çeviri claude"] {
+            XCTAssertFalse(SimilarityRouter.readsEnglish(question), question)
+        }
+        for question in ["the minimum cost model for me", "mutual funds analysis model", "is claude good at maths"] {
+            XCTAssertTrue(SimilarityRouter.readsEnglish(question), question)
+        }
+    }
+
     /// A short question is often unclassifiable, and refusing those would break the path this tier
     /// exists to serve. Undetermined stays in — stated as a test so the choice is not a side
     /// effect of a confidence constant.
