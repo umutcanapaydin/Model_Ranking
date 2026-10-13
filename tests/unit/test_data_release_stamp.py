@@ -185,3 +185,16 @@ def test_no_name_accepts_a_missing_or_unreadable_record(tmp_path: Path, record: 
     assert not calls.exists()
     assert "DEPLOY_ACCEPT_DATA_FROM=missing" not in done.stderr
     assert "DEPLOY_ACCEPT_DATA_FROM=unreadable" not in done.stderr
+
+
+def test_a_dev_builds_data_is_refused_even_when_named_so_unknown_never_stands_for_it(tmp_path: Path) -> None:
+    """#235 R2: a dev build's data was once accepted and stamped `-from-unknown`, like a record from before
+    #198. Since S5 only a release or `unknown` may be named, so a dev build's data never deploys and
+    `-from-unknown` names only a record that names no builder."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    status_path(served).write_text(json.dumps({"served_built_by": "dev-abc1234"}), encoding="utf-8")
+    for named in ("dev-abc1234", "unknown"):
+        done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": named})
+        assert done.returncode != 0, (named, done.stdout + done.stderr)
+        assert "DEPLOY_ACCEPT_DATA_FROM=dev-abc1234" not in done.stderr, done.stderr
+    assert not calls.exists()

@@ -914,3 +914,10 @@ def test_a_release_its_maker_publishes_apart_is_its_own_model(name: str, model: 
     """#232 (D-189 clause 1): each name was read against its maker's page on 2026-10-13."""
     rule = canonicalize(name)
     assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["deepseek-r1-qwen3", "deepseek-r1-0528-qwen", "DeepSeek R1 Qwen"])
+def test_a_qwen_based_r1_distill_with_no_size_or_distill_word_is_not_r1(name: str) -> None:
+    """#235 R1: only the distill guard's `qwen` clause refuses these; removing it failed no test."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
