@@ -24,6 +24,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.clients.aider import AiderClient, parse_polyglot
+from app.clients.arc_prize import ArcAgi2Client, parse_arc_agi_2
 from app.clients.arena import (
     ARENA_BOARDS,
     ArenaClient,
@@ -40,20 +41,23 @@ from app.clients.deepswe import DeepSWEClient
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
-from app.clients.openrouter import OpenRouterClient, parse_models
+from app.clients.models_dev import ModelsDevClient, parse_models_dev
 from app.clients.protocols import RawSource
 from app.clients.swebench import SweBenchClient, parse_verified
+from app.clients.terminalbench import TerminalBench4Client, parse_terminalbench_4
 from app.workflows.board_tables import EPOCH_BOARDS as _EPOCH_BOARDS
 from app.workflows.ingest import (
     RunContext,
     SourceReport,
     ingest_aider,
+    ingest_arc_agi_2,
     ingest_arena,
     ingest_deepswe,
     ingest_epoch,
     ingest_litellm,
-    ingest_openrouter,
+    ingest_models_dev,
     ingest_swebench,
+    ingest_terminalbench_4,
 )
 
 IngestFn = Callable[[sqlite3.Connection, RawSource, RunContext], SourceReport]
@@ -78,7 +82,7 @@ class RemoteSource:
     """Whether this source contributes EVIDENCE rows (`scores`) rather than pricing.
 
     The distinction was implicit until M8 and cost a test its meaning: a guard asserting that
-    every ingested source can be attributed swept in `litellm` and `openrouter`, which write
+    every ingested source can be attributed swept in `litellm` and `openrouter` (then the second price source), which write
     `pricing` and never appear in `scores.source`, so it demanded citations for data that is
     never cited. Only evidence needs attribution, and only this field says which is which.
     """
@@ -132,10 +136,11 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         writes_scores=False,  # pricing, not evidence
     ),
     RemoteSource(
-        name="openrouter",
-        client=OpenRouterClient,
-        ingest=ingest_openrouter,
-        parse=parse_models,
+        # D-194: the second price source, in OpenRouter's place; the makers' own entries only.
+        name="models_dev",
+        client=ModelsDevClient,
+        ingest=ingest_models_dev,
+        parse=parse_models_dev,
         minimum_rows=50,
         writes_scores=False,  # pricing, not evidence
     ),
@@ -152,6 +157,25 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_aider,
         parse=parse_polyglot,
         minimum_rows=1,
+    ),
+    # D-194 (#265): TB 4.0's leaderboard, Apache-2.0, in place of Epoch's copy of TB 2.0. 21 submissions
+    # on 2026-10-13; ten is a broken listing, not a quiet month.
+    # D-194 (#265): ARC Prize's own runs on ARC-AGI-2's public evaluation set, MIT, in place of Epoch's copy
+    # of its leaderboard. Read from the derivation committed at a pinned revision (`app.clients.arc_prize`),
+    # so it fails only on a broken file; 30 settings is well under the 50 the derivation holds.
+    RemoteSource(
+        name="arc_agi_2",
+        client=ArcAgi2Client,
+        ingest=ingest_arc_agi_2,
+        parse=parse_arc_agi_2,
+        minimum_rows=30,
+    ),
+    RemoteSource(
+        name="terminalbench_4",
+        client=TerminalBench4Client,
+        ingest=ingest_terminalbench_4,
+        parse=parse_terminalbench_4,
+        minimum_rows=10,
     ),
     RemoteSource(
         name="arena",

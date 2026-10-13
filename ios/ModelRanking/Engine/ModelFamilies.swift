@@ -8,8 +8,9 @@ enum ModelFamilies {
     /// model names reads (`CategoryHints.comparesModelsOnly`, #206).
     static let words: Set<String> = [
         "aya", "claude", "code", "codestral", "command", "dbrx", "deepseek", "devstral", "doubao", "ernie",
-        "gemini", "gemma", "glm", "gpt", "granite", "grok", "jamba", "kimi", "llama", "magistral", "mercury",
-        "mimo", "minimax", "ministral", "mistral", "mixtral", "nemotron", "nous", "nova", "nvidia", "o1",
-        "o3", "o4", "palmyra", "phi", "pixtral", "qwen", "qwq", "step", "titan", "trinity", "zephyr",
+        "gemini", "gemma", "glm", "gpt", "granite", "grok", "hunyuan", "hy4", "jamba", "kimi", "llama",
+        "magistral", "mercury", "mimo", "minimax", "ministral", "mistral", "mixtral", "nemotron", "nous",
+        "nova", "nvidia", "o1", "o3", "o4", "palmyra", "phi", "pixtral", "qwen", "qwq", "step", "titan",
+        "trinity", "zephyr",
     ]
 }

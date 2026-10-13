@@ -1,0 +1,560 @@
+{
+ "dataset": "arcprize/arc_agi_v2_public_eval",
+ "url": "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval",
+ "revision": "026789c1c12a4c34580a32e84dcaf5630d7e8f31",
+ "licence": "MIT",
+ "publisher": "ARC Prize Foundation",
+ "tasks": 120,
+ "min_tasks": 114,
+ "derived_by": "scripts/derive_arc_public_eval.py",
+ "solutions": {
+  "repository": "arcprize/ARC-AGI-2",
+  "url": "https://github.com/arcprize/ARC-AGI-2",
+  "revision": "f3283f727488ad98fe575ea6a5ac981e4a188e49",
+  "licence": "Apache-2.0"
+ },
+ "marks_checked": 16681,
+ "marks_disagreeing": 0,
+ "disagreements": [],
+ "unscorable": 0,
+ "left_out_as_partial": [
+  "claude-opus-4-8-max",
+  "gemini-3-1-pro-preview",
+  "gpt-3-5-turbo",
+  "gpt-5-2-2025-12-11-thinking-xhigh",
+  "gpt-5-4-mini-xhigh",
+  "gpt-5-4-nano-high",
+  "gpt-5-4-nano-xhigh",
+  "gpt-5-4-pro-xhigh",
+  "qwen3.5-4b"
+ ],
+ "left_out_as_predating_solutions": [
+  "gpt-4-1-2025-04-14",
+  "gpt-4-1-mini-2025-04-14",
+  "gpt-4-1-nano-2025-04-14"
+ ],
+ "settings": {
+  "claude-3-haiku": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 1.2395,
+   "run_date": "2026-03-17",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "claude-haiku-4-5-20251001": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 5.1824,
+   "run_date": "2025-10-15",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-haiku-4-5-20251001-thinking-16k": {
+   "tasks_run": 120,
+   "solved": 5.0,
+   "score": 4.1667,
+   "cost_usd": 17.1855,
+   "run_date": "2025-10-15",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-haiku-4-5-20251001-thinking-1k": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 5.7318,
+   "run_date": "2025-10-15",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-haiku-4-5-20251001-thinking-32k": {
+   "tasks_run": 120,
+   "solved": 6.166667,
+   "score": 5.1389,
+   "cost_usd": 47.1259,
+   "run_date": "2025-10-15",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-haiku-4-5-20251001-thinking-8k": {
+   "tasks_run": 120,
+   "solved": 2.5,
+   "score": 2.0833,
+   "cost_usd": 11.4202,
+   "run_date": "2025-10-15",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-opus-4-5-20251101-thinking-16k": {
+   "tasks_run": 120,
+   "solved": 29.0,
+   "score": 24.1667,
+   "cost_usd": 98.7321,
+   "run_date": "2025-11-21",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "claude-opus-4-5-20251101-thinking-1k": {
+   "tasks_run": 120,
+   "solved": 6.0,
+   "score": 5.0,
+   "cost_usd": 27.4803,
+   "run_date": "2025-11-21",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "claude-opus-4-5-20251101-thinking-32k": {
+   "tasks_run": 119,
+   "solved": 34.0,
+   "score": 28.3333,
+   "cost_usd": 162.7036,
+   "run_date": "2025-11-21",
+   "marks_checked": 284,
+   "unscorable": 0
+  },
+  "claude-opus-4-5-20251101-thinking-64k": {
+   "tasks_run": 120,
+   "solved": 48.333333,
+   "score": 40.2778,
+   "cost_usd": 298.5302,
+   "run_date": "2025-11-23",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "claude-opus-4-5-20251101-thinking-8k": {
+   "tasks_run": 120,
+   "solved": 12.5,
+   "score": 10.4167,
+   "cost_usd": 58.7239,
+   "run_date": "2025-11-21",
+   "marks_checked": 331,
+   "unscorable": 0
+  },
+  "claude-opus-4-5-20251101-thinking-none": {
+   "tasks_run": 120,
+   "solved": 8.5,
+   "score": 7.0833,
+   "cost_usd": 26.1353,
+   "run_date": "2025-11-21",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "claude-opus-4-6-thinking-120K-high": {
+   "tasks_run": 120,
+   "solved": 94.833333,
+   "score": 79.0278,
+   "cost_usd": 457.1041,
+   "run_date": "2026-02-04",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "claude-opus-4-6-thinking-120K-low": {
+   "tasks_run": 120,
+   "solved": 71.833333,
+   "score": 59.8611,
+   "cost_usd": 287.596,
+   "run_date": "2026-02-05",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "claude-opus-4-6-thinking-120K-max": {
+   "tasks_run": 117,
+   "solved": 89.833333,
+   "score": 74.8611,
+   "cost_usd": 441.1757,
+   "run_date": "2026-02-04",
+   "marks_checked": 319,
+   "unscorable": 0
+  },
+  "claude-opus-4-6-thinking-120K-medium": {
+   "tasks_run": 120,
+   "solved": 88.333333,
+   "score": 73.6111,
+   "cost_usd": 361.9429,
+   "run_date": "2026-02-04",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "claude-opus-4-8-high": {
+   "tasks_run": 120,
+   "solved": 92.333333,
+   "score": 76.9444,
+   "cost_usd": 375.8127,
+   "run_date": "2026-05-29",
+   "marks_checked": 329,
+   "unscorable": 0
+  },
+  "claude-opus-4-8-low": {
+   "tasks_run": 120,
+   "solved": 76.833333,
+   "score": 64.0278,
+   "cost_usd": 217.8011,
+   "run_date": "2026-05-30",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "claude-opus-4-8-medium": {
+   "tasks_run": 120,
+   "solved": 90.333333,
+   "score": 75.2778,
+   "cost_usd": 315.2944,
+   "run_date": "2026-05-29",
+   "marks_checked": 329,
+   "unscorable": 0
+  },
+  "claude-sonnet-4-5-20250929": {
+   "tasks_run": 120,
+   "solved": 4.5,
+   "score": 3.75,
+   "cost_usd": 15.7586,
+   "run_date": "2025-09-29",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-sonnet-4-5-20250929-thinking-16k": {
+   "tasks_run": 120,
+   "solved": 7.833333,
+   "score": 6.5278,
+   "cost_usd": 42.685,
+   "run_date": "2025-09-30",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-sonnet-4-5-20250929-thinking-1k": {
+   "tasks_run": 120,
+   "solved": 2.5,
+   "score": 2.0833,
+   "cost_usd": 17.0826,
+   "run_date": "2025-09-29",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-sonnet-4-5-20250929-thinking-32k": {
+   "tasks_run": 120,
+   "solved": 17.666667,
+   "score": 14.7222,
+   "cost_usd": 100.8346,
+   "run_date": "2025-09-30",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "claude-sonnet-4-5-20250929-thinking-8k": {
+   "tasks_run": 120,
+   "solved": 5.833333,
+   "score": 4.8611,
+   "cost_usd": 28.909,
+   "run_date": "2025-09-29",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "deepseek-v3.2": {
+   "tasks_run": 120,
+   "solved": 4.666667,
+   "score": 3.8889,
+   "cost_usd": 15.4656,
+   "run_date": "2026-02-23",
+   "marks_checked": 332,
+   "unscorable": 0
+  },
+  "gemini-3-deep-think-preview": {
+   "tasks_run": 117,
+   "solved": 55.833333,
+   "score": 46.5278,
+   "cost_usd": null,
+   "run_date": "2025-11-17",
+   "marks_checked": 305,
+   "unscorable": 0
+  },
+  "gemini-3-flash-preview-thinking-high": {
+   "tasks_run": 120,
+   "solved": 40.833333,
+   "score": 34.0278,
+   "cost_usd": 28.7922,
+   "run_date": "2025-12-15",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gemini-3-flash-preview-thinking-low": {
+   "tasks_run": 120,
+   "solved": 1.5,
+   "score": 1.25,
+   "cost_usd": 3.0591,
+   "run_date": "2025-12-15",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gemini-3-flash-preview-thinking-medium": {
+   "tasks_run": 120,
+   "solved": 18.333333,
+   "score": 15.2778,
+   "cost_usd": 9.8957,
+   "run_date": "2025-12-15",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "gemini-3-flash-preview-thinking-minimal": {
+   "tasks_run": 120,
+   "solved": 2.5,
+   "score": 2.0833,
+   "cost_usd": 2.4949,
+   "run_date": "2025-12-15",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gemini-3-pro-preview": {
+   "tasks_run": 116,
+   "solved": 32.833333,
+   "score": 27.3611,
+   "cost_usd": 98.4336,
+   "run_date": "2025-11-15",
+   "marks_checked": 324,
+   "unscorable": 0
+  },
+  "glm-5": {
+   "tasks_run": 120,
+   "solved": 6.5,
+   "score": 5.4167,
+   "cost_usd": 34.6672,
+   "run_date": "2026-02-20",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "gpt-4o": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 11.0379,
+   "run_date": "2026-03-17",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-1-2025-11-13-thinking-high": {
+   "tasks_run": 120,
+   "solved": 22.5,
+   "score": 18.75,
+   "cost_usd": 145.9861,
+   "run_date": "2025-11-15",
+   "marks_checked": 318,
+   "unscorable": 0
+  },
+  "gpt-5-1-2025-11-13-thinking-low": {
+   "tasks_run": 120,
+   "solved": 2.666667,
+   "score": 2.2222,
+   "cost_usd": 16.1813,
+   "run_date": "2025-11-13",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-1-2025-11-13-thinking-medium": {
+   "tasks_run": 119,
+   "solved": 10.0,
+   "score": 8.3333,
+   "cost_usd": 54.7243,
+   "run_date": "2025-11-14",
+   "marks_checked": 282,
+   "unscorable": 0
+  },
+  "gpt-5-1-2025-11-13-thinking-none": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 7.0894,
+   "run_date": "2025-11-13",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-2-2025-12-11-thinking-high": {
+   "tasks_run": 119,
+   "solved": 47.5,
+   "score": 39.5833,
+   "cost_usd": 177.3503,
+   "run_date": "2025-12-08",
+   "marks_checked": 322,
+   "unscorable": 0
+  },
+  "gpt-5-2-2025-12-11-thinking-low": {
+   "tasks_run": 120,
+   "solved": 10.0,
+   "score": 8.3333,
+   "cost_usd": 32.8519,
+   "run_date": "2025-12-05",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-2-2025-12-11-thinking-medium": {
+   "tasks_run": 120,
+   "solved": 33.166667,
+   "score": 27.6389,
+   "cost_usd": 94.5085,
+   "run_date": "2025-12-07",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "gpt-5-2-2025-12-11-thinking-none": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 9.8869,
+   "run_date": "2025-12-06",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-2-pro-2025-12-11-high": {
+   "tasks_run": 119,
+   "solved": 62.0,
+   "score": 51.6667,
+   "cost_usd": 1982.7752,
+   "run_date": "2025-12-10",
+   "marks_checked": 324,
+   "unscorable": 0
+  },
+  "gpt-5-2-pro-2025-12-11-medium": {
+   "tasks_run": 120,
+   "solved": 45.5,
+   "score": 37.9167,
+   "cost_usd": 1141.9384,
+   "run_date": "2025-12-10",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-4-high": {
+   "tasks_run": 120,
+   "solved": 91.0,
+   "score": 75.8333,
+   "cost_usd": null,
+   "run_date": "2026-02-27",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-4-low": {
+   "tasks_run": 120,
+   "solved": 27.833333,
+   "score": 23.1944,
+   "cost_usd": null,
+   "run_date": "2026-02-27",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-4-medium": {
+   "tasks_run": 120,
+   "solved": 69.833333,
+   "score": 58.1944,
+   "cost_usd": null,
+   "run_date": "2026-02-27",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-4-mini-high": {
+   "tasks_run": 116,
+   "solved": 8.5,
+   "score": 7.0833,
+   "cost_usd": 71.8755,
+   "run_date": "2026-03-18",
+   "marks_checked": 320,
+   "unscorable": 0
+  },
+  "gpt-5-4-mini-low": {
+   "tasks_run": 120,
+   "solved": 1.0,
+   "score": 0.8333,
+   "cost_usd": 7.4823,
+   "run_date": "2026-03-18",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "gpt-5-4-mini-medium": {
+   "tasks_run": 117,
+   "solved": 6.5,
+   "score": 5.4167,
+   "cost_usd": 38.1358,
+   "run_date": "2026-03-18",
+   "marks_checked": 324,
+   "unscorable": 0
+  },
+  "gpt-5-4-nano-low": {
+   "tasks_run": 120,
+   "solved": 0.0,
+   "score": 0.0,
+   "cost_usd": 1.8171,
+   "run_date": "2026-03-18",
+   "marks_checked": 327,
+   "unscorable": 0
+  },
+  "gpt-5-4-nano-medium": {
+   "tasks_run": 120,
+   "solved": 4.166667,
+   "score": 3.4722,
+   "cost_usd": 7.6495,
+   "run_date": "2026-03-18",
+   "marks_checked": 332,
+   "unscorable": 0
+  },
+  "gpt-5-pro-2025-10-06": {
+   "tasks_run": 120,
+   "solved": 16.0,
+   "score": 13.3333,
+   "cost_usd": 961.2783,
+   "run_date": "2025-10-09",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "grok-4-fast-reasoning": {
+   "tasks_run": 120,
+   "solved": 5.5,
+   "score": 4.5833,
+   "cost_usd": 7.3683,
+   "run_date": "2025-10-07",
+   "marks_checked": 0,
+   "unscorable": 0
+  },
+  "grok-4.20-beta-0309b-reasoning": {
+   "tasks_run": 120,
+   "solved": 76.333333,
+   "score": 63.6111,
+   "cost_usd": 114.9884,
+   "run_date": "2026-03-11",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "grok-4.20-multi-agent-beta-0309-xhigh": {
+   "tasks_run": 120,
+   "solved": 76.333333,
+   "score": 63.6111,
+   "cost_usd": 2489.2329,
+   "run_date": "2026-03-12",
+   "marks_checked": 300,
+   "unscorable": 0
+  },
+  "kimi-k2.5": {
+   "tasks_run": 120,
+   "solved": 14.5,
+   "score": 12.0833,
+   "cost_usd": 35.4983,
+   "run_date": "2026-02-12",
+   "marks_checked": 334,
+   "unscorable": 0
+  },
+  "minimax-m2.5": {
+   "tasks_run": 120,
+   "solved": 6.5,
+   "score": 5.4167,
+   "cost_usd": 23.2316,
+   "run_date": "2026-02-14",
+   "marks_checked": 333,
+   "unscorable": 0
+  },
+  "qwen3-235b-a22b-instruct-2507": {
+   "tasks_run": 120,
+   "solved": 1.0,
+   "score": 0.8333,
+   "cost_usd": 0.5356,
+   "run_date": "2025-07-22",
+   "marks_checked": 0,
+   "unscorable": 0
+  }
+ }
+}

@@ -45,14 +45,24 @@ EPOCH_ATTRIBUTION = f"{EPOCH_CITATION} ({CC_BY_4})"
 EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
     source: f"{credit}. Via {EPOCH_CITATION}"
     for source, credit in (
-        ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
         ("epoch_deepswe_external", "DeepSWE scores: Datacurve's DeepSWE leaderboard, https://deepswe.datacurve.ai/"),
         ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
                        "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model makers' "
                        "technical reports Epoch names for its other rows"),
+        ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
+    )
+}
+
+#: The #265 review's B2: boards D-194 stopped building, attributed as they were. An artifact an older release
+#: built still holds them, and a citation missing from every map refuses the engine's start, so the install
+#: rolled back before the startup refresh could replace that artifact. Kept for the artifacts that still
+#: hold them; never declared, so no build writes them again.
+RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
+    source: f"{credit}. Via {EPOCH_CITATION}"
+    for source, credit in (
+        ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
         ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
                                 "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
-        ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
     )
 }
 
@@ -98,18 +108,28 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
     Credit("litellm", "BerriAI", "LiteLLM model prices", "https://github.com/BerriAI/litellm", "MIT",
            "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
-    Credit("openrouter", "OpenRouter", "Public model catalogue: prices", "https://openrouter.ai/api/v1/models",
-           "OpenRouter Terms of Service", "https://openrouter.ai/terms"),
-    Credit("arc_prize", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI", "https://arcprize.org/leaderboard",
-           "ARC Prize Terms", "https://arcprize.org/terms"),
+    Credit("models_dev", "models.dev (SST)", "Model prices, from each model maker's own entry", "https://models.dev",
+           "MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
+    Credit("arc_prize", "ARC Prize Foundation", "ARC-AGI-2 public evaluation runs, scored by this app",
+           "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval", "MIT",
+           "https://opensource.org/license/mit"),
     Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
            "\u00a9 Datacurve; no licence published", None),
-    Credit("terminal_bench", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
-           "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
+    Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
+           "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
+           "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
     Credit("helm", "Stanford CRFM HELM and the model makers", "MMLU scores: HELM Lite, and the model makers' "
            "technical reports on arXiv, compiled by Epoch AI", "https://crfm.stanford.edu/helm/lite/latest/",
            "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
            "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
+    # The #265 review's B2: the publishers of the retired sources, as D-193 credited them, for an artifact
+    # an older release built (`RETIRED_EXTERNAL_ATTRIBUTION`).
+    Credit("arc_prize_leaderboard", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI",
+           "https://arcprize.org/leaderboard", "ARC Prize Terms", "https://arcprize.org/terms"),
+    Credit("terminal_bench_2", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
+           "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
+    Credit("openrouter", "OpenRouter", "Public model catalogue: prices", "https://openrouter.ai/api/v1/models",
+           "OpenRouter Terms of Service", "https://openrouter.ai/terms"),
     Credit("arena_site", "LMArena (arena.ai)", "WebDev Arena leaderboard, compiled by Epoch AI",
            "https://arena.ai/leaderboard", "Arena Terms of Use",
            "https://help.arena.ai/articles/5629909088-terms-of-use"),
@@ -356,32 +376,6 @@ EPOCH_BOARDS: tuple[EpochBoard, ...] = (
         metric="% correct",
         score_column="mean_score",
         date_column="Started at",
-    ),
-    EpochBoard(
-        file="terminalbench_external.csv",
-        source_name="epoch_terminalbench",
-        benchmark="TerminalBench",
-        metric="% resolved",
-        score_column="Accuracy mean",
-        # M13-W2, REQ-UNC-003: this board is NOT one of the undated ones, and had been treated as
-        # one since it was declared. `terminalbench_external.csv` carries a `Run date` column
-        # populated on 204 of 204 rows with real evaluation dates from 2025-10-31 onward — a date
-        # the product held and threw away, leaving `computer-use` reporting its evidence as undated
-        # and therefore un-ageable.
-        #
-        # It is the exception the comment above this tuple did not anticipate: Epoch AGGREGATES
-        # this board rather than running it, and it still publishes when each run happened.
-        # `webdev_arena_external.csv` carries `Last updated` and is deliberately NOT wired the same
-        # way — 33 of 109 rows, every one the same value, which is the date the page was refreshed
-        # and not the date a model was measured.
-        date_column="Run date",
-    ),
-    EpochBoard(
-        file="arc_agi_external.csv",
-        source_name="epoch_arc_agi",
-        benchmark="ARC-AGI",
-        metric="% correct",
-        score_column="Score",
     ),
     EpochBoard(
         file="webdev_arena_external.csv",

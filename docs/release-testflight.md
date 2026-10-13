@@ -47,6 +47,14 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    wait for a night that publishes), and a refresh run by hand without `APP_BUILD` records `unknown`. Then
    `<served>.refresh.json` names `release-<sha>` for `main`'s tip. Do not use `DEPLOY_ACCEPT_DATA_FROM`
    for v2.
+   **The first install past D-194 (#265)** boots on the artifact the previous release built and refreshes
+   it like any other (its retired sources stay credited until then). Until that refresh publishes,
+   `abstract` and `computer-use` say on the Mac that they have no evidence: the old artifact holds neither
+   new board. The refresh fetches TB 4.0 from GitHub and prices from models.dev for the first time: with
+   nothing to carry, a failure of either keeps the old artifact served, and those two surfaces dark on the
+   Mac until a night publishes. The hosted engine is untouched until you deploy. **Rolling back past it** needs the artifact rebuilt
+   by the older release, a refresh run by hand from its checkout: an older release refuses an artifact
+   this one built.
 5. **Deploy** (§1 steps 5 and 6). The build is stamped `release-<sha>-data-<digest>-from-<sha>`.
 6. **Check the families are served:** `curl -s https://model-ranking.fly.dev/v1/categories | grep -c
    refined_board` must print a number above 0.
@@ -57,8 +65,9 @@ The M21 closure security seat says the release verdict stands for v2, on six con
 9. **Keep the habits** (condition 5): `fly auth logout` after each deploy, watch the usage page while
    people test, and `fly scale count 0` stops the engine at once. D-185's table is ruled (D-193,
    2026-10-12; condition 6): no source is left out, and the app's Credits screen credits each publisher.
-   **Before external testers**, have ARC Prize's, Datacurve's and OpenRouter's permissions in hand: App
-   Review may ask for them (guideline 5.2.2). The Credits screen needs a deploy of an engine with #260
+   **Before external testers**, have Datacurve's permission in hand, or DeepSWE moved to its CC BY
+   dataset with your Hugging Face token (D-194, #265): App Review may ask for it (guideline 5.2.2).
+   ARC-AGI, Terminal-Bench and the second price source read licensed data since D-194. The Credits screen needs a deploy of an engine with #260
    and a build after build 4.
 
 ## 1. The engine on Fly.io (once)

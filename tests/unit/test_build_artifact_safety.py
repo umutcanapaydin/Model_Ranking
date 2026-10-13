@@ -451,7 +451,9 @@ def test_source_floors_are_pinned_by_value_not_only_by_sign() -> None:
 
     floors = {s.name: s.minimum_rows for s in REMOTE_SOURCES}
     assert floors["litellm"] == 100
-    assert floors["openrouter"] == 50
+    assert floors["models_dev"] == 50
+    assert floors["terminalbench_4"] == 10  # D-194: 21 submissions on 2026-10-13 (the #265 Tester's M4)
+    assert floors["arc_agi_2"] == 30  # D-194: 58 settings in the committed derivation
     assert floors["swebench"] == 1
     assert floors["aider"] == 1
     # W-024: arena's floor moved from 1 to 250 when the client stopped asking the server to filter

@@ -182,7 +182,7 @@ def test_even_count_median_is_middle_mean() -> None:
 
 def test_median_of_per_source_medians_beats_outlier_source() -> None:
     """REQ-ING-006 (M2): a source with MANY cheap aliases must not outweigh another source."""
-    from app.workflows.ingest import ingest_openrouter
+    from app.workflows.ingest import ingest_models_dev
 
     conn = connect()
     run = RunContext(observed_at="t")
@@ -203,28 +203,20 @@ def test_median_of_per_source_medians_beats_outlier_source() -> None:
         ),
         run,
     )
-    # openrouter: THREE dirt-cheap aliases of the same model
-    cheap = {"prompt": "0.00000001", "completion": "0.00000001"}
-    ingest_openrouter(
+    # models_dev: THREE dirt-cheap spellings of the same model
+    cheap = {"input": 0.01, "output": 0.01}
+    ingest_models_dev(
         conn,
         FakeRawSource(
-            "openrouter",
-            json.dumps(
-                {
-                    "data": [
-                        {"id": "a/gpt-5", "pricing": cheap},
-                        {"id": "b/gpt-5", "pricing": cheap},
-                        {"id": "c/gpt-5", "pricing": cheap},
-                    ]
-                }
-            ),
+            "models_dev",
+            json.dumps({"openai": {"models": {name: {"cost": cheap} for name in ("gpt-5", "GPT-5", "gpt5")}}}),
         ),
         run,
     )
     reconcile(conn)
     build_price_medians(conn)
     in_m, _ = conn.execute("SELECT in_m, out_m FROM px_median WHERE model_id='gpt-5'").fetchone()
-    # per-source medians: litellm=1.25, openrouter=0.01 → cross-source median = 0.63 (mean of two)
+    # per-source medians: litellm=1.25, models_dev=0.01 → cross-source median = 0.63 (mean of two)
     # under the OLD flat median the three cheap rows would win outright (0.01)
     assert in_m == pytest.approx((1.25 + 0.01) / 2, abs=0.01)
     assert in_m > 0.5, "outlier source must not dominate the reference price"

@@ -77,7 +77,7 @@ def test_the_declared_boards_are_the_ones_the_engine_can_serve() -> None:
     Every board the engine can attribute is one it can serve, so the two sets are compared."""
     from app.workflows.rank import SOURCE_ATTRIBUTION
 
-    priced_only = {"litellm", "openrouter"}
+    priced_only = {"litellm", "models_dev"}  # D-194: models.dev in OpenRouter's place
     assert _declared_boards() == set(SOURCE_ATTRIBUTION) - priced_only
 
 

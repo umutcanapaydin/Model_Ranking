@@ -12,6 +12,7 @@ import sqlite3
 from datetime import date
 
 from app.clients.aider import parse_polyglot, staleness_flag
+from app.clients.arc_prize import parse_arc_agi_2
 from app.clients.arena import ARENA_BOARDS, parse_arena
 from app.clients.deepswe import parse_deepswe
 from app.clients.epoch import (
@@ -19,9 +20,10 @@ from app.clients.epoch import (
 )
 from app.clients.epoch import validate_last_verified
 from app.clients.litellm import parse_pricing
-from app.clients.openrouter import parse_models
+from app.clients.models_dev import parse_models_dev
 from app.clients.protocols import RawSource, SourceError
 from app.clients.swebench import parse_verified
+from app.clients.terminalbench import parse_terminalbench_4
 from app.workflows.registry import resolve_effort
 from app.workflows.run_records import RunContext as RunContext
 from app.workflows.run_records import SourceReport as SourceReport
@@ -71,9 +73,9 @@ def ingest_litellm(conn: sqlite3.Connection, source: RawSource, run: RunContext)
     return report
 
 
-def ingest_openrouter(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
-    """Fetch + parse OpenRouter catalog pricing (REQ-ING-005/-004)."""
-    rows, skipped = parse_models(source.fetch_raw(), source=source.name, source_url=source.url)
+def ingest_models_dev(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse the models.dev makers' prices (REQ-ING-005/-004, D-194)."""
+    rows, skipped = parse_models_dev(source.fetch_raw(), source=source.name, source_url=source.url)
     _store_pricing(conn, source.name, rows, run)
     report = SourceReport(source=source.name, stored=len(rows), skipped=skipped)
     run.reports.append(report)
@@ -178,6 +180,24 @@ def ingest_arena(conn: sqlite3.Connection, source: RawSource, run: RunContext) -
         skipped=skipped,
         effort_unknown=unclassified,
     )
+    run.reports.append(report)
+    return report
+
+
+def ingest_arc_agi_2(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Read ARC Prize's committed public-evaluation derivation and replace its working set (REQ-SRC-012)."""
+    rows, skipped = parse_arc_agi_2(source.fetch_raw(), source=source.name)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
+    run.reports.append(report)
+    return report
+
+
+def ingest_terminalbench_4(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse TB 4.0's leaderboard submissions and replace their working set (REQ-SRC-012)."""
+    rows, skipped = parse_terminalbench_4(source.fetch_raw(), source=source.name, source_url=source.url)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
     run.reports.append(report)
     return report
 

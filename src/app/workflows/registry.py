@@ -488,6 +488,8 @@ _VENDOR_SLUGS: dict[str, str] = {
     "x-ai": "xAI", "xai": "xAI", "moonshotai": "Moonshot", "z-ai": "Zhipu", "zai-org": "Zhipu",
     "amazon": "Amazon", "microsoft": "Microsoft", "nvidia": "NVIDIA", "minimax": "MiniMax",
     "cohere": "Cohere", "ai21": "AI21", "xiaomi": "Xiaomi", "baidu": "Baidu", "tencent": "Tencent",
+    # #265: makers models.dev lists, whose models only OpenRouter priced before D-194.
+    "upstage": "Upstage", "stepfun": "StepFun", "arcee-ai": "Arcee",
 }
 #: When no route names a vendor, the family word a derived id starts with.
 _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
@@ -498,8 +500,23 @@ _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
     ("deepseek", "DeepSeek"), ("kimi", "Moonshot"), ("glm", "Zhipu"), ("nova", "Amazon"),
     ("phi", "Microsoft"), ("nemotron", "NVIDIA"), ("nvidia", "NVIDIA"), ("minimax", "MiniMax"),
     ("mimo", "Xiaomi"), ("command", "Cohere"), ("jamba", "AI21"),
+    # The #265 review's M5: only OpenRouter's `tencent/` route named Hunyuan's maker.
+    ("hy4", "Tencent"), ("hunyuan", "Tencent"),
 )
 
+
+
+def route_vendor(slug: str) -> str | None:
+    """The vendor a price feed's route segment names (`x-ai` is xAI), or None for one this registry
+    does not know."""
+    return _VENDOR_SLUGS.get(slug.lower())
+
+
+def named_vendors(name: str) -> frozenset[str]:
+    """The vendors whose family words begin a word of ``name`` (D-194, #265): a maker's catalogue also
+    lists other makers' models (`zai-glm-5-2` under Mistral), and its price for one is a reseller's."""
+    words = re.split(r"[^a-z0-9]+", name.lower())
+    return frozenset(vendor for word in words for prefix, vendor in _FAMILY_VENDORS if word.startswith(prefix))
 
 
 _FIRST_WORD = re.compile(r"[A-Za-z]+")
@@ -669,6 +686,9 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen2.5-7b-instruct": "Qwen2.5 7B Instruct",
     "qwen3-4b": "Qwen3 4B",
     "qwen3.5-122b-a10b": "Qwen3.5 122B A10B",
+    "qwen3-235b-a22b-instruct2507": "Qwen3 235B A22B Instruct 2507",  # #265: ranked by ARC-AGI-2 since D-194
+    "qwen3.5-flash": "Qwen3.5 Flash",  # #265: priced by models.dev since D-194, so served
+    "qwen3.5-plus": "Qwen3.5 Plus",
     "qwq-plus": "QwQ Plus",
     "trinity-large-thinking": "Trinity Large Thinking",
     # #112's remainder (M19-W1): served under a lower-case spelling of the id. Each name is its maker's,
@@ -679,10 +699,19 @@ DISPLAY_NAMES: dict[str, str] = {
     "command-a03-2025": "Command A (03-2025)",                   # docs.cohere.com/docs/command-a
     "command-r-plus08-2024": "Command R+ 08-2024",               # docs.cohere.com/docs/command-r-plus
     "command-r08-2024": "Command R 08-2024",                     # docs.cohere.com/docs/command-r
+    # Mistral (#265: priced by models.dev since D-194, so served), as docs.mistral.ai/getting-started/models
+    # names each (read 2026-10-13)
+    "devstral-medium2507": "Devstral Medium 1.0",
+    "mistral-medium2508": "Mistral Medium 3.1",
+    "mistral-small2506": "Mistral Small 3.2",
+    "open-mistral7b": "Mistral 7B",
+    "open-mixtral8x22b": "Mixtral 8x22B",
+    "open-mixtral8x7b": "Mixtral 8x7B",
     # Meta: its cards name the family "Code Llama" and the variant "Instruct" ("CodeLlama 70B Instruct")
     "codellama34b-instruct": "Code Llama 34B Instruct",  # huggingface.co/meta-llama/CodeLlama-34b-Instruct-hf
     "codellama70b-instruct": "Code Llama 70B Instruct",  # huggingface.co/meta-llama/CodeLlama-70b-Instruct-hf
     "llama2-7b-chat": "Llama 2 7B Chat",                 # huggingface.co/meta-llama/Llama-2-7b-chat-hf
+    "llama4-maverick17b128e-instruct": "Llama 4 Maverick 17B 128E Instruct",  # #265: ranked by ARC-AGI-2
     "llama3-70b-instruct": "Llama 3 70B Instruct",       # huggingface.co/meta-llama/Meta-Llama-3-70B-Instruct
     # Mistral: the names its model list gives each version (docs.mistral.ai/models)
     "devstral-small2505": "Devstral Small 1.0",                  # .../models/devstral-small-1-0-25-05

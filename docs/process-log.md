@@ -767,3 +767,32 @@ Lesson: a gate's exceptions are part of the gate. A hook that the DevFlow's own 
 Lesson: a hook is tested by the commits it gates. The commit-msg gate passed its own tests and every
 commit in the closure, and still refused the first ordinary commit in the owner's clone.
 
+
+## 2026-10-13 — the unlicensed sources move to licensed data (D-194)
+
+- The owner merged #263 (Credits), deployed it and uploaded build 5. They asked for each unsettled
+  source's licensed alternative instead of waiting for permission (D-194, #265).
+- models.dev (MIT) replaces OpenRouter's prices, read from each model maker's own entry. Its catalogue
+  also resells other makers' models under a maker's name; the first build priced Zhipu's GLM at
+  Alibaba's price until `registry.named_vendors` refused them. 314 models are priced, against 311.
+- `computer-use` ranks on TB 4.0's Apache-2.0 leaderboard repository: 21 models, all priced. TB 2.0's
+  Apache-2.0 raw submissions were measured and not taken: they keep submissions the official board took
+  down for cheating.
+- `abstract` ranks on ARC Prize's MIT public-evaluation runs. Hugging Face answered 429 a minute into
+  reading them, so the scores are derived once at a pinned revision and committed, with a contract test
+  on the revision. Only 32 of 70 settings carried a summary, so every setting is scored from its
+  attempts, and the summary's own score is reproduced.
+- The review was BLOCKING twice over. ARC Prize had left whole settings unmarked (`correct: null`), and
+  the derivation read them as wrong: GPT-5 Pro and Claude Sonnet 4.5 were served at 0. They are scored
+  against ARC-AGI-2's published solutions now. And the new code refused to boot on the artifact `main`
+  built, so the install would have rolled back before the startup refresh could replace it; the
+  retired sources stay attributed for that artifact. Round 2 was MINOR: the unmarked attempts were
+  paired with solutions by position, and GPT-4.1 had answered a task set ARC Prize changed after it
+  ran. Paired by index, the comparison agrees with every one of ARC Prize's 16,681 marks.
+- The Tester was BLOCKING: no test ran the two new boards through the ingest the build registers, and
+  ARC's "a task not run is 0" rule had none. Eleven of 28 planted faults survived; each has a test now.
+- DeepSWE waits for the owner's Hugging Face token: the dataset is gated, and its format cannot be read.
+- A worktree's `make install` through a `.venv` symlink had rewritten the owner's editable install, and
+  their deploy failed until they reinstalled (#264). This wave's worktree built its own venv.
+Lesson: a licence is a property of a copy, not of a benchmark. TB 2.0's licensed copy held what its own
+maintainers had withdrawn, and models.dev's makers' catalogues held other makers' models.

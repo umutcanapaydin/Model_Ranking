@@ -6,7 +6,7 @@ The facts, each read at its source (`docs/research/data-licences-2026-10-04.md` 
   use, and should credit the original sources as indicated" (epoch.ai/benchmarks/use-this-data, read
   2026-10-06). Each external file names its source in a `Source` column (the bundle of 2026-10-06).
 - SWE-bench's site data is CC BY-NC 4.0 (its repo's `LICENSE`); Aider's leaderboard is Apache-2.0.
-- OpenRouter's terms (last updated 2026-08-31) state no attribution clause for `/models`.
+- models.dev, the second price source since D-194 (#265), is MIT (`sst/models.dev`).
 - CC BY 4.0 §3(a)(1) asks for a link to the material where practicable, and the licence's URI.
 
 Where attribution must appear is the owner's ruling (#88, question 6); this file holds only what
@@ -17,14 +17,11 @@ from __future__ import annotations
 
 import pytest
 
-import app.clients.openrouter as openrouter
 from app.workflows.rank import ATTRIBUTIONS, PRICING_ATTRIBUTION, SOURCE_ATTRIBUTION
 
 #: Each board Epoch compiles from another publisher -> the name and link its `Source` column gives.
 EXTERNAL = {
-    "epoch_arc_agi": ("ARC Prize", "https://arcprize.org/leaderboard"),
     "epoch_deepswe_external": ("DeepSWE", "https://deepswe.datacurve.ai/"),
-    "epoch_terminalbench": ("Terminal-Bench", "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
     "epoch_webdev": ("WebDev Arena", "https://arena.ai/leaderboard"),
     "epoch_mmlu": ("Stanford CRFM", "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu"),
 }
@@ -68,9 +65,10 @@ def test_a_creative_commons_source_links_its_material_and_its_licence(source: st
     assert all(LICENCE_LINKS[token] in citation for token in named), citation
 
 
-def test_the_pricing_credit_claims_no_term_openrouter_does_not_state() -> None:
-    assert "attribution required" not in PRICING_ATTRIBUTION
-    assert "attribution required" not in (openrouter.__doc__ or "")
+def test_the_pricing_credit_names_each_price_source_under_its_licence() -> None:
+    """D-194: both price sources are MIT; the credit names each, and no longer OpenRouter."""
+    assert "BerriAI/litellm (MIT)" in PRICING_ATTRIBUTION and "models.dev (MIT)" in PRICING_ATTRIBUTION
+    assert "OpenRouter" not in PRICING_ATTRIBUTION
 
 
 def test_a_credit_the_reader_sees_carries_no_markup_or_file_name() -> None:

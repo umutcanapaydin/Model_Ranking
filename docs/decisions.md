@@ -4361,12 +4361,12 @@ testing included.
    | source | feeds | why it is left out |
    |---|---|---|
    | `swebench` | `coding` (half its rows; Epoch's SWE-bench Verified stays) | CC BY-NC 4.0 |
-   | `epoch_arc_agi` | `abstract`, its only source | ARC Prize: personal or internal use; no database without permission |
-   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published |
-   | `epoch_terminalbench` | `computer-use`, its only source | no licence stated |
+   | `epoch_arc_agi` | `abstract`, its only source | ARC Prize: personal or internal use; no database without permission. **Replaced by `arc_agi_2`, ARC Prize's MIT public-evaluation runs (D-194)** |
+   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published. **Moves to Datacurve's CC BY 4.0 dataset with the owner's Hugging Face token (D-194)** |
+   | `epoch_terminalbench` | `computer-use`, its only source | no licence stated. **Replaced by `terminalbench_4`, TB 4.0's Apache-2.0 leaderboard repository (D-194)** |
    | `epoch_webdev` | `web-dev`, its only source | arena.ai's terms: personal or internal business use |
    | `epoch_mmlu` | `everyday`'s secondary score, display only | no licence found |
-   | `openrouter` | the second price of 168 models | its terms forbid use of its data unless authorised |
+   | `openrouter` | the second price of 168 models | its terms forbid use of its data unless authorised. **Replaced by `models_dev`, MIT (D-194)** |
 
    The public artifact also drops LiteLLM's own copies of OpenRouter's prices (`openrouter/` aliases)
    and the vendor subscription plans, which `/v1` never serves; its pricing credit names only the
@@ -4399,6 +4399,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 **Amended by D-190 (2026-10-09)**: `web-dev` ranks on LMArena's own WebDev board (CC-BY-4.0), so the public artifact keeps the surface while `epoch_webdev` stays in clause 3's table (#185).
 
 **Amended by D-193 (2026-10-12)**: the owner ruled on clause 3's table source by source; no source is left out, and every served publisher is credited on the app's Credits screen (#260).
+
+**Amended by D-194 (2026-10-13)**: clause 3's table -- `epoch_arc_agi`, `epoch_terminalbench` and `openrouter` are replaced by their publishers' licensed data and no longer built; `epoch_deepswe_external` waits for the owner's Hugging Face token (#265). The table notes each replacement.
 
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
@@ -4495,13 +4497,13 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | surface | family, the primary first |
    |---|---|
    | `coding` | `swebench`, `epoch_swe_bench_verified`, `aider`, `arena_text_coding` |
-   | `agentic-coding` | `epoch_deepswe_external`, `epoch_terminalbench`, `arena_agent` |
+   | `agentic-coding` | `epoch_deepswe_external`, `terminalbench_4`, `arena_agent` |
    | `assistant` | `arena` |
    | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu` |
    | `expert` | `epoch_gpqa`, `arena_text_expert`, `epoch_mmlu` |
    | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
-   | `computer-use` | `epoch_terminalbench`, `arena_agent` |
-   | `abstract` | `epoch_arc_agi`, `epoch_chess`, `epoch_mystery` |
+   | `computer-use` | `terminalbench_4`, `arena_agent` |
+   | `abstract` | `arc_agi_2`, `epoch_chess`, `epoch_mystery` |
    | `web-dev` | `arena_webdev`, `arena_text_coding` |
    | `document` | `arena_document`, `arena_text_longer_query` |
    | `factuality` | `arena_factuality`, `epoch_simpleqa` |
@@ -4563,6 +4565,8 @@ answer to the family list on more questions than ours (`docs/judgement-sheet.md`
 for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 repo review's M5).
 
 **Amended by D-190 (2026-10-09)**: clause 1's table -- `web-dev`'s family is `arena_webdev`, `arena_text_coding`; Epoch's copy of the same board stands outside (#185).
+
+**Amended by D-194 (2026-10-13)**: clause 1's table -- `computer-use` and `abstract` rank on licensed boards (`terminalbench_4`, `arc_agi_2`), and `terminalbench_4` takes Epoch's TB 2.0 copy's place in `agentic-coding`'s family (#265).
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -4810,3 +4814,102 @@ testers or the App Store (guideline 5.2.2). A paid app ends SWE-bench's place (C
 
 **Revisit when:** a publisher answers, the app becomes paid, or the owner rules on Terminal-Bench 4.0.
 
+**Amended by D-194 (2026-10-13)**: clauses 1 and 2 -- ARC-AGI, Terminal-Bench and OpenRouter move to their publishers' licensed data instead of waiting for permission; DeepSWE moves when the owner's Hugging Face token is in place (#265).
+
+## D-194 — The unlicensed boards and OpenRouter's prices move to their publishers' licensed data
+
+**Status:** accepted -- decided by the owner on 2026-10-13. They first wrote "Terminal-Bench to the TB 4.0
+repository rows (Apache); ARC-AGI, DeepSWE, OpenRouter left out, no search for alternatives; do not touch
+web-dev (D-190); update D-185's table". Asked how that sat with their ruling of 2026-10-12 ("do not hide
+any data"), they chose "move them to the licensed alternatives", and "yes, do it" for the Terminal-Bench
+move and the table (owner, translated from Turkish). Revised before merge on 2026-10-13, after each source
+was measured: TB 2.0's raw submissions are not read, DeepSWE waits for the owner's token, and ARC-AGI-2 is
+derived once at a pinned revision · **Date:** 2026-10-13 · **Amends** D-185 clause 3, D-188 clause 1 (the
+families table) and D-193 clauses 1 and 2 · from #265.
+
+**Context.** D-193 served ARC-AGI (`epoch_arc_agi`, ARC Prize's terms bar commercial use), DeepSWE
+(`epoch_deepswe_external`, no licence published), Terminal-Bench (`epoch_terminalbench`, Epoch's copy of
+TB 2.0, no licence stated) and OpenRouter's prices (`openrouter`, its terms bar use of its data) while the
+owner asked each publisher. Each publisher, or the benchmark's maintainer, puts out the same kind of data
+under a licence:
+
+| replaced | by | licence | what it holds |
+|---|---|---|---|
+| `epoch_terminalbench` | `terminalbench_4`: `harbor-framework/terminal-bench`, `leaderboard/submissions/*.json` | Apache-2.0 | TB 4.0's official leaderboard, 21 submissions, live |
+| `epoch_arc_agi` | `arc_agi_2`: `arcprize/arc_agi_v2_public_eval` on Hugging Face | MIT | ARC Prize's own runs on the 120 **public** evaluation tasks, each attempt with its answer, most marked `correct` and some settings left unmarked; unchanged since 2026-06-04 |
+| `openrouter` | `models_dev`: `models.dev/api.json` (`sst/models.dev`) | MIT | about 8,500 models' prices per million tokens, under each maker and every reseller |
+| `epoch_deepswe_external` | (waits) `datacurve/deep-swe-leaderboard` on Hugging Face | CC BY 4.0 | Datacurve's runs, one job of 2026-06-06; gated, approved automatically, read with a Hugging Face token |
+
+Two licensed copies were measured and not taken. TB 2.0's raw submissions
+(`harborframework/terminal-bench-2-leaderboard`, Apache-2.0) keep submissions the official board took down
+for cheating and trials it rescored to zero (tbench.ai's leaderboard integrity update), so a board rebuilt
+from them would serve scores its maintainers withdrew. ARC-AGI-1's public-evaluation runs
+(`arcprize/arc_agi_v1_public_eval`, MIT) would cost 15,000 more file reads for a test the 2026 models
+have saturated.
+
+**Decision.**
+1. **Three sources are replaced now; DeepSWE when the owner's token is in place.** `openrouter`,
+   `epoch_terminalbench` and `epoch_arc_agi` are no longer built. `epoch_deepswe_external` stays served
+   under D-193, credited, until the owner has accepted Datacurve's dataset terms and given the engine a
+   Hugging Face token; the format of a gated dataset cannot be read before then, and `agentic-coding`
+   ranks only at `high` effort, which a parser written blind could leave empty. `public.LEFT_OUT` stays
+   empty: nothing unlicensed is built that a derivation would have to remove.
+2. **Surfaces and families** (D-188 clause 1, amended):
+   - `computer-use` ranks on `terminalbench_4`; its family is `terminalbench_4`, `arena_agent`.
+   - `abstract` ranks on `arc_agi_2`; its family is `arc_agi_2`, `epoch_chess`, `epoch_mystery`. These are
+     public-evaluation scores, higher than arcprize.org's semi-private ones; the benchmark says so in its
+     name, "ARC-AGI-2 (public eval)".
+   - `agentic-coding`'s family is `epoch_deepswe_external`, `terminalbench_4`, `arena_agent`.
+   - `models_dev` is the second price source. Only each model maker's own entry is read: never a
+     reseller's, never models.dev's copy of OpenRouter's catalogue, and never another maker's model that
+     a maker's catalogue resells (`registry.named_vendors`). Upstage, StepFun and Arcee join the
+     registry's vendor routes.
+3. **ARC-AGI-2 is derived once and committed.** Scoring every setting reads about 4,300 files, and Hugging
+   Face answered 429 past its anonymous rate within a minute, so a nightly read would fail. The dataset
+   has not changed since 2026-06-04. `scripts/derive_arc_public_eval.py` scores it at a pinned revision,
+   as ARC Prize's own `results.json` does (a pair is solved by either attempt; a task scores its share of
+   pairs; a setting scores the sum over the 120 tasks, a missing task as 0, and one that ran fewer than
+   114 is left out), into `data/arc-agi-2-public-eval.json`, which the build reads. The contract test
+   fails when the dataset moves past that revision. ARC Prize's `correct` mark is kept where it made
+   one; an attempt it left unmarked (whole settings, such as GPT-5 Pro and Claude Sonnet 4.5) is scored
+   by comparing its answer with the solution of its own pair index in `arcprize/ARC-AGI-2` (Apache-2.0,
+   pinned commit `f3283f72`). The comparison agrees with all 16,681 of ARC Prize's marks. ARC Prize last
+   changed those solutions on 2025-05-15 (the first test pair of five tasks removed), so a setting with an
+   unmarked attempt run before then is left out: GPT-4.1's three. 58 settings are kept. Each setting is
+   dated by its latest attempt.
+4. **Each moved surface is calibrated on its board** by `scripts/calibrate_surface.py`, on the ranked
+   population (D-148 clause 2, M8's two rules): `close_call` is twice the board's own standard error (TB
+   4.0 publishes one; ARC-AGI-2's is binomial over its 120 tasks, taken over the models above the floor), and
+   `value_window` ends at the middle of the first gap wider than `close_call` that leaves at least three
+   candidates, so the window never splits two models the board cannot tell apart. The records are
+   `docs/research/d194-computer-use-calibration.json` and `docs/research/d194-abstract-calibration.json`.
+5. **Credits:** ARC Prize Foundation (MIT), Terminal-Bench (Apache-2.0) and models.dev (MIT) are credited
+   for their own data, with their links (D-193 clause 3).
+6. **The move is two-way safe for one release.** The sources D-194 stops building stay attributed and
+   credited as D-193 credited them (`board_tables.RETIRED_EXTERNAL_ATTRIBUTION`, the retired credits), so
+   an engine of this release boots on an artifact an older release built, and its startup refresh
+   (#258) replaces that artifact. The other way does not hold: an older release refuses an artifact this
+   one built, so a rollback past this release rebuilds the artifact with the older release's code.
+7. **The calls are new external APIs from production code** (`permission-matrix.md` §3, ASK). This ruling
+   is the owner's answer; each goes through `app.clients`, with the bounded fetch and a host list.
+
+**The alternatives not taken.** Leaving the three out (the owner's first wording of 2026-10-13): it
+darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refused. Waiting for permission
+(D-193): the licensed data is already published. Reading ARC-AGI-2 nightly: past the rate limit.
+
+**The cost.** Measured against main's build of the same hour:
+- Prices (the branch's last build against `main`'s served artifact of 2026-10-13): 316 models priced,
+  against 311. `gpt-3.5-turbo-0613`, `gpt-5.1-codex-max`, `minimax-m1` and `o1-pro` (2025-03-19) lost their
+  only price (no maker lists them). 146 models have a second price, against 172. 43 models' blended
+  price medians moved more than 20 %, 37 of them up, for two reasons. OpenRouter's half-price `:batch` rows had been linked to
+  the base models (65 aliases, 62 models), and leave with it. And an open-weight model's second price is
+  now its maker's list price, not the cheapest host's (Qwen's most).
+- Budget edges crossed (blended $/1M; `low` is $2, `medium` $8): Claude Opus 5.5 leaves `medium` ($7.40
+  to $8.40); GLM-5.1, GLM-5.2, GLM-5.3 and Qwen2.5 VL 72B leave `low`; Mistral Medium (2505) enters it.
+- `computer-use` ranks 21 models, all priced, against 42 on TB 2.0.
+- `abstract` ranks 24 models, against Epoch's copy's 79.
+- DeepSWE's licence stays unsettled until the owner's token is in place.
+
+**Revisit when:** the owner's Hugging Face token is in place (DeepSWE moves), ARC Prize publishes new runs
+(re-derive), a publisher changes its licence, or ARC Prize publishes its leaderboard's scores under a
+licence.

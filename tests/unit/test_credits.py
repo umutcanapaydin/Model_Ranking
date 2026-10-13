@@ -54,13 +54,13 @@ def test_an_attribution_with_no_credit_is_refused() -> None:
 
 
 def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() -> None:
-    owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
-    assert _ids(owed) == ["arc_prize", "epoch_compilation", "epoch", "litellm", "openrouter"]
+    owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
+    assert _ids(owed) == ["datacurve", "epoch_compilation", "epoch", "litellm", "models_dev"]
 
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
-    for source, publisher in (("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
-                              ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"),
+    for source, publisher in (("epoch_deepswe_external", "datacurve"),
+                              ("epoch_mmlu", "helm"),
                               ("epoch_webdev", "arena_site")):
         assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch_compilation"], source
 
@@ -75,8 +75,8 @@ def test_epochs_licence_is_claimed_for_its_own_boards_only() -> None:
     assert "compil" not in CREDITS["epoch"].data.lower()
 
 
-def test_prices_credit_openrouter_only_where_its_prices_are_served() -> None:
-    assert _ids([PRICING_ATTRIBUTION]) == ["litellm", "openrouter"]
+def test_prices_credit_models_dev_only_where_its_prices_are_served() -> None:
+    assert _ids([PRICING_ATTRIBUTION]) == ["litellm", "models_dev"]
     assert _ids([PRICING_ATTRIBUTION_LITELLM]) == ["litellm"]
 
 
@@ -98,12 +98,12 @@ def test_the_boards_payload_carries_the_credits_its_attributions_owe() -> None:
     assert [c["id"] for c in payload["credits"]] == ["litellm", "epoch"]  # the catalogue order
 
 
-def test_the_boards_payload_credits_openrouter_when_it_serves_its_prices() -> None:
+def test_the_boards_payload_credits_models_dev_when_it_serves_its_prices() -> None:
     conn: sqlite3.Connection = _conn()
     _chess(conn)
     conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url, observed_at) "
-                 "VALUES ('a', 'a', 1.0, 2.0, 'openrouter', 'u', '2026-09-25')")
-    assert "openrouter" in [c["id"] for c in _payload(conn)["credits"]]
+                 "VALUES ('a', 'a', 1.0, 2.0, 'models_dev', 'u', '2026-09-25')")
+    assert "models_dev" in [c["id"] for c in _payload(conn)["credits"]]
 
 
 def test_the_accessibility_epoch_publishes_is_credited_whatever_boards_are_served() -> None:
@@ -204,13 +204,17 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "swebench": ("CC BY-NC 4.0", cc_by_nc),
         "aider": ("Apache-2.0", "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
         "litellm": ("MIT", "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
-        "openrouter": ("OpenRouter Terms of Service", "https://openrouter.ai/terms"),
-        "arc_prize": ("ARC Prize Terms", "https://arcprize.org/terms"),
+        "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
+        "arc_prize": ("MIT", "https://opensource.org/license/mit"),
         "datacurve": ("\u00a9 Datacurve; no licence published", None),
-        "terminal_bench": ("No licence stated on the leaderboard", None),
+        "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
                  "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
         "arena_site": ("Arena Terms of Use", "https://help.arena.ai/articles/5629909088-terms-of-use"),
+        # The #265 review's B2: the retired sources' publishers, for an artifact an older release built.
+        "arc_prize_leaderboard": ("ARC Prize Terms", "https://arcprize.org/terms"),
+        "terminal_bench_2": ("No licence stated on the leaderboard", None),
+        "openrouter": ("OpenRouter Terms of Service", "https://openrouter.ai/terms"),
     }
 
 

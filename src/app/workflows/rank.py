@@ -23,6 +23,7 @@ from app.workflows.board_tables import (
     CREDITS,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
+    RETIRED_EXTERNAL_ATTRIBUTION,
 )
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
@@ -37,25 +38,37 @@ BLEND_NOTE = "blended $/1M = input*0.75 + output*0.25"
 # an `assistant` answer ranks purely on Arena Elo, and claiming SWE-bench, Aider and
 # Epoch alongside it is a false provenance claim in a machine contract. Payloads build
 # their list from the evidence they actually used, via `attributions_for`.
-# #124: each publisher under its own licence, with links. OpenRouter's terms state no attribution
-# clause for its catalogue, so the credit claims none (`app.clients.openrouter`).
+# #124: each publisher under its own licence, with links. D-194: the second price source is models.dev
+# (MIT) in OpenRouter's place, whose terms licensed no use of its catalogue.
 PRICING_ATTRIBUTION = (
-    "Pricing data: BerriAI/litellm (MIT) and OpenRouter's public model catalog, "
-    "https://openrouter.ai/api/v1/models"
+    "Pricing data: BerriAI/litellm (MIT) and models.dev (MIT), https://models.dev"
 )
 #: The credit where the served prices are LiteLLM's alone, as in the hosted engine's public artifact
 #: (#88, D-185; the M19-W5 review's MJ1): crediting a catalogue the artifact does not carry is a
 #: false provenance claim, as W4's BLOCKING-2 put it for scores.
 PRICING_ATTRIBUTION_LITELLM = "Pricing data: BerriAI/litellm (MIT)"
+#: The #265 review's B2: the credit of an artifact an older release built, whose second price is OpenRouter's.
+PRICING_ATTRIBUTION_OPENROUTER = (
+    "Pricing data: BerriAI/litellm (MIT) and OpenRouter's public model catalog, https://openrouter.ai/api/v1/models"
+)
 SWEBENCH_ATTRIBUTION = f"Coding scores: SWE-bench leaderboard, https://www.swebench.com ({CC_BY_NC_4})"
 AIDER_ATTRIBUTION = "Coding scores: Aider polyglot leaderboard, https://github.com/Aider-AI/aider (Apache-2.0)"
+#: D-194 (#265): ARC Prize's own runs on the public evaluation set, scored from its MIT dataset.
+ARC_ATTRIBUTION = ("ARC-AGI-2 scores: ARC Prize's public evaluation runs, "
+                   "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval (MIT)")
+#: D-194 (#265): TB 4.0's leaderboard, read from its repository in place of Epoch's copy of TB 2.0.
+TERMINALBENCH_ATTRIBUTION = ("Terminal-Bench 4.0 scores: Terminal-Bench leaderboard submissions, "
+                             "https://github.com/harbor-framework/terminal-bench (Apache-2.0)")
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
     SWEBENCH_ATTRIBUTION,
     AIDER_ATTRIBUTION,
+    TERMINALBENCH_ATTRIBUTION,
+    ARC_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
+    *RETIRED_EXTERNAL_ATTRIBUTION.values(),
 )
 
 # Which citation each `scores.source` value obliges. A source missing from this map is
@@ -82,6 +95,8 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     **{board.source_name: ARENA_ATTRIBUTION for board in ARENA_SLICES},
     "swebench": SWEBENCH_ATTRIBUTION,
     "aider": AIDER_ATTRIBUTION,
+    "terminalbench_4": TERMINALBENCH_ATTRIBUTION,
+    "arc_agi_2": ARC_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     # #124: compiled by Epoch from another publisher, and credited to it.
     "epoch_deepswe_external": EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"],
@@ -93,8 +108,6 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "epoch_eci": EPOCH_ATTRIBUTION,
     "epoch_gpqa": EPOCH_ATTRIBUTION,
     "epoch_aime": EPOCH_ATTRIBUTION,
-    "epoch_terminalbench": EPOCH_EXTERNAL_ATTRIBUTION["epoch_terminalbench"],
-    "epoch_arc_agi": EPOCH_EXTERNAL_ATTRIBUTION["epoch_arc_agi"],
     "epoch_webdev": EPOCH_EXTERNAL_ATTRIBUTION["epoch_webdev"],
     "epoch_mmlu": EPOCH_EXTERNAL_ATTRIBUTION["epoch_mmlu"],
     # M17-W3 (#37): five more Epoch-run boards, CC-BY like GPQA, listed one by one as above.
@@ -117,16 +130,22 @@ METADATA_ATTRIBUTION: dict[str, str] = {
 #: attributed and left off the screen, and a citation with no entry here is refused (`credits_for`).
 CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     ARENA_ATTRIBUTION: ("lmarena",),
-    PRICING_ATTRIBUTION: ("litellm", "openrouter"),
+    PRICING_ATTRIBUTION: ("litellm", "models_dev"),
     PRICING_ATTRIBUTION_LITELLM: ("litellm",),
+    PRICING_ATTRIBUTION_OPENROUTER: ("litellm", "openrouter"),
     SWEBENCH_ATTRIBUTION: ("swebench",),
     AIDER_ATTRIBUTION: ("aider",),
+    TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
+    ARC_ATTRIBUTION: ("arc_prize",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).
     **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
-        ("epoch_arc_agi", "arc_prize"), ("epoch_deepswe_external", "datacurve"),
-        ("epoch_terminalbench", "terminal_bench"), ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
+        ("epoch_deepswe_external", "datacurve"),
+        ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
+    # The #265 review's B2: as D-193 credited them, for an artifact an older release built.
+    **{RETIRED_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
+        ("epoch_arc_agi", "arc_prize_leaderboard"), ("epoch_terminalbench", "terminal_bench_2"))},
 }
 
 
@@ -180,18 +199,20 @@ def attributions_for(
     ``priced`` adds the pricing citation for payloads that rank on $/1M (the model
     engine). The subscription engine ranks on the curated plan table's monthly price
     and must not claim the per-token pricing feeds it never read. ``pricing_sources`` names the
-    price sources the served artifact holds (`served_pricing_sources`): OpenRouter is credited only
+    price sources the served artifact holds (`served_pricing_sources`): models.dev is credited only
     where its prices are; with `None`, the whole catalogue's credit (an export on the owner's Mac). A
-    priced call must say which: one that forgot would credit OpenRouter again.
+    priced call must say which: one that forgot would credit a catalogue it does not serve.
     """
     if priced and pricing_sources is _UNSAID:
         msg = "a priced payload names the price sources it serves (served_pricing_sources), or None"
         raise TypeError(msg)
-    pricing = (PRICING_ATTRIBUTION if pricing_sources is None or "openrouter" in set(pricing_sources)
+    served = None if pricing_sources is None else set(pricing_sources)
+    pricing = (PRICING_ATTRIBUTION if served is None or "models_dev" in served
+               else PRICING_ATTRIBUTION_OPENROUTER if "openrouter" in served  # an older release's artifact (B2)
                else PRICING_ATTRIBUTION_LITELLM)
     owed = {pricing} if priced else set()
     for source in evidence_sources:
-        citation = SOURCE_ATTRIBUTION.get(source)
+        citation = SOURCE_ATTRIBUTION.get(source) or RETIRED_EXTERNAL_ATTRIBUTION.get(source)
         if citation is None:
             msg = f"unattributed evidence source {source!r}; add it to SOURCE_ATTRIBUTION"
             raise ValueError(msg)

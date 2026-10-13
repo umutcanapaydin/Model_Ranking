@@ -24,3 +24,27 @@ def test_real_aider_payload_satisfies_parser_contract() -> None:
     assert len(rows) >= 20, f"only {len(rows)} aider rows (skipped={skipped})"
     flag = staleness_flag(rows, "2026-08-10T00:00:00+00:00")
     assert flag is None or "stale" in flag
+
+
+def test_real_terminalbench_4_submissions_satisfy_parser_contract() -> None:
+    """REQ-SRC-012 acceptance (#265): the live TB 4.0 repository's submissions parse, none skipped."""
+    from app.clients.terminalbench import TerminalBench4Client, parse_terminalbench_4
+
+    client = TerminalBench4Client()
+    rows, skipped = parse_terminalbench_4(client.fetch_raw(), source=client.name, source_url=client.url)
+    assert len(rows) >= 10, f"only {len(rows)} TB 4.0 rows (skipped={skipped})"
+    assert skipped == 0 and all(0 <= r.score <= 100 for r in rows)
+
+
+def test_the_committed_arc_agi_2_derivation_is_the_datasets_current_revision() -> None:
+    """REQ-SRC-012 acceptance (#265): ARC Prize has not moved its public-evaluation dataset past the revision
+    `data/arc-agi-2-public-eval.json` was derived at. When it has, re-run `scripts/derive_arc_public_eval.py`."""
+    import json
+
+    from app.clients.arc_prize import ArcAgi2Client
+    from app.clients.protocols import fetch_bounded
+
+    committed = json.loads(ArcAgi2Client().fetch_raw())["revision"]
+    live = json.loads(fetch_bounded("https://huggingface.co/api/datasets/arcprize/arc_agi_v2_public_eval",
+                                    "arc_agi_2", 30.0))["sha"]
+    assert live == committed, f"the dataset moved from {committed[:12]} to {live[:12]}: re-derive it"

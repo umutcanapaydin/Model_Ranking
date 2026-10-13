@@ -11,8 +11,9 @@
 
 ```
 UPSTREAM SOURCES (untrusted input)
-  prices : LiteLLM, OpenRouter
-  scores : SWE-bench Verified, Aider, seven Arena boards and Arena's category slices (Hugging Face),
+  prices : LiteLLM, models.dev (D-194)
+  scores : SWE-bench Verified, Aider, Terminal-Bench 4.0 (GitHub), seven Arena boards and Arena's
+           category slices (Hugging Face),
            the Epoch AI bundle (a zip from epoch.ai; also each model's accessibility)
       |  bounded HTTP fetches, made only by the refresh's child process
       v
@@ -71,11 +72,15 @@ D-120: `0` built and servable, `2` failed, `3` built but not servable.
 The sources are declared once, in `src/app/workflows/sources.py`, and the build and the smoke gate
 both derive from that list:
 
-- **Prices:** LiteLLM and OpenRouter. Both are required.
+- **Prices:** LiteLLM and models.dev, both MIT and both required. models.dev took OpenRouter's place in
+  D-194 (#265); only each model maker's own entry is read, never a reseller's
+  (`src/app/clients/models_dev.py`).
 - **Scores fetched over the network:** SWE-bench Verified and Aider, both required. Seven Arena boards
   (`arena`, `arena_document`, `arena_factuality`, `arena_vision`, `arena_search`,
   `arena_search_factuality`, `arena_webdev`) are optional (D-121): without one, its surface says it has
-  no evidence. `arena_webdev` is `web-dev`'s board since M21-W1 (D-190).
+  no evidence. `arena_webdev` is `web-dev`'s board since M21-W1 (D-190). `terminalbench_4` (required)
+  is `computer-use`'s board since D-194: TB 4.0's leaderboard submissions, read from its Apache-2.0
+  repository (`src/app/clients/terminalbench.py`).
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked
@@ -84,7 +89,9 @@ both derive from that list:
   (`src/app/workflows/access.py`).
 - **Curated data in the repository:** `data/plans.yaml` and `data/rosters.yaml` (subscription
   plans, D-107), read through the bounded loader in `src/app/workflows/yaml_guard.py`.
-  `data/epoch-source.yaml` keeps the bundle's URL.
+  `data/epoch-source.yaml` keeps the bundle's URL. `data/arc-agi-2-public-eval.json` is `abstract`'s
+  board since D-194: ARC Prize's MIT public-evaluation runs, scored once at a pinned revision by
+  `scripts/derive_arc_public_eval.py` (`src/app/clients/arc_prize.py`).
 
 Every source name is reconciled to one canonical model by the curated rules in
 `src/app/workflows/registry.py`. A name no rule matches becomes a derived model when it has both a

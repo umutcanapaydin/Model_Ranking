@@ -126,20 +126,22 @@ def test_a_public_answer_credits_only_the_prices_it_serves(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
 ) -> None:
     """MJ1: every priced answer credited "OpenRouter's public model catalog", whose prices the public
-    artifact does not carry. The credit follows the price sources present; the full artifact keeps it."""
+    artifact did not carry. The credit follows the price sources present; the full artifact keeps it.
+    Since D-194 the second price source is models.dev, planted as left out here to test the machinery."""
     from app.adapter import main
 
+    monkeypatch.setitem(public.LEFT_OUT, "models_dev", "planted for the test")
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
     with sqlite3.connect(built) as conn:
         conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
-                     " observed_at) SELECT alias, model_id, input_per_m, output_per_m, 'openrouter',"
-                     " 'https://openrouter.ai/api/v1/models', observed_at FROM pricing WHERE source = 'litellm'")
+                     " observed_at) SELECT alias, model_id, input_per_m, output_per_m, 'models_dev',"
+                     " 'https://models.dev/api.json', observed_at FROM pricing WHERE source = 'litellm'")
     public.derive(built, served)
-    for path, credits_openrouter in ((built, True), (served, False)):
+    for path, credits_second in ((built, True), (served, False)):
         monkeypatch.setenv("MODEL_RANKING_DB", str(path))
         credits = " ".join(TestClient(main.app).get("/v1/boards").json()["attributions"])
-        assert ("OpenRouter" in credits) is credits_openrouter, (path.name, credits)
+        assert ("models.dev" in credits) is credits_second, (path.name, credits)
         assert "litellm" in credits, credits
 
 
@@ -264,7 +266,12 @@ def test_a_priced_payload_must_say_which_price_sources_it_serves() -> None:
     assert attributions_for(["swebench"], priced=False) == (SWEBENCH_ATTRIBUTION,), "an unpriced payload names none"
     assert attributions_for([], priced=True, pricing_sources=None) == (PRICING_ATTRIBUTION,)
     assert attributions_for([], priced=True, pricing_sources={"litellm"}) == (PRICING_ATTRIBUTION_LITELLM,)
-    assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (PRICING_ATTRIBUTION,)
+    assert attributions_for([], priced=True, pricing_sources={"litellm", "models_dev"}) == (PRICING_ATTRIBUTION,)
+    # The #265 review's B2: an artifact an older release built still credits OpenRouter for its prices.
+    from app.workflows.rank import PRICING_ATTRIBUTION_OPENROUTER
+
+    assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (
+        PRICING_ATTRIBUTION_OPENROUTER,)
 
 
 def test_d186_supersedes_d185s_list_and_says_so() -> None:
@@ -348,3 +355,36 @@ def test_a_missed_copy_of_a_left_out_source_stops_the_derivation(
     with pytest.raises(ValueError, match="survived"):
         public.derive(built, served)
     assert not served.exists()
+
+
+def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replaces_it(tmp_path: Path) -> None:
+    """The #265 review's B2: a release past D-194 refused to start on the artifact `main` built (its
+    `epoch_arc_agi`, `epoch_terminalbench` and `openrouter` rows were unattributed), so the install rolled
+    back and the startup refresh that rebuilds the artifact never ran. The retired sources stay attributed
+    and credited, as they were, for the artifact that still holds them."""
+    from app.workflows.serving_bounds import standings_problem
+    from app.workflows.standings import board_standings
+
+    built = tmp_path / "older.db"
+    _seeded_db(built)
+    with sqlite3.connect(built) as conn:
+        for source, benchmark in (("epoch_arc_agi", "ARC-AGI"), ("epoch_terminalbench", "TerminalBench")):
+            conn.execute("INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness, effort, run_date,"
+                         " source, source_url, observed_at) SELECT model_id, raw_name, ?, metric, score, harness, effort,"
+                         " run_date, ?, 'https://epoch.ai', observed_at FROM scores WHERE source = 'swebench'",
+                         (benchmark, source))
+        conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url, observed_at)"
+                     " SELECT alias, model_id, input_per_m, output_per_m, 'openrouter', 'https://openrouter.ai',"
+                     " observed_at FROM pricing WHERE source = 'litellm'")
+    assert standings_problem(built, 10_000_000) is None
+    with sqlite3.connect(built) as conn:
+        payload = board_standings(conn)
+    credits = {c["id"]: c["licence"] for c in payload["credits"]}
+    # The #265 Tester's M2: each retired board carries its D-193 citation, never a null one.
+    from app.workflows.board_tables import RETIRED_EXTERNAL_ATTRIBUTION
+
+    attributed = {board["id"]: board["attribution"] for board in payload["boards"]}
+    assert {s: attributed[s] for s in RETIRED_EXTERNAL_ATTRIBUTION} == RETIRED_EXTERNAL_ATTRIBUTION
+    assert credits["arc_prize_leaderboard"] == "ARC Prize Terms"
+    assert credits["terminal_bench_2"] == "No licence stated on the leaderboard"
+    assert credits["openrouter"] == "OpenRouter Terms of Service"
