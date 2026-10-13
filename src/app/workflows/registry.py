@@ -261,8 +261,8 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("devstral",          "Devstral",          "Mistral",   r"devstral(?![-_ ]?(?:small|medium))"),
     ModelRule("doubao-seed-code",  "Doubao Seed Code",  "ByteDance", r"doubao[-_ ]?seed[-_ ]?code"),
     ModelRule("minimax-m3",        "MiniMax M3",        "MiniMax",   r"minimax[-_ ]?m3"),
-    ModelRule("minimax-m2.7",      "MiniMax M2.7",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]7"),
-    ModelRule("minimax-m2.5",      "MiniMax M2.5",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]5(?![-_ ]?lightning)"),
+    ModelRule("minimax-m2.7",      "MiniMax M2.7",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]7" + _NOT_A_SPEED_TIER),
+    ModelRule("minimax-m2.5",      "MiniMax M2.5",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]5(?![-_ ]?lightning)" + _NOT_A_SPEED_TIER),
     ModelRule("minimax-m2.1",      "MiniMax M2.1",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]1(?!\d)"),
     ModelRule("minimax-m2",        "MiniMax M2",        "MiniMax",   r"minimax[-_ ]?m2(?![.\-p]\d(?!\d))"),
 )
