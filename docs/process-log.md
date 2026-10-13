@@ -789,6 +789,8 @@ commit in the closure, and still refused the first ordinary commit in the owner'
   retired sources stay attributed for that artifact. Round 2 was MINOR: the unmarked attempts were
   paired with solutions by position, and GPT-4.1 had answered a task set ARC Prize changed after it
   ran. Paired by index, the comparison agrees with every one of ARC Prize's 16,681 marks.
+- The Tester was BLOCKING: no test ran the two new boards through the ingest the build registers, and
+  ARC's "a task not run is 0" rule had none. Eleven of 28 planted faults survived; each has a test now.
 - DeepSWE waits for the owner's Hugging Face token: the dataset is gated, and its format cannot be read.
 - A worktree's `make install` through a `.venv` symlink had rewritten the owner's editable install, and
   their deploy failed until they reinstalled (#264). This wave's worktree built its own venv.
