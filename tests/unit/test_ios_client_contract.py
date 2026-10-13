@@ -211,13 +211,14 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
 #: added after them with no origin shown); `heldout_questions.json` and
 #: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4); M19-W4's two,
 #: measured there and replayed by five review rounds, retired at M20-W5 (#195) when a fresh set
-#: (`wording_heldout_m20_questions.json`) took their place. Shared by the held-out gates (#117).
+#: (`wording_heldout_m20_questions.json`) took their place; it was measured three times and retired at
+#: #237, when an independent seat wrote `reading_heldout_m22_questions.json`. Shared by the held-out gates.
 RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
                     "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
                     "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
                     "image_heldout_m18_questions.json", "notasearch_heldout_m19_questions.json",
-                    "image_heldout_m19_questions.json"}
+                    "image_heldout_m19_questions.json", "wording_heldout_m20_questions.json"}
 
 
 def _live_held_out_sets() -> list[pathlib.Path]:
@@ -1653,14 +1654,22 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 
 
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
-#: with where it came from. The M19 sets the earlier entries came from are retired (#195, M20-W5);
-#: the live set is M20-W5's, written by an independent seat. Each entry below was in the app before
-#: that set was written, so it cannot have come from it.
+#: with where it came from. The live set is #237's, written by an independent seat that read no code; each
+#: entry below was in `Reading.swift` at its last change, before that set was written, so it cannot have
+#: come from it.
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "chatgpt": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
-    "grok": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
-    "resmin": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "disregard": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "instruction": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "llama": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "maths": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "mistral": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "opus": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "reveal": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "slm": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "sonnet": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "translation": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "\u00f6dev": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
 #: ones in its functions too, derived from the source rather than named here. One literal is a list
@@ -1881,35 +1890,42 @@ def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> Non
 
 
 #: #180 (M21-W2): each entry of the wording tier's tuned text that a live held-out set holds and no tuning
-#: set does, with where it came from. The live set (`wording_heldout_m20`) was written by an independent
-#: seat that read no code, after M20-W3's `fb773fe`; every entry below was in the app before it, at `main`
-#: (`bd273bc`: the hint sentences and D-187's keyword lists) or in M20-W3 (the refinement words, #206).
-_WORDING_AT_MAIN = "in the app at bd273bc, before wording_heldout_m20 was written, so not read from it"
-_WORDING_IN_W3 = "added at {sha} (M20-W3), before wording_heldout_m20 was written by a seat that read no code"
+#: set does, with where it came from. The live set (`reading_heldout_m22`, #237) was written by an
+#: independent seat that read no code, on `wave/backlog-reading` after `a61ce21`; every entry below was in
+#: the app's hint sentences, keyword lists, refinement words or family words at `a61ce21`, before it.
+_WORDING_BEFORE = "in the app at a61ce21, before reading_heldout_m22 was written, so not read from it"
 WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "agents": _WORDING_AT_MAIN,
-    "best llm": _WORDING_AT_MAIN,
-    "bilim": _WORDING_AT_MAIN,
-    "chatgpt": _WORDING_AT_MAIN,
-    "coding agent": _WORDING_AT_MAIN,
-    "commands": _WORDING_AT_MAIN,
-    "dress": _WORDING_AT_MAIN,
-    "grok": _WORDING_AT_MAIN,
-    "integral": _WORDING_AT_MAIN,
-    "kurgu": _WORDING_AT_MAIN,
-    "law": _WORDING_AT_MAIN,
-    "overall": _WORDING_AT_MAIN,
-    "php": _WORDING_AT_MAIN,
-    "rust code": _WORDING_AT_MAIN,
-    "searching": _WORDING_AT_MAIN,
-    "tasks": _WORDING_AT_MAIN,
-    "turev": _WORDING_AT_MAIN,
-    "user": _WORDING_AT_MAIN,
-    "yazan": _WORDING_AT_MAIN,
-    "learn": _WORDING_IN_W3.format(sha="fb773fe"),
-    "pazarlama": _WORDING_IN_W3.format(sha="7c12a7b"),
-    "poetry": _WORDING_IN_W3.format(sha="7c12a7b"),
-    "yoksa": _WORDING_IN_W3.format(sha="fb773fe"),
+    "automate": _WORDING_BEFORE,
+    "belge": _WORDING_BEFORE,
+    "bilgi uydur": _WORDING_BEFORE,
+    "biology": _WORDING_BEFORE,
+    "citing": _WORDING_BEFORE,
+    "current": _WORDING_BEFORE,
+    "dogruluk": _WORDING_BEFORE,
+    "gemma": _WORDING_BEFORE,
+    "glm": _WORDING_BEFORE,
+    "kaynak goster": _WORDING_BEFORE,
+    "kimi": _WORDING_BEFORE,
+    "kimya": _WORDING_BEFORE,
+    "literature": _WORDING_BEFORE,
+    "llama": _WORDING_BEFORE,
+    "maths": _WORDING_BEFORE,
+    "medical": _WORDING_BEFORE,
+    "mercury": _WORDING_BEFORE,
+    "mini": _WORDING_BEFORE,
+    "minimax": _WORDING_BEFORE,
+    "mistral": _WORDING_BEFORE,
+    "mixtral": _WORDING_BEFORE,
+    "note": _WORDING_BEFORE,
+    "opus": _WORDING_BEFORE,
+    "phi": _WORDING_BEFORE,
+    "physics": _WORDING_BEFORE,
+    "qwen": _WORDING_BEFORE,
+    "sonnet": _WORDING_BEFORE,
+    "this contract": _WORDING_BEFORE,
+    "translates": _WORDING_BEFORE,
+    "translation": _WORDING_BEFORE,
+    "vergi": _WORDING_BEFORE,
 }
 
 
