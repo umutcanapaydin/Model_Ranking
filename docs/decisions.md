@@ -4945,23 +4945,29 @@ spellings (`deepseek-v3p1`, `kimi-k2p5`) falling into the major release. The mak
    Pro-mode row (Epoch's Chess, 64.0 against its max run's 55.0).
 4. **A provider's spelling of a point release is that release** (Fireworks' `p`), and **a speed tier's
    price is not its model's.** Moonshot's `-highspeed` and `-turbo`, Fireworks' `-fast` routers, MiniMax's
-   `-highspeed` and DeepInfra's `-Turbo` serve the model's weights faster at about twice the price. In the
+   `-highspeed` and `-lightning`, and DeepInfra's `-Turbo` serve the model's weights faster at about twice the price. In the
    Kimi and MiniMax families, whose tiers were read, such a price alias is refused for its reason
    (`registry.price_refusal`, counted as `speed-tier`); a score under its name is the model's, as Arena's
    only spelling of Kimi K2 Thinking (`kimi-k2-thinking-turbo`) is. A `fast` or `turbo` in a model's own
    name (Grok 4 Fast) or in a family not read here is untouched.
-5. **A model trained apart for one use is its own model** (#269): GPT-5.5-Cyber and GPT-5.6-Cyber ("built on
+5. **A model trained apart for one use is its own model** (#269): GPT-5.5-Cyber and GPT-5.6-Cyber, in
+   every GPT-5.4 to GPT-5.6 rule's spelling, ("built on
    GPT-5.6 Sol, it is trained to improve capabilities on several specialized cybersecurity tasks", served to
    vetted defenders only) are not GPT-5.5 or GPT-5.6.
 
 **Consequence.** Model ids move on the first night after the release, as D-189's did. Measured on the
-artifact of 2026-10-13, every link made again: 135 score rows and 46 price aliases leave Kimi K2,
-Qwen3-Coder and DeepSeek V3, V3.1 and V3.2 for seven new ids; 3 score rows and 6 aliases reach the point
-release they name (Kimi K2.5 and K2.6, DeepSeek V3.1 and V3.2); 55 score rows and an alias of K2's dated previews link to K2;
-and 11 speed-tier and 3 Cyber price aliases leave their base models' medians. Both refresh gates pass from
-that artifact to the relinked one; the night's largest board change is 6 of 232 rows. The medians move to
-0.89/1.0 for DeepSeek V3 (from 0.56/1.25), 4.1/20.5 for GPT-5.6, 0.95/4.0 for Kimi K2.7 Code, and
-0.299/1.196 and 0.305/1.22 for MiniMax M2.7 and M2.5.
+artifact of 2026-10-13, every link made again (the backlog-data review's rounds 2 and 3):
+- 135 score rows and 45 price aliases leave Kimi K2, Qwen3-Coder and DeepSeek V3, V3.1 and V3.2 for six
+  ids new to the artifact (Kimi K2 Thinking, Qwen3-Coder 30B-A3B and Next, DeepSeek V3.1-Terminus, V3.2-Exp
+  and V3.2-Speciale) and for Kimi K2.7 Code, which was already served; 3 score rows and 6 aliases reach the
+  point release they name; 55 score rows and an alias of K2's dated previews link to K2.
+- 12 speed-tier aliases are refused as prices, and 3 Cyber aliases leave GPT-5.5's and GPT-5.6's medians.
+- Every price median that moves: DeepSeek V3 0.56/1.25 to 0.89/1.0, V3.1 0.55/1.65 to 0.58/1.69, V3.2
+  0.5/1.5 to 0.53/1.59; Qwen3-Coder 0.712/3.157 to 0.975/4.65 (the 480B-A35B alone); GPT-5.6 4.2/21.0 to
+  4.1/20.5; Kimi K2 0.6/2.5 to 0.6/2.4; MiniMax M2.7 0.375/1.5 to 0.299/1.196, M2.5 0.385/1.54 to
+  0.305/1.22 and M2.1 0.3/1.32 to 0.315/1.26. Kimi K2.7 Code stays 0.95/4.0.
+- Both refresh gates pass from that artifact to the relinked one; the night's largest board change is 6
+  of 232 rows.
 
 **Revisit when:** a maker publishes a Pro or speed tier with an id and price of its own, another family's
 speed tier is read (GLM's `-Fast`, DeepSeek's `-Turbo`), or a board ranks a gathered snapshot apart in a way
