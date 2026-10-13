@@ -884,12 +884,10 @@ def test_a_p_spelled_release_never_falls_into_the_major(name: str) -> None:
     ("Kimi K2 Thinking", "kimi-k2-thinking"),
     ("baseten/moonshotai/Kimi-K2-Thinking", "kimi-k2-thinking"),
     ("fireworks_ai/accounts/fireworks/models/kimi-k2-thinking", "kimi-k2-thinking"),
-    ("kimi-k2-thinking-turbo", "kimi-k2-thinking"),
     ("deepinfra/moonshotai/Kimi-K2-Instruct-0905", "kimi-k2"),  # "the latest version of Kimi K2": a snapshot
     # Kimi K2.7 Code: "a coding-focused agentic model built upon Kimi K2.6", with its own id
     ("kimi-k2.7-code", "kimi-k2.7-code"),
     ("fireworks_ai/kimi-k2p7-code", "kimi-k2.7-code"),
-    ("fireworks_ai/accounts/fireworks/routers/kimi-k2p7-code-fast", "kimi-k2.7-code"),
     # Qwen3-Coder's sizes have a card each and a price each; Qwen3-Coder-Next is another architecture
     ("Qwen3-Coder-30B-A3B-Instruct", "qwen3-coder-30b-a3b"),
     ("OpenHands + Qwen3-Coder-30B-A3B-Instruct", "qwen3-coder-30b-a3b"),
@@ -921,3 +919,23 @@ def test_a_qwen_based_r1_distill_with_no_size_or_distill_word_is_not_r1(name: st
     """#235 R1: only the distill guard's `qwen` clause refuses these; removing it failed no test."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["moonshotai/kimi-k2.7-code-highspeed", "aihubmix/kimi-k2.7-code-highspeed",
+                                  "fireworks_ai/kimi-k2p7-code-fast", "fireworks_ai/accounts/fireworks/routers/kimi-k2p7-code-fast",
+                                  "fireworks_ai/kimi-k2p6-fast", "fireworks_ai/accounts/fireworks/routers/kimi-k2p6-fast",
+                                  "kimi-k2-thinking-turbo", "kimi-k2.5-turbo"])
+def test_a_kimi_speed_tier_never_prices_its_base_model(name: str) -> None:
+    """The backlog-data review's B1: Moonshot's `-highspeed` and `-turbo` and Fireworks' `-fast` routers cost about
+    twice the base model; read as it, they lifted Kimi K2.7 Code's median 25%. As MiniMax M2.5's `lightning`."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"kimi-k2.7-code", "kimi-k2.6", "kimi-k2.5", "kimi-k2-thinking",
+                                                     "kimi-k2"}, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["kimi-k2-0905-preview", "kimi-k2-0711-preview", "novita/moonshotai/kimi-k2-0905"])
+def test_kimi_k2s_dated_snapshots_are_kimi_k2(name: str) -> None:
+    """The backlog-data review's K1: K2's rule read the `-0` of a date as a point release, so 55 Arena rows and a
+    price linked to no model."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == "kimi-k2", (name, rule)
