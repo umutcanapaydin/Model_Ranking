@@ -930,12 +930,12 @@ def test_kimi_k2s_dated_snapshots_are_kimi_k2(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", ["gpt-5.6-cyber", "bedrock_mantle/openai.gpt-5.6-cyber", "gpt-5.5-cyber",
-                                  "GPT-5.6-Cyber"])
+                                  "GPT-5.6-Cyber", "gpt-5.6-sol-cyber", "gpt-5.4-cyber"])
 def test_a_cyber_model_is_not_its_base_model(name: str) -> None:
     """#269: OpenAI trained GPT-5.5-Cyber and GPT-5.6-Cyber apart ("built on GPT-5.6 Sol, it is trained to improve
     capabilities on several specialized cybersecurity tasks") and serves them to vetted defenders only."""
     rule = canonicalize(name)
-    assert rule is None or rule.canonical_id not in {"gpt-5.6", "gpt-5.5", "gpt-5.6-sol"}, (name, rule)
+    assert rule is None or rule.canonical_id not in {"gpt-5.6", "gpt-5.5", "gpt-5.6-sol", "gpt-5.4"}, (name, rule)
 
 
 @pytest.mark.parametrize(("alias", "model"), [
@@ -949,6 +949,8 @@ def test_a_cyber_model_is_not_its_base_model(name: str) -> None:
     ("minimax/MiniMax-M2.7-highspeed", "minimax-m2.7"),
     ("novita/minimax/minimax-m2.5-highspeed", "minimax-m2.5"),
     ("deepinfra/MiniMaxAI/MiniMax-M2.7-Turbo", "minimax-m2.7"),
+    ("minimax/MiniMax-M2.1-lightning", "minimax-m2.1"),  # round 3's M4
+    ("minimax/MiniMax-M2.7-lightning", "minimax-m2.7"),
 ])
 def test_a_speed_tiers_score_is_its_models_and_its_price_is_refused(alias: str, model: str) -> None:
     """D-195 clause 4 (the backlog-data review's B1, and round 2's B1): a speed tier is its model's weights

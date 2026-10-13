@@ -209,3 +209,14 @@ def test_a_dev_builds_data_is_refused_even_when_named_so_unknown_never_stands_fo
         assert done.returncode != 0, (named, done.stdout + done.stderr)
         assert "DEPLOY_ACCEPT_DATA_FROM=dev-abc1234" not in done.stderr, done.stderr
     assert not calls.exists()
+
+
+def test_a_refused_cycle_over_a_record_from_before_198_still_says_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Round 3's M2: `unknown` is the name a record from before #198 keeps, the one `DEPLOY_ACCEPT_DATA_FROM`
+    may accept; a cycle that does not publish over it must not turn it into `unstamped`."""
+    monkeypatch.setenv("APP_BUILD", "release-1234567")
+    target = tmp_path / "advisor.db"
+    status_path(target).write_text("{}", encoding="utf-8")
+    assert _cycle(target, EXIT_REFUSED)["served_built_by"] == "unknown"
