@@ -267,7 +267,7 @@ LIVE_NAME_EXPECTATIONS: tuple[tuple[str, str | None], ...] = (
     ("deepseek-v4-flash", "deepseek-v4-flash"),
     ("deepseek-v4-pro", "deepseek-v4-pro"),
     ("deepseek-v4", "deepseek-v4"),
-    ("minimax/MiniMax-M2.5-lightning", None),
+    ("minimax/MiniMax-M2.5-lightning", "minimax-m2.5"),  # D-195 clause 4: its price is refused in reconcile
     ("zai/glm-5-code", None),
     ("glm-5v-turbo", None),
     ("oci/xai.grok-4.20-multi-agent", None),
