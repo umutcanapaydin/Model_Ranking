@@ -45,7 +45,8 @@ def _derive():
 
 def test_each_setting_is_a_row_at_its_derived_percentage() -> None:
     """covers REQ-SRC-012: the setting's folder is the raw name (its effort is read from it at the store);
-    ARC Prize's harness; no evaluation date, as the dataset gives none; provenance at the revision."""
+    ARC Prize's harness; dated only where the record dates the setting (the review's M6); provenance at the
+    revision."""
     rows, skipped = _arc().parse_arc_agi_2(json.dumps(RECORD))
     assert skipped == 0
     by_name = {r.raw_name: r for r in rows}
@@ -207,3 +208,18 @@ def test_the_committed_record_pins_its_solutions_lists_each_disagreement_and_lea
     assert len(record["disagreements"]) == record["marks_disagreeing"]
     assert {"gpt-4-1-2025-04-14", "gpt-4-1-mini-2025-04-14"} <= set(record["left_out_as_predating_solutions"])
     assert record["unscorable"] == 0
+
+
+# --- The #265 Tester (docs/reviews/issue-265-licensed-sources-tester.md) ------------------------------------
+
+def test_a_setting_scores_its_solved_tasks_over_all_120_and_a_task_it_did_not_run_is_0() -> None:
+    """covers REQ-SRC-012 (the Tester's B2): scored over the tasks run, nine settings would rise."""
+    assert _derive().setting_score([1.0] * 60, tasks=120) == 50.0
+    assert _derive().setting_score([1.0, 0.5], tasks=4) == 37.5
+
+
+def test_every_committed_score_is_its_solved_tasks_over_120() -> None:
+    """covers REQ-SRC-012 (the Tester's B2): the committed file holds the rule, setting by setting."""
+    record = json.loads(Path("data/arc-agi-2-public-eval.json").read_text(encoding="utf-8"))
+    for setting, entry in record["settings"].items():
+        assert entry["score"] == round(100 * entry["solved"] / record["tasks"], 4), setting

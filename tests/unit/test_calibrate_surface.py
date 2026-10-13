@@ -64,3 +64,22 @@ def test_a_binomial_standard_error_is_taken_over_the_models_above_the_floor() ->
     assert script.binomial_stderr([*above, 0.0, 0.0, 0.0, 0.0, 0.0], floor=27.4, tasks=120) == script.binomial_stderr(
         above, floor=27.4, tasks=120)
     assert round(script.binomial_stderr([50.0], floor=0.0, tasks=100), 3) == 5.0
+
+
+
+@pytest.mark.parametrize(("surface", "record"), sorted(RECORDS.items()))
+def test_each_record_is_what_the_script_computes_from_the_records_own_data(surface: str, record: str) -> None:
+    """The #265 Tester's M1: the shipped pair is pinned to the record; the record is pinned to the rule."""
+    written = json.loads(Path(record).read_text(encoding="utf-8"))
+    scores = [score for _, score in written["above_floor"]]
+    picked = _script().thresholds(scores, floor=written["floor"], stderr=written["stderr"])
+    assert (picked["close_call"], picked["value_window"], picked["candidates"]) == (
+        written["close_call"], written["value_window"], written["candidates"])
+
+
+def test_a_model_on_the_floor_is_within_reach_and_the_window_is_a_half_point() -> None:
+    """The #265 Tester's M1: the floor is inclusive, and the window's edge is rounded to half a point."""
+    picked = _script().thresholds([60.0, 59.0, 58.0, 50.0], floor=50.0, stderr=0.5)
+    assert picked["candidates"] == 3 and picked["value_window"] == 6.0  # mid-gap 6.0, past 3 candidates
+    assert _script().thresholds([60.0, 59.0, 58.0, 57.0], floor=57.0, stderr=1.0)["candidates"] == 4
+    assert _script().thresholds([60.0, 59.9, 59.8, 52.8], floor=50.0, stderr=0.5)["value_window"] == 3.5  # mid 3.7

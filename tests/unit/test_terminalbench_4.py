@@ -188,3 +188,12 @@ def test_an_effort_the_schema_does_not_hold_skips_the_row_and_not_the_source() -
     rows, skipped = _tb().parse_terminalbench_4(_raw({"odd.json": odd, "ok.json": OPUS}),
                                                 source="terminalbench_4", source_url=LISTING)
     assert [r.raw_name for r in rows] == ["anthropic/claude-opus-5-5"] and skipped == 1
+
+
+def test_one_model_run_at_two_efforts_is_two_rows() -> None:
+    """The #265 Tester's M4: the table holds a row per model, agent AND effort; dropping effort from the key
+    collapsed them."""
+    high = _submission("anthropic/claude-opus-5-5", "claude-code", "high", "high", 58.0, "2026-09-22", 1.0)
+    rows, skipped = _tb().parse_terminalbench_4(_raw({"a.json": high, "b.json": OPUS}),
+                                                source="terminalbench_4", source_url=LISTING)
+    assert sorted((r.effort, r.score) for r in rows) == [("high", 58.0), ("max", 64.85)] and skipped == 0

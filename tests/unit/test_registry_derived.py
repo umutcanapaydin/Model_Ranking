@@ -318,3 +318,11 @@ def test_tencents_hunyuan_keeps_its_vendor_when_no_route_names_it() -> None:
     assert registry._derived_vendor("hy4-preview", ["aihubmix/hy4-preview"]) == "Tencent"
     assert registry._derived_vendor("hunyuan-turbos", []) == "Tencent"
     assert registry.named_vendors("hybrid-reasoner") == frozenset()
+
+
+
+def test_a_family_word_names_its_vendor_at_the_start_of_a_word_as_ids_spell_it() -> None:
+    """The #265 Tester's M4: ids join the family word to its version (`glm5.3`, `qwen3`), so a whole-word
+    match missed them and let a resold model through as the maker's."""
+    assert registry.named_vendors("zai-glm5.3-air") == frozenset({"Zhipu"})
+    assert registry.named_vendors("qwen3-coder") == frozenset({"Alibaba"})

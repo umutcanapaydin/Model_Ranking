@@ -378,7 +378,13 @@ def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replac
                      " observed_at FROM pricing WHERE source = 'litellm'")
     assert standings_problem(built, 10_000_000) is None
     with sqlite3.connect(built) as conn:
-        credits = {c["id"]: c["licence"] for c in board_standings(conn)["credits"]}
+        payload = board_standings(conn)
+    credits = {c["id"]: c["licence"] for c in payload["credits"]}
+    # The #265 Tester's M2: each retired board carries its D-193 citation, never a null one.
+    from app.workflows.board_tables import RETIRED_EXTERNAL_ATTRIBUTION
+
+    attributed = {board["id"]: board["attribution"] for board in payload["boards"]}
+    assert {s: attributed[s] for s in RETIRED_EXTERNAL_ATTRIBUTION} == RETIRED_EXTERNAL_ATTRIBUTION
     assert credits["arc_prize_leaderboard"] == "ARC Prize Terms"
     assert credits["terminal_bench_2"] == "No licence stated on the leaderboard"
     assert credits["openrouter"] == "OpenRouter Terms of Service"
