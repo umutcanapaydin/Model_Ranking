@@ -55,7 +55,7 @@ def test_variant_never_leaks_into_parent() -> None:
         "gpt-5": "gpt-5",
         "grok-4.5-fast": "grok-4.5",
         "grok-4-0709": "grok-4",
-        "deepseek-v3.2-exp": "deepseek-v3.2",
+        "deepseek-v3.2-exp": "deepseek-v3.2-exp",  # #232: DeepSeek announced V3.2-Exp apart from V3.2
         "deepseek-chat-v3": "deepseek-v3",
     }
     for alias, expected in cases.items():

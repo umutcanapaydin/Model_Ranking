@@ -174,6 +174,12 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("deepseek-v4-pro",   "DeepSeek V4 Pro",   "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4[-_ ]?pro"),
     ModelRule("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4[-_ ]?flash"),
     ModelRule("deepseek-v4",       "DeepSeek V4",       "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4(?![.\-p]\d(?!\d))(?![-_ ]?(?:pro|flash))"),
+    # #232 (D-189 clause 1): DeepSeek announced V3.1-Terminus, V3.2-Exp and V3.2-Speciale apart.
+    ModelRule("deepseek-v3.2-speciale", "DeepSeek V3.2-Speciale", "DeepSeek",
+              r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]2[-_ ]?speciale"),
+    ModelRule("deepseek-v3.2-exp", "DeepSeek V3.2-Exp", "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]2[-_ ]?exp"),
+    ModelRule("deepseek-v3.1-terminus", "DeepSeek V3.1-Terminus", "DeepSeek",
+              r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]1[-_ ]?terminus"),
     ModelRule("deepseek-v3.2",     "DeepSeek V3.2",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]2(?!\d)"),
     ModelRule("deepseek-v3.1",     "DeepSeek V3.1",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]1(?!\d)"),
     # #163 (D-189): DeepSeek publishes V3-0324 and R1-0528 as releases of their own, and boards rank
@@ -181,7 +187,7 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("deepseek-v3-0324",  "DeepSeek V3-0324",  "DeepSeek",
               r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[-_ ]?(?:0324|\(0324\)|\(mar(?:ch)?[-_ ]?2025\))"),
     ModelRule("deepseek-v3",       "DeepSeek V3",       "DeepSeek",
-              r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3(?![.\-]?\d)(?![-_ ]?\((?:0324|mar(?:ch)?[-_ ]?2025)\))"),
+              r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3(?![.\-p]?\d)(?![-_ ]?\((?:0324|mar(?:ch)?[-_ ]?2025)\))"),
     # Epoch spells R1-0528 `DeepSeek-R1 (May 2025)` (the W1 review's B1). A distill, or a small size,
     # after the release is another model: `DeepSeek-R1-0528-Qwen3-8B` is an 8B Qwen (B2).
     ModelRule("deepseek-r1-0528-qwen3-8b", "DeepSeek-R1-0528-Qwen3-8B", "DeepSeek",
@@ -198,16 +204,23 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("qwen3.7-max",       "Qwen3.7 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]7[-_ ]?max"),
     ModelRule("qwen3.6-max",       "Qwen3.6 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]6[-_ ]?max"),
     ModelRule("qwen3.5-max",       "Qwen3.5 Max",       "Alibaba",   r"qwen[-_ ]?3[.\-]5[-_ ]?max"),
-    ModelRule("qwen3-coder",       "Qwen3 Coder",       "Alibaba",   r"qwen[-_ ]?3[-_ ]?coder(?![-_ ]?(?:flash|plus))"),
+    # #232: Qwen3-Coder's 30B-A3B size has its own card and price, and Qwen3-Coder-Next is another
+    # architecture; the bare name is the 480B-A35B flagship its boards rank.
+    ModelRule("qwen3-coder-30b-a3b", "Qwen3 Coder 30B A3B", "Alibaba", r"qwen[-_ ]?3[-_ ]?coder[-_ ]?30b"),
+    ModelRule("qwen3-coder-next",  "Qwen3 Coder Next",  "Alibaba",   r"qwen[-_ ]?3[-_ ]?coder[-_ ]?next"),
+    ModelRule("qwen3-coder",       "Qwen3 Coder",       "Alibaba",   r"qwen[-_ ]?3[-_ ]?coder(?![-_ ]?(?:flash|plus|next|30b))"),
     ModelRule("qwen3-max",         "Qwen3 Max",         "Alibaba",   r"qwen[-_ ]?3[-_ ]?max"),
     # Kimi K2.x are DISTINCT models, not effort variants of K2. The unguarded
     # `kimi[-_ ]?k2` rule swallowed both (M5 closure, live Epoch SWE-bench: k2.5=73.8
     # and k2.6=76.7 collapsed onto one id and MAX() published 76.7 as "Kimi K2") — the
     # same swallow class M4-W1 fixed for the GPT-5.x Pro family, recurring on a new
     # source because the live-name corpus had never seen these names.
+    # #232: Kimi K2.7 Code ("built upon Kimi K2.6") and K2 Thinking have cards and API ids of their own.
+    ModelRule("kimi-k2.7-code",    "Kimi K2.7 Code",    "Moonshot",  r"kimi[-_ ]?k2[.\-p]7[-_ ]?code"),
+    ModelRule("kimi-k2-thinking",  "Kimi K2 Thinking",  "Moonshot",  r"kimi[-_ ]?k2[-_ ]?thinking"),
     ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]6(?!\d)"),
     ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]5(?!\d)"),
-    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2(?![.\-p]\d)"),
+    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2(?![.\-p]\d)(?![-_ ]?thinking)"),
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),
