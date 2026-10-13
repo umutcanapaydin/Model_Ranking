@@ -169,7 +169,7 @@ def test_only_json_files_are_read_and_a_listing_that_is_not_a_list_or_too_long_i
 
     name = next(iter(FILES))
     listing = [{"name": name, "type": "file", "download_url": RAW + name},
-               {"name": "nested", "type": "dir", "download_url": None},
+               {"name": "nested.json", "type": "dir", "download_url": None},  # round 2's N2
                {"name": "notes.txt", "type": "file", "download_url": RAW + "notes.txt"}]
     respx.get(LISTING).mock(return_value=httpx.Response(200, json=listing))
     respx.get(RAW + name).mock(return_value=httpx.Response(200, json=FILES[name]))

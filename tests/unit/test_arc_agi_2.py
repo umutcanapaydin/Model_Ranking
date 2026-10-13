@@ -170,3 +170,40 @@ def test_a_record_without_a_task_floor_holds_every_setting_to_all_the_tasks() ->
     record = {k: v for k, v in json.loads(json.dumps(RECORD)).items() if k != "min_tasks"}
     rows, skipped = _arc().parse_arc_agi_2(json.dumps(record))
     assert "gpt-5-4-xhigh" not in {r.raw_name for r in rows} and skipped == 1
+
+
+# --- The #265 review, round 2 (docs/reviews/issue-265-licensed-sources-review-round-2.md) -------------------
+
+OTHER = [[5]]
+
+
+def test_an_unmarked_attempt_is_compared_with_the_solution_of_its_own_pair_index() -> None:
+    """covers REQ-SRC-012 (round 2's N1, N2): pairs are matched by `metadata.pair_index`, not by position, and
+    a task's second pair is compared with its second solution."""
+    second = {"attempt_1": {"correct": None, "answer": OTHER, "metadata": {"pair_index": 1}}}
+    first = {"attempt_1": {"correct": None, "answer": GRID, "metadata": {"pair_index": 0}}}
+    assert _derive().task_score([second, first], [GRID, OTHER]) == 1.0
+    assert _derive().task_score([first, {"attempt_1": {"correct": None, "answer": GRID}}], [GRID, OTHER]) == 0.5
+
+
+def test_a_setting_is_dated_by_its_latest_attempt_and_one_unmarked_before_the_solutions_is_not_comparable() -> None:
+    """covers REQ-UNC-003, REQ-SRC-012 (round 2's N1, N2): ARC Prize removed the first test pair of five tasks on
+    2025-05-15, so an unmarked attempt run before then is compared with solutions it never answered."""
+    derive = _derive()
+    def attempt(start: str, correct: object) -> dict[str, object]:
+        return {"correct": correct, "answer": GRID, "metadata": {"start_timestamp": start, "pair_index": 0}}
+    later = [[{"attempt_1": attempt("2025-10-01T00:00:00+00:00", None), "attempt_2": attempt("2025-09-30T00:00:00+00:00", None)}]]
+    earlier = [[{"attempt_1": attempt("2025-04-14T10:00:00+00:00", None)}]]
+    marked_earlier = [[{"attempt_1": attempt("2025-04-14T10:00:00+00:00", True)}]]
+    assert derive._latest_run(later) == "2025-10-01"
+    assert derive.comparable(later) and not derive.comparable(earlier) and derive.comparable(marked_earlier)
+
+
+def test_the_committed_record_pins_its_solutions_lists_each_disagreement_and_leaves_out_gpt_4_1() -> None:
+    """covers REQ-SRC-012 (round 2's N1): the solutions are the pinned commit; each disagreement with a mark is
+    named; GPT-4.1's unmarked runs of 2025-04-14 are left out, not scored against later solutions."""
+    record = json.loads(Path("data/arc-agi-2-public-eval.json").read_text(encoding="utf-8"))
+    assert record["solutions"]["revision"] == _derive().SOLUTIONS_COMMIT
+    assert len(record["disagreements"]) == record["marks_disagreeing"]
+    assert {"gpt-4-1-2025-04-14", "gpt-4-1-mini-2025-04-14"} <= set(record["left_out_as_predating_solutions"])
+    assert record["unscorable"] == 0
