@@ -294,20 +294,32 @@ def _mostly_lost(
     return reasons
 
 
-def largest_board_change(live: ServingSummary, candidate: ServingSummary) -> dict[str, object] | None:
-    """The board, own or declared, whose rows changed most: its rows lost or new, whichever is the larger
-    share of it, against the limit both guards hold it to (#230). Information, never a reason to refuse."""
+def largest_board_change(
+    live: ServingSummary, candidate: ServingSummary, baseline: ServingSummary | None = None
+) -> dict[str, object] | None:
+    """The board, own or declared, whose rows changed most, as the two guards judge it (#230): rows lost
+    against the cycle's baseline (`degradations`), rows new against it over the boards `live` serves,
+    a board appearing for the first time excused (`upward_anomalies`). Its changed rows, of how many,
+    and the limit; None when no board row changed. Information, never a reason to refuse."""
+    base = baseline or live
     largest: tuple[float, dict[str, object]] | None = None
-    for subject, was_by, now_by in ((OWN_BOARD, live.board, candidate.board),
-                                    (DECLARED_BOARD, live.boards, candidate.boards)):
-        for name in sorted(set(was_by) | set(now_by)):
-            was, now = was_by.get(name, frozenset()), now_by.get(name, frozenset())
-            for changed, of, limit in ((len(was - now), len(was), MAX_SURFACE_LOSS),
-                                       (len(now - was), len(now), MAX_SURFACE_GAIN)):
-                if of and (largest is None or changed / of > largest[0]):
-                    largest = (changed / of, {"board": subject.format(name=name), "changed": changed, "of": of,
-                                              "limit": limit})
-    return largest[1] if largest is not None and largest[0] > 0 else None
+
+    def weigh(subject: str, name: str, changed: int, of: int, limit: float) -> None:
+        nonlocal largest
+        if of and changed and (largest is None or changed / of > largest[0]):
+            largest = (changed / of, {"board": subject.format(name=name), "changed": changed, "of": of,
+                                      "limit": limit})
+
+    for subject, field in ((OWN_BOARD, "board"), (DECLARED_BOARD, "boards")):
+        was_by: dict[str, frozenset[BoardRow]] = getattr(base, field)
+        now_by: dict[str, frozenset[BoardRow]] = getattr(candidate, field)
+        for name, was in sorted(was_by.items()):
+            weigh(subject, name, len(was - now_by.get(name, frozenset())), len(was), MAX_SURFACE_LOSS)
+        for name, rows in sorted(getattr(live, field).items()):
+            was, now = was_by.get(name) or rows, now_by.get(name, frozenset())
+            if was and now:
+                weigh(subject, name, len(now - was), len(now), MAX_SURFACE_GAIN)
+    return largest[1] if largest is not None else None
 
 
 def upward_anomalies(
@@ -1387,7 +1399,7 @@ def _cycle(
                     derived=derived,
                     unmatched=unmatched,
                     renamed=renamed,
-                    largest_board_change=largest_board_change(live, fresh) if live is not None else None,
+                    largest_board_change=largest_board_change(live, fresh, baseline) if live is not None else None,
                 ),
                 EXIT_REFUSED,
             )
@@ -1427,7 +1439,7 @@ def _cycle(
                 derived=derived,
                 unmatched=unmatched,
                 renamed=renamed,
-                largest_board_change=largest_board_change(live, fresh) if live is not None else None,
+                largest_board_change=largest_board_change(live, fresh, baseline) if live is not None else None,
             ),
             EXIT_PUBLISHED,
         )

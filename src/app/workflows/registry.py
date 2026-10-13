@@ -63,6 +63,8 @@ class ModelRule:
 # fmt: off
 #: The W1 review's B2: after a DeepSeek release, a distill, a base it was distilled into, or a small size
 #: names another model (`DeepSeek-R1-0528-Qwen3-8B`); 671B is the release itself.
+#: A speed tier after a model's name: its own price, about twice the model's (the backlog-data review's B1).
+_NOT_A_SPEED_TIER = r"(?![\w.\-]*?[-_ ](?:highspeed|turbo|fast)(?![a-z]))"
 _NOT_A_DISTILL = r"(?!.*(?:distill|qwen|llama|(?<![\d.])(?:1\.5|7|8|14|32|70)b(?![a-z])))"
 
 
@@ -216,11 +218,15 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # same swallow class M4-W1 fixed for the GPT-5.x Pro family, recurring on a new
     # source because the live-name corpus had never seen these names.
     # #232: Kimi K2.7 Code ("built upon Kimi K2.6") and K2 Thinking have cards and API ids of their own.
-    ModelRule("kimi-k2.7-code",    "Kimi K2.7 Code",    "Moonshot",  r"kimi[-_ ]?k2[.\-p]7[-_ ]?code"),
-    ModelRule("kimi-k2-thinking",  "Kimi K2 Thinking",  "Moonshot",  r"kimi[-_ ]?k2[-_ ]?thinking"),
-    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]6(?!\d)"),
-    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]5(?!\d)"),
-    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2(?![.\-p]\d)(?![-_ ]?thinking)"),
+    # A speed tier (Moonshot's `-highspeed` and `-turbo`, Fireworks' `-fast` routers) costs about twice
+    # its model, so it never prices it (the backlog-data review's B1), as MiniMax M2.5's `lightning`.
+    ModelRule("kimi-k2.7-code",    "Kimi K2.7 Code",    "Moonshot",  r"kimi[-_ ]?k2[.\-p]7[-_ ]?code" + _NOT_A_SPEED_TIER),
+    ModelRule("kimi-k2-thinking",  "Kimi K2 Thinking",  "Moonshot",  r"kimi[-_ ]?k2[-_ ]?thinking" + _NOT_A_SPEED_TIER),
+    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]6(?!\d)" + _NOT_A_SPEED_TIER),
+    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]5(?!\d)" + _NOT_A_SPEED_TIER),
+    # A date after K2 (`-0905-preview`) is a snapshot, not a point release (the review's K1).
+    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",
+              r"kimi[-_ ]?k2(?![.\-p]\d(?!\d))(?![-_ ]?thinking)" + _NOT_A_SPEED_TIER),
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),
