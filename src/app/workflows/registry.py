@@ -174,8 +174,8 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("deepseek-v4-pro",   "DeepSeek V4 Pro",   "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4[-_ ]?pro"),
     ModelRule("deepseek-v4-flash", "DeepSeek V4 Flash", "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4[-_ ]?flash"),
     ModelRule("deepseek-v4",       "DeepSeek V4",       "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?4(?![.\-p]\d(?!\d))(?![-_ ]?(?:pro|flash))"),
-    ModelRule("deepseek-v3.2",     "DeepSeek V3.2",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-]2(?!\d)"),
-    ModelRule("deepseek-v3.1",     "DeepSeek V3.1",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-]1(?!\d)"),
+    ModelRule("deepseek-v3.2",     "DeepSeek V3.2",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]2(?!\d)"),
+    ModelRule("deepseek-v3.1",     "DeepSeek V3.1",     "DeepSeek",  r"deepseek[-_ ]?(?:chat[-_ ]?)?v?3[.\-p]1(?!\d)"),
     # #163 (D-189): DeepSeek publishes V3-0324 and R1-0528 as releases of their own, and boards rank
     # them beside V3 and R1; a board spells the date `-0324`, `(0324)` or `(Mar 2025)`.
     ModelRule("deepseek-v3-0324",  "DeepSeek V3-0324",  "DeepSeek",
@@ -205,9 +205,9 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # and k2.6=76.7 collapsed onto one id and MAX() published 76.7 as "Kimi K2") — the
     # same swallow class M4-W1 fixed for the GPT-5.x Pro family, recurring on a new
     # source because the live-name corpus had never seen these names.
-    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-]6(?!\d)"),
-    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-]5(?!\d)"),
-    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2(?![.\-]\d)"),
+    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]6(?!\d)"),
+    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]5(?!\d)"),
+    ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",  r"kimi[-_ ]?k2(?![.\-p]\d)"),
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),

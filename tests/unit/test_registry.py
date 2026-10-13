@@ -848,12 +848,14 @@ def test_a_minor_mistral_large_release_is_not_its_major(name: str) -> None:
     assert rule is None or rule.canonical_id not in {"mistral-large-3", "mistral-large-4"}, (name, rule)
 
 
-@pytest.mark.parametrize("name", ["gpt-5.6-sol-pro", "openai/gpt-5.6-sol-pro", "GPT-5.6 Sol Pro", "gpt-5.6-sol_promax",
-                                  "gpt-5.6-luna-pro", "gpt-5.6-terra-pro"])
-def test_a_gpt_5_6_pro_variant_is_not_its_base_model(name: str) -> None:
-    """#266: the Sol, Luna and Terra rules had no Pro guard, so a Pro variant's price and score were the base's."""
+@pytest.mark.parametrize(("name", "model"), [("gpt-5.6-sol-pro", "gpt-5.6-sol"), ("GPT-5.6 Sol Pro", "gpt-5.6-sol"),
+                                           ("gpt-5.6-luna-pro", "gpt-5.6-luna"), ("gpt-5.6-terra-pro", "gpt-5.6-terra")])
+def test_gpt_5_6_pro_is_a_mode_of_each_model_not_a_release(name: str, model: str) -> None:
+    """#266, answered by OpenAI's GPT-5.6 guide: Pro is `reasoning.mode: "pro"`, which "works with any GPT-5.6
+    model" and is billed at "the selected model's standard token rates". Unlike GPT-5 Pro and GPT-5.4 Pro, it
+    has no model id of its own, so under D-189 clause 1 it is the model it runs."""
     rule = canonicalize(name)
-    assert rule is None or rule.canonical_id not in {"gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.6-terra"}, (name, rule)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
 
 
 @pytest.mark.parametrize(("name", "model"), [
