@@ -295,7 +295,7 @@ def _mostly_lost(
 
 
 def largest_board_change(
-    live: ServingSummary, candidate: ServingSummary, baseline: ServingSummary | None = None
+    live: ServingSummary, candidate: ServingSummary, baseline: ServingSummary | None
 ) -> dict[str, object] | None:
     """The board, own or declared, whose rows changed most, as the two guards judge it (#230): rows lost
     against the cycle's baseline (`degradations`), rows new against it over the boards `live` serves,

@@ -129,12 +129,12 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("gpt-5-codex",       "GPT-5 Codex",       "OpenAI",    r"gpt[-_ ]?5[-_ ]?codex(?![-_ ]?(?:max|mini))"),
     # GPT-5.6 ships three named variants (luna/sol/terra, live in both pricing and
     # Arena) — distinct models, so they precede the bare 5.6 rule.
-    ModelRule("gpt-5.6-sol",       "GPT-5.6 Sol",       "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?sol"),
-    ModelRule("gpt-5.6-luna",      "GPT-5.6 Luna",      "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?luna"),
-    ModelRule("gpt-5.6-terra",     "GPT-5.6 Terra",     "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?terra"),
+    ModelRule("gpt-5.6-sol",       "GPT-5.6 Sol",       "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?sol(?![-_ ]?cyber)"),
+    ModelRule("gpt-5.6-luna",      "GPT-5.6 Luna",      "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?luna(?![-_ ]?cyber)"),
+    ModelRule("gpt-5.6-terra",     "GPT-5.6 Terra",     "OpenAI",    r"gpt[-_ ]?5[.\-]6[-_ ]?terra(?![-_ ]?cyber)"),
     ModelRule("gpt-5.6",           "GPT-5.6",           "OpenAI",    r"gpt[-_ ]?5[.\-]6(?!\d)(?![-_ ]?(?:sol|luna|terra|codex|pro|cyber|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5.5",           "GPT-5.5",           "OpenAI",    r"gpt[-_ ]?5[.\-]5(?!\d)(?![-_ ]?(?:codex|pro|cyber|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
-    ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
+    ModelRule("gpt-5.4",           "GPT-5.4",           "OpenAI",    r"gpt[-_ ]?5[.\-]4(?!\d)(?![-_ ]?(?:codex|pro|cyber|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5.2",           "GPT-5.2",           "OpenAI",    r"gpt[-_ ]?5[.\-]2(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     ModelRule("gpt-5.1",           "GPT-5.1",           "OpenAI",    r"gpt[-_ ]?5[.\-]1(?!\d)(?![-_ ]?(?:codex|pro|(?:thinking[-_ ]?)?(?:mini|nano|chat)))"),
     # #129: GPT-5's only snapshot is `gpt-5-2025-08-07` (OpenAI's model page, read 2026-10-06), so
@@ -339,12 +339,13 @@ def modality_mismatch(name: str, rule: ModelRule) -> str | None:
 #: #165: the reason a fine-tune's name is refused, counted beside the modality guard's refusals.
 FINE_TUNE = "fine-tune"
 #: D-195 clause 4: a speed tier (Moonshot's `-highspeed` and `-turbo`, Fireworks' `-fast` routers, MiniMax's
-#: `-highspeed`, DeepInfra's `-Turbo`) is its model's weights served faster, at about twice the price. Its score
-#: is the model's; its price is refused for this reason, in the families whose makers' tiers were read.
+#: `-highspeed` and `-lightning`, DeepInfra's `-Turbo`) is its model's weights served faster, at about twice
+#: the price. Its score is the model's; its price is refused for this reason, in the families whose makers'
+#: tiers were read.
 SPEED_TIER = "speed-tier"
 SPEED_TIERED = frozenset({"kimi-k2.7-code", "kimi-k2-thinking", "kimi-k2.6", "kimi-k2.5", "kimi-k2",
-                          "minimax-m2.7", "minimax-m2.5"})
-_SPEED_TIER_WORD = re.compile(r"[-_ ](?:highspeed|turbo|fast)(?![a-z])", re.IGNORECASE)
+                          "minimax-m2.7", "minimax-m2.5", "minimax-m2.1"})
+_SPEED_TIER_WORD = re.compile(r"[-_ ](?:highspeed|turbo|fast|lightning)(?![a-z])", re.IGNORECASE)
 
 
 def price_refusal(alias: str, rule: ModelRule) -> str | None:

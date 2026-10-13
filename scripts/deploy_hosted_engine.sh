@@ -87,7 +87,7 @@ if [ "$FROM" != "$HEAD_SHORT" ]; then
     echo "[deploy] refused: the served data was built by $DATA_BY, not release-$HEAD_SHORT; let the Mac's" >&2
     echo "         engine publish a refresh with this release (docs/release-testflight.md, the v2 section):" >&2
     echo "         a night whose data is unchanged keeps the old builder's name, and a refresh run by hand" >&2
-    echo "         without APP_BUILD records unknown" >&2
+    echo "         without APP_BUILD records unstamped, which nothing accepts" >&2
     case "$DATA_BY" in  # S5: only a release, or a record from before #198, may be named
       release-*|unknown) echo "         Or deploy it anyway with DEPLOY_ACCEPT_DATA_FROM=$DATA_BY" >&2 ;;
     esac

@@ -345,7 +345,7 @@ def test_an_expiry_night_is_judged_against_the_baseline_the_guards_read(tmp_path
     live = fingerprint_of(live_path)
     candidate = fingerprint_of(_built_without(live_path, tmp_path / "candidate.db", "litellm"))
     assert live is not None and candidate is not None
-    assert largest_board_change(live, candidate) is not None, "the fixture proves nothing"
+    assert largest_board_change(live, candidate, None) is not None, "the fixture proves nothing"
     assert largest_board_change(live, candidate, _served_without(live_path, {"litellm"})) is None
 
 
