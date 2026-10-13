@@ -3,7 +3,7 @@
   "source": "arc_agi_2",
   "benchmark": "ARC-AGI-2 (public eval)",
   "ranked_population": 24,
-  "floor": 27.4,
+  "floor": 27.6,
   "above_floor": [
     [
       "Claude Opus 4.6",
