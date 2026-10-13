@@ -939,3 +939,12 @@ def test_kimi_k2s_dated_snapshots_are_kimi_k2(name: str) -> None:
     price linked to no model."""
     rule = canonicalize(name)
     assert rule is not None and rule.canonical_id == "kimi-k2", (name, rule)
+
+
+@pytest.mark.parametrize("name", ["gpt-5.6-cyber", "bedrock_mantle/openai.gpt-5.6-cyber", "gpt-5.5-cyber",
+                                  "GPT-5.6-Cyber"])
+def test_a_cyber_model_is_not_its_base_model(name: str) -> None:
+    """#269: OpenAI trained GPT-5.5-Cyber and GPT-5.6-Cyber apart ("built on GPT-5.6 Sol, it is trained to improve
+    capabilities on several specialized cybersecurity tasks") and serves them to vetted defenders only."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"gpt-5.6", "gpt-5.5", "gpt-5.6-sol"}, (name, rule)
