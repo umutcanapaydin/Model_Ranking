@@ -950,6 +950,7 @@ def test_a_cyber_model_is_not_its_base_model(name: str) -> None:
     ("novita/minimax/minimax-m2.5-highspeed", "minimax-m2.5"),
     ("deepinfra/MiniMaxAI/MiniMax-M2.7-Turbo", "minimax-m2.7"),
     ("minimax/MiniMax-M2.1-lightning", "minimax-m2.1"),  # round 3's M4
+    ("minimax/MiniMax-M2.5-lightning", "minimax-m2.5"),  # the Tester's M1
     ("minimax/MiniMax-M2.7-lightning", "minimax-m2.7"),
 ])
 def test_a_speed_tiers_score_is_its_models_and_its_price_is_refused(alias: str, model: str) -> None:
