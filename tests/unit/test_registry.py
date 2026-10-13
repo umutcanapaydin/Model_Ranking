@@ -846,3 +846,32 @@ def test_a_minor_mistral_large_release_is_not_its_major(name: str) -> None:
     """The second W1 review's R2: as Sonnet 4's rule does, Large 3's and 4's refuse a minor version."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id not in {"mistral-large-3", "mistral-large-4"}, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["gpt-5.6-sol-pro", "openai/gpt-5.6-sol-pro", "GPT-5.6 Sol Pro", "gpt-5.6-sol_promax",
+                                  "gpt-5.6-luna-pro", "gpt-5.6-terra-pro"])
+def test_a_gpt_5_6_pro_variant_is_not_its_base_model(name: str) -> None:
+    """#266: the Sol, Luna and Terra rules had no Pro guard, so a Pro variant's price and score were the base's."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.6-terra"}, (name, rule)
+
+
+@pytest.mark.parametrize(("name", "model"), [
+    ("fireworks_ai/accounts/fireworks/models/deepseek-v3p1", "deepseek-v3.1"),
+    ("fireworks_ai/accounts/fireworks/models/deepseek-v3p2", "deepseek-v3.2"),
+    ("fireworks_ai/kimi-k2p5", "kimi-k2.5"),
+    ("fireworks/kimi-k2p5", "kimi-k2.5"),
+    ("fireworks_ai/accounts/fireworks/models/kimi-k2p6", "kimi-k2.6"),
+])
+def test_fireworks_p_spelled_point_releases_are_their_point_release(name: str, model: str) -> None:
+    """#234: Fireworks spells a point release with a `p`; DeepSeek's and Kimi's rules read it as the major."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["fireworks_ai/accounts/fireworks/models/deepseek-v3p1-terminus",
+                                  "fireworks_ai/kimi-k2p7-code", "fireworks_ai/accounts/fireworks/routers/kimi-k2p6-fast"])
+def test_a_p_spelled_release_never_falls_into_the_major(name: str) -> None:
+    """#234: whatever these are, they are not DeepSeek V3 or Kimi K2."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"deepseek-v3", "kimi-k2"}, (name, rule)
