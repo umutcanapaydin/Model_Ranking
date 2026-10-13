@@ -948,3 +948,13 @@ def test_a_cyber_model_is_not_its_base_model(name: str) -> None:
     capabilities on several specialized cybersecurity tasks") and serves them to vetted defenders only."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id not in {"gpt-5.6", "gpt-5.5", "gpt-5.6-sol"}, (name, rule)
+
+
+@pytest.mark.parametrize("name", ["minimax/MiniMax-M2.7-highspeed", "novita/minimax/minimax-m2.7-highspeed",
+                                  "minimax/MiniMax-M2.5-highspeed", "novita/minimax/minimax-m2.5-highspeed",
+                                  "deepinfra/MiniMaxAI/MiniMax-M2.7-Turbo"])
+def test_a_minimax_speed_tier_never_prices_its_base_model(name: str) -> None:
+    """D-195 clause 4, found measuring #269: MiniMax's `-highspeed` costs twice its model (0.6/2.4 against
+    0.3/1.2), as Kimi's speed tiers do."""
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id not in {"minimax-m2.7", "minimax-m2.5"}, (name, rule)
