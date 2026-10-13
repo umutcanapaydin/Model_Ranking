@@ -82,6 +82,11 @@ def _solves(attempt: dict[str, Any], expected: object) -> bool:
     return mark is None and expected is not None and attempt.get("answer") == expected
 
 
+def setting_score(task_scores: list[float], *, tasks: int = TASKS) -> float:
+    """A setting's percentage: its task scores summed over all ``tasks``, so a task it did not run is 0."""
+    return round(100 * sum(task_scores) / tasks, 4)
+
+
 def _pair_index(pair: object, position: int) -> int:
     """The test pair an attempt answered: its `metadata.pair_index`, else its position in the file."""
     for attempt in _attempts(pair):
@@ -188,13 +193,14 @@ def main(argv: list[str] | None = None) -> int:
 
     def score(setting: str) -> tuple[str, dict[str, Any]]:
         read = [(json.loads(_get(resolve + path)), solutions.get(task, [])) for path, task in tasks[setting]]
-        solved = sum(task_score(body, expected) for body, expected in read)
+        task_scores = [task_score(body, expected) for body, expected in read]
+        solved = sum(task_scores)
         marks = [_disagreements(body, expected) for body, expected in read]
         tasks_read = [task for _, task in tasks[setting]]
         cost = sum(_attempt_cost(attempt) for body, _ in read if isinstance(body, list)
                    for pair in body for attempt in _attempts(pair))
         return setting, {
-            "tasks_run": len(read), "solved": round(solved, 6), "score": round(100 * solved / TASKS, 4),
+            "tasks_run": len(read), "solved": round(solved, 6), "score": setting_score(task_scores),
             "cost_usd": round(cost, 4) if cost else None, "run_date": _latest_run([body for body, _ in read]),
             "marks_checked": sum(m[0] for m in marks),
             "disagreements": [[setting, task, *found] for task, (_, items) in zip(tasks_read, marks, strict=True)
