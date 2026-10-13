@@ -272,3 +272,12 @@ All 25 cases pass on `7bdc4da`, and each test fails on the fault it names.
 
 ## Risks queued to next M
 None.
+
+## Dispositions, by the author
+
+| Finding | Disposition | Where |
+|---|---|---|
+| M1 | Fixed. MiniMax M2.5's rule drops its own `lightning` guard; `price_refusal` refuses the alias and a score under the name is M2.5's. D-195 counts 13 speed-tier refusals; no median moves. | `d8234a1` red, `6b0a42f` fix |
+| T1 to T7 | Taken: the Tester's ten tests are committed as written. | `eedd7aa` |
+| K1 | Not filed: no `-pro-cyber` name is served, as the Tester says; #269 is the place if one appears. | - |
+

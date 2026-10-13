@@ -4961,7 +4961,8 @@ artifact of 2026-10-13, every link made again (the backlog-data review's rounds 
   ids new to the artifact (Kimi K2 Thinking, Qwen3-Coder 30B-A3B and Next, DeepSeek V3.1-Terminus, V3.2-Exp
   and V3.2-Speciale) and for Kimi K2.7 Code, which was already served; 3 score rows and 6 aliases reach the
   point release they name; 55 score rows and an alias of K2's dated previews link to K2.
-- 12 speed-tier aliases are refused as prices, and 3 Cyber aliases leave GPT-5.5's and GPT-5.6's medians.
+- 13 speed-tier aliases are refused as prices (MiniMax M2.5's `-lightning` among them, which no median
+  counted before), and 3 Cyber aliases leave GPT-5.5's and GPT-5.6's medians.
 - Every price median that moves: DeepSeek V3 0.56/1.25 to 0.89/1.0, V3.1 0.55/1.65 to 0.58/1.69, V3.2
   0.5/1.5 to 0.53/1.59; Qwen3-Coder 0.712/3.157 to 0.975/4.65 (the 480B-A35B alone); GPT-5.6 4.2/21.0 to
   4.1/20.5; Kimi K2 0.6/2.5 to 0.6/2.4; MiniMax M2.7 0.375/1.5 to 0.299/1.196, M2.5 0.385/1.54 to
