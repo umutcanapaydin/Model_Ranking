@@ -877,3 +877,40 @@ def test_a_p_spelled_release_never_falls_into_the_major(name: str) -> None:
     """#234: whatever these are, they are not DeepSeek V3 or Kimi K2."""
     rule = canonicalize(name)
     assert rule is None or rule.canonical_id not in {"deepseek-v3", "kimi-k2"}, (name, rule)
+
+
+@pytest.mark.parametrize(("name", "model"), [
+    # Kimi K2 Thinking has its own card and API id (huggingface.co/moonshotai/Kimi-K2-Thinking)
+    ("Kimi K2 Thinking", "kimi-k2-thinking"),
+    ("baseten/moonshotai/Kimi-K2-Thinking", "kimi-k2-thinking"),
+    ("fireworks_ai/accounts/fireworks/models/kimi-k2-thinking", "kimi-k2-thinking"),
+    ("kimi-k2-thinking-turbo", "kimi-k2-thinking"),
+    ("deepinfra/moonshotai/Kimi-K2-Instruct-0905", "kimi-k2"),  # "the latest version of Kimi K2": a snapshot
+    # Kimi K2.7 Code: "a coding-focused agentic model built upon Kimi K2.6", with its own id
+    ("kimi-k2.7-code", "kimi-k2.7-code"),
+    ("fireworks_ai/kimi-k2p7-code", "kimi-k2.7-code"),
+    ("fireworks_ai/accounts/fireworks/routers/kimi-k2p7-code-fast", "kimi-k2.7-code"),
+    # Qwen3-Coder's sizes have a card each and a price each; Qwen3-Coder-Next is another architecture
+    ("Qwen3-Coder-30B-A3B-Instruct", "qwen3-coder-30b-a3b"),
+    ("OpenHands + Qwen3-Coder-30B-A3B-Instruct", "qwen3-coder-30b-a3b"),
+    ("qwen.qwen3-coder-30b-a3b-v1:0", "qwen3-coder-30b-a3b"),
+    ("pinstripes/ps/qwen3-coder-30b-a3b", "qwen3-coder-30b-a3b"),
+    ("Qwen3-Coder-480B-A35B-Instruct", "qwen3-coder"),
+    ("vercel_ai_gateway/alibaba/qwen3-coder", "qwen3-coder"),
+    ("together_ai/Qwen/Qwen3-Coder-Next-FP8", "qwen3-coder-next"),
+    ("bedrock/us-east-1/qwen.qwen3-coder-next", "qwen3-coder-next"),
+    # DeepSeek announced V3.1-Terminus, V3.2-Exp and V3.2-Speciale apart (api-docs.deepseek.com/news)
+    ("DeepSeek-V3.1-Terminus", "deepseek-v3.1-terminus"),
+    ("deepseek-v3.1-terminus-thinking", "deepseek-v3.1-terminus"),
+    ("fireworks_ai/accounts/fireworks/models/deepseek-v3p1-terminus", "deepseek-v3.1-terminus"),
+    ("DeepSeek-V3.2-Exp (Reasoner)", "deepseek-v3.2-exp"),
+    ("DeepSeek-V3.2-Exp_thinking", "deepseek-v3.2-exp"),
+    ("novita/deepseek/deepseek-v3.2-exp", "deepseek-v3.2-exp"),
+    ("azure_ai/deepseek-v3.2-speciale", "deepseek-v3.2-speciale"),
+    ("DeepSeek-V3.2", "deepseek-v3.2"),
+    ("DeepSeek-V3.1", "deepseek-v3.1"),
+])
+def test_a_release_its_maker_publishes_apart_is_its_own_model(name: str, model: str) -> None:
+    """#232 (D-189 clause 1): each name was read against its maker's page on 2026-10-13."""
+    rule = canonicalize(name)
+    assert rule is not None and rule.canonical_id == model, (name, rule)
