@@ -4920,7 +4920,7 @@ licence.
 
 **Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
 the recommended option; the owner may overrule) · **Date:** 2026-10-13 · **Amends** D-189 clause 1 ·
-from #232, #234, #266.
+from #232, #234, #266, #269.
 
 **Context.** D-189 left #232's candidates unsplit because their makers' pages had not been read. #266
 asked for GPT-5.6 Sol, Luna and Terra's rules to refuse their Pro variants. #234 found Fireworks' `p`
@@ -4943,14 +4943,26 @@ spellings (`deepseek-v3p1`, `kimi-k2p5`) falling into the major release. The mak
    and #266's fix is not taken. Its rows hold no effort level the schema holds and stay `unspecified`,
    as #267's ruling keeps ARC-AGI-2's thinking budgets: so GPT-5.6 Sol can stand on a board at its
    Pro-mode row (Epoch's Chess, 64.0 against its max run's 55.0).
-4. **A provider's spelling of a point release is that release** (Fireworks' `p`), and **a speed tier
-   is not its model**: Moonshot's `-highspeed` and `-turbo` and Fireworks' `-fast` routers cost about
-   twice the model, as MiniMax M2.5's `lightning` does, so they derive models of their own.
+4. **A provider's spelling of a point release is that release** (Fireworks' `p`), and **a speed tier's
+   price is not its model's.** Moonshot's `-highspeed` and `-turbo`, Fireworks' `-fast` routers, MiniMax's
+   `-highspeed` and DeepInfra's `-Turbo` serve the model's weights faster at about twice the price. In the
+   Kimi and MiniMax families, whose tiers were read, such a price alias is refused for its reason
+   (`registry.price_refusal`, counted as `speed-tier`); a score under its name is the model's, as Arena's
+   only spelling of Kimi K2 Thinking (`kimi-k2-thinking-turbo`) is. A `fast` or `turbo` in a model's own
+   name (Grok 4 Fast) or in a family not read here is untouched.
+5. **A model trained apart for one use is its own model** (#269): GPT-5.5-Cyber and GPT-5.6-Cyber ("built on
+   GPT-5.6 Sol, it is trained to improve capabilities on several specialized cybersecurity tasks", served to
+   vetted defenders only) are not GPT-5.5 or GPT-5.6.
 
-**Consequence.** Model ids move on the first night after the release, as D-189's did: on the artifact
-of 2026-10-13, 138 score rows and 59 price aliases leave Kimi K2, Qwen3-Coder and DeepSeek V3, V3.1 and
-V3.2 for six new ids, and 55 Arena rows of K2's dated previews link to K2. Both refresh gates pass from
-that artifact to the reconciled one. DeepSeek V3's price median is 0.89/1.0, not 0.56/1.25.
+**Consequence.** Model ids move on the first night after the release, as D-189's did. Measured on the
+artifact of 2026-10-13, every link made again: 135 score rows and 46 price aliases leave Kimi K2,
+Qwen3-Coder and DeepSeek V3, V3.1 and V3.2 for seven new ids; 3 score rows and 6 aliases reach the point
+release they name (Kimi K2.5 and K2.6, DeepSeek V3.1 and V3.2); 55 score rows and an alias of K2's dated previews link to K2;
+and 11 speed-tier and 3 Cyber price aliases leave their base models' medians. Both refresh gates pass from
+that artifact to the relinked one; the night's largest board change is 6 of 232 rows. The medians move to
+0.89/1.0 for DeepSeek V3 (from 0.56/1.25), 4.1/20.5 for GPT-5.6, 0.95/4.0 for Kimi K2.7 Code, and
+0.299/1.196 and 0.305/1.22 for MiniMax M2.7 and M2.5.
 
-**Revisit when:** a maker publishes a Pro or speed tier with an id and price of its own, or a board
-ranks a gathered snapshot apart in a way D-182 does not settle.
+**Revisit when:** a maker publishes a Pro or speed tier with an id and price of its own, another family's
+speed tier is read (GLM's `-Fast`, DeepSeek's `-Turbo`), or a board ranks a gathered snapshot apart in a way
+D-182 does not settle.
