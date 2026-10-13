@@ -27,6 +27,7 @@ from app.workflows.rank import (
     BLEND_OUTPUT_WEIGHT,
     attributions_for,
     credits_for,
+    secondary_evidence_sources,
     served_pricing_sources,
 )
 
@@ -138,7 +139,10 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
     ]
     # The #260 review's M1: the accessibility served is credited too, whatever boards are served.
     accessible = {model["id"] for model in models if model["accessibility"] is not None}
-    attributions = list(attributions_for([b["id"] for b in boards], priced=True,
+    # #262: a recommendation also cites its secondary benchmark's sources, every row of them, past the
+    # effort filter above; so the credits cover them too, and the screen credits all an answer cites.
+    secondaries = {source for spec in CATEGORIES.values() for source in secondary_evidence_sources(conn, spec)}
+    attributions = list(attributions_for(sorted({b["id"] for b in boards} | secondaries), priced=True,
                                          pricing_sources=served_pricing_sources(conn),
                                          metadata_sources=sorted(access_served.sources(conn, accessible))))
     return {
