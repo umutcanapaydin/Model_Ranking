@@ -77,6 +77,7 @@ def parse_arc_agi_2(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
     for setting, entry in settings.items():
         score = _number(entry.get("score")) if isinstance(entry, dict) else None
         ran = entry.get("tasks_run") if isinstance(entry, dict) else None
+        run_date = entry.get("run_date") if isinstance(entry, dict) else None
         if score is None or not 0.0 <= score <= 100.0 or not isinstance(ran, int) or ran < floor:
             skipped += 1
             continue
@@ -86,7 +87,8 @@ def parse_arc_agi_2(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
             metric=METRIC,
             score=score,
             harness=HARNESS,
-            run_date=None,  # the dataset dates no run; undated is the honest state (REQ-API-004)
+            # The #265 review's M6: the date of the setting's latest attempt, as the derivation records it.
+            run_date=run_date if isinstance(run_date, str) else None,
             cost_total=_number(entry.get("cost_usd")),
             source=source,
             source_url=source_url,

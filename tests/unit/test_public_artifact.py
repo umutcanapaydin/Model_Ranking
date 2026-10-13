@@ -267,7 +267,11 @@ def test_a_priced_payload_must_say_which_price_sources_it_serves() -> None:
     assert attributions_for([], priced=True, pricing_sources=None) == (PRICING_ATTRIBUTION,)
     assert attributions_for([], priced=True, pricing_sources={"litellm"}) == (PRICING_ATTRIBUTION_LITELLM,)
     assert attributions_for([], priced=True, pricing_sources={"litellm", "models_dev"}) == (PRICING_ATTRIBUTION,)
-    assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (PRICING_ATTRIBUTION_LITELLM,)
+    # The #265 review's B2: an artifact an older release built still credits OpenRouter for its prices.
+    from app.workflows.rank import PRICING_ATTRIBUTION_OPENROUTER
+
+    assert attributions_for([], priced=True, pricing_sources={"litellm", "openrouter"}) == (
+        PRICING_ATTRIBUTION_OPENROUTER,)
 
 
 def test_d186_supersedes_d185s_list_and_says_so() -> None:

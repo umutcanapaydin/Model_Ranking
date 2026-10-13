@@ -53,6 +53,19 @@ EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
     )
 }
 
+#: The #265 review's B2: boards D-194 stopped building, attributed as they were. An artifact an older release
+#: built still holds them, and a citation missing from every map refuses the engine's start, so the install
+#: rolled back before the startup refresh could replace that artifact. Kept for the artifacts that still
+#: hold them; never declared, so no build writes them again.
+RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
+    source: f"{credit}. Via {EPOCH_CITATION}"
+    for source, credit in (
+        ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
+        ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
+                                "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
+    )
+}
+
 #: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
 #: process and the client read one string (W-125).
 ARENA_ATTRIBUTION = (
@@ -109,6 +122,14 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "technical reports on arXiv, compiled by Epoch AI", "https://crfm.stanford.edu/helm/lite/latest/",
            "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
            "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
+    # The #265 review's B2: the publishers of the retired sources, as D-193 credited them, for an artifact
+    # an older release built (`RETIRED_EXTERNAL_ATTRIBUTION`).
+    Credit("arc_prize_leaderboard", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI",
+           "https://arcprize.org/leaderboard", "ARC Prize Terms", "https://arcprize.org/terms"),
+    Credit("terminal_bench_2", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
+           "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
+    Credit("openrouter", "OpenRouter", "Public model catalogue: prices", "https://openrouter.ai/api/v1/models",
+           "OpenRouter Terms of Service", "https://openrouter.ai/terms"),
     Credit("arena_site", "LMArena (arena.ai)", "WebDev Arena leaderboard, compiled by Epoch AI",
            "https://arena.ai/leaderboard", "Arena Terms of Use",
            "https://help.arena.ai/articles/5629909088-terms-of-use"),

@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import json
 import math
-from typing import Any
+import re
+from typing import Any, TypeGuard
 
 from app.clients.protocols import SourceError, fetch_bounded
 from app.workflows.schema import EFFORT_LEVELS, ScoreRow
@@ -28,7 +29,9 @@ BENCHMARK = "Terminal-Bench 4.0"
 METRIC = "% resolved"
 REPOSITORY = "https://github.com/harbor-framework/terminal-bench"
 LISTING_URL = "https://api.github.com/repos/harbor-framework/terminal-bench/contents/leaderboard/submissions"
-_RAW_PREFIX = "https://raw.githubusercontent.com/harbor-framework/terminal-bench/"
+#: A submission file's path, as the request will send it: httpx removes dot segments first, so a prefix test
+#: on the listed string let `..` out of the repository (the #265 review's M2).
+_SUBMISSION_PATH = re.compile(r"/harbor-framework/terminal-bench/[A-Za-z0-9._-]+/leaderboard/submissions/[A-Za-z0-9._-]+\.json")
 _TIMEOUT_S = 30.0
 #: The board had 21 submissions on 2026-10-13. Ten times that is a shape change, not a busy month.
 MAX_SUBMISSIONS = 250
@@ -60,12 +63,26 @@ class TerminalBench4Client:
         bodies = []
         for entry in files:
             link = entry.get("download_url")
-            if not isinstance(link, str) or not link.startswith(_RAW_PREFIX):
+            if not _in_submissions(link):
                 msg = f"{self.name}: a listed file points outside the repository: {link!r}"
                 raise SourceError(msg)
             bodies.append({"file": entry["name"], "body": fetch_bounded(link, self.name, _TIMEOUT_S,
                                                                          hosts=self.hosts)})
         return json.dumps(bodies)
+
+
+def _in_submissions(link: object) -> TypeGuard[str]:
+    """Whether ``link`` reads a file in the repository's submissions directory, once normalised."""
+    import httpx
+
+    if not isinstance(link, str):
+        return False
+    try:
+        url = httpx.URL(link)
+    except (httpx.InvalidURL, ValueError):
+        return False
+    return (url.scheme == "https" and url.host == "raw.githubusercontent.com"
+            and _SUBMISSION_PATH.fullmatch(url.path) is not None)
 
 
 def _accuracy(value: object) -> float | None:

@@ -25,7 +25,6 @@ from app.workflows.categories import CATEGORIES
 from app.workflows.rank import (
     BLEND_INPUT_WEIGHT,
     BLEND_OUTPUT_WEIGHT,
-    SOURCE_ATTRIBUTION,
     attributions_for,
     credits_for,
     served_pricing_sources,
@@ -105,7 +104,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
 
     boards: list[dict[str, Any]] = []
     for source in sorted(grouped):
-        attributions_for([source], priced=False)  # raises on an unattributed source
+        (attribution,) = attributions_for([source], priced=False)  # raises on an unattributed source
         evidence = sorted((_evidence(rows) for rows in grouped[source].values()),
                           key=lambda r: (-r.score, r.model))
         standings: list[dict[str, Any]] = []
@@ -122,7 +121,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
             "ranking_effort": policies.get(benchmark),
             "evidence_date": max(dated) if dated else None,
             "observed_at": max(r.observed_at for r in kept)[:10],
-            "attribution": SOURCE_ATTRIBUTION[source],
+            "attribution": attribution,  # a retired source's too, for an older release's artifact (#265 B2)
             "standings": standings,
         })
 

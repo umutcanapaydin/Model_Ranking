@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import statistics
 import sys
 from pathlib import Path
 from typing import Any
@@ -56,11 +58,27 @@ def thresholds(scores: list[float], *, floor: float, stderr: float) -> dict[str,
     return {"close_call": close_call, "value_window": _half(lead - floor), "candidates": len(above)}
 
 
+def binomial_stderr(scores: list[float], *, floor: float, tasks: int) -> float:
+    """The median binomial standard error, in points, of the percentages at or above ``floor`` over ``tasks``.
+
+    Taken over the models the window sizes, not the whole board: a population of zeros below the floor
+    drives it to 0 (the #265 review's M1). It measures sampling over the tasks, not run-to-run variance.
+    """
+    above = [s / 100 for s in scores if s >= floor]
+    if not above or tasks <= 0:
+        msg = "no score at or above the floor, or no tasks"
+        raise ValueError(msg)
+    return statistics.median(100 * math.sqrt(p * (1 - p) / tasks) for p in above)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="calibrate_surface")
     parser.add_argument("--surface", required=True, choices=sorted(CATEGORIES))
     parser.add_argument("--db", required=True, help="a built artifact holding the surface's board")
-    parser.add_argument("--stderr", required=True, type=float, help="the board's own standard error")
+    noise = parser.add_mutually_exclusive_group(required=True)
+    noise.add_argument("--stderr", type=float, help="the board's own standard error, where it publishes one")
+    noise.add_argument("--binomial-tasks", type=int,
+                       help="the board's task count: the binomial standard error over the models above the floor")
     parser.add_argument("--stderr-from", required=True, help="where the standard error was measured")
     parser.add_argument("--out", default=None, help="write the JSON record here")
     args = parser.parse_args(argv)
@@ -72,7 +90,10 @@ def main(argv: list[str] | None = None) -> int:
     if not rows or floor is None:
         print(f"{args.surface}: the artifact holds no ranked population for {spec.primary_source}", file=sys.stderr)
         return 2
-    picked = thresholds([r.score for r in rows], floor=floor, stderr=args.stderr)
+    scores = [r.score for r in rows]
+    stderr = (args.stderr if args.stderr is not None
+              else round(binomial_stderr(scores, floor=floor, tasks=args.binomial_tasks), 3))
+    picked = thresholds(scores, floor=floor, stderr=stderr)
     record = {
         "surface": args.surface,
         "source": spec.primary_source,
@@ -80,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
         "ranked_population": len(rows),
         "floor": floor,
         "above_floor": [[r.model, r.score] for r in sorted(rows, key=lambda r: -r.score) if r.score >= floor],
-        "stderr": args.stderr,
+        "stderr": stderr,
         "stderr_from": args.stderr_from,
         "rule": "close_call = 2 x stderr; value_window ends mid-gap in the first gap wider than close_call "
                 f"past {MIN_CANDIDATES} candidates, else at the floor (D-194 clause 4)",

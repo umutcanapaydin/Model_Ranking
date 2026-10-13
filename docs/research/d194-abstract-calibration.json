@@ -42,10 +42,10 @@
       34.0278
     ]
   ],
-  "stderr": 2.066,
-  "stderr_from": "binomial over ARC-AGI-2's 120 public tasks, sqrt(p(1-p)/120), the median over the 61 derived settings at revision 026789c1",
+  "stderr": 4.392,
+  "stderr_from": "binomial over ARC-AGI-2's 120 public tasks, sqrt(p(1-p)/120), the median over the ranked models at or above the floor (the #265 review's M1)",
   "rule": "close_call = 2 x stderr; value_window ends mid-gap in the first gap wider than close_call past 3 candidates, else at the floor (D-194 clause 4)",
-  "close_call": 4.1,
+  "close_call": 8.8,
   "value_window": 9.5,
   "candidates": 3
 }

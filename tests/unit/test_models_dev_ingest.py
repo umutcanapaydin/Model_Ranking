@@ -112,7 +112,8 @@ def test_the_pricing_credit_names_models_dev_and_its_licence() -> None:
     assert [c["id"] for c in rank.credits_for(citation)] == ["litellm", "models_dev"]
     credit = board_tables.CREDITS["models_dev"]
     assert (credit.licence, credit.url) == ("MIT", "https://models.dev")
-    assert "openrouter" not in board_tables.CREDITS
+    # OpenRouter's credit is kept only for an artifact an older release built (the #265 review's B2).
+    assert rank.CREDITS_BY_ATTRIBUTION[rank.PRICING_ATTRIBUTION_OPENROUTER] == ("litellm", "openrouter")
 
 
 def test_a_model_another_maker_made_is_not_read_from_the_catalogue_that_resells_it() -> None:

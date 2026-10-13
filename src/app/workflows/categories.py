@@ -204,10 +204,11 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="arc_agi_2",
         # D-194 clause 4 (#265): measured on ARC-AGI-2's public evaluation by `scripts/calibrate_surface.py`
         # (`docs/research/d194-abstract-calibration.json`). 24 models ranked; the tie margin is twice the
-        # binomial standard error over 120 tasks, and the window ends in the 12.2-point gap below the third
-        # model. Epoch's copy's 5.0 / 1.0 were measured on another board (D-105).
+        # binomial standard error over 120 tasks, taken over the models above the floor (the #265 review's
+        # M1), and the window ends in the 12.2-point gap below the third model. Epoch's copy's 5.0 / 1.0
+        # were measured on another board (D-105).
         value_window=9.5,
-        close_call=4.1,
+        close_call=8.8,
     ),
     "web-dev": CategorySpec(
         id="web-dev",

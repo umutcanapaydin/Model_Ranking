@@ -500,6 +500,8 @@ _FAMILY_VENDORS: tuple[tuple[str, str], ...] = (
     ("deepseek", "DeepSeek"), ("kimi", "Moonshot"), ("glm", "Zhipu"), ("nova", "Amazon"),
     ("phi", "Microsoft"), ("nemotron", "NVIDIA"), ("nvidia", "NVIDIA"), ("minimax", "MiniMax"),
     ("mimo", "Xiaomi"), ("command", "Cohere"), ("jamba", "AI21"),
+    # The #265 review's M5: only OpenRouter's `tencent/` route named Hunyuan's maker.
+    ("hy4", "Tencent"), ("hunyuan", "Tencent"),
 )
 
 

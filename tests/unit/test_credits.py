@@ -211,6 +211,10 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
                  "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
         "arena_site": ("Arena Terms of Use", "https://help.arena.ai/articles/5629909088-terms-of-use"),
+        # The #265 review's B2: the retired sources' publishers, for an artifact an older release built.
+        "arc_prize_leaderboard": ("ARC Prize Terms", "https://arcprize.org/terms"),
+        "terminal_bench_2": ("No licence stated on the leaderboard", None),
+        "openrouter": ("OpenRouter Terms of Service", "https://openrouter.ai/terms"),
     }
 
 
