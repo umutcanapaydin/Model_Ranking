@@ -4624,6 +4624,8 @@ rows split): D-179's board guards count those links as changed rows, as they did
 **Revisit when:** a maker names a release apart that a board spells with a date this rule does not
 read, or a rerouted id's historical scores are needed (then pricing rows need a date).
 
+**Amended by D-195 (2026-10-13)**: clause 1 -- seven more releases their makers publish apart are split (#232, #234), three cases stay gathered, and GPT-5.6's Pro is a mode, not a release (#266).
+
 ## D-190 — `web-dev` ranks on LMArena's own WebDev board
 
 **Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 · **Date:**
@@ -4913,3 +4915,42 @@ darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refuse
 **Revisit when:** the owner's Hugging Face token is in place (DeepSWE moves), ARC Prize publishes new runs
 (re-derive), a publisher changes its licence, or ARC Prize publishes its leaderboard's scores under a
 licence.
+
+## D-195 — D-189 applied to #232's candidates; GPT-5.6's Pro is a mode, not a release
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option; the owner may overrule) · **Date:** 2026-10-13 · **Amends** D-189 clause 1 ·
+from #232, #234, #266.
+
+**Context.** D-189 left #232's candidates unsplit because their makers' pages had not been read. #266
+asked for GPT-5.6 Sol, Luna and Terra's rules to refuse their Pro variants. #234 found Fireworks' `p`
+spellings (`deepseek-v3p1`, `kimi-k2p5`) falling into the major release. The makers' pages were read on
+2026-10-13.
+
+**Decision.**
+1. **Split, each with its own maker card or announcement:** Kimi K2 Thinking
+   (huggingface.co/moonshotai/Kimi-K2-Thinking, its own API id), Kimi K2.7 Code ("a coding-focused
+   agentic model built upon Kimi K2.6", its own id), Qwen3-Coder 30B-A3B (its own card and price; the
+   bare Qwen3-Coder stays the 480B-A35B flagship its boards rank), Qwen3-Coder-Next (another
+   architecture), and DeepSeek V3.1-Terminus, V3.2-Exp and V3.2-Speciale (each announced apart,
+   api-docs.deepseek.com/news).
+2. **Gathered, as snapshots or modes of one model:** Kimi K2-Instruct-0905 and K2's dated previews
+   ("the latest version of Kimi K2"), grok-4-fast's reasoning and non-reasoning modes ("a unified
+   architecture"), and Qwen3-Max-Thinking and qwen3.7-max-preview (snapshots in Alibaba's model list).
+3. **GPT-5.6's Pro is a mode.** OpenAI's GPT-5.6 guide enables it with `reasoning.mode: "pro"`, says it
+   "works with any GPT-5.6 model", and bills it at "the selected model's standard token rates". Unlike
+   GPT-5 Pro and GPT-5.4 Pro it has no model id or price of its own, so a Pro run is the model it runs
+   and #266's fix is not taken. Its rows hold no effort level the schema holds and stay `unspecified`,
+   as #267's ruling keeps ARC-AGI-2's thinking budgets: so GPT-5.6 Sol can stand on a board at its
+   Pro-mode row (Epoch's Chess, 64.0 against its max run's 55.0).
+4. **A provider's spelling of a point release is that release** (Fireworks' `p`), and **a speed tier
+   is not its model**: Moonshot's `-highspeed` and `-turbo` and Fireworks' `-fast` routers cost about
+   twice the model, as MiniMax M2.5's `lightning` does, so they derive models of their own.
+
+**Consequence.** Model ids move on the first night after the release, as D-189's did: on the artifact
+of 2026-10-13, 138 score rows and 59 price aliases leave Kimi K2, Qwen3-Coder and DeepSeek V3, V3.1 and
+V3.2 for six new ids, and 55 Arena rows of K2's dated previews link to K2. Both refresh gates pass from
+that artifact to the reconciled one. DeepSeek V3's price median is 0.89/1.0, not 0.56/1.25.
+
+**Revisit when:** a maker publishes a Pro or speed tier with an id and price of its own, or a board
+ranks a gathered snapshot apart in a way D-182 does not settle.
