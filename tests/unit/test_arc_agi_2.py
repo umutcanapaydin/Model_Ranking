@@ -82,10 +82,11 @@ def test_a_pair_is_solved_by_either_attempt_and_a_task_scores_its_share_of_pairs
     """covers REQ-SRC-012: ARC Prize's rule, as its own `results.json` sums it."""
     solved = {"attempt_1": {"correct": False}, "attempt_2": {"correct": True}}
     missed = {"attempt_1": {"correct": False}, "attempt_2": None}
-    assert _derive().task_score([solved]) == 1.0
-    assert _derive().task_score([solved, missed]) == 0.5
-    assert _derive().task_score([{"attempt_1": {"correct": "true"}}]) == 0.0
-    assert _derive().task_score([]) == 0.0
+    grids = [[[0]], [[0]]]
+    assert _derive().task_score([solved], grids) == 1.0
+    assert _derive().task_score([solved, missed], grids) == 0.5
+    assert _derive().task_score([{"attempt_1": {"correct": "true"}}], grids) == 0.0
+    assert _derive().task_score([], grids) == 0.0
 
 
 def test_the_committed_record_is_the_licensed_derivation_and_parses() -> None:
@@ -118,3 +119,49 @@ def test_arc_prize_is_credited_under_mit_with_its_dataset() -> None:
     credit = board_tables.CREDITS["arc_prize"]
     assert (credit.licence, credit.url) == ("MIT", "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval")
     assert [c["id"] for c in rank.credits_for([citation])] == ["arc_prize"]
+
+
+# --- The #265 review (docs/reviews/issue-265-licensed-sources-review.md) ------------------------------------
+
+GRID = [[1, 2], [3, 4]]
+
+
+def test_an_attempt_arc_prize_never_marked_is_scored_against_the_published_solution() -> None:
+    """covers REQ-SRC-012 (the review's B1): ARC Prize left `correct` null on whole settings (GPT-5 Pro,
+    Claude Sonnet 4.5). Read as wrong, they were served at 0. A null mark is scored by comparing the
+    answer with ARC-AGI-2's published solution; a boolean mark is ARC Prize's and is kept."""
+    derive = _derive()
+    unmarked_right = {"attempt_1": {"correct": None, "answer": [[0]]}, "attempt_2": {"correct": None, "answer": GRID}}
+    unmarked_wrong = {"attempt_1": {"correct": None, "answer": [[0]]}, "attempt_2": None}
+    marked_wrong = {"attempt_1": {"correct": False, "answer": GRID}}
+    assert derive.task_score([unmarked_right], [GRID]) == 1.0
+    assert derive.task_score([unmarked_right, unmarked_wrong], [GRID, GRID]) == 0.5
+    assert derive.task_score([marked_wrong], [GRID]) == 0.0
+    assert derive.task_score([{"attempt_1": {"correct": None, "answer": GRID}}], []) == 0.0  # no solution: unsolved
+
+
+def test_the_committed_record_scores_no_unmarked_setting_at_zero_and_names_its_solutions() -> None:
+    """covers REQ-SRC-012 (the review's B1 and M6): the derivation names the solutions it scored unmarked
+    attempts against, agrees with every mark ARC Prize made, and dates each setting by its runs."""
+    record = json.loads(Path("data/arc-agi-2-public-eval.json").read_text(encoding="utf-8"))
+    solutions = record["solutions"]
+    assert solutions["repository"] == "arcprize/ARC-AGI-2" and solutions["licence"] == "Apache-2.0"
+    assert len(solutions["revision"]) == 40
+    assert record["marks_disagreeing"] == 0 and record["marks_checked"] > 1000
+    assert all(entry["score"] > 0 for entry in record["settings"].values()), "a setting served at 0"
+    assert all(len(entry["run_date"]) == 10 for entry in record["settings"].values())
+
+
+def test_a_setting_is_stored_with_the_date_of_its_latest_run() -> None:
+    """covers REQ-UNC-003 (the review's M6): every attempt carries its start time; the evidence is dated."""
+    record = json.loads(json.dumps(RECORD))
+    record["settings"]["claude-opus-4-8-high"]["run_date"] = "2026-05-14"
+    rows, _ = _arc().parse_arc_agi_2(json.dumps(record))
+    assert {r.raw_name: r.run_date for r in rows}["claude-opus-4-8-high"] == "2026-05-14"
+
+
+def test_a_record_without_a_task_floor_holds_every_setting_to_all_the_tasks() -> None:
+    """covers REQ-SRC-012 (the review's M3): with no `min_tasks`, a setting short of `tasks` is partial."""
+    record = {k: v for k, v in json.loads(json.dumps(RECORD)).items() if k != "min_tasks"}
+    rows, skipped = _arc().parse_arc_agi_2(json.dumps(record))
+    assert "gpt-5-4-xhigh" not in {r.raw_name for r in rows} and skipped == 1

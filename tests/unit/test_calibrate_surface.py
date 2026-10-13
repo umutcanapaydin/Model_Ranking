@@ -55,3 +55,12 @@ def test_a_moved_surface_ships_the_thresholds_its_calibration_record_states(surf
     spec = CATEGORIES[surface]
     assert written["surface"] == surface and written["source"] == spec.primary_source
     assert (spec.close_call, spec.value_window) == (written["close_call"], written["value_window"])
+
+
+def test_a_binomial_standard_error_is_taken_over_the_models_above_the_floor() -> None:
+    """The review's M1: taken over every derived setting, zeros below the floor drove it toward 0."""
+    script = _script()
+    above = [79.0, 77.0, 75.8, 63.6]
+    assert script.binomial_stderr([*above, 0.0, 0.0, 0.0, 0.0, 0.0], floor=27.4, tasks=120) == script.binomial_stderr(
+        above, floor=27.4, tasks=120)
+    assert round(script.binomial_stderr([50.0], floor=0.0, tasks=100), 3) == 5.0

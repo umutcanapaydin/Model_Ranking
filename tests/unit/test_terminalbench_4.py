@@ -141,3 +141,50 @@ def test_terminal_bench_is_credited_under_apache_2_0_with_its_repository() -> No
         "Apache-2.0", "https://github.com/harbor-framework/terminal-bench",
         "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE")
     assert [c["id"] for c in rank.credits_for([citation])] == ["terminal_bench"]
+
+
+# --- The #265 review (docs/reviews/issue-265-licensed-sources-review.md) ------------------------------------
+
+@respx.mock
+@pytest.mark.parametrize("link", [
+    RAW + "../../../../evil/repo/main/x.json",
+    "https://raw.githubusercontent.com/harbor-framework/terminal-bench/main/leaderboard/other/x.json",
+    "https://raw.githubusercontent.com/harbor-framework/terminal-bench-x/main/leaderboard/submissions/x.json",
+])
+def test_a_listed_file_whose_path_leaves_the_submissions_directory_is_refused(link: str) -> None:
+    """The review's M2: httpx removes dot segments before the request, so a prefix test let `..` out."""
+    from app.clients.protocols import SourceError
+
+    respx.get(LISTING).mock(return_value=httpx.Response(200, json=[{"name": "x.json", "type": "file", "download_url": link}]))
+    with pytest.raises(SourceError, match="outside"):
+        _tb().TerminalBench4Client().fetch_raw()
+
+
+@respx.mock
+def test_only_json_files_are_read_and_a_listing_that_is_not_a_list_or_too_long_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The review's M3: the file filter, the list check and the count cap each had no test."""
+    from app.clients.protocols import SourceError
+
+    name = next(iter(FILES))
+    listing = [{"name": name, "type": "file", "download_url": RAW + name},
+               {"name": "nested", "type": "dir", "download_url": None},
+               {"name": "notes.txt", "type": "file", "download_url": RAW + "notes.txt"}]
+    respx.get(LISTING).mock(return_value=httpx.Response(200, json=listing))
+    respx.get(RAW + name).mock(return_value=httpx.Response(200, json=FILES[name]))
+    assert [e["file"] for e in json.loads(_tb().TerminalBench4Client().fetch_raw())] == [name]
+    monkeypatch.setattr(_tb(), "MAX_SUBMISSIONS", 0)
+    with pytest.raises(SourceError, match="more than"):
+        _tb().TerminalBench4Client().fetch_raw()
+    respx.get(LISTING).mock(return_value=httpx.Response(200, json={"message": "API rate limit exceeded"}))
+    with pytest.raises(SourceError, match="not a list"):
+        _tb().TerminalBench4Client().fetch_raw()
+
+
+def test_an_effort_the_schema_does_not_hold_skips_the_row_and_not_the_source() -> None:
+    """The review's M3: an unknown effort reaching the store would fail the whole source there."""
+    odd = _submission("openai/gpt-6-sol", "codex", "ultra", "ultra", 49.39, "2026-09-22", 1.0)
+    rows, skipped = _tb().parse_terminalbench_4(_raw({"odd.json": odd, "ok.json": OPUS}),
+                                                source="terminalbench_4", source_url=LISTING)
+    assert [r.raw_name for r in rows] == ["anthropic/claude-opus-5-5"] and skipped == 1

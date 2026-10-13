@@ -156,3 +156,14 @@ def test_the_makers_whose_models_only_openrouter_priced_are_read() -> None:
         "arcee-ai/trinity-large-thinking", "stepfun/step-3.5-flash", "upstage/solar-pro4"]
     assert [registry.route_vendor(r.alias.split("/")[0]) for r in sorted(rows, key=lambda r: r.alias)] == [
         "Arcee", "StepFun", "Upstage"]
+
+
+def test_a_namespaced_model_in_a_makers_catalogue_is_another_publishers_and_a_bool_is_no_context() -> None:
+    """covers REQ-ING-005 (the review's M3): the live catalogue lists Thinking Machines' model under Arcee as
+    `thinkingmachines/inkling-small`, which names no family word; only its namespace keeps it out."""
+    catalogue = json.dumps({"arcee": {"models": {
+        "thinkingmachines/inkling-small": {"cost": {"input": 0.2, "output": 0.6}},
+        "trinity-large-thinking": {"cost": {"input": 0.25, "output": 0.8}, "limit": {"context": True}},
+    }}})
+    rows, skipped = _client().parse_models_dev(catalogue)
+    assert [(r.alias, r.context) for r in rows] == [("arcee-ai/trinity-large-thinking", None)] and skipped == 1

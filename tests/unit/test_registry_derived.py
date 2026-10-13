@@ -310,3 +310,11 @@ def test_a_derived_models_name_carries_no_dash_effort() -> None:
     reconcile(conn)
     assert conn.execute("SELECT id, display FROM models").fetchall() == [("zeta9", "zeta-9")]
     assert conn.execute("SELECT model_id, effort FROM scores").fetchall() == [("zeta9", "xhigh")]
+
+
+def test_tencents_hunyuan_keeps_its_vendor_when_no_route_names_it() -> None:
+    """The #265 review's M5: only OpenRouter's `tencent/hy4-preview` route named Tencent; with OpenRouter
+    gone, the remaining alias (`aihubmix/hy4-preview`) served the model as "Other"."""
+    assert registry._derived_vendor("hy4-preview", ["aihubmix/hy4-preview"]) == "Tencent"
+    assert registry._derived_vendor("hunyuan-turbos", []) == "Tencent"
+    assert registry.named_vendors("hybrid-reasoner") == frozenset()
