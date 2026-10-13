@@ -80,6 +80,7 @@ $(VENV)/pyvenv.cfg:
 # builds with a locked setuptools; then the project itself, with nothing more resolved or fetched.
 # `make lock` rewrites the locks after a pyproject change.
 $(VENV)/.installed: pyproject.toml requirements/dev.lock requirements/build.lock | $(VENV)/pyvenv.cfg
+	@$(SYS_PY) scripts/venv_owner.py $(VENV)
 	$(PIP) install --require-hashes -r requirements/dev.lock -r requirements/build.lock
 	$(PIP) install --no-deps --no-build-isolation -e .
 	@touch $@
