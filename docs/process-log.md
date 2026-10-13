@@ -786,7 +786,9 @@ commit in the closure, and still refused the first ordinary commit in the owner'
   the derivation read them as wrong: GPT-5 Pro and Claude Sonnet 4.5 were served at 0. They are scored
   against ARC-AGI-2's published solutions now. And the new code refused to boot on the artifact `main`
   built, so the install would have rolled back before the startup refresh could replace it; the
-  retired sources stay attributed for that artifact.
+  retired sources stay attributed for that artifact. Round 2 was MINOR: the unmarked attempts were
+  paired with solutions by position, and GPT-4.1 had answered a task set ARC Prize changed after it
+  ran. Paired by index, the comparison agrees with every one of ARC Prize's 16,681 marks.
 - DeepSWE waits for the owner's Hugging Face token: the dataset is gated, and its format cannot be read.
 - A worktree's `make install` through a `.venv` symlink had rewritten the owner's editable install, and
   their deploy failed until they reinstalled (#264). This wave's worktree built its own venv.

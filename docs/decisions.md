@@ -4872,9 +4872,11 @@ have saturated.
    114 is left out), into `data/arc-agi-2-public-eval.json`, which the build reads. The contract test
    fails when the dataset moves past that revision. ARC Prize's `correct` mark is kept where it made
    one; an attempt it left unmarked (whole settings, such as GPT-5 Pro and Claude Sonnet 4.5) is scored
-   by comparing its answer with the published solution in `arcprize/ARC-AGI-2` (Apache-2.0, pinned
-   commit). The comparison agrees with 16,664 of ARC Prize's 16,681 marks. Each setting is dated by its
-   latest attempt.
+   by comparing its answer with the solution of its own pair index in `arcprize/ARC-AGI-2` (Apache-2.0,
+   pinned commit `f3283f72`). The comparison agrees with all 16,681 of ARC Prize's marks. ARC Prize last
+   changed those solutions on 2025-05-15 (the first test pair of five tasks removed), so a setting with an
+   unmarked attempt run before then is left out: GPT-4.1's three. 58 settings are kept. Each setting is
+   dated by its latest attempt.
 4. **Each moved surface is calibrated on its board** by `scripts/calibrate_surface.py`, on the ranked
    population (D-148 clause 2, M8's two rules): `close_call` is twice the board's own standard error (TB
    4.0 publishes one; ARC-AGI-2's is binomial over its 120 tasks, taken over the models above the floor), and
@@ -4896,9 +4898,10 @@ darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refuse
 (D-193): the licensed data is already published. Reading ARC-AGI-2 nightly: past the rate limit.
 
 **The cost.** Measured against main's build of the same hour:
-- Prices: 314 models priced, against 311. `minimax-m1` and `gpt-3.5-turbo-0613` lost their only price (no
-  maker lists them). 142 models have a second price, against 172. 54 models' price medians moved more
-  than 20 %, 46 of them up, for two reasons. OpenRouter's half-price `:batch` rows had been linked to
+- Prices (the branch's last build against `main`'s served artifact of 2026-10-13): 316 models priced,
+  against 311. `gpt-3.5-turbo-0613`, `gpt-5.1-codex-max`, `minimax-m1` and `o1-pro` (2025-03-19) lost their
+  only price (no maker lists them). 146 models have a second price, against 172. 43 models' blended
+  price medians moved more than 20 %, 37 of them up, for two reasons. OpenRouter's half-price `:batch` rows had been linked to
   the base models (65 aliases, 62 models), and leave with it. And an open-weight model's second price is
   now its maker's list price, not the cheapest host's (Qwen's most).
 - Budget edges crossed (blended $/1M; `low` is $2, `medium` $8): Claude Opus 5.5 leaves `medium` ($7.40

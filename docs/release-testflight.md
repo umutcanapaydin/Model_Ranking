@@ -48,9 +48,11 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    `<served>.refresh.json` names `release-<sha>` for `main`'s tip. Do not use `DEPLOY_ACCEPT_DATA_FROM`
    for v2.
    **The first install past D-194 (#265)** boots on the artifact the previous release built and refreshes
-   it like any other (its retired sources stay credited until then). The refresh fetches TB 4.0 from
-   GitHub and prices from models.dev for the first time: with nothing to carry, a failure of either keeps
-   the old artifact served, and the next night tries again. **Rolling back past it** needs the artifact rebuilt
+   it like any other (its retired sources stay credited until then). Until that refresh publishes,
+   `abstract` and `computer-use` say on the Mac that they have no evidence: the old artifact holds neither
+   new board. The refresh fetches TB 4.0 from GitHub and prices from models.dev for the first time: with
+   nothing to carry, a failure of either keeps the old artifact served, and those two surfaces dark on the
+   Mac until a night publishes. The hosted engine is untouched until you deploy. **Rolling back past it** needs the artifact rebuilt
    by the older release, a refresh run by hand from its checkout: an older release refuses an artifact
    this one built.
 5. **Deploy** (§1 steps 5 and 6). The build is stamped `release-<sha>-data-<digest>-from-<sha>`.
