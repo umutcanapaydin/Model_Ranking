@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -31,10 +32,25 @@ def _editable_tree(venv: Path) -> Path | None:
             url = json.loads(record.read_text(encoding="utf-8")).get("url", "")
         except (OSError, ValueError, AttributeError):
             continue
-        parsed = urlparse(url) if isinstance(url, str) else None
-        if parsed is not None and parsed.scheme == "file":
-            return Path(unquote(parsed.path))
+        if isinstance(url, str) and urlparse(url).scheme == "file":
+            return editable_path(url)
     return None
+
+
+def editable_path(url: str) -> Path:
+    """The tree a `file:` URL names. pip writes `file:///C:/...` on Windows; the drive is kept (round 2's M2)."""
+    path = unquote(urlparse(url).path)
+    if re.match(r"^/[A-Za-z]:", path):
+        path = path[1:]
+    return Path(path)
+
+
+def _same(one: Path, other: Path) -> bool:
+    """One tree, however its path is spelled: the owner's Mac ignores case (round 2's M2)."""
+    try:
+        return one.samefile(other)
+    except OSError:
+        return one.resolve() == other.resolve()
 
 
 def problems(tree: Path, venv: Path) -> list[str]:
@@ -42,7 +58,7 @@ def problems(tree: Path, venv: Path) -> list[str]:
     if venv.is_symlink():
         return [f"{venv} is a link to {venv.resolve()}; a worktree builds its own venv (#264)"]
     installed = _editable_tree(venv)
-    if installed is not None and installed.resolve() != tree.resolve():
+    if installed is not None and not _same(installed, tree):
         return [f"{venv} holds an editable install of {installed.resolve()}, not of {tree.resolve()}; "
                 "its tests would import that tree's code (#264)"]
     return []

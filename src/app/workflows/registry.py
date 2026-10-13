@@ -63,8 +63,6 @@ class ModelRule:
 # fmt: off
 #: The W1 review's B2: after a DeepSeek release, a distill, a base it was distilled into, or a small size
 #: names another model (`DeepSeek-R1-0528-Qwen3-8B`); 671B is the release itself.
-#: A speed tier after a model's name: its own price, about twice the model's (the backlog-data review's B1).
-_NOT_A_SPEED_TIER = r"(?![\w.\-]*?[-_ ](?:highspeed|turbo|fast)(?![a-z]))"
 _NOT_A_DISTILL = r"(?!.*(?:distill|qwen|llama|(?<![\d.])(?:1\.5|7|8|14|32|70)b(?![a-z])))"
 
 
@@ -218,15 +216,14 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     # same swallow class M4-W1 fixed for the GPT-5.x Pro family, recurring on a new
     # source because the live-name corpus had never seen these names.
     # #232: Kimi K2.7 Code ("built upon Kimi K2.6") and K2 Thinking have cards and API ids of their own.
-    # A speed tier (Moonshot's `-highspeed` and `-turbo`, Fireworks' `-fast` routers) costs about twice
-    # its model, so it never prices it (the backlog-data review's B1), as MiniMax M2.5's `lightning`.
-    ModelRule("kimi-k2.7-code",    "Kimi K2.7 Code",    "Moonshot",  r"kimi[-_ ]?k2[.\-p]7[-_ ]?code" + _NOT_A_SPEED_TIER),
-    ModelRule("kimi-k2-thinking",  "Kimi K2 Thinking",  "Moonshot",  r"kimi[-_ ]?k2[-_ ]?thinking" + _NOT_A_SPEED_TIER),
-    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]6(?!\d)" + _NOT_A_SPEED_TIER),
-    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]5(?!\d)" + _NOT_A_SPEED_TIER),
+    # A speed tier's price is refused on the price path (`SPEED_TIERED`, D-195 clause 4).
+    ModelRule("kimi-k2.7-code",    "Kimi K2.7 Code",    "Moonshot",  r"kimi[-_ ]?k2[.\-p]7[-_ ]?code"),
+    ModelRule("kimi-k2-thinking",  "Kimi K2 Thinking",  "Moonshot",  r"kimi[-_ ]?k2[-_ ]?thinking"),
+    ModelRule("kimi-k2.6",         "Kimi K2.6",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]6(?!\d)"),
+    ModelRule("kimi-k2.5",         "Kimi K2.5",         "Moonshot",  r"kimi[-_ ]?k2[.\-p]5(?!\d)"),
     # A date after K2 (`-0905-preview`) is a snapshot, not a point release (the review's K1).
     ModelRule("kimi-k2",           "Kimi K2",           "Moonshot",
-              r"kimi[-_ ]?k2(?![.\-p]\d(?!\d))(?![-_ ]?thinking)" + _NOT_A_SPEED_TIER),
+              r"kimi[-_ ]?k2(?![.\-p]\d(?!\d))(?![-_ ]?thinking)"),
     ModelRule("glm-5.2",           "GLM-5.2",           "Zhipu",     r"glm[-_ ]?5[.\-p]2(?!\d)"),
     ModelRule("glm-5.1",           "GLM-5.1",           "Zhipu",     r"glm[-_ ]?5[.\-p]1(?!\d)"),
     ModelRule("glm-5",             "GLM-5",             "Zhipu",     r"glm[-_ ]?5(?![.\-p]\d(?!\d))(?!v)(?![-_ ]?code)"),
@@ -261,8 +258,8 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("devstral",          "Devstral",          "Mistral",   r"devstral(?![-_ ]?(?:small|medium))"),
     ModelRule("doubao-seed-code",  "Doubao Seed Code",  "ByteDance", r"doubao[-_ ]?seed[-_ ]?code"),
     ModelRule("minimax-m3",        "MiniMax M3",        "MiniMax",   r"minimax[-_ ]?m3"),
-    ModelRule("minimax-m2.7",      "MiniMax M2.7",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]7" + _NOT_A_SPEED_TIER),
-    ModelRule("minimax-m2.5",      "MiniMax M2.5",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]5(?![-_ ]?lightning)" + _NOT_A_SPEED_TIER),
+    ModelRule("minimax-m2.7",      "MiniMax M2.7",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]7"),
+    ModelRule("minimax-m2.5",      "MiniMax M2.5",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]5(?![-_ ]?lightning)"),
     ModelRule("minimax-m2.1",      "MiniMax M2.1",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]1(?!\d)"),
     ModelRule("minimax-m2",        "MiniMax M2",        "MiniMax",   r"minimax[-_ ]?m2(?![.\-p]\d(?!\d))"),
 )
@@ -341,6 +338,19 @@ def modality_mismatch(name: str, rule: ModelRule) -> str | None:
 
 #: #165: the reason a fine-tune's name is refused, counted beside the modality guard's refusals.
 FINE_TUNE = "fine-tune"
+#: D-195 clause 4: a speed tier (Moonshot's `-highspeed` and `-turbo`, Fireworks' `-fast` routers, MiniMax's
+#: `-highspeed`, DeepInfra's `-Turbo`) is its model's weights served faster, at about twice the price. Its score
+#: is the model's; its price is refused for this reason, in the families whose makers' tiers were read.
+SPEED_TIER = "speed-tier"
+SPEED_TIERED = frozenset({"kimi-k2.7-code", "kimi-k2-thinking", "kimi-k2.6", "kimi-k2.5", "kimi-k2",
+                          "minimax-m2.7", "minimax-m2.5"})
+_SPEED_TIER_WORD = re.compile(r"[-_ ](?:highspeed|turbo|fast)(?![a-z])", re.IGNORECASE)
+
+
+def price_refusal(alias: str, rule: ModelRule) -> str | None:
+    """Why a price alias that ``rule`` matched is not that model's price, or None (D-195 clause 4)."""
+    last = alias.rsplit("/", 1)[-1]
+    return SPEED_TIER if rule.canonical_id in SPEED_TIERED and _SPEED_TIER_WORD.search(last) else None
 
 
 def canonicalize_with_reason(name: str) -> tuple[ModelRule | None, str | None]:
@@ -992,6 +1002,8 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
     with conn:
         for (alias,) in conn.execute("SELECT DISTINCT alias FROM pricing").fetchall():
             rule, refused_for = canonicalize_with_reason(alias)
+            if rule is not None and (why := price_refusal(alias, rule)) is not None:
+                rule, refused_for = None, why
             if rule is None:
                 derived = _unmatched(alias, alias, refused_for, dropped, modality_drops)
                 if derived is not None:

@@ -824,7 +824,9 @@ def _builds(previous: dict[str, object], code: int) -> tuple[str, str]:
     """#198 (seed L.7 for the data): the build that ran this cycle, and the one that made the artifact
     served now. Names and ids are applied when the data is built, so the hosted deploy names the
     release that built what it ships (`scripts/deploy_hosted_engine.sh`)."""
-    built_by = os.environ.get("APP_BUILD", "").strip() or "unknown"
+    # #235 R2: a cycle run without APP_BUILD (by hand, or dev code) is `unstamped`; `unknown` stays what a
+    # record from before #198 says, the one name a deploy may accept for data whose builder is unnamed.
+    built_by = os.environ.get("APP_BUILD", "").strip() or "unstamped"
     if code == EXIT_PUBLISHED:
         return built_by, built_by
     served_before = previous.get("served_built_by")
@@ -1384,6 +1386,8 @@ def _cycle(
                 EXIT_UNCHANGED,
             )
 
+        # #230: computed once, so a published night and a refused one report the same figure.
+        largest = largest_board_change(live, fresh, baseline) if live is not None else None
         refusal = _reason_to_refuse(target, live, fresh, baseline, candidate)
         if refusal is not None:
             return record(
@@ -1399,7 +1403,7 @@ def _cycle(
                     derived=derived,
                     unmatched=unmatched,
                     renamed=renamed,
-                    largest_board_change=largest_board_change(live, fresh, baseline) if live is not None else None,
+                    largest_board_change=largest,
                 ),
                 EXIT_REFUSED,
             )
@@ -1439,7 +1443,7 @@ def _cycle(
                 derived=derived,
                 unmatched=unmatched,
                 renamed=renamed,
-                largest_board_change=largest_board_change(live, fresh, baseline) if live is not None else None,
+                largest_board_change=largest,
             ),
             EXIT_PUBLISHED,
         )

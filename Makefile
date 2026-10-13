@@ -91,6 +91,9 @@ lock: install  ## rewrite requirements/*.lock from pyproject.toml (needs the net
 install: $(VENV)/.installed  ## Stage 0: create the venv, install the project, write .gp/installed
 # The marker records the version this tree installed, derived from the records' own
 # `process_version`. It fails closed: a version nobody can establish is what it exists to prevent.
+# #264 (round 2's R1): the venv is checked on every install, not only when pip runs, since `make test`
+# installs first and a venv another tree owns runs that tree's code.
+	@$(SYS_PY) scripts/venv_owner.py $(VENV)
 	@$(PY) scripts/write_install_marker.py
 
 #: #122: the operating system this runs on; `make -n test UNAME_S=Darwin` shows the macOS recipe anywhere.
