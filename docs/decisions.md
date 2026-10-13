@@ -4836,7 +4836,7 @@ under a licence:
 | replaced | by | licence | what it holds |
 |---|---|---|---|
 | `epoch_terminalbench` | `terminalbench_4`: `harbor-framework/terminal-bench`, `leaderboard/submissions/*.json` | Apache-2.0 | TB 4.0's official leaderboard, 21 submissions, live |
-| `epoch_arc_agi` | `arc_agi_2`: `arcprize/arc_agi_v2_public_eval` on Hugging Face | MIT | ARC Prize's own runs on the 120 **public** evaluation tasks, each attempt marked `correct`; unchanged since 2026-06-04 |
+| `epoch_arc_agi` | `arc_agi_2`: `arcprize/arc_agi_v2_public_eval` on Hugging Face | MIT | ARC Prize's own runs on the 120 **public** evaluation tasks, each attempt with its answer, most marked `correct` and some settings left unmarked; unchanged since 2026-06-04 |
 | `openrouter` | `models_dev`: `models.dev/api.json` (`sst/models.dev`) | MIT | about 8,500 models' prices per million tokens, under each maker and every reseller |
 | `epoch_deepswe_external` | (waits) `datacurve/deep-swe-leaderboard` on Hugging Face | CC BY 4.0 | Datacurve's runs, one job of 2026-06-06; gated, approved automatically, read with a Hugging Face token |
 
@@ -4870,15 +4870,25 @@ have saturated.
    as ARC Prize's own `results.json` does (a pair is solved by either attempt; a task scores its share of
    pairs; a setting scores the sum over the 120 tasks, a missing task as 0, and one that ran fewer than
    114 is left out), into `data/arc-agi-2-public-eval.json`, which the build reads. The contract test
-   fails when the dataset moves past that revision.
+   fails when the dataset moves past that revision. ARC Prize's `correct` mark is kept where it made
+   one; an attempt it left unmarked (whole settings, such as GPT-5 Pro and Claude Sonnet 4.5) is scored
+   by comparing its answer with the published solution in `arcprize/ARC-AGI-2` (Apache-2.0, pinned
+   commit). The comparison agrees with 16,664 of ARC Prize's 16,681 marks. Each setting is dated by its
+   latest attempt.
 4. **Each moved surface is calibrated on its board** by `scripts/calibrate_surface.py`, on the ranked
-   population (D-148 clause 2, M8's two rules): `close_call` is twice the board's own standard error, and
+   population (D-148 clause 2, M8's two rules): `close_call` is twice the board's own standard error (TB
+   4.0 publishes one; ARC-AGI-2's is binomial over its 120 tasks, taken over the models above the floor), and
    `value_window` ends at the middle of the first gap wider than `close_call` that leaves at least three
    candidates, so the window never splits two models the board cannot tell apart. The records are
    `docs/research/d194-computer-use-calibration.json` and `docs/research/d194-abstract-calibration.json`.
 5. **Credits:** ARC Prize Foundation (MIT), Terminal-Bench (Apache-2.0) and models.dev (MIT) are credited
    for their own data, with their links (D-193 clause 3).
-6. **The calls are new external APIs from production code** (`permission-matrix.md` §3, ASK). This ruling
+6. **The move is two-way safe for one release.** The sources D-194 stops building stay attributed and
+   credited as D-193 credited them (`board_tables.RETIRED_EXTERNAL_ATTRIBUTION`, the retired credits), so
+   an engine of this release boots on an artifact an older release built, and its startup refresh
+   (#258) replaces that artifact. The other way does not hold: an older release refuses an artifact this
+   one built, so a rollback past this release rebuilds the artifact with the older release's code.
+7. **The calls are new external APIs from production code** (`permission-matrix.md` §3, ASK). This ruling
    is the owner's answer; each goes through `app.clients`, with the bounded fetch and a host list.
 
 **The alternatives not taken.** Leaving the three out (the owner's first wording of 2026-10-13): it
@@ -4887,9 +4897,12 @@ darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refuse
 
 **The cost.** Measured against main's build of the same hour:
 - Prices: 314 models priced, against 311. `minimax-m1` and `gpt-3.5-turbo-0613` lost their only price (no
-  maker lists them). 142 models have a second price, against 172. An open-weight model's second price is
-  now its maker's list price, not the cheapest host's, so 46 models' price medians rose more than 20 %
-  (Qwen's most).
+  maker lists them). 142 models have a second price, against 172. 54 models' price medians moved more
+  than 20 %, 46 of them up, for two reasons. OpenRouter's half-price `:batch` rows had been linked to
+  the base models (65 aliases, 62 models), and leave with it. And an open-weight model's second price is
+  now its maker's list price, not the cheapest host's (Qwen's most).
+- Budget edges crossed (blended $/1M; `low` is $2, `medium` $8): Claude Opus 5.5 leaves `medium` ($7.40
+  to $8.40); GLM-5.1, GLM-5.2, GLM-5.3 and Qwen2.5 VL 72B leave `low`; Mistral Medium (2505) enters it.
 - `computer-use` ranks 21 models, all priced, against 42 on TB 2.0.
 - `abstract` ranks 24 models, against Epoch's copy's 79.
 - DeepSWE's licence stays unsettled until the owner's token is in place.

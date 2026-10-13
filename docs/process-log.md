@@ -780,8 +780,13 @@ commit in the closure, and still refused the first ordinary commit in the owner'
   down for cheating.
 - `abstract` ranks on ARC Prize's MIT public-evaluation runs. Hugging Face answered 429 a minute into
   reading them, so the scores are derived once at a pinned revision and committed, with a contract test
-  on the revision. Only 32 of 70 settings carried a summary; the other 29 kept are scored from their
+  on the revision. Only 32 of 70 settings carried a summary, so every setting is scored from its
   attempts, and the summary's own score is reproduced.
+- The review was BLOCKING twice over. ARC Prize had left whole settings unmarked (`correct: null`), and
+  the derivation read them as wrong: GPT-5 Pro and Claude Sonnet 4.5 were served at 0. They are scored
+  against ARC-AGI-2's published solutions now. And the new code refused to boot on the artifact `main`
+  built, so the install would have rolled back before the startup refresh could replace it; the
+  retired sources stay attributed for that artifact.
 - DeepSWE waits for the owner's Hugging Face token: the dataset is gated, and its format cannot be read.
 - A worktree's `make install` through a `.venv` symlink had rewritten the owner's editable install, and
   their deploy failed until they reinstalled (#264). This wave's worktree built its own venv.
