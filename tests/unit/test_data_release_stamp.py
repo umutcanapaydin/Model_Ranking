@@ -49,9 +49,20 @@ def test_the_record_names_the_build_that_made_the_served_artifact(
     assert published["served_built_by"] == "release-bbbbbbb"
 
 
-def test_a_record_without_a_build_says_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_cycle_run_without_a_build_says_unstamped_not_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#235 R2 (the backlog-data round 2's M3): `unknown` is a record from before #198, which names no builder.
+    A cycle run by hand without APP_BUILD, dev code included, says so apart."""
     monkeypatch.delenv("APP_BUILD", raising=False)
-    assert _cycle(tmp_path / "advisor.db", EXIT_PUBLISHED)["served_built_by"] == "unknown"
+    assert _cycle(tmp_path / "advisor.db", EXIT_PUBLISHED)["served_built_by"] == "unstamped"
+
+
+@pytest.mark.parametrize("named", ["unknown", "unstamped"])
+def test_data_from_an_unstamped_cycle_never_deploys(tmp_path: Path, named: str) -> None:
+    _repo, served, calls, env = _scratch(tmp_path)
+    status_path(served).write_text(json.dumps({"served_built_by": "unstamped"}), encoding="utf-8")
+    done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": named})
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert not calls.exists()
 
 
 def test_the_deploy_stamp_names_the_release_that_built_the_data(tmp_path: Path) -> None:

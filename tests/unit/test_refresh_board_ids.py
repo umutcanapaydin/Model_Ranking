@@ -347,3 +347,17 @@ def test_an_expiry_night_is_judged_against_the_baseline_the_guards_read(tmp_path
     assert live is not None and candidate is not None
     assert largest_board_change(live, candidate) is not None, "the fixture proves nothing"
     assert largest_board_change(live, candidate, _served_without(live_path, {"litellm"})) is None
+
+
+def test_a_board_the_baseline_emptied_is_judged_against_its_live_rows() -> None:
+    """Round 2's M4: as `upward_anomalies` does, a board an expiry emptied in the baseline is read from the
+    live artifact's rows, so a row new to it still counts."""
+    from app.workflows.refresh import ServingSummary, largest_board_change
+
+    def summary(boards: dict[str, frozenset[str]]) -> ServingSummary:
+        return ServingSummary(digest="d", surfaces={}, models={}, median_price={}, eligible={}, boards=boards)
+
+    rows = frozenset({"a", "b", "c", "d"})
+    live, baseline, candidate = summary({"x": rows}), summary({}), summary({"x": rows | {"e"}})
+    assert largest_board_change(live, candidate, baseline) == {"board": "board x", "changed": 1, "of": 5,
+                                                               "limit": 0.25}

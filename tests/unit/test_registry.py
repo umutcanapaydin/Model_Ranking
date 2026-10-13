@@ -921,18 +921,6 @@ def test_a_qwen_based_r1_distill_with_no_size_or_distill_word_is_not_r1(name: st
     assert rule is None or rule.canonical_id not in {"deepseek-r1", "deepseek-r1-0528"}, (name, rule)
 
 
-@pytest.mark.parametrize("name", ["moonshotai/kimi-k2.7-code-highspeed", "aihubmix/kimi-k2.7-code-highspeed",
-                                  "fireworks_ai/kimi-k2p7-code-fast", "fireworks_ai/accounts/fireworks/routers/kimi-k2p7-code-fast",
-                                  "fireworks_ai/kimi-k2p6-fast", "fireworks_ai/accounts/fireworks/routers/kimi-k2p6-fast",
-                                  "kimi-k2-thinking-turbo", "kimi-k2.5-turbo"])
-def test_a_kimi_speed_tier_never_prices_its_base_model(name: str) -> None:
-    """The backlog-data review's B1: Moonshot's `-highspeed` and `-turbo` and Fireworks' `-fast` routers cost about
-    twice the base model; read as it, they lifted Kimi K2.7 Code's median 25%. As MiniMax M2.5's `lightning`."""
-    rule = canonicalize(name)
-    assert rule is None or rule.canonical_id not in {"kimi-k2.7-code", "kimi-k2.6", "kimi-k2.5", "kimi-k2-thinking",
-                                                     "kimi-k2"}, (name, rule)
-
-
 @pytest.mark.parametrize("name", ["kimi-k2-0905-preview", "kimi-k2-0711-preview", "novita/moonshotai/kimi-k2-0905"])
 def test_kimi_k2s_dated_snapshots_are_kimi_k2(name: str) -> None:
     """The backlog-data review's K1: K2's rule read the `-0` of a date as a point release, so 55 Arena rows and a
@@ -950,11 +938,42 @@ def test_a_cyber_model_is_not_its_base_model(name: str) -> None:
     assert rule is None or rule.canonical_id not in {"gpt-5.6", "gpt-5.5", "gpt-5.6-sol"}, (name, rule)
 
 
-@pytest.mark.parametrize("name", ["minimax/MiniMax-M2.7-highspeed", "novita/minimax/minimax-m2.7-highspeed",
-                                  "minimax/MiniMax-M2.5-highspeed", "novita/minimax/minimax-m2.5-highspeed",
-                                  "deepinfra/MiniMaxAI/MiniMax-M2.7-Turbo"])
-def test_a_minimax_speed_tier_never_prices_its_base_model(name: str) -> None:
-    """D-195 clause 4, found measuring #269: MiniMax's `-highspeed` costs twice its model (0.6/2.4 against
-    0.3/1.2), as Kimi's speed tiers do."""
-    rule = canonicalize(name)
-    assert rule is None or rule.canonical_id not in {"minimax-m2.7", "minimax-m2.5"}, (name, rule)
+@pytest.mark.parametrize(("alias", "model"), [
+    ("moonshotai/kimi-k2.7-code-highspeed", "kimi-k2.7-code"),
+    ("aihubmix/kimi-k2.7-code-highspeed", "kimi-k2.7-code"),
+    ("fireworks_ai/kimi-k2p7-code-fast", "kimi-k2.7-code"),
+    ("fireworks_ai/accounts/fireworks/routers/kimi-k2p7-code-fast", "kimi-k2.7-code"),
+    ("fireworks_ai/accounts/fireworks/routers/kimi-k2p6-fast", "kimi-k2.6"),
+    ("kimi-k2-thinking-turbo", "kimi-k2-thinking"),
+    ("kimi-k2-turbo-preview", "kimi-k2"),
+    ("minimax/MiniMax-M2.7-highspeed", "minimax-m2.7"),
+    ("novita/minimax/minimax-m2.5-highspeed", "minimax-m2.5"),
+    ("deepinfra/MiniMaxAI/MiniMax-M2.7-Turbo", "minimax-m2.7"),
+])
+def test_a_speed_tiers_score_is_its_models_and_its_price_is_refused(alias: str, model: str) -> None:
+    """D-195 clause 4 (the backlog-data review's B1, and round 2's B1): a speed tier is its model's weights
+    served faster, at about twice the price. Its price never enters the model's median, and is refused for
+    its reason; a score under its name is the model's, as Arena's only spelling of Kimi K2 Thinking is."""
+    conn = connect()
+    conn.execute("INSERT INTO pricing (alias, input_per_m, output_per_m, source, source_url, observed_at)"
+                 " VALUES (?, 2, 8, 'litellm', 'u', 't')", (alias,))
+    conn.execute("INSERT INTO scores (raw_name, benchmark, metric, score, harness, effort, source, source_url,"
+                 " observed_at) VALUES (?, 'B', 'elo', 1200, 'arena-crowd', 'unspecified', 'arena', 'u', 't')",
+                 (alias.rsplit("/", 1)[-1],))
+    report = reconcile(conn)
+    assert conn.execute("SELECT model_id FROM pricing").fetchone()[0] is None
+    assert conn.execute("SELECT model_id FROM scores").fetchone()[0] == model
+    assert (alias, "speed-tier") in report.modality_drops, report.modality_drops
+
+
+@pytest.mark.parametrize("alias", ["azure_ai/grok-4-fast-reasoning", "oci/xai.grok-4-fast"])
+def test_a_model_whose_own_name_says_fast_keeps_its_prices(alias: str) -> None:
+    """D-195 clause 4 reads a speed tier in the families it names only; `fast` is Grok 4 Fast's own name."""
+    conn = connect()
+    conn.execute("INSERT INTO pricing (alias, input_per_m, output_per_m, source, source_url, observed_at)"
+                 " VALUES (?, 2, 8, 'litellm', 'u', 't')", (alias,))
+    reconcile(conn)
+    rule = canonicalize(alias)
+    assert rule is not None
+    assert conn.execute("SELECT model_id FROM pricing").fetchone()[0] == rule.canonical_id
+
