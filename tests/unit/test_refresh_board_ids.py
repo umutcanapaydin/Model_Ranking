@@ -248,3 +248,28 @@ def test_a_price_feeds_expiry_is_judged_against_the_links_a_build_would_make(tmp
     baseline = _served_without(live_path, {"litellm"})
     reasons = degradations(baseline, candidate) + upward_anomalies(live, candidate, baseline)
     assert not [r for r in reasons if SLICE.source in r or r.startswith("accessibility")], reasons
+
+
+def test_the_logged_outcome_line_carries_the_nights_renamed_count_and_largest_board_change(tmp_path: Path) -> None:
+    """#230: the record is rewritten each night and the service log keeps only the outcome line, so
+    that line carries what a simulation of a release's first nights predicts: how many entries were
+    renamed, and the board that changed most, with its changed rows and the limit."""
+    import json
+
+    live = _boards(tmp_path / "advisor.db")
+
+    def night(argv: list[str]) -> int:
+        def change(conn: sqlite3.Connection) -> None:
+            _re_spell(conn)
+            conn.execute("DELETE FROM scores WHERE source = ? AND raw_name IN ('PROBE 00', 'PROBE 01')",
+                         (SLICE.source,))
+
+        _boards(Path(argv[argv.index("--db") + 1]), change)
+        return 0
+
+    outcome, code = refresh(live, builder=night)
+    assert code == EXIT_PUBLISHED, outcome.reason
+    line = json.loads(outcome.as_json())
+    assert line["renamed_count"] == len(outcome.renamed) > 0
+    assert line["largest_board_change"] == {"board": f"board {SLICE.source}", "changed": 2, "of": 12,
+                                            "limit": 0.25}
