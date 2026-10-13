@@ -163,6 +163,8 @@ class RefreshOutcome:
     #: then board rows re-spelled while their model did not (#100, D-179), `old -> new on <board>`.
     #: Information, never a reason to refuse.
     renamed: tuple[str, ...] = ()
+    #: #230: the board that changed most against the live artifact, as `largest_board_change` reads it.
+    largest_board_change: dict[str, object] | None = None
 
     def as_json(self) -> str:
         return json.dumps(
@@ -172,6 +174,10 @@ class RefreshOutcome:
                 "live_fingerprint": self.live_fingerprint,
                 "candidate_fingerprint": self.candidate_fingerprint,
                 "surfaces_answering": self.surfaces,
+                # #230: the service log keeps only this line, and the record is rewritten each night,
+                # so what a release's simulated first nights predict is read from here.
+                "renamed_count": len(self.renamed),
+                "largest_board_change": self.largest_board_change,
             }
         )
 
@@ -286,6 +292,22 @@ def _mostly_lost(
                 f"({lost / len(was):.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); {why}"
             )
     return reasons
+
+
+def largest_board_change(live: ServingSummary, candidate: ServingSummary) -> dict[str, object] | None:
+    """The board, own or declared, whose rows changed most: its rows lost or new, whichever is the larger
+    share of it, against the limit both guards hold it to (#230). Information, never a reason to refuse."""
+    largest: tuple[float, dict[str, object]] | None = None
+    for subject, was_by, now_by in ((OWN_BOARD, live.board, candidate.board),
+                                    (DECLARED_BOARD, live.boards, candidate.boards)):
+        for name in sorted(set(was_by) | set(now_by)):
+            was, now = was_by.get(name, frozenset()), now_by.get(name, frozenset())
+            for changed, of, limit in ((len(was - now), len(was), MAX_SURFACE_LOSS),
+                                       (len(now - was), len(now), MAX_SURFACE_GAIN)):
+                if of and (largest is None or changed / of > largest[0]):
+                    largest = (changed / of, {"board": subject.format(name=name), "changed": changed, "of": of,
+                                              "limit": limit})
+    return largest[1] if largest is not None and largest[0] > 0 else None
 
 
 def upward_anomalies(
@@ -1365,6 +1387,7 @@ def _cycle(
                     derived=derived,
                     unmatched=unmatched,
                     renamed=renamed,
+                    largest_board_change=largest_board_change(live, fresh) if live is not None else None,
                 ),
                 EXIT_REFUSED,
             )
@@ -1404,6 +1427,7 @@ def _cycle(
                 derived=derived,
                 unmatched=unmatched,
                 renamed=renamed,
+                largest_board_change=largest_board_change(live, fresh) if live is not None else None,
             ),
             EXIT_PUBLISHED,
         )
