@@ -523,7 +523,19 @@ struct SimilarityRouter: QuestionRouter {
     /// is the honest answer: the alternative is a confident answer computed from a sentence this
     /// tier did not understand.** D-136 records what it does not localise; the router is the item
     /// that list was missing.
+    /// #218: the particles a Turkish question asks with, and the letters Turkish writes and English does not;
+    /// a question in German or French declines too, which this English-only tier should.
+    static let turkishParticles: Set<String> = ["mi", "mı", "mu", "mü", "hangisi"]
+    static let turkishLetters = CharacterSet(charactersIn: "ıİşŞğĞçÇöÖüÜ")
+
     static func readsEnglish(_ text: String) -> Bool {
+        // #218: a short question that holds a Turkish particle or letter is Turkish, however unsure the
+        // recogniser is ("claude mu chatgpt mi almanca" read as English and went to `coding`). Whole words
+        // only, so `minimum` and `mutual` stay English.
+        if text.unicodeScalars.contains(where: turkishLetters.contains)
+            || InputSignals.wordsOf(text.lowercased()).contains(where: turkishParticles.contains) {
+            return false
+        }
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
         guard let language = recogniser.dominantLanguage else { return true }
