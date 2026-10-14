@@ -142,3 +142,9 @@ docs/reviews/m21-wave-2-review.md # M21-W2: the second review quotes the Turkish
                                   # the Turkish IS the evidence that a reading rule reaches too far
 docs/reviews/m21-wave-2-tester.md # M21-W2: the Tester quotes its Turkish probe sentences verbatim, each translated; the Turkish is the evidence
 ios/EngineTests/CreditsTests.swift      # #260: asserts the Credits screen's Turkish notices (the change made to the data, no warranty) by their words, for the reason LanguageTests does
+# #271 (D-198 clause 1): L1 reads JSON and Swift escapes since #271. These held Turkish written with escapes:
+scripts/router_probe/reading_heldout_m22_questions.json  # #237 (D-196): the live held-out set, written by an independent seat, half Turkish by design
+scripts/router_probe/turkish_tuning_questions.json  # #222 (D-196): the reading wave's own Turkish tuning questions, kept verbatim
+docs/research/reading-wave-m22-runs/  # #222 (D-196): the probe's runs on the wave's own Turkish sets, each row its question as run; the Turkish is the evidence
+ios/EngineTests/TurkishEmbeddingTests.swift  # #222 (D-196): asserts how Turkish questions are read, by their words, for the reason ReadingTests does
+ios/EngineTests/TurkishReadingTesterTests.swift  # the reading wave's Tester: asserts Turkish questions by their words, for the same reason
