@@ -6,7 +6,7 @@ import NaturalLanguage
 /// by the wording tier against Turkish examples, through the same multilingual embedding, instead of
 /// falling to "not measured". Every line is from the wave's own tuning sentences
 /// (`scripts/router_probe/turkish_tuning_questions.json`) or the review's own
-/// (`docs/reviews/backlog-reading-review.md`), never from a held-out set. Turkish letters
+/// (`docs/reviews/backlog-reading-review*.md`, three rounds), never from a held-out set. Turkish letters
 /// are written as escapes, so this file stays ASCII (rule L1).
 final class TurkishEmbeddingTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
@@ -70,7 +70,8 @@ final class TurkishEmbeddingTests: OfflineTestCase {
         XCTAssertEqual(recogniser.dominantLanguage, .turkish)
         XCTAssertGreaterThanOrEqual(recogniser.languageHypotheses(withMaximum: 1)[.turkish] ?? 0,
                                     SimilarityRouter.confidentLanguage)
-        for question in ["m\u{0259}n\u{0259} bir \u{015F}eir yaz", turkmen] {
+        // The round-3 review's N2: decomposed, the Turkmen line is still kept out.
+        for question in ["m\u{0259}n\u{0259} bir \u{015F}eir yaz", turkmen, turkmen.decomposedStringWithCanonicalMapping] {
             XCTAssertFalse(SimilarityRouter.readsTurkish(question), question)
             let outcome = await SimilarityRouter().route(question, within: known)
             XCTAssertNil(outcome, question)
@@ -84,6 +85,9 @@ final class TurkishEmbeddingTests: OfflineTestCase {
         let question = "h\u{00FC}cre zar\u{0131}ndan iyonlar nas\u{0131}l ge\u{00E7}er"
         XCTAssertTrue(SimilarityRouter.readsTurkish(question + " \u{2764}\u{FE0F}"))
         XCTAssertTrue(SimilarityRouter.readsTurkish(question.decomposedStringWithCanonicalMapping))
+        // The round-3 review's N1: a Greek letter or an accented Latin one is no Turkic letter.
+        XCTAssertTrue(SimilarityRouter.readsTurkish(question + " \u{03C0}"))
+        XCTAssertTrue(SimilarityRouter.readsTurkish(question + " caf\u{00E9}"))
     }
 
     /// The round-2 review's N1: a Turkish question typed without its letters is read against the examples

@@ -617,15 +617,10 @@ struct SimilarityRouter: QuestionRouter {
         return confidence < confidentLanguage
     }
 
-    /// The letters beyond ASCII that Turkish writes, in both cases.
-    static let turkishLetters = Set("çğıöşüâîûÇĞİÖŞÜÂÎÛ".unicodeScalars)
-
-    private static func isLetter(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.properties.generalCategory {
-        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .otherLetter, .modifierLetter: return true
-        default: return false
-        }
-    }
+    /// The Latin letters Azerbaijani and Turkmen write and Turkish never does, in both cases (the review's
+    /// M2; the round-3 review's N1 narrowed it from "any letter Turkish does not write", which sent a
+    /// Turkish question naming pi or a cafe to "not measured").
+    static let turkicNotTurkishLetters = Set("əäňýžƏÄŇÝŽ".unicodeScalars)
 
     /// How sure the recogniser must be before a question is read as another language than English.
     static let confidentLanguage = 0.65
@@ -635,15 +630,13 @@ struct SimilarityRouter: QuestionRouter {
     /// recogniser is sure of still declines (`readsEnglish`).
     ///
     /// The recogniser knows no Azerbaijani or Turkmen and reads them as Turkish, at 1.00 (the review's
-    /// M2). So a question with a letter Turkish never uses (`ə`, `ä`, `ň`, `ý`, `ž`, or any other beyond
-    /// `turkishLetters`) is not Turkish. Each such letter has one reading; Azerbaijani written without
-    /// one of them is still read as Turkish.
+    /// M2). So a question with one of the letters those two write and Turkish never does (`ə`, `ä`, `ň`,
+    /// `ý`, `ž`; `turkicNotTurkishLetters`) is not Turkish. Azerbaijani or Turkmen written without one is
+    /// still read as Turkish; any other letter, a Greek one or an accented Latin one, changes nothing.
     static func readsTurkish(_ text: String) -> Bool {
-        // Composed first, and letters only (the round-2 review's M2): an emoji's variation selector, a keycap
-        // or a decomposed accent is a mark, not a letter, and a question that carries one is still Turkish.
+        // Composed first (the round-2 review's M2), so a decomposed letter is read as the letter it is.
         let composed = text.precomposedStringWithCanonicalMapping
-        guard !composed.unicodeScalars.contains(where: { $0.value > 127 && isLetter($0) && !turkishLetters.contains($0) })
-        else { return false }
+        guard !composed.unicodeScalars.contains(where: turkicNotTurkishLetters.contains) else { return false }
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
         guard recogniser.dominantLanguage == .turkish else { return false }

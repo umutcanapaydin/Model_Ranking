@@ -836,5 +836,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The leak gate missed escaped text: a held-out question written `\u{...}` in Swift passed it. It now
   decodes escapes and reads plain letters. Two of the wave's own sentences equalled held-out rows; they
   were removed unread.
+- Three Code-Reviewer rounds (MAJOR, MAJOR, MINOR). Round 2 found the leak check had never read the
+  app's `Router.swift`: it keyed files by name, and a fixture of the same name replaced it. Round 3
+  narrowed the letter rule to the five letters Azerbaijani and Turkmen write and Turkish never does.
+  Filed: #271 (L1 and escapes), #272 (the leak check and `docs/`), #273 (unsure languages on the English
+  path).
 - DeepSWE (#265): the token lists the dataset's files but cannot read them; the owner's access request is
   not yet granted.

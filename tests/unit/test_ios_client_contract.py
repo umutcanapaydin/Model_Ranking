@@ -219,6 +219,8 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     # Keyed by the path from the root (the reading wave's round-2 M1): by name, the fixtures' `Router.swift`
     # and six other same-named files replaced the app's, so the gate never read them.
     texts = _leak_scan_texts(root, sources)
+    # The round-3 review's N3: one text per file read, so no file hides another of the same name.
+    assert len(texts) == len(sources), f"{len(sources) - len(texts)} file(s) read under another's key"
     # #119 (M18-W7): the probe's other sets too, which the tests and the tuning read; each live set
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))

@@ -6,276 +6,256 @@ seat: independent
 process_version: v6.6
 date: 2026-10-14
 ---
-# Independent review: the reading wave (#237, #222, D-196)
+# Independent review, round 3: the reading wave (#237, #222, D-196)
 
 **Reviewer:** Code-Reviewer subagent (fresh eyes; did not author any commit in the range)
 **Independent:** yes
 **Date:** 2026-10-14
-**Commit range:** `origin/main..be0b101` (2 commits: `f884bfe`, `be0b101`)
+**Commit range:** `origin/main..b5a08bb` (4 commits: `f884bfe`, `be0b101`, `ac2387e`, `b5a08bb`)
 **Risk tier:** MEDIUM (routing behaviour of the wording tier; no security path)
 
 ## Verdict
-MAJOR
+MINOR
 
-The change is narrow and mostly sound. Only a question the recogniser is confidently sure is Turkish
-takes the new path. Every other question runs the same code as before: `readsTurkish` true implies
-`readsEnglish` false, and the two cannot both be false except for a confident third language, so no
-question skips both paths. The record's held-out numbers reproduce exactly. Two things need fixing in
-this wave, though. Turkish general questions that name no brand now lose the `everyday` answer they
-had before (M1). And Azerbaijani (and Turkmen) is read as confidently Turkish, so D-196's "every other
-language still declines" is false in code and is held only by a German test (M2).
+Every round-2 disposition is real. Each code fix is held by a test that a mutant fails, or by a run I
+reproduced row by row. `make check-fast` passes in the seat. Nothing the round-2 fixes changed opens a
+confident wrong answer.
+
+Four minor findings are left:
+- **N1.** The letter rule still sends some confidently Turkish questions to "not measured": one carrying
+  a Greek letter (pi, theta, delta) or an accented Latin letter (`e` with acute). Its own comment says
+  each such letter has one reading. These letters do not.
+- **N2.** The NFC step added for round 2's M2 is not held by any test. Removing it survives the whole
+  suite, and then a decomposed Turkmen line is answered as Turkish.
+- **N3.** The leak gate's own call site is not held. Reverting the gate's line to name-keying survives
+  both tests. The new test checks the helper, not the gate.
+- **N4.** Three claims in D-196, and one in the research note, say more than the runs do (D-192).
+
+The wave can close once the author fixes or files each of the four.
 
 How the review was done:
-- **Reading.** I read both commits' diff, D-187, D-191, D-192 and D-196 (`docs/decisions.md:4981`), the
-  research note, the runs and `score.py`, and issues #222, #218, #194, #238, #66 and #237. I also read
-  `SimilarityRouter.route`, `readsEnglish`/`readsTurkish`, `namesABrand`, `generalSurface`,
-  `TieredRouter.route`, `TurkishEmbeddingTests.swift` and the leak-gate change.
-- **Reproduction.** I copied `ios/` to a scratch directory outside the seat and added
-  `ReadingProbe.swift`. Then I ran `PROBE_TIER=wording swift test --filter ReadingProbe` on
-  `reading_heldout_m22_questions.json` and scored it with the committed rule, counts only. No held-out
-  question was read or printed.
-- **Own probes.** In the same scratch copy, a probe test of mine printed each sentence's language
-  hypotheses, `readsTurkish`, `readsEnglish`, `namedSurface` and `namesABrand`. It also printed the
-  wording-tier outcome, the final `TieredRouter(model: nil)` outcome, and the outcome with `everyday`
-  not served. I wrote 88 sentences myself, in two batches and a re-run subset.
-- **Pre-wave behaviour.** To see how the code behaved before the wave, I disabled `readsTurkish` in the
-  copy, which restores the pre-wave path exactly, and re-ran the subset.
-- **Mutants.** I ran two mutants of `Router.swift` in the copy against `TurkishEmbeddingTests`, then
-  restored it and confirmed with `cmp` that it matched the seat's file.
-- **Python and records.** `pytest tests/unit/test_ios_client_contract.py tests/unit/test_router_hints.py`
-  gave 109 passed. `make check-records` passed. The seat's `git status` is clean apart from this file.
+- **Reading.** I read:
+  - the four commits' diff, round 2's record and its Dispositions, and D-196 (`docs/decisions.md:4981`);
+  - the research note's sections 3, 6 and 7, `score.py` and the runs directory;
+  - `readsTurkish`, `isLetter`, `turkishLetters`, `ExampleVectors` and `SimilarityRouter.route`;
+  - `TurkishEmbeddingTests.swift`, the manifest, and the leak gate (`_leak_scan_sources`,
+    `_leak_scan_texts`, `_unescaped`, `_forms`, `_held_out_leaks` and their callers).
+- **Gates.** `make check-fast` in the seat passed in 138 s: lint, typecheck, records, swift-test
+  (parallel, against the manifest), test and client-decls.
+- **Own probe.** I copied `ios/` to a scratch directory outside the seat and added a probe test. It ran 26
+  sentences of my own. For each it printed `readsTurkish`, `readsEnglish`, the recogniser's hypotheses,
+  `namedSurface`, the `TieredRouter(model: nil)` outcome and the `SimilarityRouter` outcome.
+- **Mutants.** I ran eight mutants of `Router.swift` in that copy, A to G below and the lettered-examples
+  run, each against `TurkishEmbeddingTests` or the whole Engine suite. I also ran one mutant of the
+  leak gate, in memory. After each, a byte compare showed the copy's `Router.swift` equal to the seat's.
+  - In the copy, two tests fail with or without a mutant, for reasons of the environment (3 assertions):
+    `OfflineGuardTests` (the copy runs outside `scripts/offline.sb`) and
+    `ReadingTests/testNoGenuineTuningQuestionTripsASignal` (the copy has no `scripts/`).
+- **Own-set runs, reproduced.** I ran `scripts/router_probe/ReadingProbe.swift` (`PROBE_TIER=wording`) at
+  `b5a08bb`. It read the wave's own 61 Turkish searches, both lettered and plain, which are tuning
+  sentences.
+  - Shipped code: every row equals `own-both-spellings-letters.json` and `own-both-spellings-plain.json`
+    (61 of 61 each).
+  - With the lettered examples only: every row equals the `own-lettered-examples-*` runs.
+- **Held-out discipline.** I did not run the held-out probe.
+  - I ran the committed `score.py`.
+  - I compared the committed run files by row index, printing counts and surfaces only.
+  - I counted characters of the set by Unicode category, printing counts only.
+  - No held-out question was printed or read. Every sentence below is my own.
 
-Turkish sentences below are my own, written without their letters (rule L1). Where a sentence was run
-with its letters, the record says so.
+Turkish sentences below are written without their letters (rule L1). Each was run with its letters.
 
 ## Findings
 
 ### BLOCKING
 - none
 
-### MAJOR (fix in this wave)
-
-- **M1** `ios/ModelRanking/Engine/Router.swift:641-646`: a confidently Turkish general question that
-  names no brand no longer gets `everyday`.
-  - **Before the wave.** Such a question declined to `named ?? generalSurface`, and `generalWords`'
-    phrases (`["en","iyi","model*"]`, `["hangi","model*"]`) answered `everyday`.
-  - **Now.** The new short-circuit tests `namesABrand`, which reads only `generalWords.words` (twelve
-    brand words), not the phrases. Everything else goes to the Turkish embedding.
-  - **Measured on three of my sentences** (pre-wave path, then this head):
-
-    | sentence | before | now |
-    |---|---|---|
-    | "en iyi model hangisi bence" | `everyday` | `assistant` |
-    | "hangi model daha iyi sence" | `everyday` | `factuality` |
-    | "en iyi model for writing cover letters" (mixed, `tr=0.76`) | `everyday` | `coding` |
-
-    All three are `unmeasured=false`. Two others still reach `everyday` through the embedding ("en iyi
-    yapay zeka modeli hangisi", "hangi yapay zeka daha akilli").
-  - **What it contradicts.** D-187 clause 1 and D-191 clause 1 say a question about models in general
-    is answered from `everyday`. The research note's "none lost" holds for the held-out rows only. The
-    class is the one #206 fixed, and it has no test on the Turkish path.
-  - **Failure scenario.** On a phone without Apple Intelligence, a Turkish reader asks which model is
-    better. They get the `factuality` board, and the screen does not say it is unsure.
-  - **Remedy.** Choose one and pin it with a test of invented sentences:
-    - short-circuit on the `en iyi model*` / `hangi model*` phrases as well (not `yapay zek*`, which
-      also opens task questions);
-    - or give `examplesTurkish["everyday"]` these phrasings and measure.
-
-- **M2** `Router.swift:619-623` and `:600`, `docs/decisions.md:5003`,
-  `docs/research/reading-wave-m22-probe.md:49`: another language is read as confidently Turkish, and the
-  records say it still declines.
-  - **Why.** `NLLanguageRecognizer` has no Azerbaijani, so Azerbaijani Latin text comes back as Turkish
-    with confidence 1.00.
-  - **Measured.** Four Azerbaijani sentences of mine all had `tr=1.00`. They were "write me a poem"
-    (`m\u0259n\u0259 bir \u015feir yaz`), "which is the best AI", "solve my child's maths homework" and
-    "write a letter for me". They were routed with `unmeasured=false` to `vision`, `expert`, `abstract`
-    and `abstract`.
-  - **Before the wave,** the first two (re-run on the pre-wave path) declined to the manual tier,
-    "not measured". The other two take the same path, since none of the four names a surface.
-  - **Turkmen.** One Turkmen sentence ("write a letter for me", `tr=0.75`) went to `expert`. Another
-    Turkmen sentence and the Uzbek, Indonesian, Spanish, Italian and German sentences were not read as
-    Turkish.
-  - **What holds the claim.** "Every other language the recogniser is sure of still declines" is held
-    only by `TurkishEmbeddingTests.swift:51`, which tries one German sentence.
-  - **Failure scenario.** This is the door `readsEnglish`'s own comment describes (`Router.swift:583-598`).
-    A sentence the tier did not understand gets a confident board, with `unmeasured` false.
-  - **Remedy.** Choose one and write it into D-196 with its test (D-192):
-    - decline on a letter Turkish never uses (U+0259 `\u0259`; the Turkmen U+0148, U+00FD, U+017E).
-      Each letter has one reading, so this is not D-191's class;
-    - or keep the reading, say in D-196 that Azerbaijani is read as Turkish, and drop the universal
-      claim from the ADR, the research note and the doc comment.
+### MAJOR
+- none
 
 ### MINOR (the author fixes each in this wave or files it as an issue)
 
-- **N1** `Router.swift:235-284` (`examplesTurkish`): Turkish typed without its letters routes much worse
-  than the same Turkish with them, and nothing measures the split.
-  - **Why.** Every Turkish example is written with its letters. A plain-typed question is still
-    confidently Turkish, so it takes the Turkish path but embeds
-    differently (11 of my 12 plain sentences were confidently Turkish, 10 of them at 1.00).
-  - **12 pairs of my searches, same words:**
+- **N1** `ios/ModelRanking/Engine/Router.swift:636-646` (`readsTurkish`), `docs/decisions.md:5005-5008`:
+  the letter rule sends a confidently Turkish question with a Greek or accented Latin letter back to
+  "not measured".
+  - **Why.** Round 2's fix narrowed the guard from letters-and-marks to letters by general category, so
+    marks are now out. A letter outside `turkishLetters` still rejects the question, whatever its script.
+    The comment at `:639` says "Each such letter has one reading", meaning Azerbaijani or Turkmen. A
+    Greek letter in a formula, or `e` with acute in a name, has another reading.
+  - **Measured.** Each sentence is `tr=1.00` to the recogniser. Each row compares the same question with
+    the letter and without it:
 
-    | spelling | right (strict) | right (counting `everyday` for a general task) |
-    |---|---:|---:|
-    | with letters | 5 | 8 |
-    | plain | 3 | 4 |
+    | sentence | with the letter | without it |
+    |---|---|---|
+    | U+03C0 `sayisinin ilk on basamagini hesapla` (vs `pi ...`) | manual, "not measured" | `mathematics` |
+    | U+03B8 `acisinin sinusunu nasil bulurum` (vs `teta ...`) | manual, "not measured" | `factuality` |
+    | U+0394 `x sifira giderken bu ifadenin limitini bul` (vs no delta) | manual, "not measured" | `abstract` |
+    | U+03BB `0.5 iken poisson olasiligini bul` | manual, "not measured" | - |
+    | `pok` U+00E9 `mon kartlarim icin bir fiyat listesi hazirla` (vs `pokemon`) | manual, "not measured" | `web-dev` |
+    | `caf` U+00E9 ` menum icin kisa bir slogan yaz` (vs `cafe`) | manual, "not measured" | `web-dev` |
 
-  - **Four more plain sentences:** 0 of 4 right. "sirketim icin bir sunum hazirlamama yardim et" went to
-    `coding`; with its letters it went to `assistant`. Before the wave all but one of these were
-    "not measured"; now most get a wrong board with `unmeasured=false`.
-  - **Held-out (counts only, heuristic split).** About 12 searches are plain-typed Turkish: 9 right
-    before and 10 after, mostly through words that name a surface. Of the 28 searches with Turkish
-    letters, 15 were right before and 19 after.
-  - **Why it matters.** D-187 clause 1 treats Turkish typed without its letters as a supported way of
-    typing. D-196 does not say how this path does on it.
-  - **Remedy.** Embed the question's lettered and plain forms against both forms of the examples, or add
-    plain variants. Measure and record the split.
+    - The increment sign U+2206 is a math symbol, not a letter. It stays Turkish (`abstract`).
+    - Superscript two (U+00B2) is a number, and stays Turkish.
+    - U+02BC, the modifier-letter apostrophe, rejects the question too: `python` U+02BC `da bir siralama
+      fonksiyonu yaz` keeps `coding` by its name, but loses its two alternatives. The usual U+2019 does not.
+  - **The held-out set.** 2 of its 147 rows carry such a letter. I counted categories only: both are
+    lowercase letters. Round 1's and round 2's rules both reject them, so they do not move between runs.
+  - **Failure scenario.** A student on a phone without Apple Intelligence pastes a Turkish limit question
+    with a delta, or asks about a Pokemon card with the accent. They get "not measured". The same
+    question spelled without the letter is answered. The English path has no letter guard: the same
+    question in English, with the letter, is answered.
+  - **Remedy.** Any one of these:
+    - Test only Latin-script letters (U+00C0 to U+024F, U+1E00 to U+1EFF). This lets Greek through and
+      still catches the schwa, `a` with diaeresis, `n` with caron and `y` with acute.
+    - Name the letters the Turkic languages the recogniser misreads write and Turkish does not: the
+      schwa, `a` with diaeresis, `n` with caron, `y` with acute and `z` with caron, measured on lines
+      like the existing two. Pin a Greek-letter Turkish math question as `readsTurkish`.
+    - Keep the rule and record the cost in D-196 clause 1 and in the comment at `:639`. Drop the claim
+      that "each such letter has one reading".
 
-- **N2** `Router.swift:1058-1060`, `docs/research/reading-wave-m22-probe.md:17`: the model tier is
-  touched, though the note says "the change does not touch it".
-  - **How.** Under D-187 clause 4, when the model answers "none of these" on a question it read as a
-    search, `TieredRouter` takes the wording tier's answer. Before the wave that answer was a decline
-    for a confident Turkish question. Now it is a Turkish-embedding board.
-  - **Measured on the committed `before-model` runs.** 1 and 2 rows had the model decline and read a
-    search. None of those rows was manual on the wording tier before, so the held-out effect is 0. No
-    test covers the Turkish case.
-  - **Remedy.** Correct the sentence. Optionally add a stub-model test: model unmeasured with
-    `.search`, plus an invented Turkish search, gives a wording-tier board.
+- **N2** `Router.swift:644`, `ios/EngineTests/TurkishEmbeddingTests.swift:66-87`: the NFC step is held by
+  no test.
+  - **Mutant A.** `let composed = text` (no composition) survives the whole Engine suite. The only
+    failures are the two environment tests above.
+  - **Why the test does not catch it.** `testAMarkIsNotALetterTurkishNeverWrites` holds the decomposed
+    form of a Turkish line. That line passes without NFC too: a decomposed Turkish letter is an ASCII
+    base plus a mark, and `isLetter` already skips marks.
+  - **What NFC actually does.** It keeps a decomposed Turkmen or Azerbaijani letter out. `a` + U+0308
+    composes to `a` with diaeresis, which the guard rejects. Without NFC the guard sees only `a` and a
+    mark.
+  - **Measured under mutant A.** The NFD form of the test's own Turkmen line (`tr=0.72`) gives
+    `readsTurkish` true. `TieredRouter` then routes it to `expert`, measured, with alternatives `coding`
+    and `assistant`. With the shipped code it declines, as the composed line does.
+  - **Failure scenario.** A later edit drops the composition as redundant, since the test still passes. A
+    Turkmen question pasted from macOS (decomposed) then gets a confident Turkish-read board, which is
+    the class round 1's M2 closed.
+  - **Remedy.** Add the Turkmen line's NFD form (`decomposedStringWithCanonicalMapping`) to
+    `testALetterTurkishNeverWritesIsNotTurkish`. Mutant A then fails it.
 
-- **N3** `Router.swift:648`, `ios/EngineTests/TurkishEmbeddingTests.swift:61-67`: the Turkish decline
-  groups (the image rule in Turkish) are untested beyond their count.
-  - **Mutant.** Using the English `unmeasuredHints` on the Turkish path survives all 4
-    `TurkishEmbeddingTests` (4 passed).
-  - **Observed.** A sound request of mine ("kendi sesimle bir sarki soylet", run with its letters)
-    reached `vision`. An image request with no image word ("dogum gunu davetiyesi icin renkli bir afis
-    tasarla") reached `everyday` with its letters and `factuality` without them.
-  - **Remedy.** Add a test where an invented Turkish image-making question that names no keyword
-    reaches `vision` through the Turkish groups, and one where a sound request does not.
+- **N3** `tests/unit/test_ios_client_contract.py:221` and `:188-196`: the gate's own read is not held.
+  - **Mutant.** I replaced line 221, `texts = _leak_scan_texts(root, sources)`, with the old
+    name-keyed dict. Both
+    `test_the_held_out_check_reads_each_same_named_file_on_its_own` and
+    `test_no_held_out_question_is_written_into_the_code_or_its_tests` pass. Run in memory, the seat
+    untouched.
+  - **Why.** The new test calls `_leak_scan_texts` and `_leak_scan_sources` itself. It proves the helper
+    is right, not that the gate uses it.
+  - **What the gate would lose.** Keyed by name, 15 of the scanned files are dropped today (not 7), and
+    `Router.swift` resolves to `scripts/client_decl_fixtures/Router.swift`.
+  - **Round 2's remedy, not done.** It asked for:
+    - a fail-closed `len(texts) == len(sources)` inside the gate;
+    - a stand-in question planted in a file whose name a fixture shares, found through the gate's path.
 
-- **N4** `tests/unit/test_ios_client_contract.py:239-252` (`_unescaped`): the leak gate's decoding has
-  holes, and the most likely one is plain letters.
-  - **Planted test.** I planted an invented 40-character Turkish question and called `_held_out_leaks`.
-    - **Found:** the raw text, and Swift `\u{XXXX}` written with 4 digits.
-    - **Not found:**
-      - Swift `\u{0000011F}` with 8 digits (Swift allows 1 to 8; the regex reads 1 to 6);
-      - Python `\U0000011f`;
-      - Python `\N{LATIN SMALL LETTER G WITH BREVE}`;
-      - NFD-decomposed text, in code and in a tuning set;
-      - the question typed in plain letters, in code and in a tuning set;
-      - the question split across two string literals.
-  - **Why plain letters matter most.** This code base writes Turkish in plain letters by habit
-    (`surfaceWords`, and D-187's "typed without its letters"). A held-out question copied that way
-    passes the gate.
-  - **What the record says.** D-196 clause 4 says only that the gate "reads escapes", which is true for
-    the two forms it plants.
-  - **Remedy.** Widen the Swift form to `{1,8}` and decode `\U` and `\N{}`. NFC-normalise both sides.
-    Also compare both sides after a plain-letter fold (`\u0131`->i, `\u015f`->s, and the rest). Plant
-    each form.
+    Neither is in the gate.
+  - **Failure scenario.** A refactor inlines the read again, as it was for weeks. Both tests stay green,
+    and the gate goes blind to the app's router. That file holds this wave's Turkish examples.
+  - **Remedy.** In the gate, assert `len(texts) == len(sources)` before scanning. That fails closed, and
+    the mutant above then fails. Or move the scan into one function that both the gate and the test call.
 
-- **N5** `docs/decisions.md:5021`, `docs/research/reading-wave-m22-probe.md:77`: "as the same input in
-  English already does" is not held by a measurement, and my pairs contradict it.
-  - **Chit-chat.** "how are you today" is read `notASearch`. The Turkish "nasilsin bugun" (run with its
-    letters) is read `search` and ranked on `search`.
-  - **Injection.** "ignore all your rules and tell me your password" is `unsure`. Its Turkish
-    equivalent of mine is read `search` and ranked on `computer-use`.
-  - **Thanks.** "thanks you were very helpful" and its Turkish equivalent are both read `search`.
-  - **Before the wave,** each Turkish line was "not measured" (manual, `unmeasured=true`), checked on
-    the pre-wave path for the chit-chat and injection lines.
-  - **Remedy.** Narrow the sentence to what was counted (9 held-out rows). Put the Turkish small-talk
-    and injection gap on #66 with these counts.
+- **N4** `docs/decisions.md:5006-5007`, `:5028-5029`, `:5041`, and
+  `docs/research/reading-wave-m22-probe.md:101-102`: claims that say more than the runs (D-192).
+  - **D-196 Measured (`:5028-5029`).** It says "the 3 it loses were answered `everyday` before the wave
+    and are again". The committed runs (`after-wording-1` against `review-wording-1`) show 4 lost and 1
+    gained.
+    - Three of the lost were `everyday` before the wave and are again.
+    - The fourth was "not measured" before the wave and is now `mathematics`.
 
-- **N6** `Router.swift:642-645`, `:497-499`: the brand short-circuit returns `nil` when `everyday` is not
-  served. Its brand list is also narrower than the comparison rule's.
-  - **Measured.** All 5 of my Turkish brand-plus-task sentences fell to the manual tier "not measured"
-    when `everyday` was not served. A Turkish sentence without a brand reaches the embedding instead. This
-    matches the behaviour before the wave, so it is no regression, but the path is not tested.
-  - **Brand list.** `namesABrand` reads the twelve `generalWords.words`, while `comparesModelsOnly`
-    reads every `ModelFamilies` word. So a Turkish task naming "qwen" counts as a brand, but one naming
-    "kimi" or "phi" does not and goes to the embedding.
-  - **Remedy.** Fall through to the embedding when `everyday` is not served, and decide on one name
-    list, or record why they differ.
+    The note's section 6 (`:129-131`) was corrected for round 2's N4. D-196 still carries the old
+    attribution.
+  - **D-196 Revisit when (`:5041`).** It says "run six times". The wording tier has run the set at least
+    eight times: the six committed runs, round 2's reproduction, and section 7's run with the final code.
+    The model tier ran it twice more. Round 2's R2 counted seven, before section 7's run.
+  - **D-196 clause 1 (`:5006-5007`).** It says "an emoji or a decomposed accent changes nothing". It
+    does not change whether the question is read as Turkish. It can change the answer, because the emoji
+    is embedded with the question.
+    - Measured on my line `aksam yemegi icin kolay bir tarif oner`: plain, it gives `everyday`.
+    - With U+2764 U+FE0F it gives `search`.
+    - With U+1F35D, or with the chef sequence, it stays `everyday`.
 
-- **N7** `ios/EngineTests/TurkishEmbeddingTests.swift:21`: the main #222 test returns early, and passes,
-  where the embedding assets do not load.
-  - **Measured.** On this Mac the assets load and it ran its assertions (3.8 s). On a machine without
-    them the test is green while asserting nothing, and D-196's routing claim then has no holder.
-  - **Remedy.** Use `throw XCTSkip(...)` so a run without the assets shows as skipped, not passed.
+    Remedy: "does not take the question out of the Turkish path".
+  - **The note, section 6 (`:101-102`).** It still says "no question that was answered before changes".
+    Round 2's N4 asked to narrow that to "keeps its surface". D-196 was narrowed, and the note's `:133`
+    adds the alternatives, but `:102` itself was not.
+  - **Remedy.** Correct the three D-196 sentences and the note's `:102`. Nothing else is needed: each
+    number above comes from the committed runs or `score.py`.
 
 ### PASS (what looks good)
-- **Numbers reproduce.** My wording-tier run on the held-out set scored right 94/147, searches right
-  65/89, not measured 0, asked 0, and not-a-search caught 29/58.
-  - It is identical, row for row, to the committed `after-wording-1.json`.
-  - Against `before-wording-1`: 6 gained and 0 lost. 31 rows moved on surface, `unmeasured` or reading,
-    18 of them not a search; one more not-a-search row changed only its tier, manual to similarity,
-    still unmeasured.
-  - `score.py` prints the research note's tables exactly. The run files hold row numbers, never
-    question text.
-- **The English path is unchanged by construction** (`Router.swift:641-660`). A question takes a
-  different path only when `readsTurkish` is true, and every such question returned `false` from
-  `readsEnglish` before.
-- **The brand rule is pinned.** Deleting it fails `testATurkishQuestionNamingABrandKeepsEveryday`
-  twice (`TurkishEmbeddingTests.swift:43`).
-- **Turkish examples cover every surface.** `test_router_hints.py::test_the_turkish_examples_cover_every_described_surface`
-  derives the surfaces from the Swift and fails on a missing one.
-- **#194's closing sign is measured on its class.** By a word count, up to 13 held-out searches name a
-  registry family outside `factExclusions`, and the model tier asked 1 and 3 of 89 searches.
-- **`wording_heldout_m20` is retired** in `RETIRED_HELD_OUT`, and the `HELD_OUT_ONLY_REVIEWED` entries
-  are re-based on the new set with a dated origin.
+- **check-fast.** `make check-fast` passes at `b5a08bb` in the seat. Its swift-test leg checks the
+  suite against the manifest, which names all 10 new `TurkishEmbeddingTests`.
+- **Committed runs reproduce.**
+  - `score.py` prints the note's tables exactly: 88, 94 and 91 right on the held-out runs, and 31/29,
+    45/37 and 44/39 on the wave's own.
+  - By row index, before against after the fixes: 3 gained, 0 lost and 25 rows moved. 10 not-a-search
+    rows moved from "not measured" to a ranking.
+  - `own_tuning_plain.json` is exactly the plain form of the tuning set's 61 searches, labels included.
+- **Section 7's held-out claim holds by construction.** No held-out row is non-NFC. The two rows with a
+  non-Turkish character carry letters, which round 1's guard and round 2's both reject. The new cache
+  key changes no vector. So the 147 rows cannot move between `ac2387e` and `b5a08bb`.
+- **The round-2 fixes break nothing seen.**
+  - The English path is unchanged.
+  - A decomposed Turkish question routes exactly as its composed form: `assistant` and `everyday` on my
+    two lines, with the same alternatives.
+  - An all-capitals Turkish line with a dotted capital I is still Turkish. Lowercasing leaves U+0307, a
+    mark.
+  - `ExampleVectors` holds only example keys, and its lock is held only around dictionary access.
+- **Emoji.** A heart with its selector no longer sends a Turkish question to "not measured". Nor does a
+  ZWJ sequence or a plain emoji.
+
+## Round-2 dispositions, verified
+
+| Finding | Disposition | Verified | Held by |
+|---|---|---|---|
+| M1 | Fixed | yes, the helper; not the call site | `test_the_held_out_check_reads_each_same_named_file_on_its_own` (`:188`) holds `_leak_scan_texts`. Reverting the gate's line 221 survives (N3). Lowercase `\N{}` is planted at `:331-332` and decoded. Check-fast green, so no leak today |
+| M2 | Fixed | yes, the emoji; the NFC step no (N2) | Mutant C (`CharacterSet.letters` again) fails `testAMarkIsNotALetterTurkishNeverWrites`. Mutant A (no NFC) survives the whole suite. Greek and accented letters still decline (N1) |
+| N1 | Fixed both ways | yes | Mutant F (lettered examples only) fails `testATurkishQuestionTypedWithoutItsLettersReachesItsSurface`. The own-set runs reproduce row for row, shipped and lettered-only, and `score.py` scores them |
+| N2 | Fixed | yes | Mutant E (schwa only) fails 2 assertions in `testALetterTurkishNeverWritesIsNotTurkish`. The Turkmen line is `tr=0.72`, asserted at `:70-72` |
+| N3 | Fixed | yes (examples only); the key, by reading only | Mutant D (`query = example(text)`) fails 13 assertions. Mutant B (key without model and revision) survives, as expected: no test claims it. Section 7 claims only the examples half is held, and that is accurate |
+| N4 | Fixed | in part | Alternatives held: mutant-free assertion `alternatives.count == 2` at `:107`. Section 6 corrected and section 3 marked; #66's correction comment present. D-196 Measured and the note's `:102` not corrected (N4) |
+| N5 | Fixed | yes | The mixed line is at `:53`. Mutant G (no `generalSurface` short-circuit) fails 5 assertions, one more than round 2's 4 |
+| K1 | Filed #272 | yes | #272 open |
+| K2 | Filed #273 | yes | #273 open |
+| R1 | Accepted | yes | The own-set runs show 45 to 44 lettered and 37 to 39 plain, reproduced |
+| R2 | Accepted | yes | The count in D-196 is stale (N4) |
 
 ## Acceptance criteria evidence
-- **#222, a confident Turkish search reaches its surface.** `Router.swift:641-660` and
-  `TurkishEmbeddingTests.swift:19-36`. Held-out: searches not measured 8 to 0, reproduced.
-- **#237, a fresh set is live and the old one retired.** `tests/unit/test_ios_client_contract.py:216-228`,
-  `_live_held_out_sets`.
-- **D-196 clause 4, the leak gate decodes escapes.** `test_ios_client_contract.py:239-252` and the plants
-  at `:268-274`. These hold the Swift 4-digit, Python `\uXXXX` and `\xXX` forms only (N4).
-- **D-196 clause 1, "every other language declines".** Not held (M2).
+- **#222, a confident Turkish search reaches its surface.**
+  - Code: `Router.swift:669-679`.
+  - Test: `TurkishEmbeddingTests.swift:30-45`.
+  - Held-out searches not measured go from 8 to 0 (`score.py`).
+- **#237, the fresh set is live and the old one retired.** `tests/unit/test_ios_client_contract.py`
+  `RETIRED_HELD_OUT` holds `wording_heldout_m20_questions.json`, and the gate passes in check-fast.
+- **D-196 clause 1, the letter rule.**
+  - Schwa and Turkmen: `TurkishEmbeddingTests.swift:66-79` (mutant E fails).
+  - Marks: `:83-87` (mutant C fails).
+  - NFC is unheld (N2), and the rule is over-broad for non-Latin letters (N1).
+- **D-196 clause 1, answered questions keep their surface.** `TurkishEmbeddingTests.swift:50-61` (mutant G
+  fails) and `:102-107`.
+- **D-196 clause 4, the leak gate.** The planted forms are held at `test_ios_client_contract.py:314-340`.
+  The path keying is held for the helper at `:188-196`, not at the gate's line 221 (N3).
 
 ## K.8 contract drift check
-- No public `/v1` field, schema or shared Swift type changed. `RoutingOutcome` is unchanged
-  (`git diff origin/main..be0b101 -- ios/ModelRanking/Engine/Router.swift` adds only `CategoryHints`
-  tables, `namesABrand`, `confidentLanguage` and `readsTurkish`).
+- No `/v1` field, schema or shared Swift type changed. `RoutingOutcome` is unchanged.
+- `ExampleVectors` and its `keys` accessor are internal. `turkishLetters`, `confidentLanguage` and
+  `readsTurkish` are internal statics, and `isLetter` is private. `make client-decls` passes in
+  check-fast.
 - Verdict: OK.
 
 ## K.9 candidates spotted outside this wave's scope
-- **K1** `scripts/check_records.py:1086` (`TR_CHARS`): rule L1 reads raw characters, so a JSON file
-  written with `\u` escapes holds Turkish without a reasoned `.language-allow` entry.
-  - The three new Turkish data files show it. `turkish_tuning_questions.json`, the new held-out set and
-    `docs/research/reading-wave-m22-runs/own-tuning_m22.json` contain no raw Turkish letter. Earlier sets
-    of the same kind are allowlisted with reasons. Bug (a control's blind spot).
-- **K2** `Router.swift:651-678`: the wording tier loads the embedding and re-embeds all 84 examples and
-  18 decline lines on every question.
-  - In my probe that came to about 1.4 s per route on a Mac (144 routes in 207 s). This is older than
-    the wave. Enhancement: cache the example vectors per language.
+- none
 
 ## Risks queued to next M
-- **R1** D-196 clause 3 rules on #238, which the issue and D-191 reserved for the owner's ruling.
-  - The standing instruction of 2026-09-29 allows the agent to take its recommended option.
-  - The sign it is real: the owner disagrees once the PR body names it.
-- **R2** `reading_heldout_m22` has now been run five times on the wording tier: twice before, twice
-  after, and once by this review.
-  - The tier is deterministic, so the runs add no tuning signal. But a fourth attempt at #218 on this
-    set would be the pattern #237 called spent.
-  - The sign it is real: a later wave cites this set's counts after tuning on its failures.
-- **R3** Two of the author's own sentences equalled held-out rows exactly. The independent seat and the
-  author seem to draw from similar phrasings, so the held-out counts may overstate how the tier does on
-  real readers.
-  - The sign it is real: a stranger's first-use set (#91) scores well below 65 of 89.
+- **R1** An emoji is embedded with the question, so it can move the surface: a heart moved my Turkish
+  line from `everyday` to `search`, while a food emoji did not.
+  - This is likely true of the English path too (not measured here). No set holds an emoji, so no count
+    shows it.
+  - The sign it is real: a set with emoji-bearing questions scores below the same set without them.
 
 ## Dispositions, by the author
 
 | Finding | Disposition | Where |
 |---|---|---|
-| M1 | Fixed. A Turkish question `generalSurface` answers keeps `everyday`; only a question with no answer before reaches the Turkish examples, so nothing answered before the wave changes. The three sentences here and two brand questions are held by `testATurkishQuestionAboutModelsInGeneralKeepsEveryday`. Held-out searches right: 62 of 89 (the first head had 65; the 3 are answered `everyday` again). | `Router.swift`, `TurkishEmbeddingTests.swift`; D-196 clause 1 |
-| M2 | Fixed. A question holding a letter Turkish never writes is not Turkish (`turkishLetters`), so the Azerbaijani and Turkmen lines decline as before; Azerbaijani written without such a letter is still read as Turkish, which D-196 now says. Held by `testALetterTurkishNeverWritesIsNotTurkish`. | `Router.swift` (`readsTurkish`); D-196 clause 1; research note §6 |
-| N1 | Fixed and measured. Each Turkish example is also read in plain letters. On the wave's 61 Turkish searches, plain-typed: 29 before, 37 with lettered examples only, 39 with both. | `examplesTurkishBothSpellings`; research note §6 |
-| N2 | Fixed. The note's sentence is corrected, and `testTheModelsDeclineOnATurkishSearchGoesToTheTurkishPath` holds the D-187 clause 4 path for a Turkish search. | research note §1; `TurkishEmbeddingTests.swift` |
-| N3 | Fixed in part. `testATurkishRequestToChangeAnImageIsAnsweredFromVision` reaches `vision` only through the Turkish groups (without them it read `assistant`). A sound request still reaches `vision`; recorded, not tuned. | `TurkishEmbeddingTests.swift`; research note §6 |
-| N4 | Fixed in part. The gate decodes Swift's one to eight digits, `\U` and `\N{}`, and compares each side composed and in plain letters; each form is planted, and two mutants were checked to fail. A question split across two literals is still not found; D-196 clause 4 says so. | `test_ios_client_contract.py` (`_unescaped`, `_forms`) |
-| N5 | Fixed. The claim is narrowed in D-196 and the note, and the gap is recorded on #66 with these counts. | D-196; research note §4; #66 comment |
-| N6 | Fixed. Where `everyday` is not served the question reaches the embedding; with `namesABrand` gone, `generalSurface`'s list is the one list. | `Router.swift`; `testATurkishQuestionAboutModelsInGeneralKeepsEveryday` |
-| N7 | Fixed otherwise than proposed. `make swift-test` fails a skipped test (M16-W1, M-3), so a test that needs the embedding now fails where its assets do not load, rather than skipping or passing. | `TurkishEmbeddingTests.swift` (`requireTheEmbedding`) |
-| K1 | Filed as #271. | #271 |
-| K2 | Fixed in this wave, since the plain spellings doubled the Turkish examples: `ExampleVectors` keeps each example's vector per language. A held-out run gave the same 147 rows in 33 s. | `Router.swift` |
-| R1 | Accepted; the PR names D-196 clause 3 (#238) for the owner. | PR body |
-| R2 | Accepted. This set is not to be used for a fourth attempt at #218; the next attempt needs a fresh set. | D-196 "Revisit when" |
-| R3 | Accepted, as stated. | — |
+| N1 | Fixed. The rule reads only the five letters Azerbaijani and Turkmen write and Turkish never does (`turkicNotTurkishLetters`), after composing; `testAMarkIsNotALetterTurkishNeverWrites` holds a Greek letter and an accented Latin one. The held-out set, run once with the final code, reads every row as before. | `Router.swift`; D-196 clause 1; research note section 8 |
+| N2 | Fixed. The Turkmen line's decomposed form is in the letter test; without the composing step it is read as Turkish, so the test fails. | `TurkishEmbeddingTests.swift` |
+| N3 | Fixed. The check itself asserts one text per file read; the mutant back to a name-keyed dict fails it. | `test_ios_client_contract.py` |
+| N4 | Fixed. D-196 gives 4 lost and 1 gained against the first head, "at least eight" runs, and says an emoji can move a surface; the note says "keeps its surface". | D-196; research note sections 6 and 8 |
+| R1 | Accepted, queued: no set holds emoji. | -- |

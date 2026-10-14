@@ -5002,10 +5002,12 @@ device.
      general (`generalSurface`) keeps `everyday` (the review's M1). So no question answered before the
      wave changes its surface; one that names its surface now also offers the two closest others, as an
      English one does. Where `everyday` is not served, the embedding answers.
-   - A question with a letter Turkish never writes is not Turkish (the review's M2): the recogniser
-     reads Azerbaijani and Turkmen as Turkish. Marks are not letters, so an emoji or a decomposed accent
-     changes nothing (round 2's M2). Azerbaijani written without such a letter is still read
-     as Turkish. Every other language the recogniser is sure of still declines.
+   - A question with a letter Azerbaijani or Turkmen writes and Turkish never does (the schwa, a with
+     diaeresis, n with caron, y with acute and z with caron) is not Turkish (the review's M2): the recogniser reads those two languages as Turkish. The
+     question is composed first, so a decomposed letter counts; any other letter (a Greek one, an
+     accented Latin one) and any mark keep it Turkish (rounds 2 and 3). An emoji is still embedded with
+     the question and can move its surface. Azerbaijani or Turkmen written without such a letter is
+     still read as Turkish. Every other language the recogniser is sure of still declines.
    - The English path is unchanged, except that every example's vector is now computed once per
      language and kept (the review's K2).
 2. **#194 is closed without a fourth rule.** Its sign was "more than 4 of 40 genuine searches asked".
@@ -5025,8 +5027,9 @@ device.
 **Measured** (the wording tier, two runs each, counts only):
 - **Held-out set, after the review's fixes:** 88 right of 147 before, 91 after. Searches right went
   from 59 to 62 of 89, and searches not measured from 8 to 0. Lines that are not a search caught stay
-  at 29 of 58. The first head, before M1's rule, had 65; the 3 it loses were answered `everyday` before
-  the wave and are again.
+  at 29 of 58. Against the first head, before M1's rule (65), 4 searches are lost and 1 gained: three
+  of the 4 are answered `everyday` again, as before the wave, and the fourth, "not measured" before
+  the wave, now reads another surface.
 - **Question by question:** 3 rows gained and none lost.
 - **The wave's own 61 Turkish searches:** 31 right before and 44 after; typed in plain letters, 29 and
   39.
@@ -5038,6 +5041,6 @@ device.
 
 **Revisit when:**
 - #218's short Turkish questions are read by a means with no second reading, measured on a set fresher
-  than `reading_heldout_m22`, which this wave and its review have run six times;
+  than `reading_heldout_m22`, which this wave and its reviews have run at least eight times on the wording tier;
 - #66's bars are met;
 - or the owner asks for another language to be read.

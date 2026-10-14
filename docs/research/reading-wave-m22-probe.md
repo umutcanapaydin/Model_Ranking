@@ -94,17 +94,17 @@ Question by question, between the first run before and the first after:
 - **#66.** The wording tier catches 29 of 58 lines that are not a search on the fresh set, and the model
   tier 35 and 34. M19-W4's bars are not met.
 
-## 6. After the review (`docs/reviews/backlog-reading-review.md`)
+## 6. After the review (`docs/reviews/backlog-reading-review-round-1.md`)
 
 The review's verdict was MAJOR. Its numbers reproduced the runs above exactly. The fixes:
 - **M1.** A Turkish question that `generalSurface` answers (a brand, "en iyi model", "hangi yapay
   zeka") keeps `everyday`, as before the wave. Only a question that had no answer before reaches the
-  Turkish examples, so no question that was answered before changes. Where the engine serves no
+  Turkish examples, so every question that was answered before keeps its surface. Where the engine serves no
   `everyday`, the question goes to the embedding (N6).
 - **M2.** The recogniser knows no Azerbaijani or Turkmen and reads them as Turkish at 1.00. A question
-  holding a letter Turkish never writes (any letter beyond ASCII and `turkishLetters`, such as the
-  schwa) is not Turkish, so it declines as before. Azerbaijani written without such a letter is still
-  read as Turkish.
+  holding a letter Turkish never writes is not Turkish, so it declines as before. Since the third review
+  (section 8) these are the five letters Azerbaijani and Turkmen write and Turkish never does
+  (`turkicNotTurkishLetters`). Azerbaijani written without one is still read as Turkish.
 - **N1.** Each Turkish example is also read in plain letters (`examplesTurkishBothSpellings`). The runs
   below are committed (`own-*.json`, `own_tuning_plain.json`) and scored by `score.py`.
 - **K2.** Each example's vector is computed once per language (`ExampleVectors`). One wording-tier run
@@ -149,3 +149,15 @@ The review's verdict was MAJOR. Its numbers reproduced the runs above exactly. T
   the router's examples are kept.
 - **Held-out, once more with the final code:** every one of the 147 rows reads as in the first run after
   the first review's fixes. The wave's own 61 searches read 44 and 39, as in section 6.
+
+## 8. After the third review (`docs/reviews/backlog-reading-review.md`, MINOR)
+
+- **N1.** "Any letter Turkish does not write" also sent a Turkish question naming pi or a cafe to "not
+  measured". The rule now reads only the five letters Azerbaijani and Turkmen write and Turkish never
+  does (the schwa, a with diaeresis, n with caron, y with acute and z with caron), after composing; a test holds a Greek letter, an accented one, and the
+  Turkmen line decomposed.
+- **N3.** The held-out check itself now refuses to read two files under one key.
+- **N4.** D-196's and this note's claims were narrowed to what the runs show.
+- **Held-out, once with the final code** (`final-wording-1.json`): two rows carry a letter Turkish does not
+  write, and neither carries one of the five, so the narrower rule could read them differently. It did
+  not: all 147 rows read as in `review-wording-1.json` (91 right; searches 62 of 89, none not measured).
