@@ -828,10 +828,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Before, the wording tier left 8 of 89 searches "not measured", all Turkish: it declines what the
   recogniser is sure is not English. Apple's contextual embedding turned out to be one multilingual model
   for Latin script, so a Turkish question is now compared against Turkish examples, with no word list
-  (D-191's class does not arise). Held-out: searches right 59 to 65, not measured 8 to 0, none lost.
+  (D-191's class does not arise). The review (MAJOR) found that it changed general questions answered
+  before, and read Azerbaijani as Turkish; both are fixed. Held-out after the fixes: searches right 59
+  to 62, not measured 8 to 0, none lost. The example vectors are now kept: 147 rows probe in 33 s.
 - #194 was closed on its own sign (1 and 3 of 89 searches asked on the model tier), #238 ruled (the four
   core brands stay models), and #218 and #66 stay open with the fresh set's counts.
 - The leak gate missed escaped text: a held-out question written `\u{...}` in Swift passed it. It now
-  decodes escapes. Two of the wave's own sentences equalled held-out rows; they were removed unread.
+  decodes escapes and reads plain letters. Two of the wave's own sentences equalled held-out rows; they
+  were removed unread.
 - DeepSWE (#265): the token lists the dataset's files but cannot read them; the owner's access request is
   not yet granted.

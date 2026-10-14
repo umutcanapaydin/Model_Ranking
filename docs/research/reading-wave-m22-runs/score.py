@@ -20,7 +20,8 @@ def right(row: dict, label: str) -> bool:
     return row["reading"] == "search" and row["unmeasured"] == "false" and row["surface"] in label.split("|")
 
 
-for name in ["before-wording-1", "before-wording-2", "after-wording-1", "after-wording-2", "before-model-1", "before-model-2"]:
+for name in ["before-wording-1", "before-wording-2", "after-wording-1", "after-wording-2", "review-wording-1",
+             "review-wording-2", "before-model-1", "before-model-2"]:
     rows = json.loads((HERE / f"{name}.json").read_text(encoding="utf-8"))
     searches = [r for r in rows if labels[r["row"]] != "NOT_A_SEARCH"]
     others = [r for r in rows if labels[r["row"]] == "NOT_A_SEARCH"]

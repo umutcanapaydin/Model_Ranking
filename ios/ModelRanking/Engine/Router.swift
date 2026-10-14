@@ -285,6 +285,18 @@ enum CategoryHints {
 }
 
 extension CategoryHints {
+    /// #222 (the review's N1): each Turkish example also as a reader types it without its letters
+    /// (`plain`), since a plain-typed question is still confidently Turkish and embeds apart from the
+    /// lettered examples. The decline groups likewise.
+    static let examplesTurkishBothSpellings: [String: [String]] = examplesTurkish.mapValues(withPlainSpellings)
+    static let unmeasuredHintsTurkishBothSpellings: [[String]] = unmeasuredHintsTurkish.map(withPlainSpellings)
+
+    static func withPlainSpellings(_ lines: [String]) -> [String] {
+        lines + lines.map(plain).filter { !lines.contains($0) }
+    }
+}
+
+extension CategoryHints {
     /// D-187 (M20 hotfix): the words that name a surface outright, in English and in Turkish. Read by
     /// the wording tier before the sentence similarity, so a question that says "code", "kodlama",
     /// "matematik" or "web sitesi" reaches its surface on a device with no on-device model, no English
@@ -493,11 +505,6 @@ extension CategoryHints {
         return nil
     }
 
-    /// #222: a question that names an AI brand by one of `generalWords`' names.
-    static func namesABrand(_ question: String) -> Bool {
-        readings(question).contains { words in words.contains(where: generalWords.words.contains) }
-    }
-
     /// `everyday` for a question about AI models in general, where the embedding cannot read it.
     static func generalSurface(_ question: String, within known: [String]) -> String? {
         known.contains(generalWords.id) && names(generalWords, readings(question), question.lowercased())
@@ -610,13 +617,23 @@ struct SimilarityRouter: QuestionRouter {
         return confidence < confidentLanguage
     }
 
+    /// The letters beyond ASCII that Turkish writes, in both cases, and the dotted capital's combining dot.
+    static let turkishLetters = Set("çğıöşüâîûÇĞİÖŞÜÂÎÛ\u{307}".unicodeScalars)
+
     /// How sure the recogniser must be before a question is read as another language than English.
     static let confidentLanguage = 0.65
 
     /// #222: a question confidently Turkish, the one other language this tier reads. It is compared
     /// against `examplesTurkish` through the same multilingual embedding; any other language the
     /// recogniser is sure of still declines (`readsEnglish`).
+    ///
+    /// The recogniser knows no Azerbaijani or Turkmen and reads them as Turkish, at 1.00 (the review's
+    /// M2). So a question with a letter Turkish never uses (`ə`, `ä`, `ň`, `ý`, `ž`, or any other beyond
+    /// `turkishLetters`) is not Turkish. Each such letter has one reading; Azerbaijani written without
+    /// one of them is still read as Turkish.
     static func readsTurkish(_ text: String) -> Bool {
+        guard !text.unicodeScalars.contains(where: { $0.value > 127 && CharacterSet.letters.contains($0)
+                                                      && !turkishLetters.contains($0) }) else { return false }
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
         guard recogniser.dominantLanguage == .turkish else { return false }
@@ -635,17 +652,17 @@ struct SimilarityRouter: QuestionRouter {
             return known.contains("everyday")
                 ? RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false) : nil
         }
-        // #222: a Turkish question is read against Turkish examples. One that names an AI brand
-        // ("gemini mi gpt mi ödev") keeps `everyday`, as before: the names pull the embedding away from
-        // the one word that is the task, and the question is about models in general.
+        // #222: a Turkish question is read against Turkish examples, but only one that had no answer
+        // before: a question about models in general (`generalSurface`: a brand, "en iyi model", "hangi
+        // yapay zeka") keeps `everyday`, as it did (the review's M1). Its names pull the embedding off the
+        // one word that is the task ("gemini mi gpt mi ödev" read as `abstract` in the tuning run).
         let turkish = SimilarityRouter.readsTurkish(text)
-        if turkish, named == nil, CategoryHints.namesABrand(question) {
-            return CategoryHints.generalSurface(question, within: known)
-                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+        if turkish, named == nil, let general = CategoryHints.generalSurface(question, within: known) {
+            return RoutingOutcome(categoryID: general, tier: .similarity, unmeasured: false)
         }
         let language: NLLanguage = turkish ? .turkish : .english
-        let exampleSet = turkish ? CategoryHints.examplesTurkish : CategoryHints.examples
-        let unmeasuredHints = turkish ? CategoryHints.unmeasuredHintsTurkish : CategoryHints.unmeasuredHints
+        let exampleSet = turkish ? CategoryHints.examplesTurkishBothSpellings : CategoryHints.examples
+        let unmeasuredHints = turkish ? CategoryHints.unmeasuredHintsTurkishBothSpellings : CategoryHints.unmeasuredHints
         guard turkish || SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: language),
               embedding.hasAvailableAssets,
@@ -670,10 +687,15 @@ struct SimilarityRouter: QuestionRouter {
             guard count > 0 else { return nil }
             return total.map { $0 / Double(count) }
         }
+        // The reading wave's review, K2: an example's vector is the same on every question, so it is
+        // computed once per language and kept (`ExampleVectors`); only the question is embedded each time.
+        func example(_ string: String) -> [Double]? {
+            ExampleVectors.shared.vector("\(language.rawValue)\n\(string)") { vector(string) }
+        }
 
         var hints: [(id: String, vectors: [[Double]])] = []
         for id in known {
-            let vectors = (exampleSet[id] ?? []).compactMap(vector)
+            let vectors = (exampleSet[id] ?? []).compactMap(example)
             if !vectors.isEmpty { hints.append((id, vectors)) }
         }
         // The hotfix review's M3: an embedding that loads and cannot read this question still leaves
@@ -747,7 +769,7 @@ struct SimilarityRouter: QuestionRouter {
         // board, never "not measured". The decline groups no longer decline. A question closest to
         // making or changing an image goes to `vision`, the board of models that read images best; one
         // closest to sound, video or speed is answered by the closest surface below.
-        let declines = unmeasuredHints.map { $0.compactMap(vector) }.map { $0.isEmpty ? -Double.infinity : score($0) }
+        let declines = unmeasuredHints.map { $0.compactMap(example) }.map { $0.isEmpty ? -Double.infinity : score($0) }
         if let image = declines.first, image > best.score, declines.allSatisfy({ $0 <= image }),
            known.contains("vision") {
             return RoutingOutcome(categoryID: "vision", tier: .similarity, unmeasured: false,
@@ -766,6 +788,27 @@ struct SimilarityRouter: QuestionRouter {
             categoryID: best.id, tier: .similarity, unmeasured: false,
             alternatives: closest.dropFirst().map(\.id)
         )
+    }
+}
+
+/// The wording tier's example vectors, computed once per language and example (the reading wave's
+/// review, K2: each route re-embedded about 120 examples, some 1.4 s on a Mac). It holds the router's own
+/// example sentences only, never anything typed.
+final class ExampleVectors: @unchecked Sendable {
+    static let shared = ExampleVectors()
+    private let lock = NSLock()
+    private var kept: [String: [Double]] = [:]
+
+    func vector(_ key: String, _ make: () -> [Double]?) -> [Double]? {
+        lock.lock()
+        let known = kept[key]
+        lock.unlock()
+        if let known { return known }
+        guard let made = make() else { return nil }
+        lock.lock()
+        kept[key] = made
+        lock.unlock()
+        return made
     }
 }
 

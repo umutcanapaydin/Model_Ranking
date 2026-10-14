@@ -13,8 +13,10 @@ row names its question by its row in the set, so the runs hold no question text.
 `scripts/router_probe/reading_heldout_m22_questions.json` (#237) was written by an independent seat and
 is unread by the author. It holds 147 questions: 89 searches and 58 that are not a search. Its labels
 are a surface (or two, `a|b`) or `NOT_A_SEARCH`.
-- **Measured twice before and twice after, on the wording tier.** The model tier was measured twice
-  before; the change does not touch it.
+- **Measured twice before, twice after and twice after the review's fixes, on the wording tier.** The
+  model tier was measured twice before. The change reaches it only where the model answers "none of
+  these" on a search and the wording tier answers instead (D-187 clause 4): in the two model runs, no
+  such row was "not measured" on the wording tier, so the held-out effect there is none (the review's N2).
 - **Tuning for this wave:** only sentences the wave wrote itself
   (`scripts/router_probe/turkish_tuning_questions.json`, 80) and the existing tuning sets.
 - **Two of the wave's own sentences equalled held-out rows.** The leak gate reported them by file and
@@ -74,7 +76,8 @@ Question by question, between the first run before and the first after:
   is wrong before and after, or right on another surface its label allows.
 - **The cost, 18 rows that are not a search:**
   - 9 of them the reading did not catch. They fell to "not measured" before, because the tier could not
-    read Turkish, and now get a ranking, as the same input in English already does.
+    read Turkish, and now get a ranking. The review's own pairs show the reading catches less in Turkish
+    than in English (small talk and an injection attempt; its N5), which #66 now records.
   - 7 of them are asked about by the reading, as before, and now carry a surface.
   - 2 moved from one surface to another.
   - Catching input that is not a search is #66's, which this wave does not change.
@@ -87,3 +90,43 @@ Question by question, between the first run before and the first after:
   - The signals D-191 took out are not tried again.
 - **#66.** The wording tier catches 29 of 58 lines that are not a search on the fresh set, and the model
   tier 35 and 34. M19-W4's bars are not met.
+
+## 6. After the review (`docs/reviews/backlog-reading-review.md`)
+
+The review's verdict was MAJOR. Its numbers reproduced the runs above exactly. The fixes:
+- **M1.** A Turkish question that `generalSurface` answers (a brand, "en iyi model", "hangi yapay
+  zeka") keeps `everyday`, as before the wave. Only a question that had no answer before reaches the
+  Turkish examples, so no question that was answered before changes. Where the engine serves no
+  `everyday`, the question goes to the embedding (N6).
+- **M2.** The recogniser knows no Azerbaijani or Turkmen and reads them as Turkish at 1.00. A question
+  holding a letter Turkish never writes (any letter beyond ASCII and `turkishLetters`, such as the
+  schwa) is not Turkish, so it declines as before. Azerbaijani written without such a letter is still
+  read as Turkish.
+- **N1.** Each Turkish example is also read in plain letters (`examplesTurkishBothSpellings`).
+- **K2.** Each example's vector is computed once per language (`ExampleVectors`). One wording-tier run
+  over the 147 rows (two routes each) took 33 s, where the review measured about 1.4 s a route before.
+  Every row came out the same.
+
+**On the wave's own 61 Turkish searches** (the 52 and the 9 short ones; the wording tier's surface):
+
+| variant | with letters | the same, plain |
+|---|---:|---:|
+| before the wave | 31 (22 not measured) | 29 (22 not measured) |
+| after the fixes, examples with letters only | 45 | 37 |
+| after the fixes, both spellings (shipped) | 44 | 39 |
+
+**Held-out, twice, after the fixes:**
+
+| tier, run | right (147) | searches right (89) | searches not measured (89) | not a search caught (58) |
+|---|---:|---:|---:|---:|
+| wording, after the review 1 and 2 | 91, 91 | 62, 62 | 0, 0 | 29, 29 |
+
+- **Against before:** 3 rows gained and none lost; 25 rows' outcomes moved.
+- **Against the first head:** 3 fewer searches are right. The embedding had answered them where
+  `everyday` does now, and M1's rule keeps every question that was answered before. The choice was made
+  from the review's sentences and the rule itself, before this run.
+- **The cost:** 10 lines that are not a search, uncaught by the reading, moved from "not measured" to a
+  ranking.
+- **Not fixed:** a request for sound ("sing a song in my own voice", in Turkish) reaches `vision` through
+  the Turkish image group; D-187 clause 2 sends it to the closest surface. A request to change an image
+  reaches `vision` only through the Turkish groups, and a test holds that.

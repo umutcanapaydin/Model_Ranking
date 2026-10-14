@@ -4993,14 +4993,19 @@ embedding for Latin script is one multilingual model, the same for English and T
 device.
 
 **Decision.**
-1. **A confidently Turkish question is read against Turkish examples (#222).**
+1. **A confidently Turkish question that had no answer is read against Turkish examples (#222).**
    - `CategoryHints.examplesTurkish` holds six per surface and `unmeasuredHintsTurkish` the three
-     groups, written for this wave. The scoring, the floor and the image rule are the English path's.
+     groups, written for this wave, each also read in plain letters. The scoring, the floor and the
+     image rule are the English path's.
    - It uses no word list, so D-191's class (a word with a second reading) does not arise.
-   - A word that names a surface still decides first (D-187 clause 1).
-   - A Turkish question that names an AI brand (`generalWords`) keeps `everyday`, as before: on the
-     tuning set the names pulled the embedding off the task word.
-   - Every other language the recogniser is sure of still declines. The English path is unchanged.
+   - A word that names a surface still decides first (D-187 clause 1), and a question about models in
+     general (`generalSurface`) keeps `everyday` (the review's M1). So no question answered before the
+     wave changes; where `everyday` is not served, the embedding answers.
+   - A question with a letter Turkish never writes is not Turkish (the review's M2): the recogniser
+     reads Azerbaijani and Turkmen as Turkish. Azerbaijani written without such a letter is still read
+     as Turkish. Every other language the recogniser is sure of still declines.
+   - The English path is unchanged, except that every example's vector is now computed once per
+     language and kept (the review's K2).
 2. **#194 is closed without a fourth rule.** Its sign was "more than 4 of 40 genuine searches asked".
    On the fresh set the model tier asked 1 and 3 of 89 searches, and the wording tier none. Three
    verdicts found a second reading in every list of model names tried (D-191 clause 2).
@@ -5010,20 +5015,27 @@ device.
    which the issue names, went out with D-191's rules: nothing reads these four as ambiguous today.
 4. **The held-out leak gate reads escapes.** A Turkish line in an ASCII-only test is written with
    `\u{...}` in Swift or `\uXXXX`/`\xXX` in Python. The gate compared the raw text, so an escaped
-   held-out question passed it. It now decodes them first, and a planted test holds both.
+   held-out question passed it. It now decodes them first (Swift's one to eight digits, Python's `\U`
+   and `\N{}` too) and compares each side composed and in plain letters (the review's N4); planted
+   tests hold each form. A question split across two string literals is still not found.
 5. **#237's set is live and `wording_heldout_m20_questions.json` is retired** (`RETIRED_HELD_OUT`).
 
 **Measured** (the wording tier, two runs each, counts only):
-- **Held-out set:** 88 right of 147 before, 94 after. Searches right went from 59 to 65 of 89, and
-  searches not measured from 8 to 0. Lines that are not a search caught stay at 29 of 58.
-- **Question by question:** 6 rows gained and none lost.
-- **The cost:** 9 Turkish lines that are not a search, which the reading does not catch, fell to "not
-  measured" before. They get a ranking now, as the same input in English already does. Catching them
-  is #66's.
+- **Held-out set, after the review's fixes:** 88 right of 147 before, 91 after. Searches right went
+  from 59 to 62 of 89, and searches not measured from 8 to 0. Lines that are not a search caught stay
+  at 29 of 58. The first head, before M1's rule, had 65; the 3 it loses were answered `everyday` before
+  the wave and are again.
+- **Question by question:** 3 rows gained and none lost.
+- **The wave's own 61 Turkish searches:** 31 right before and 44 after; typed in plain letters, 29 and
+  39.
+- **The cost:** 10 Turkish lines that are not a search, which the reading does not catch, fell to "not
+  measured" before. They get a ranking now. The reading catches less in Turkish than in English (the
+  review's N5); catching them is #66's.
 - **A floor does not separate them:** on the wave's own sentences, Turkish searches scored 0.18 to 0.51
   and Turkish lines that are not a search 0.24 to 0.56, as in English at M16-W1.
 
 **Revisit when:**
-- #218's short Turkish questions are read by a means with no second reading;
+- #218's short Turkish questions are read by a means with no second reading, measured on a set fresher
+  than `reading_heldout_m22`, which this wave and its review have run six times;
 - #66's bars are met;
 - or the owner asks for another language to be read.

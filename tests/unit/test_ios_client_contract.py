@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import unicodedata
 
 import pytest
 
@@ -237,10 +238,33 @@ def _json_strings(value: object) -> list[str]:
 
 
 def _unescaped(text: str) -> str:
-    r"""Swift's `\u{...}` and Python's `\uXXXX` and `\xXX` escapes, as the characters they stand for."""
-    text = re.sub(r"\\u\{([0-9A-Fa-f]{1,6})\}", lambda m: chr(int(m.group(1), 16)), text)
-    text = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: chr(int(m.group(1), 16)), text)
-    return re.sub(r"\\x([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), text)
+    r"""Swift's `\u{...}` and Python's `\uXXXX`, `\UXXXXXXXX`, `\xXX` and `\N{...}` escapes, as the characters
+    they stand for."""
+    def char(code: str) -> str:
+        value = int(code, 16)
+        return chr(value) if value <= 0x10FFFF else ""
+
+    def named(match: re.Match[str]) -> str:
+        try:
+            return unicodedata.lookup(match.group(1))
+        except KeyError:
+            return match.group(0)
+
+    text = re.sub(r"\\u\{([0-9A-Fa-f]{1,8})\}", lambda m: char(m.group(1)), text)
+    text = re.sub(r"\\U([0-9A-Fa-f]{8})", lambda m: char(m.group(1)), text)
+    text = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: char(m.group(1)), text)
+    text = re.sub(r"\\x([0-9A-Fa-f]{2})", lambda m: char(m.group(1)), text)
+    return re.sub(r"\\N\{([A-Z0-9 \-]+)\}", named, text)
+
+
+def _forms(text: str) -> tuple[str, str]:
+    """The text as it is read for a leak: composed and case-folded, and the same in plain letters (the
+    reading wave's review, N4: Turkish is written here without its letters by habit, and a decomposed
+    letter is the same letter)."""
+    folded = unicodedata.normalize("NFC", text).casefold()
+    plain = "".join(c for c in unicodedata.normalize("NFKD", folded.replace("\u0131", "i"))
+                    if not unicodedata.combining(c))
+    return folded, plain
 
 
 def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, list[str]]) -> list[tuple[str, int]]:
@@ -248,12 +272,17 @@ def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, lis
     anywhere; a shorter one only whole. The question itself is never printed."""
     # Case-folded, so a question copied in capitals is found too (the W7 review's K4). Escapes decoded
     # first (the reading wave of 2026-10-14): a Turkish line in an ASCII-only test is written
-    # `do\u{011F}ru` in Swift or `do\u011fru` in Python, and the raw text would hide it.
-    folded_texts = {name: _unescaped(text).casefold() for name, text in texts.items()}
-    in_code = {(name, len(q)) for name, text in folded_texts.items() for q in (h.casefold() for h in held)
-               if (len(q) >= 25 and q in text) or f'"{q}"' in text}
-    in_sets = {(name, len(q)) for name, strings in tuning.items() for q in (h.casefold() for h in held)
-               if any(q == s.casefold() or (len(q) >= 25 and q in s.casefold()) for s in strings)}
+    # `do\u{011F}ru` in Swift or `do\u011fru` in Python, and the raw text would hide it. Each side is also
+    # read in plain letters and composed (`_forms`, the wave's review N4). A question split across two
+    # string literals is not found.
+    code_forms = {name: _forms(_unescaped(text)) for name, text in texts.items()}
+    held_forms = [(len(h), _forms(h)) for h in held]
+    in_code = {(name, size) for name, forms in code_forms.items() for size, questions in held_forms
+               if any((size >= 25 and q in text) or f'"{q}"' in text for q, text in zip(questions, forms, strict=True))}
+    set_forms = {name: [_forms(_unescaped(s)) for s in strings] for name, strings in tuning.items()}
+    in_sets = {(name, size) for name, strings in set_forms.items() for size, questions in held_forms
+               if any(q == text or (size >= 25 and q in text)
+                      for forms in strings for q, text in zip(questions, forms, strict=True))}
     return sorted(in_code | in_sets)
 
 
@@ -269,6 +298,18 @@ def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
     turkish = "\u00e7ok uzun bir \u00f6rnek soru, hi\u00e7bir sette yok"
     swift = "".join(c if c.isascii() else f"\\u{{{ord(c):04X}}}" for c in turkish)
     assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{swift}"'}, {}), "a Swift-escaped question passed"
+    # The review's N4: Swift's eight-digit escape, Python's `\U` and `\N{}`, a decomposed letter, plain letters.
+    eight = "".join(c if c.isascii() else f"\\u{{{ord(c):08X}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{eight}"'}, {}), "an eight-digit escape passed"
+    wide = "".join(c if c.isascii() else f"\\U{ord(c):08x}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{wide}"'}, {}), "a \\U escape passed"
+    by_name = "".join(c if c.isascii() else f"\\N{{{unicodedata.name(c)}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{by_name}"'}, {}), "a \\N escape passed"
+    decomposed = unicodedata.normalize("NFD", turkish)
+    assert _held_out_leaks({turkish}, {}, {"tuning.json": [decomposed]}), "a decomposed question passed"
+    plain = "cok uzun bir ornek soru, hicbir sette yok"
+    assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{plain}"'}, {}), "plain letters passed in code"
+    assert _held_out_leaks({turkish}, {}, {"tuning.json": [plain]}), "plain letters passed in a set"
     for python in (turkish.encode("ascii", "backslashreplace").decode(),
                    "".join(c if c.isascii() else f"\\u{ord(c):04x}" for c in turkish)):
         assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{python}"'}, {}), "a Python-escaped question passed"
