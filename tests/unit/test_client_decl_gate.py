@@ -518,9 +518,25 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
     monkeypatch.setattr(gate, "references", lambda ast: {name: set() for name in names})
     assert gate.main() == 1, "a client that uses none of the permissions passed the gate"
     # The control: with no permission granted, the same client passes, so the failure above is theirs.
-    for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED"):
+    for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED",
+                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
+
+
+def test_an_entry_of_the_stores_or_the_engine_clients_list_the_client_no_longer_uses_fails_the_gate() -> None:
+    """The backlog-gates review round 2's N1: `STORE_FOUNDATION_ALLOWED` and `ENGINE_CLIENT_REACHABLE` are
+    permissions too, so an entry the shipping client no longer references is reported, per file, and the
+    next file to need it does not inherit it unreviewed."""
+    store = {f"Foundation.{entry}" for entry in gate.STORE_FOUNDATION_ALLOWED["FrontDoor.swift"]}
+    found = {"FrontDoor.swift": store - {"Foundation.URL.made"}, **ENGINE_CLIENT_SHIPPING}
+    missing = gate.unseen_permissions(found)
+    assert any("FrontDoor.swift" in line and "`URL.made`" in line for line in missing), missing
+    found = {"FrontDoor.swift": store, **ENGINE_CLIENT_SHIPPING, "Models.swift": set()}
+    missing = gate.unseen_permissions(found)
+    assert any("Models.swift" in line and "`EngineClient.maxStandingsBytes`" in line for line in missing), missing
+    found = {"FrontDoor.swift": store, **ENGINE_CLIENT_SHIPPING}
+    assert not [line for line in gate.unseen_permissions(found) if "FrontDoor.swift" in line or "EngineClient." in line]
 
 
 #: M19-W2 Tester: two routes D-180 clause 2 names for the code a sink runs elsewhere, which no fixture
