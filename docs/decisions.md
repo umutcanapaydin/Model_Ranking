@@ -5080,3 +5080,39 @@ not, or carrying the texts.
 
 **Revisit when:** a publisher adds a NOTICE file or a copyright line, a new Apache-2.0 or MIT source is
 credited, or the owner rules that derived positions are not a redistribution.
+
+## D-198 — The gates read what the backlog waves left them blind to: escapes, docs, raw pins, a rebound read and the decision's order
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take the
+recommended option) · **Date:** 2026-10-14 · from #271, #272, #274, #275, #276.
+
+**Context.** The reading wave and the gates wave (#277) filed five gaps in the gates themselves, each found
+by a review or a Tester and each a place where a check passes because it does not look:
+- L1 reads raw characters, so Turkish written with `\u` escapes passes it (#271);
+- the held-out leak check reads no record in `docs/` (#272);
+- the order "decision before code" (D-192 clause 2) is read only for a milestone wave's close (#274);
+- pin files other than two read the app's Swift raw (#275);
+- a URL rebound between a store's `isFileURL` guard and its one read passes every gate (#276).
+
+**Decision.**
+1. **L1 decodes escapes before it reads** (#271): a JSON string's `\uXXXX` in a `.json` file, and Swift's
+   `\u{...}` in a `.swift` file. An escaped Turkish line then needs the same reasoned `.language-allow`
+   entry a raw one does. The probe sets and tests that hold Turkish by design get entries that say so.
+2. **The leak check reads `docs/**/*.md` too** (#272). A match in a record first committed before the set
+   was is not a leak, since the record cannot have read the set; it is the set's overlap with published
+   text, and the test holds those overlaps by file and count, so the next set's seat sees them. A match in
+   any later record fails, as in the code. The check still reports by file and length only.
+3. **A backlog wave's decision comes before its code** (#274). When a branch's range from its merge base
+   with `origin/main` adds no milestone close, each ADR it adds must first appear in a commit that changes
+   no code, and after no code commit of the range that cites it. Where `origin/main` is not in the
+   history (a shallow clone), the check says it skipped.
+4. **Every pin file reads the app's Swift as the build compiles it** (#275): through `_swift` or `_code`,
+   or with a `# raw:` reason on the line. One guard reads every pin file under `tests/unit/`, and its line
+   check is a helper tested on planted lines.
+5. **A store's guard and its read are one expression** (#276). The egress pin permits
+   `guard url.isFileURL,` and the `Data(contentsOf: url)` after it only as one exact expression in each
+   store, so a clause between them fails it. A Swift test loads the on-device store under the offline
+   tripwire. G-13 says what stays #242's: the compiled gate does not record which call made a URL.
+
+**Revisit when:** #242 moves the compiled rules to allowlists, #243 runs the compiled gate in CI, or a
+review finds a check here passing on something it does not read.
