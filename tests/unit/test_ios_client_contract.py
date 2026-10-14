@@ -264,7 +264,9 @@ def _record_matches(held: set[str], texts: dict[str, str]) -> dict[str, int]:
     returned."""
     # The hardening review's M3: a record wraps its lines, doubles its spaces and quotes in backticks, so
     # its whitespace is collapsed and a backtick quotes as a double quote does.
-    read = {name: " ".join(text.split()).replace("`", '"') for name, text in texts.items()}
+    # Round 2's N5: a blockquote's `>` marks are dropped first, so its wrapped lines read as one.
+    read = {name: " ".join(re.sub(r"(?m)^\s*(?:>\s?)+", "", text).split()).replace("`", '"')
+            for name, text in texts.items()}
     counts: dict[str, int] = {}
     for name, _size in _held_out_leaks({" ".join(q.split()) for q in held}, read, {}):
         counts[name] = counts.get(name, 0) + 1

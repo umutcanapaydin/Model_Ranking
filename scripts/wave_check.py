@@ -472,6 +472,12 @@ def adr_order_problems(root: pathlib.Path, base: str, end: str, plan_rel: str | 
     return problems
 
 
+#: #274 (D-198 clause 3, the hardening review's K1 and round 2's N4): what a backlog wave's decision governs
+#: beside the code: its tests and the files that build and gate it.
+BACKLOG_CODE = (*CODE_DIRS, "tests/", "conformance/", "runner/", "requirements/", "schemas/", "Makefile",
+                "stack.mk", "pyproject.toml")
+
+
 def branch_adr_problems(root: pathlib.Path) -> tuple[list[str], str | None]:
     """#274 (D-198 clause 3): a backlog wave's decision comes before its code. The branch's range from its
     merge base with `origin/main` is read as a close's is (`adr_order_problems`, no plan) when it adds no
@@ -492,7 +498,7 @@ def branch_adr_problems(root: pathlib.Path) -> tuple[list[str], str | None]:
     # message names the range it read, so a stale `origin/main` shows as such.
     span = f"{base.strip()[:7]}..HEAD"
     return [f"{problem.removesuffix(' (#201)')} (#201, #274; read on {span})" for problem in
-            adr_order_problems(root, base.strip(), "HEAD", None, (*CODE_DIRS, "tests/"))], None
+            adr_order_problems(root, base.strip(), "HEAD", None, BACKLOG_CODE)], None
 
 
 def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tuple[list[str], str | None]:

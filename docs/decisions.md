@@ -5106,13 +5106,13 @@ by a review or a Tester and each a place where a check passes because it does no
    in backticks (the first review's M3).
 3. **A backlog wave's decision comes before its code** (#274). When a branch's range from its merge base
    with `origin/main` adds no milestone close, each ADR it adds must first appear in a commit that changes
-   no code (its tests included), and after no code commit of the range that cites it; a finding names
+   no code, test or build file (`BACKLOG_CODE`), and after no code commit of the range that cites it; a finding names
    the range it read. Where `origin/main` is not in the history (a shallow clone), the check says it
    skipped. CI's test job checks out one commit, so in CI it says so on every PR until the owner's
    workflow sets `fetch-depth: 0` (#278); it holds on the owner's Mac, where `check-fast` runs it.
 4. **Every pin file reads the app's Swift as the build compiles it** (#275): through `_code`, which drops
-   comments of both kinds and a literally false branch, or `_swift` where a pin cuts a line at its `//`,
-   or with a `# raw:` reason on the line. The guard sees a read that names the iOS folder or a constant
+   comments of both kinds and a literally false branch, or `_swift` where a pin cuts a line at its `//`
+   and says so (`# keeps //:`), or with a `# raw:` reason on the line. The guard sees a read that names the iOS folder or a constant
    bound to it; a read through a function's parameter it cannot see (the first review's N1). One guard reads every pin file under `tests/unit/`, and its line
    check is a helper tested on planted lines.
 5. **A store's guard and its read are one expression** (#276). The egress pin permits

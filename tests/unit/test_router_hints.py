@@ -700,6 +700,8 @@ EGRESS = (
     # W5 review B1 (#58): a URL as a type argument (`Optional<URL>`, `[URL].self`, a tuple), which is
     # what decoding one from text needs
     r"[<\[,(]\s*URL\b",
+    # The hardening review round 2's N6: a URL typed through its module, `Foundation.URL`.
+    r"\bFoundation\s*\.\s*(?:NS)?URL\b",
     r"\binit\s*\(\s*string\s*:", r"(?i)\b(?:https?|ftp|wss?)://", r"(?i)\bmailto:",
     r"\bresourceBytes\b", r"\.lines\b",
     # opening, sharing, handing off -- every system surface that carries text somewhere else

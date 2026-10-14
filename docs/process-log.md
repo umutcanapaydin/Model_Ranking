@@ -877,3 +877,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #274: `make wave-check-all` reads a backlog branch's decision order. Run on the two merged backlog waves,
   it names D-196 and D-197, each written beside its code.
 - The owner capped review rounds at four (2026-10-14): a MAJOR still open after round 4 becomes an issue.
+- After the first two reviews (round 2 MINOR): the #275 pins read through `_code`, which drops `//` comments
+  too, and `_swift` needs its reason; the record scan reads wrapped lines, backticks and blockquotes, and
+  holds two older records (`m20-wave-3-review.md`, `m21-wave-2-review.md`); CI cannot run the #274 rule or
+  the #272 age check until the owner's workflow fetches the whole history (#278).
+- Lesson: a check that reads text is held only as far as its plants reach; each review round found a
+  spelling the last one's plants did not try, so a rule's limits go in its decision, not only its fix.
+

@@ -3,8 +3,10 @@
 #247 held two files to it (`test_router_hints.py` through `_code`, `test_ios_client_contract.py` through
 `_swift`), each with a guard of its own. A pin anywhere else could still read a `/* */` or `#if false` copy
 of a line it requires. Here every other file under `tests/unit/` is read: a `.read_text(` that reaches the
-iOS folder or a `.swift` file goes through `_swift(` or `_code(`, or says on its own line why it reads raw
-(`# raw: <why>`), as an absence check does, which reads dead code too and so refuses more."""
+iOS folder or a `.swift` file goes through `_code(`, or through `_swift(` with `# keeps //: <why>` where a pin
+cuts a line at its `//`, or says on its own line why it reads raw (`# raw: <why>`), as an absence check does,
+which reads dead code too and so refuses more. Not held (round 2's N3): a read through a function's
+parameter, which the guard cannot see, and whether a `# raw:` reason is true."""
 
 from __future__ import annotations
 
@@ -49,13 +51,16 @@ def swift_reads(text: str) -> list[tuple[int, str]]:
 
 
 def explained(line: str) -> bool:
-    """A read that goes through `_swift(` or `_code(` in its code, or carries `# raw: <why>` with a reason."""
+    """A read that goes through `_code(`; through `_swift(`, which keeps `//` comments, only with
+    `# keeps //: <why>` (D-198 clause 4, round 2's N2); or one that carries `# raw: <why>`."""
     code, _, comment = line.partition("#")
-    return bool(re.search(r"\b_(?:swift|code)\(", code)) or bool(re.match(r"\s*raw:\s*\S", comment))
+    if re.search(r"\b_code\(", code) or re.match(r"\s*raw:\s*\S", comment):
+        return True
+    return bool(re.search(r"\b_swift\(", code)) and bool(re.match(r"\s*keeps //:\s*\S", comment))
 
 
 @pytest.mark.parametrize(("line", "ok"), [
-    ('    view = _swift(CLIENT / "ContentView.swift")', True),
+    ('    view = _swift(CLIENT / "ContentView.swift")  # keeps //: the pin cuts a line at its //', True),
     ('    view = _code((IOS / "ContentView.swift").read_text(encoding="utf-8"))', True),
     ('    text = (IOS / "app.sh").read_text(encoding="utf-8")  # raw: not Swift', True),
     ('    view = (IOS / "ContentView.swift").read_text(encoding="utf-8")', False),
@@ -88,13 +93,13 @@ def test_every_read_of_the_ios_folder_in_a_pin_file_goes_through_swift_or_says_w
                    if path.name not in OWN_GUARDS
                    for number, line in swift_reads(path.read_text(encoding="utf-8"))  # raw: this folder's Python
                    if not explained(line)]
-    assert not unexplained, ("a read of the app's Swift past `_swift`, so a dead or commented copy of a line "
-                             f"reads as live; go through `_swift(` or say why on the line: {unexplained}")
+    assert not unexplained, ("a read of the app's Swift past `_code`, so a dead or commented copy of a line "
+                             f"reads as live; go through `_code(` or say why on the line: {unexplained}")
 
 
 def test_the_guard_sees_reads_it_lets_through() -> None:
     """A guard whose derived set is empty passes vacuously (AGENTS.md 3.5)."""
     seen = [line for path in sorted(UNIT.glob("test_*.py")) if path.name not in OWN_GUARDS
             for _, line in swift_reads(path.read_text(encoding="utf-8"))]  # raw: this folder's Python
-    assert sum("_swift(" in line or "_code(" in line for line in seen) >= 3, "the guard sees no `_swift` read"
+    assert sum("_swift(" in line or "_code(" in line for line in seen) >= 3, "the guard sees no `_code` read"
     assert sum("# raw:" in line for line in seen) >= 10, "the guard sees no raw read it lets through"

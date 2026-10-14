@@ -48,7 +48,7 @@ def test_the_base_checks_every_test_and_calls_through() -> None:
     base = _code((TESTS / BASE).read_text(encoding="utf-8"))  # M1: the base's own lines are required, so read as built
     assert re.search(r"override func tearDown\(\)[^}]*OfflineGuard", base, re.S), "the base checks nothing"
     skipping = [f"{path.name}: {hook}" for path in sorted(TESTS.glob("*.swift")) if path.name != BASE
-                for hook in _hooks_skipping_super(path.read_text(encoding="utf-8"))]  # raw: every test class, live or dead, is held
+                for hook in _hooks_skipping_super(_code(path.read_text(encoding="utf-8")))]  # round 2's N1: a commented call is none
     assert skipping == [], "overrides that skip the base: " + ", ".join(skipping)
 
 

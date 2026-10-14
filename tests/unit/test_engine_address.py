@@ -79,7 +79,7 @@ def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     ENGINE_URL on the phone looked like an engine that was down. ContentView is not executed by any
     test (ios/Package.swift), so the view's use of the composed line is pinned here; the line itself is
     tested in EngineClientTests and LanguageTests."""
-    view = _swift(IOS / "ModelRanking" / "ContentView.swift")
+    view = _swift(IOS / "ModelRanking" / "ContentView.swift")  # keeps //: the pin cuts at `// MARK:`, then `_code`s the slice
     start = view.index("private func failure(")
     failure = _code(view[start : view.index("// MARK:", start)])  # block comments too (#98)
     # W1 third review M11: the line is shown, not only computed -- `let _ = error.addressNote(...)`
