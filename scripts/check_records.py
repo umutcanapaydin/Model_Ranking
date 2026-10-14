@@ -1575,7 +1575,7 @@ def adr_pointer_findings(root: Path) -> list[Finding]:
     for adr, (line, body) in sections.items():
         # #253: the reverse of the pair. A pointer names an ADR whose `**Amends**` names this one, or it
         # sends the reader to an ADR that says nothing about it.
-        # The backlog-gates review's N3: anywhere on a line, as the forward check reads `Amends`.
+        # The backlog-gates review round 1's N3: anywhere on a line, as the forward check reads `Amends`.
         for pointer in re.finditer(r"\*\*Amended by (D-\d+)\b", body):
             source, at = pointer.group(1), line + body.count("\n", 0, pointer.start())
             if source not in sections:

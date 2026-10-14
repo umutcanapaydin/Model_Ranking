@@ -8,7 +8,7 @@ func fixtureStoreLoad(_ typed: String) -> Data? {
     return try? Data(contentsOf: target)
 }
 
-// The backlog-gates review's M2: the same, through a parse strategy. REFUSED: it is off the store's list.
+// The backlog-gates review round 1's M2: the same, through a parse strategy. REFUSED: it is off the store's list.
 func fixtureStoreParse(_ typed: String) -> Data? {
     guard let target = try? URL.ParseStrategy().parse("ht" + "tps://example.invalid/?q=" + typed) else { return nil }
     return try? Data(contentsOf: target)

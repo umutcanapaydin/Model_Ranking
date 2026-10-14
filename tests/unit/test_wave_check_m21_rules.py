@@ -817,7 +817,7 @@ def test_an_amended_by_pointer_whose_adr_declares_no_such_amendment_is_refused(t
     found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "b", ghost))]
     assert any("D-9" in m for m in found), found
     assert [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "c", paired))] == []
-    # The backlog-gates review's N3: a stray pointer in the middle of another pointer's line, as D-170
+    # The backlog-gates review round 1's N3: a stray pointer in the middle of another pointer's line, as D-170
     # holds two on one, is refused too.
     inline = paired.replace("**Amended by D-3 (2026-09-03, proposed)**: all.",
                             "**Amended by D-3 (2026-09-03, proposed)**: all. **Amended by D-1 (2026-09-01)**: none.")

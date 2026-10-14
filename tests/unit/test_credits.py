@@ -164,7 +164,10 @@ def test_the_credits_sheet_shows_what_the_engine_layer_decides() -> None:
     import pathlib
     import re
 
-    view = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(encoding="utf-8")
+    from .test_ios_client_contract import _swift
+
+    # The backlog-gates review round 3's N2: read as the build compiles it (#247).
+    view = _swift(pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift")
     sheet = view[view.index("private var creditsSheet"):]
     sheet = sheet[: sheet.index("\n    }\n") + 6]
     assert "CreditsScreen.state(standings, language)" in sheet
@@ -185,7 +188,10 @@ def test_the_credits_button_opens_the_sheet() -> None:
     import pathlib
     import re
 
-    view = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(encoding="utf-8")
+    from .test_ios_client_contract import _swift
+
+    # The backlog-gates review round 3's N2: read as the build compiles it (#247).
+    view = _swift(pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift")
     assert ".sheet(isPresented: $showingCredits) { creditsSheet }" in view
     assert re.search(r'Button \{ showingCredits = true \} label: \{[^}]*\}\s*\.accessibilityIdentifier\("credits"\)', view)
 
@@ -246,7 +252,7 @@ def test_an_apache_or_mit_credit_carries_the_notice_its_licence_asks_to_keep() -
     assert notices["litellm"] == "Copyright (c) 2023 Berri AI"
     assert notices["models_dev"] == "Copyright (c) 2025 models.dev"
     assert notices["helm"] == "Copyright 2022 Stanford University"
-    # The backlog-gates review's N2: the ARC-AGI-2 solutions the runs are scored against are Apache-2.0.
+    # The backlog-gates review round 1's N2: the ARC-AGI-2 solutions the runs are scored against are Apache-2.0.
     assert notices["arc_prize_solutions"] == "Copyright 2019 ARC Prize Foundation."
     for credit in CREDITS.values():
         if credit.licence.startswith(("Apache-2.0", "MIT")):
@@ -267,7 +273,7 @@ LICENCE_TEXT_SHA256 = {
 @pytest.mark.parametrize("name", sorted(LICENCE_TEXT_SHA256))
 def test_the_app_carries_each_licence_text_verbatim(name: str) -> None:
     """#261: the licences ask for a copy of themselves, so the app's copy is the published text, word for
-    word; only its line breaks may differ. The backlog-gates review's N1: the text is read as the build
+    word; only its line breaks may differ. The backlog-gates review round 1's N1: the text is read as the build
     compiles it (`_swift`, #247), and once, so a dead copy above a changed live one satisfies nothing."""
     import hashlib
     import pathlib

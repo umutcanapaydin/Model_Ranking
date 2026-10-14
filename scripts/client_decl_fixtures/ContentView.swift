@@ -269,7 +269,7 @@ struct ContentView {
         client[asking: typed]
     }
 
-    // The backlog-gates review's M1: REFUSED, both. The engine client's members are matched whole.
+    // The backlog-gates review round 1's M1: REFUSED, both. The engine client's members are matched whole.
     func askThroughAnInitialiser(_ typed: String) -> EngineClient {
         EngineClient(asking: typed)
     }

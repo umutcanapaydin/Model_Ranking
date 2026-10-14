@@ -351,7 +351,7 @@ def gate_row_problems(text: str, rules: set[str]) -> list[str]:
     """Each register row that cites a client gate says it is held in part; one that cites the compiled gate
     carries COMPILED, naming rules the fixture has; one that cites a text pin carries PINS, naming exactly
     the pin tests it cites; and the gaps the sentences name are exactly the row's own "Partial:". G-15's
-    sentences went with the gap (#247, the backlog-gates review's N4)."""
+    sentences went with the gap (#247, the backlog-gates review round 1's N4)."""
     found: list[str] = []
     for line in section(text, "The list").splitlines():
         match = ROW.match(line.rstrip())

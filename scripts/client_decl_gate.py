@@ -156,7 +156,7 @@ FILESYSTEM_FILES = {
     "StandingsStore.swift": "the standings the engine sent (D-167)",
 }
 
-#: #246 (G-13, the M21-W3 review's round 3; the backlog-gates review's M2): a store reads with
+#: #246 (G-13, the M21-W3 review's round 3; the backlog-gates review round 1's M2): a store reads with
 #: `Data(contentsOf:)`, which fetches an `https` address as readily as a file, so the Foundation
 #: declarations the gap register's own file may reference are listed, each by the path the compiler
 #: resolves (measured on the shipping client, the four configurations, 2026-10-14). Any other one is
@@ -350,7 +350,7 @@ REQUEST_SOURCE_SHAPES: dict[str, list[re.Pattern[str]]] = {
     "ContentView.task": [re.compile(r"^ContentView\.apply\([\w:]*\)\.outcome\|RoutingOutcome\.categoryID$"),
                          re.compile(r"^ContentView\.select\(_:\)\.id$")],
 }
-#: #244 (the M21-W3 review's round-2 B2; the backlog-gates review's M1): the members of the engine client
+#: #244 (the M21-W3 review's round-2 B2; the backlog-gates review round 1's M1): the members of the engine client
 #: each file other than its own may reach, each matched whole (measured on the shipping client, the four
 #: configurations, 2026-10-14). Anything else on it, an initialiser, a subscript, or a member whose name
 #: begins like a listed one, added there or in an extension elsewhere, is a door past `REQUEST_ARGUMENTS`,
@@ -461,7 +461,7 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "a store makes a URL only"),
     # #244: round two's twins of the surface.
     ("ContentView.swift", "a key path to `ContentView.task`"), ("ContentView.swift", "EngineClient.subscript"),
-    # The backlog-gates review's M1 and M2: an initialiser and a lookalike member of the engine client, and
+    # The backlog-gates review round 1's M1 and M2: an initialiser and a lookalike member of the engine client, and
     # a store's parse strategy.
     ("ContentView.swift", "EngineClient.init(asking:"), ("ContentView.swift", "EngineClient.baseURLSender"),
     ("FrontDoor.swift", "URL.ParseStrategy"), ("Detail.swift", "a member of the engine client off the list"),
@@ -1957,7 +1957,7 @@ def _store_url_problem(name: str, symbol: str, decl: str) -> str | None:
 
 
 def _store_module_problem(name: str, module: str, symbol: str) -> str | None:
-    """#246 (the backlog-gates review's M2): the gap register's own file references only the Foundation
+    """#246 (the backlog-gates review round 1's M2): the gap register's own file references only the Foundation
     declarations on its list."""
     allowed = STORE_FOUNDATION_ALLOWED.get(name)
     if allowed is None or module not in SINK_MODULES or symbol == "<imported>":

@@ -119,7 +119,7 @@ def test_arc_prize_is_credited_under_mit_with_its_dataset() -> None:
     assert "public evaluation" in citation and citation in rank.ATTRIBUTIONS
     credit = board_tables.CREDITS["arc_prize"]
     assert (credit.licence, credit.url) == ("MIT", "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval")
-    # The backlog-gates review's N2: and the solutions it is scored against, under their own licence.
+    # The backlog-gates review round 1's N2: and the solutions it is scored against, under their own licence.
     assert [c["id"] for c in rank.credits_for([citation])] == ["arc_prize", "arc_prize_solutions"]
 
 

@@ -910,7 +910,7 @@ def test_the_stores_shipping_urls_pass() -> None:
 
 
 def test_the_gap_registers_file_references_only_its_listed_foundation_declarations() -> None:
-    """The backlog-gates review's M2: `STORE_URL_MAKERS` matched nothing the rule read, so a URL parsed by
+    """The backlog-gates review round 1's M2: `STORE_URL_MAKERS` matched nothing the rule read, so a URL parsed by
     a strategy and loaded passed. The register's file now references only the Foundation declarations
     measured on the shipping client; a parse strategy or a format style is refused by absence."""
     assert gate.problems({"FrontDoor.swift": {f"Foundation.{d}" for d in gate.STORE_FOUNDATION_ALLOWED["FrontDoor.swift"]}}) == []
@@ -941,7 +941,7 @@ ENGINE_CLIENT_SHIPPING = {
 def test_a_file_reaches_only_the_engine_clients_listed_members() -> None:
     """#244: outside its own file the engine client is reached only through `ENGINE_CLIENT_REACHABLE`; a
     member added to it, or to an extension of it anywhere, is a reviewed edit, not a new door. The
-    backlog-gates review's M1: each member is matched whole, and per file."""
+    backlog-gates review round 1's M1: each member is matched whole, and per file."""
     assert gate.problems(ENGINE_CLIENT_SHIPPING) == []
     for member in ("main.EngineClient.subscript(asking:", "main.EngineClient.ask(_:", "main.EngineClient.session",
                    "main.EngineClient.init(asking:", "main.EngineClient.baseURLSender",

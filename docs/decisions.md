@@ -5070,11 +5070,11 @@ not, or carrying the texts.
    file states, read on 2026-10-14. A publisher whose file states none is named in `PUBLISHES_NO_NOTICE`
    with why (Aider's and Terminal-Bench's appendix templates are unfilled; the ARC Prize runs' dataset holds
    no LICENSE file). The ARC-AGI-2 solutions are credited on their own (`arc_prize_solutions`), with the
-   line their repository's LICENSE states at the pinned commit (the backlog-gates review's N2). No publisher
+   line their repository's LICENSE states at the pinned commit (the backlog-gates review round 1's N2). No publisher
    here has a NOTICE file. An older engine sends none, and the phone reads it.
 3. **The app carries the full text of each licence** (`LicenceText`) and shows it once, under "Licence
    texts", for each licence the served credits name. A test holds each text against the published one, by
-   hash, word for word, read as the build compiles it and once (the backlog-gates review's N1).
+   hash, word for word, read as the build compiles it and once (the backlog-gates review round 1's N1).
 4. **The Apache text's two addresses are text on the screen, never opened** (D-126): the egress pin
    permits each exactly once, in `Models.swift`.
 

@@ -125,7 +125,7 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("arc_prize", "ARC Prize Foundation", "ARC-AGI-2 public evaluation runs, scored by this app",
            "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval", "MIT",
            "https://opensource.org/license/mit"),
-    # The backlog-gates review's N2: the runs are scored against the published solutions (D-194 clause 3),
+    # The backlog-gates review round 1's N2: the runs are scored against the published solutions (D-194 clause 3),
     # whose repository is Apache-2.0 with its own copyright line (LICENSE at the pinned commit `f3283f72`).
     Credit("arc_prize_solutions", "ARC Prize Foundation", "ARC-AGI-2 public evaluation tasks and solutions, "
            "which this app scores the runs against", "https://github.com/arcprize/ARC-AGI-2", "Apache-2.0",

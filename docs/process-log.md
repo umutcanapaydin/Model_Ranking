@@ -847,12 +847,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 ## 2026-10-14 — the gates and licences wave: the pins read the built code, and the Credits sheet carries the licences (D-197)
 
 - #253: A1 reads the pointer pairs both ways; D-176 and D-179 gain the `Amends` they implied.
-- #247 (G-15 closed): every Swift pin reads through `_code` or `_swift`, a raw read says why on its line,
+- #247 (G-15 closed): every Swift pin in `test_router_hints.py` and `test_ios_client_contract.py` reads through
+  `_code` or `_swift`, a raw read says why on its line,
   and `_swift` blanks block comments. The three probes the M21-W3 review planted now fail their pins.
-- #246 (G-13 narrowed): a store makes no URL by a URL initialiser or by a decode whose type names `URL`, and the gap register's file
+- #246 (G-13 narrowed): a store makes no URL by a URL initialiser or by a decode whose type prints as `URL`, and the gap register's file
   references only the Foundation declarations measured on the shipping client (`STORE_FOUNDATION_ALLOWED`,
   since the review's M2); the round-3 probe and a parse strategy are refused in all four configurations. A
-  decode through a generic helper is not (G-13, round 2's M1).
+  decode through a generic helper or a `typealias` is not (G-13, rounds 2 and 3's M1).
 - #244 (G-11 narrowed): no key path may name what a request sends, and each other file reaches only the
   engine-client members measured on it, matched whole (since the review's M1).
 - #245 closed on its remainder, which only a compiler can hold (#243's macOS lane, the owner's).
