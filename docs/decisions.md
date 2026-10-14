@@ -3780,7 +3780,7 @@ place among all the shared models, and the screen says how many it shows of how 
 ## D-176 — The notices are composed by the app from facts; the close call gains its fact
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2
-· **Date:** 2026-10-04 · from #63 (finding 2). **Moves the `/v1` answer payload, additively.**
+· **Date:** 2026-10-04 · **Amends** D-136 (its recorded English remainder; the field added by #253) · from #63 (finding 2). **Moves the `/v1` answer payload, additively.**
 
 **Context.** D-136 had the app compose the two sentences under a pick from `/v1`'s facts, and left the
 notices in the engine's English as a recorded remainder. M18-W2 reproduced #63 on the Turkish screen:
@@ -3904,7 +3904,7 @@ Mac.
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
 ("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W1 · **Date:**
-2026-10-06 · **Amends** D-159, D-164 and D-173 clause 2 · from #100.
+2026-10-06 · **Amends** D-156 clause 3 (named by #253), D-159, D-164 and D-173 clause 2 · from #100.
 
 **Context.** D-173 clause 2 moved the roster guards to model ids (#39). The board guards (D-159 on a
 surface's own board, D-164 on every declared board) still compared raw names. The M18-W4 reviewer
