@@ -336,6 +336,12 @@ REQUEST_SOURCE_SHAPES: dict[str, list[re.Pattern[str]]] = {
     "ContentView.task": [re.compile(r"^ContentView\.apply\([\w:]*\)\.outcome\|RoutingOutcome\.categoryID$"),
                          re.compile(r"^ContentView\.select\(_:\)\.id$")],
 }
+#: #244 (the M21-W3 review's round-2 B2): the members of the engine client a file other than its own may
+#: reach. Anything else on it, a subscript or a method added there or in an extension elsewhere, is a door
+#: past `REQUEST_ARGUMENTS`, so it is refused until it is listed here by a reviewed edit.
+ENGINE_CLIENT_REACHABLE = ("EngineClient.init(", "EngineClient.baseURL", "EngineClient.boards(",
+                           "EngineClient.categories(", "EngineClient.recommendation(task:budget:",
+                           "EngineClient.maxStandingsBytes")
 #: A declaration's other names: a `@State` property's storage and its binding are the property.
 REQUEST_ALIASES = {"ContentView._task": "ContentView.task", "ContentView.$task": "ContentView.task"}
 
@@ -435,6 +441,10 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
     # #246 (G-13): a store makes a URL from text and loads it.
     ("FrontDoor.swift", "a store makes a URL only"),
+    # #244: round two's twins of the surface.
+    ("ContentView.swift", "a key path to `ContentView.task`"), ("ContentView.swift", "EngineClient.subscript"),
+    # The relays above reach the engine client's members too, which #244's list refuses as well.
+    ("Detail.swift", "EngineClient.localDefault"), ("StandingsStore.swift", "a member of the engine client off the list"),
     ("Detail.swift", "FileManager"), ("Detail.swift", "URL.decoded"),
     # #85 (D-180): the M17 relay through shared state, both halves, and P3's standings.
     ("EngineClient.swift", "mutable stored state"),
@@ -543,6 +553,8 @@ FIXTURE_RULES: dict[str, str] = {
     "an expression by name": "NSExpression",
     "reflection and the runtime by name": "ObjectiveC.objc_",
     "a URL a store makes from text": "a store makes a URL only",
+    "a key path to a request's source": "a key path to `ContentView.task`",
+    "the engine client's members": "a member of the engine client off the list",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -1697,6 +1709,14 @@ def _request_source(node: _Node) -> list[str]:
     found += [f"main.<request source>.{path}|{REQUEST_ALIASES[path]} through {path}@{_line(node)}"
               for module, path, *_ in NAMED_DECL.findall(node.line)
               if module == "main" and path in REQUEST_ALIASES and " implicit " not in node.line]
+    # #244: a key path to it, whatever is done with the path afterwards. A declaration a request sends,
+    # named in a key path, can be written through it from anywhere (bound to a name first, or handed to a
+    # generic writer), so no key path may name one.
+    if node.kind == "keypath_expr":
+        named = {path for item in node.walk() for module, path, *_ in NAMED_DECL.findall(item.line) if module == "main"}
+        found += [f"main.<request source>.{REQUEST_ALIASES.get(path, path)}|a key path to "
+                  f"`{REQUEST_ALIASES.get(path, path)}`@{_line(node)}"
+                  for path in named if path in REQUEST_SOURCES or path in REQUEST_ALIASES]
     return found
 
 
@@ -1953,6 +1973,16 @@ def release_problems(found: dict[str, set[str]]) -> list[str]:
             if any(hook in decl for hook in DEBUG_ONLY)]
 
 
+def _engine_client_problem(name: str, module: str, symbol: str) -> str | None:
+    """#244: a member of the engine client off `ENGINE_CLIENT_REACHABLE`, reached from another file."""
+    if name == NETWORK_FILE or module != "main" or not symbol.startswith("EngineClient."):
+        return None
+    if any(symbol.startswith(member) for member in ENGINE_CLIENT_REACHABLE):
+        return None
+    return (f"{name}: reaches `{symbol}`, a member of the engine client off the list another file may reach "
+            f"({', '.join(ENGINE_CLIENT_REACHABLE)}); a new one is a reviewed edit (INV-64, #244)")
+
+
 def _sink_module_problem(name: str, module: str, symbol: str) -> str | None:
     """The M21-W3 review's B1 (#242): a privacy sink's own file references only the Foundation
     declarations on its list, and none of the standard library's process-wide state."""
@@ -1979,7 +2009,8 @@ def problems(found: dict[str, set[str]]) -> list[str]:
                         or _request_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
-            problem = _module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)
+            problem = (_module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)
+                       or _engine_client_problem(name, module, symbol))
             if problem is None and symbol != "<imported>" and module not in {"main", "UIKit", "CoreFoundation"}:
                 problem = _capability_problem(name, symbol, decl)
             if problem is not None:

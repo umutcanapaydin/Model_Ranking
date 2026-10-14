@@ -574,9 +574,9 @@ def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not(
     assert _refused_in("ContentView.swift", "the request's `budget` argument")
     assert _refused_in("ContentView.swift", "assigns `ContentView.task`")
     refused = _refused_in("ContentView.swift", "#174, #188")
-    # The two lines above, and the M21-W3 review's four twins (B2): six, and the screen's own request,
-    # `apply`'s routed surface and `select`'s chosen one are not among them.
-    assert len(refused) == 6, refused
+    # The two lines above, the M21-W3 review's four twins (B2) and round two's two key paths (#244): eight,
+    # and the screen's own request, `apply`'s routed surface and `select`'s chosen one are not among them.
+    assert len(refused) == 8, refused
 
 
 def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:
