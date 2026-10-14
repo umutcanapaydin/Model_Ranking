@@ -861,3 +861,19 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   licences' texts, held word for word by hash.
 - #242 stays open: an allowlist for what a served number may meet would start from 123 distinct calls on
   the shipping client, each to be justified; it is its own piece of work.
+
+## 2026-10-14 — the hardening wave: the gates read what the last two waves found them blind to (D-198)
+
+- D-198 was committed alone, before any code (`7e89544`), as #274 now asks.
+- #276: a store's `isFileURL` guard and its one read are one permitted expression, so a clause binding
+  another `url` between them fails the egress pin; a Swift test loads the on-device store under the tripwire.
+- #271: rule L1 decodes JSON and Swift escapes; the five sets and tests that hold escaped Turkish name why
+  in `.language-allow`.
+- #272: the held-out check reads `docs/**/*.md`. `reading_heldout_m22` overlaps one record written before
+  it (`m21-wave-2-review.md`, three questions), held by file and count; the age check needs the whole
+  history, so CI's one-commit test job skips it and the skip budget rises by one.
+- #275: every pin file reads the app's Swift through `_swift`, or says on the line why it reads raw; one
+  guard (`test_swift_reads.py`) reads every file under `tests/unit/`.
+- #274: `make wave-check-all` reads a backlog branch's decision order. Run on the two merged backlog waves,
+  it names D-196 and D-197, each written beside its code.
+- The owner capped review rounds at four (2026-10-14): a MAJOR still open after round 4 becomes an issue.
