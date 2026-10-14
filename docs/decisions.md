@@ -5020,8 +5020,9 @@ device.
 4. **The held-out leak gate reads escapes.** A Turkish line in an ASCII-only test is written with
    `\u{...}` in Swift or `\uXXXX`/`\xXX` in Python. The gate compared the raw text, so an escaped
    held-out question passed it. It now decodes them first (Swift's one to eight digits, Python's `\U`
-   and `\N{}` too) and compares each side composed and in plain letters (the review's N4); planted
-   tests hold each form. A question split across two string literals is still not found.
+   and `\N{}` too) and compares each side in plain letters as well (the review's N4), which also finds
+   a letter composed or decomposed; planted tests hold the escapes, the plain letters and the dotless i
+   (the Tester's M9). A question split across two string literals is still not found.
 5. **#237's set is live and `wording_heldout_m20_questions.json` is retired** (`RETIRED_HELD_OUT`).
 
 **Measured** (the wording tier, two runs each, counts only):
@@ -5037,7 +5038,8 @@ device.
   measured" before. They get a ranking now. The reading catches less in Turkish than in English (the
   review's N5); catching them is #66's.
 - **A floor does not separate them:** on the wave's own sentences, Turkish searches scored 0.18 to 0.51
-  and Turkish lines that are not a search 0.24 to 0.56, as in English at M16-W1.
+  and Turkish lines that are not a search 0.24 to 0.56, as in English at M16-W1. That run was measured
+  once and not kept; no committed run carries a score (the Tester's M9).
 
 **Revisit when:**
 - #218's short Turkish questions are read by a means with no second reading, measured on a set fresher

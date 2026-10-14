@@ -65,7 +65,8 @@ the same image rule (`unmeasuredHintsTurkish`). The rest stays as it was:
 **A floor does not separate Turkish searches from what is not a search.** On the wave's own sentences,
 the closest surface scored 0.18 to 0.51 for 27 Turkish searches and 0.24 to 0.56 for 18 Turkish lines
 that are not a search. That matches the English finding at M16-W1
-(`docs/reviews/m16-router-floor-measurement.md`), so the floor stays at 0.15.
+(`docs/reviews/m16-router-floor-measurement.md`), so the floor stays at 0.15. That run was measured once
+and not kept: no committed run carries a score (the Tester's M9).
 
 ## 4. After
 
@@ -161,3 +162,14 @@ The review's verdict was MAJOR. Its numbers reproduced the runs above exactly. T
 - **Held-out, once with the final code** (`final-wording-1.json`): two rows carry a letter Turkish does not
   write, and neither carries one of the five, so the narrower rule could read them differently. It did
   not: all 147 rows read as in `review-wording-1.json` (91 right; searches 62 of 89, none not measured).
+
+## 9. After the Tester (`docs/reviews/backlog-reading-tester.md`, MAJOR)
+
+- **M1.** The held-out word check read only the English example table word by word. It now reads every
+  example and image-hint table so, the Turkish ones too. Seven words of the Turkish examples are held by
+  the live set and by no tuning set. Each is everyday Turkish, in the sentences as first committed
+  (`be0b101`) by an author who has never read the set, and each is reviewed by name in the test.
+- **M9.** The floor range above was measured once and not kept, and D-196 clause 4 now names what its
+  planted tests hold.
+- The routing is unchanged, so the held-out runs above stand.
+

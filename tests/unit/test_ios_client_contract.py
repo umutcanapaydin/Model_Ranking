@@ -342,6 +342,39 @@ def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
         assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{python}"'}, {}), "a Python-escaped question passed"
 
 
+def test_a_held_out_question_with_a_dotless_i_is_found_in_plain_letters() -> None:
+    """The reading wave's Tester (T2): `_forms` reads the dotless i as a plain i, and the planted question
+    above holds none, so the gate passed a plain-typed copy of a question with one once that fold went. A
+    made-up question, never a real one."""
+    question = "bu uzun soruda nas\u0131l yaz\u0131ld\u0131\u011f\u0131 hi\u00e7 \u00f6nemli de\u011fil"
+    plain = question.translate(str.maketrans("\u0131\u011f\u00e7\u00f6", "igco"))
+    assert plain.isascii()
+    assert _held_out_leaks({question}, {"Tests.swift": f'let q = "{plain}"'}, {}), "a plain dotless i passed in code"
+    assert _held_out_leaks({question}, {}, {"tuning.json": [plain]}), "a plain dotless i passed in a set"
+
+
+def test_a_held_out_question_of_twenty_five_characters_is_found_inside_a_longer_string() -> None:
+    """The reading wave's Tester (T4): the wave rewrote the length rule (`size >= 25`), and no planted
+    question sat near it, so a rule of 60 passed. Made-up questions, never real ones."""
+    at = "which model writes haikus"
+    below = "which model writes haiku"
+    assert (len(at), len(below)) == (25, 24)
+    assert _held_out_leaks({at}, {"Tests.swift": f'let q = "{at}, please"'}, {}), "25 characters inside a string passed"
+    assert _held_out_leaks({at}, {}, {"tuning.json": [f"{at}, please"]}), "25 characters inside a set's string passed"
+    assert not _held_out_leaks({below}, {"Tests.swift": f'let q = "{below}, please"'}, {}), "24 characters is matched whole"
+
+
+def test_the_held_out_check_reads_each_folder_and_both_kinds_of_file() -> None:
+    """The reading wave's Tester (T3): the round-2 test holds two `Router.swift` files only, so a scan that
+    dropped `tests/`, `src/` or the `.py` files read none of them and stayed green. Each folder is read, with
+    each kind of file it holds."""
+    root = CLIENT.parents[1]
+    read = {(p.relative_to(root).parts[0], p.suffix) for p in _leak_scan_sources(root)}
+    wanted = {("ios", ".swift"), ("scripts", ".swift"), ("scripts", ".py"), ("src", ".py"), ("tests", ".py")}
+    assert wanted <= read, f"not read: {sorted(wanted - read)}"
+    assert "tests/unit/test_ios_client_contract.py" in _leak_scan_texts(root, _leak_scan_sources(root))
+
+
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
     """D-176 (M18-W2): the app says Ruling A's ordering note in both languages from its own copy of
     the engine's sentence, because the note carries no values to compose from. The copy must be the
@@ -1960,6 +1993,7 @@ def test_the_wording_tiers_tuned_text_is_read_by_the_held_out_check() -> None:
     assert entries.get("codebase") is True, "a word is matched whole"
     assert entries.get("unit test") is False and entries.get("book a flight") is True, "phrases"
     assert entries.get("lawyer") is True and entries.get("hukuk") is False, "the refinement words"
+    assert entries.get("cevapla") is True, "the Turkish example sentences are read word by word (Tester's M1)"
 
 
 def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> None:
@@ -1975,6 +2009,10 @@ def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> Non
 #: independent seat that read no code, on `wave/backlog-reading` after `a61ce21`; every entry below was in
 #: the app's hint sentences, keyword lists, refinement words or family words at `a61ce21`, before it.
 _WORDING_BEFORE = "in the app at a61ce21, before reading_heldout_m22 was written, so not read from it"
+#: The Turkish sentences came after the set, so the provenance above does not fit them. Each of these words
+#: is everyday Turkish, in `examplesTurkish` as first committed (`be0b101`), written by the author, who has
+#: never read the set; no outcome of the change on it had been seen then. None was added or kept since.
+_WORDING_TURKISH = "everyday Turkish in examplesTurkish at be0b101, written by an author who never read the set"
 WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "automate": _WORDING_BEFORE,
     "belge": _WORDING_BEFORE,
@@ -2002,12 +2040,21 @@ WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "translates": _WORDING_BEFORE,
     "translation": _WORDING_BEFORE,
     "vergi": _WORDING_BEFORE,
+    # The reading wave's Tester M1: words of the wave's Turkish example sentences, read word by word.
+    "aray\u00fcz": _WORDING_TURKISH,
+    "cevapla": _WORDING_TURKISH,
+    "da\u011f\u0131": _WORDING_TURKISH,
+    "g\u00f6stererek": _WORDING_TURKISH,
+    "kullan\u0131m": _WORDING_TURKISH,
+    "otomatik": _WORDING_TURKISH,
+    "token": _WORDING_TURKISH,
 }
 
 
 def _wording_lists() -> list[tuple[list[str], bool]]:
     """#180 (M21-W2): the wording tier's tuned text, each entry with whether it is matched whole:
-    - the hint sentences (`CategoryHints.examples`), word by word, whole;
+    - the hint sentences (`CategoryHints.examples`, `examplesTurkish` and both `unmeasuredHints` tables),
+      word by word, whole;
     - the keyword lists (D-187): `stems:` by their start, `words:`, `unless:` and `names:` whole, each of
       `phrases:` as words in a row (by its start where it ends in `*`), `marks:` by their start;
     - every other literal in `CategoryHints` and in the refinement words (D-188 clause 6), whole, or by
@@ -2023,8 +2070,8 @@ def _wording_lists() -> list[tuple[list[str], bool]]:
     for region in regions:
         code = "\n".join(line.split("//")[0] for line in region.splitlines())
         taken: list[tuple[int, int]] = []
-        examples = re.search(r"static let examples[^=]*=\s*\[", code)
-        if examples:
+        # The reading wave's Tester M1: every example and image-hint table, the Turkish ones too.
+        for examples in re.finditer(r"static let (?:examples|unmeasuredHints)\w*[^=\n]*=\s*\[", code):
             end = _closing(code, examples.end() - 1)
             taken.append((examples.start(), end))
             sentences = re.findall(r'"([^"\n]*)"', code[examples.end():end])
