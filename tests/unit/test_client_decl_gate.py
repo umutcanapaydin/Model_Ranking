@@ -536,7 +536,7 @@ def test_an_entry_of_the_stores_or_the_engine_clients_list_the_client_no_longer_
     missing = gate.unseen_permissions(found)
     assert any("Models.swift" in line and "`EngineClient.maxStandingsBytes`" in line for line in missing), missing
     found = {"FrontDoor.swift": store, **ENGINE_CLIENT_SHIPPING}
-    assert not [line for line in gate.unseen_permissions(found) if "FrontDoor.swift" in line or "EngineClient." in line]
+    assert not [line for line in gate.unseen_permissions(found) if line.endswith(("Foundation list", "engine client's list"))]
 
 
 #: M19-W2 Tester: two routes D-180 clause 2 names for the code a sink runs elsewhere, which no fixture

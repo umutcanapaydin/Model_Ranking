@@ -1837,6 +1837,11 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 if (name, called) not in seen_calls]
     seen_types = {fact.split(">.")[1] for facts in found.values() for fact in facts if fact.startswith("main.<unserved>.")}
     missing += [f"`{name}`, which no type decodes" for name in NOT_SERVED if name not in seen_types]
+    # The backlog-gates review round 2's N1: the store's Foundation list and the engine client's members.
+    missing += [f"{name}: `{entry}` on the store's Foundation list" for name, allowed in STORE_FOUNDATION_ALLOWED.items()
+                for entry in sorted(allowed) if f"Foundation.{entry}" not in found.get(name, set())]
+    missing += [f"{name}: `{entry}` on the engine client's list" for name, allowed in ENGINE_CLIENT_REACHABLE.items()
+                for entry in sorted(allowed) if f"main.{entry}" not in found.get(name, set())]
     return missing
 
 
