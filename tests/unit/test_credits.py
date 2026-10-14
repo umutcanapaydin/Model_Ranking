@@ -292,3 +292,24 @@ def test_the_app_carries_each_licence_text_verbatim(name: str) -> None:
     assert match
     folded = " ".join(match.group(1).split())
     assert hashlib.sha256(folded.encode()).hexdigest() == LICENCE_TEXT_SHA256[name]
+
+
+def test_the_credits_sheet_draws_each_notice_and_the_licence_texts() -> None:
+    """#261 (D-197 clauses 2 and 3), the gates Tester (T5). `swift test` holds what `CreditsScreen` decides;
+    the sheet must draw it. With the notice's `Text` removed from a row, or the licence texts' section
+    inverted or drawing the name in place of the text, every test passed."""
+    import pathlib
+    import re
+
+    from .test_router_hints import _code
+
+    view = _code((pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(
+        encoding="utf-8"))
+    sheet = view[view.index("private var creditsSheet"):]
+    sheet = sheet[: sheet.index("\n    }\n") + 6]
+    rows = sheet[sheet.index("ForEach(rows)"):sheet.index("case let .notSent")]
+    assert re.search(r"if let notice = row\.notice \{\s*Text\(notice\)", rows)
+    texts = sheet[sheet.index("case let .notSent"):]
+    assert re.search(r"let texts = CreditsScreen\.licenceTexts\(standings\)\s*if !texts\.isEmpty \{\s*"
+                     r"Section\(UIText\.creditsLicenceTexts\(language\)\) \{\s*ForEach\(texts\) \{ licence in\s*"
+                     r"DisclosureGroup\(licence\.name\) \{\s*Text\(licence\.text\)", texts), texts

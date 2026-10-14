@@ -1176,3 +1176,42 @@ def test_a_swift_read_in_this_file_goes_through_code() -> None:
     raw = [f"{number}: {line.strip()}" for number, line in enumerate(lines, start=1)
            if _READ.search(line) and "_code(" not in line and "# raw:" not in line]
     assert not raw, f"Swift read past `_code`, so a dead or commented copy reads as live: {raw}"
+
+
+def test_the_raw_read_guard_sees_the_reads_it_lets_through() -> None:
+    """#247, the gates Tester (T3). The guard above passes when it finds no raw read, and it also passed
+    with a pattern that matched no read at all: a control whose derived set is empty passes vacuously
+    (AGENTS.md 3.5). It must see the reads it lets through, each pin's `_code(` read among them."""
+    lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()  # raw: this file's own text
+    through_code = [line for line in lines if _READ.search(line) and "_code(" in line]
+    assert len(through_code) >= 8, f"the guard's pattern sees {len(through_code)} `_code` reads, not the pins' eight"
+
+
+@pytest.mark.parametrize(
+    ("swift", "live", "dead"),
+    [
+        # Swift's block comments nest: the inner `*/` does not end the outer one.
+        ("/* outer /* inner */ still the comment */\nlet live = 1\n", "let live = 1", "still the comment"),
+        # A `/*` inside a `//` comment opens nothing.
+        ("let a = 1 // see /* here\nlet live = 2\n", "let live = 2", None),
+        # A `/*` inside a string, or a raw string holding a quote, is text.
+        ('let s = "/* text"\nlet live = 3\n', "let live = 3", None),
+        ('let r = #"a " /* b"#\nlet live = 4\n', "let live = 4", None),
+    ],
+)
+def test_without_block_comments_reads_nesting_line_comments_and_strings(swift: str, live: str, dead: str | None) -> None:
+    """#247, the gates Tester (T2). `_without_block_comments` says block comments nest and that a `/*`
+    inside a `//` comment or a string literal opens nothing; no test held either, and each, broken, blanks
+    live code or keeps a comment's text as code."""
+    kept = _without_block_comments(swift)
+    assert live in kept
+    assert kept.count("\n") == swift.count("\n")
+    if dead is not None:
+        assert dead not in kept
+
+
+def test_a_block_comment_that_never_closes_fails_loud() -> None:
+    """#247, the gates Tester (T2). An unclosed `/*` means the scan misread a literal, and blanking to the
+    end would erase live code, so it raises rather than hand a pin less than the build compiles."""
+    with pytest.raises(ValueError, match="never closes"):
+        _without_block_comments("let a = 1\n/* opened\nlet live = 2\n")

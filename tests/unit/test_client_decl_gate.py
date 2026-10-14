@@ -952,3 +952,26 @@ def test_a_file_reaches_only_the_engine_clients_listed_members() -> None:
         refused = gate.problems({name: {"main.EngineClient.baseURL"}})
         assert any("engine client" in line and line.startswith(f"{name}:") for line in refused), refused
     assert gate.problems({"EngineClient.swift": {"main.EngineClient.session"}}) == []
+
+
+def test_the_gap_registers_file_matches_its_foundation_list_whole_and_in_each_foundation_module() -> None:
+    """#246, the gates Tester (T4). The store's list is matched as the engine client's is: a declaration
+    whose name begins like a listed one is another declaration, and is refused until it is listed. With
+    a prefix match, `URL.appendingPathComponent(_:conformingTo:` passed under the listed
+    `URL.appendingPathComponent`. The list covers each module the privacy sink's does (`SINK_MODULES`),
+    not Foundation alone."""
+    for symbol in ("Foundation.URL.appendingPathComponent(_:conformingTo:", "Foundation.Date.init(timeIntervalSince1970:",
+                   "_DarwinFoundation1.probe("):
+        refused = gate.problems({"FrontDoor.swift": {symbol}})
+        assert any(line.startswith("FrontDoor.swift:") and "a store may reference" in line for line in refused), (symbol, refused)
+
+
+def test_a_store_entry_is_seen_only_by_its_own_declaration() -> None:
+    """The backlog-gates review round 2's N1, the gates Tester (T4). An entry counts as used only when the
+    file references that declaration. `URL.appendingPathComponent` and
+    `URL.appendingPathComponent(_:isDirectory:` are two entries; with the first gone from the client and the
+    second kept, the first is stale. A match by substring read it as still used."""
+    store = {f"Foundation.{entry}" for entry in gate.STORE_FOUNDATION_ALLOWED["FrontDoor.swift"]}
+    found = {"FrontDoor.swift": store - {"Foundation.URL.appendingPathComponent"}, **ENGINE_CLIENT_SHIPPING}
+    missing = gate.unseen_permissions(found)
+    assert any("FrontDoor.swift" in line and "`URL.appendingPathComponent`" in line for line in missing), missing
