@@ -164,10 +164,12 @@ def test_the_credits_sheet_shows_what_the_engine_layer_decides() -> None:
     import pathlib
     import re
 
-    from .test_ios_client_contract import _swift
+    from .test_router_hints import _code
 
-    # The backlog-gates review round 3's N2: read as the build compiles it (#247).
-    view = _swift(pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift")
+    # The backlog-gates review round 3's N2 and round 4's N1: read as the build compiles it, with no
+    # comment of either kind (#247).
+    view = _code((pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(
+        encoding="utf-8"))
     sheet = view[view.index("private var creditsSheet"):]
     sheet = sheet[: sheet.index("\n    }\n") + 6]
     assert "CreditsScreen.state(standings, language)" in sheet
@@ -188,10 +190,12 @@ def test_the_credits_button_opens_the_sheet() -> None:
     import pathlib
     import re
 
-    from .test_ios_client_contract import _swift
+    from .test_router_hints import _code
 
-    # The backlog-gates review round 3's N2: read as the build compiles it (#247).
-    view = _swift(pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift")
+    # The backlog-gates review round 3's N2 and round 4's N1: read as the build compiles it, with no
+    # comment of either kind (#247).
+    view = _code((pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(
+        encoding="utf-8"))
     assert ".sheet(isPresented: $showingCredits) { creditsSheet }" in view
     assert re.search(r'Button \{ showingCredits = true \} label: \{[^}]*\}\s*\.accessibilityIdentifier\("credits"\)', view)
 

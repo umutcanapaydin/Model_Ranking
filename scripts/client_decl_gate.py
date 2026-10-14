@@ -40,8 +40,10 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   holds (`scripts/client_decl_fixtures/`), each as written there; the same form written another way
   (bound to a name first, split over lines, behind a widened type) is not held, and any other form is
   not held (G-1, G-2; see INV-66 and INV-76 in `docs/security-invariants.md`).
-- The gap register's own URLs: `FrontDoor.swift` may make a URL and load it with `Data(contentsOf:)`,
-  so a URL its own code makes is held on the compiled module by nothing (G-13, #246).
+- The gap register's own URLs: `FrontDoor.swift` may make a URL and load it with `Data(contentsOf:)`.
+  Since #246 a URL initialiser or a decode whose type prints as `URL` is refused there, and its Foundation
+  declarations are listed (`STORE_FOUNDATION_ALLOWED`); a URL decoded through a generic helper is not held
+  (G-13, #276).
   `StandingsStore.swift` is a privacy sink, so a Foundation declaration off `SINK_FOUNDATION_ALLOWED`
   is refused there, and any other form is not held (G-1).
 - It does not see arguments, and some of the check lives in the text gate for that reason:

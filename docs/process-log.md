@@ -852,10 +852,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   and `_swift` blanks block comments. The three probes the M21-W3 review planted now fail their pins.
 - #246 (G-13 narrowed): a store makes no URL by a URL initialiser or by a decode whose type prints as `URL`, and the gap register's file
   references only the Foundation declarations measured on the shipping client (`STORE_FOUNDATION_ALLOWED`,
-  since the review's M2); the round-3 probe and a parse strategy are refused in all four configurations. A
-  decode through a generic helper or a `typealias` is not (G-13, rounds 2 and 3's M1).
+  since the backlog-gates review round 1's M2); the M21-W3 review's round-3 probe and a parse strategy are refused in all four configurations. A
+  decode through a generic helper or a `typealias` is not (G-13, rounds 2 to 4's M1; #276).
 - #244 (G-11 narrowed): no key path may name what a request sends, and each other file reaches only the
-  engine-client members measured on it, matched whole (since the review's M1).
+  engine-client members measured on it, matched whole (since the backlog-gates review round 1's M1).
 - #245 closed on its remainder, which only a compiler can hold (#243's macOS lane, the owner's).
 - #261 (D-197): each Apache-2.0 or MIT credit carries its copyright notice, and the sheet carries those
   licences' texts, held word for word by hash.
