@@ -5101,13 +5101,19 @@ by a review or a Tester and each a place where a check passes because it does no
 2. **The leak check reads `docs/**/*.md` too** (#272). A match in a record first committed before the set
    was is not a leak, since the record cannot have read the set; it is the set's overlap with published
    text, and the test holds those overlaps by file and count, so the next set's seat sees them. A match in
-   any later record fails, as in the code. The check still reports by file and length only.
+   any later record fails, as in the code. The check still reports by file and length only. A record is
+   read with its whitespace collapsed and a backtick read as a quote, since Markdown wraps lines and quotes
+   in backticks (the first review's M3).
 3. **A backlog wave's decision comes before its code** (#274). When a branch's range from its merge base
    with `origin/main` adds no milestone close, each ADR it adds must first appear in a commit that changes
-   no code, and after no code commit of the range that cites it. Where `origin/main` is not in the
-   history (a shallow clone), the check says it skipped.
-4. **Every pin file reads the app's Swift as the build compiles it** (#275): through `_swift` or `_code`,
-   or with a `# raw:` reason on the line. One guard reads every pin file under `tests/unit/`, and its line
+   no code (its tests included), and after no code commit of the range that cites it; a finding names
+   the range it read. Where `origin/main` is not in the history (a shallow clone), the check says it
+   skipped. CI's test job checks out one commit, so in CI it says so on every PR until the owner's
+   workflow sets `fetch-depth: 0` (#278); it holds on the owner's Mac, where `check-fast` runs it.
+4. **Every pin file reads the app's Swift as the build compiles it** (#275): through `_code`, which drops
+   comments of both kinds and a literally false branch, or `_swift` where a pin cuts a line at its `//`,
+   or with a `# raw:` reason on the line. The guard sees a read that names the iOS folder or a constant
+   bound to it; a read through a function's parameter it cannot see (the first review's N1). One guard reads every pin file under `tests/unit/`, and its line
    check is a helper tested on planted lines.
 5. **A store's guard and its read are one expression** (#276). The egress pin permits
    `guard url.isFileURL,` and the `Data(contentsOf: url)` after it only as one exact expression in each

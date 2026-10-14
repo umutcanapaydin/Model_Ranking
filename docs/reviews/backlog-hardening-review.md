@@ -237,3 +237,15 @@ How the review was done:
 
 | Finding | Disposition | Where |
 |---|---|---|
+| M1 | Fixed in `05ebda7`, red in `b2ece4d`. Both pins on `OfflineTestCase.swift` read it through `_code`; the planted block-commented tearDown above an empty one now fails them. | `tests/unit/test_swift_tests_offline.py` |
+| M2 | Fixed in `05ebda7`, red in `b2ece4d`. The pins #275 moved read through `_code`, which drops `//` comments too; `test_engine_address.py` keeps `_swift` where it cuts at `// MARK:`, and `_code`s the slice. D-198 clause 4 says so. | the eleven pin files, D-198 |
+| M3 | Fixed in `05ebda7`, red in `b2ece4d`. The record scan collapses whitespace and reads a backtick as a quote. Read so, it finds one more overlap, in `m20-wave-3-review.md`, which the age check confirms is older than the set; the table holds it. | `tests/unit/test_ios_client_contract.py`, D-198 clause 2 |
+| N1 | Fixed in `05ebda7`. `declared_names` reads Swift through `_code`. D-198 clause 4 names what the guard cannot see: a read through a function's parameter. | `tests/unit/test_security_invariants.py`, D-198 |
+| N2 | Fixed in `05ebda7`, red in `b2ece4d`. L1 decodes `\#u{...}`, and strips code spans before it decodes, so an escaped backtick opens none. | `scripts/check_records.py` |
+| N3 | Fixed in `05ebda7` and this commit. A finding names the range it read; D-198 clause 3 says CI's one-commit checkout skips the rule; the workflow patch is the owner's, filed as #278. | `scripts/wave_check.py`, D-198, #278 |
+| N4 | Fixed in this commit. A Swift test loads `StandingsStore.onDevice` under the tripwire. The computed-local `url` variant is a spelling the compiled gate does not read; it is #242's (G-14), and the Swift test catches it on a Mac. | `ios/EngineTests/StandingsStoreTests.swift` |
+| N5 | Fixed in `05ebda7`, red in `b2ece4d`. The pin's `pytest.raises` matches the egress rule's own message. | `tests/unit/test_router_hints.py` |
+| K1 | Fixed in `05ebda7`. The backlog rule counts `tests/` as code; a milestone close keeps its rule. | `scripts/wave_check.py` |
+| K2 | Accepted. D-198 clause 1 reads JSON and Swift escapes; Python tests write Turkish inputs as escapes by the project's long practice, and the two files assert router inputs. Decoding Python escapes is a wider change to L1 than #271 asked. | none |
+| R1 | Accepted: spelling checks (G-14); the structural fixes are #242 and #243. | #242, #243 |
+

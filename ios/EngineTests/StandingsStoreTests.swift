@@ -196,6 +196,13 @@ final class StandingsStoreTests: OfflineTestCase {
         XCTAssertNil(StandingsStore(url: elsewhere).load(), "a store read something that is not a file")
     }
 
+    /// #276 (D-198 clause 5, the hardening review's N4): the store the app builds, read as the app reads it,
+    /// reaches nothing. Only the gap register's on-device store was loaded under the tripwire before.
+    func testTheOnDeviceStoreLoadsWithoutReachingOut() {
+        _ = StandingsStore.onDevice.load()
+        XCTAssertEqual(OfflineGuard.drain(), [], "the on-device standings store reached for a remote address")
+    }
+
     func testOnlyTheFieldsTheAppDecodesAreStored() throws {
         // Security S2: the store keeps the standings, re-encoded from what was decoded, so a payload
         // carrying anything else -- a field the engine never serves -- is not written as it came.
