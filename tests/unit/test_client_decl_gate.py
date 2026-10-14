@@ -891,3 +891,30 @@ def test_the_stores_shipping_urls_pass() -> None:
     """#246: what the stores do today is on the list, so the rule refuses nothing they ship."""
     assert gate.problems({"FrontDoor.swift": STORES_SHIPPING_URLS}) == []
     assert "a URL a store makes from text" in gate.FIXTURE_RULES
+
+
+def test_round_two_twins_of_the_surface_are_refused() -> None:
+    """#244 (the M21-W3 review's round-2 B2, gap G-11): a key path to the surface bound to a name before the
+    write, the same key path handed to a generic writer, and a subscript on the engine client that forwards
+    to the request. Each was refused by no rule; the fixture holds each now."""
+    assert len(_refused_in("ContentView.swift", "a key path to `ContentView.task`")) >= 2
+    assert _refused_in("ContentView.swift", "EngineClient.subscript")
+
+
+#: #244: every member of the engine client a file other than its own references on the shipping client,
+#: as `references` reads them (measured 2026-10-14, the simulator's Release configuration).
+ENGINE_CLIENT_SHIPPING = {
+    "ContentView.swift": {"main.EngineClient.baseURL", "main.EngineClient.boards(", "main.EngineClient.categories(",
+                          "main.EngineClient.init(", "main.EngineClient.recommendation(task:budget:"},
+    "Models.swift": {"main.EngineClient.maxStandingsBytes"},
+}
+
+
+def test_a_file_reaches_only_the_engine_clients_listed_members() -> None:
+    """#244: outside its own file the engine client is reached only through `ENGINE_CLIENT_REACHABLE`; a
+    member added to it, or to an extension of it anywhere, is a reviewed edit, not a new door."""
+    assert gate.problems(ENGINE_CLIENT_SHIPPING) == []
+    for member in ("main.EngineClient.subscript(asking:", "main.EngineClient.ask(_:", "main.EngineClient.session"):
+        refused = gate.problems({"ContentView.swift": {member}})
+        assert any("engine client" in line and member.removeprefix("main.") in line for line in refused), refused
+    assert gate.problems({"EngineClient.swift": {"main.EngineClient.session"}}) == []

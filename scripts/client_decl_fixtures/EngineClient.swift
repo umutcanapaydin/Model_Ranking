@@ -53,6 +53,11 @@ struct EngineClient {
         baseURL
     }
 
+    // #244: a member the screen may not reach, which forwards whatever it is handed as the surface.
+    subscript(asking typed: String) -> URL {
+        recommendation(task: typed, budget: "unlimited")
+    }
+
     func recommendation(task: String, budget: String) -> URL {
         baseURL.appendingPathComponent(task + budget)
     }
