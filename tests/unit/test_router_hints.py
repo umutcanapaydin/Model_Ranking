@@ -1121,3 +1121,17 @@ def test_a_directive_inside_a_string_is_text() -> None:
     another holding `#endif`, hid the live code between them from the pins. A string is text."""
     swift = 'let a = """\n#if false\n"""\nstatic var probeTag = ""\nlet b = """\n#endif\n"""\n'
     assert "static var probeTag" in _code(swift)
+
+
+#: A read of a file's text; the pattern is spelled so that this line is not one.
+_READ = re.compile(r"\.read_text\(")
+
+
+def test_a_swift_read_in_this_file_goes_through_code() -> None:
+    """#247 (G-15, the M21-W3 review's rounds 5 and 6): eight pins here read the app's Swift raw, so a
+    `#if false` or `/* */` copy of a line a pin requires satisfied it. Every read goes through `_code`
+    now; a raw read says why on its own line, as `test_ios_client_contract.py`'s guard asks."""
+    lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()  # raw: this file's own text
+    raw = [f"{number}: {line.strip()}" for number, line in enumerate(lines, start=1)
+           if _READ.search(line) and "_code(" not in line and "# raw:" not in line]
+    assert not raw, f"Swift read past `_code`, so a dead or commented copy reads as live: {raw}"

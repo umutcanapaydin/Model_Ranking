@@ -1661,6 +1661,20 @@ def test_a_swift_read_in_this_file_goes_through_swift_which_drops_literally_fals
     assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"
 
 
+def test_swift_blanks_a_block_comment_and_keeps_its_lines_and_line_comments(tmp_path: pathlib.Path) -> None:
+    """#247 (the M21-W3 review's round 6, K1): `_swift` kept comments, so a line a pin requires, kept in
+    a `/* */` block beside its changed copy, satisfied the pin (INV-71's ceiling went to `Int.max` and
+    passed). Block comments are blanked now; their newlines stay, and so do `//` comments, which pins cut
+    lines at."""
+    path = tmp_path / "Probe.swift"
+    path.write_text('let a = 1\n/* let ceiling = byteCeiling(for: path)\n   still the comment */\n'
+                    'let b = 2 // a note\nlet s = "/* text */"\n', encoding="utf-8")
+    swift = _swift(path)
+    assert "byteCeiling" not in swift and "still the comment" not in swift
+    assert swift.split("\n")[3] == "let b = 2 // a note", "a line comment or the line count moved"
+    assert '"/* text */"' in swift, "a comment marker inside a string is text"
+
+
 def test_a_directive_inside_a_block_comment_is_not_read_as_one(tmp_path: pathlib.Path) -> None:
     """The second W2 review's M3 (#110, INV-78): `_swift` read directives in comments, so a `#if false`
     and an `#endif`, each in a block comment, hid the live code between them (F3), which the pins
