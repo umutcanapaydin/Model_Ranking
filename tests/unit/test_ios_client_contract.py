@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import pathlib
 import re
+import unicodedata
 
 import pytest
 
-from tests.unit.test_router_hints import _built_mask, _stripped
+from tests.unit.test_router_hints import _built_mask, _stripped, _without_block_comments
 
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 MODELS = CLIENT / "Engine/Models.swift"
@@ -34,10 +35,12 @@ MODELS = CLIENT / "Engine/Models.swift"
 def _swift(path: pathlib.Path) -> str:
     """A Swift file with each branch `_built_mask` reads as never built blanked (`#if false`, and the
     conditions `_decide` reads as false from their literals), so a pin does not read that branch as
-    live (#110, the W2 review's M3). Comments are kept, so a `/* */` copy of a line a pin requires satisfies it (G-15, #247); a
-    directive inside a comment or a string is none (the second W2 review's M3)."""
+    live (#110, the W2 review's M3). Block comments are blanked, so a `/* */` copy of a line a pin
+    requires does not satisfy it (#247); `//` comments are kept, since pins cut a line at them. A directive
+    inside a comment or a string is none (the second W2 review's M3)."""
     raw = path.read_text(encoding="utf-8")
-    return "\n".join(line if built else "" for line, built in zip(raw.split("\n"), _built_mask(_stripped(raw)), strict=True))
+    kept = _without_block_comments(raw)
+    return "\n".join(line if built else "" for line, built in zip(kept.split("\n"), _built_mask(_stripped(raw)), strict=True))
 
 
 def _swift_sources() -> dict[str, str]:
@@ -173,6 +176,28 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     )
 
 
+def _leak_scan_sources(root: pathlib.Path) -> list[pathlib.Path]:
+    """The app, its tests, the engine and the scripts, as the held-out check reads them."""
+    return [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
+            if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
+
+
+def _leak_scan_texts(root: pathlib.Path, sources: list[pathlib.Path]) -> dict[str, str]:
+    """Each source's raw text, keyed by its path from the root (the reading wave's round-2 M1)."""
+    return {str(p.relative_to(root)): p.read_text(encoding="utf-8", errors="ignore") for p in sources}  # raw: see the check
+
+
+def test_the_held_out_check_reads_each_same_named_file_on_its_own() -> None:
+    """The reading wave's round-2 M1: the check keyed what it read by file name, so a fixture named like
+    an app file (`scripts/client_decl_fixtures/Router.swift`) replaced the app's, and the app's router,
+    which holds the wave's Turkish examples, was never read. Keyed by path, both are."""
+    root = CLIENT.parents[1]
+    read = set(_leak_scan_texts(root, _leak_scan_sources(root)))
+    assert {"ios/ModelRanking/Engine/Router.swift", "scripts/client_decl_fixtures/Router.swift"} <= read
+    names = [p.name for p in _leak_scan_sources(root)]
+    assert len(read) == len(names) > len(set(names)), "no two files share a name, so this test holds nothing"
+
+
 def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     """M18-W3 review B2 and K2: a held-out set measures only while nothing was tuned on it (D-147
     clause 5). The #66 measure was spoiled that way: held-out questions were asserted word for word
@@ -188,13 +213,16 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
             text = row[0] if isinstance(row, list) else row["q"]
             if len(text) >= 15:
                 held.add(text)
-    sources = [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
-               if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
+    sources = _leak_scan_sources(root)
     # A question of 25 characters or more anywhere (the second review's M13: inside a longer string
     # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
     # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
     # raw: a held-out question in a comment or a dead branch is still a leak.
-    texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}  # raw: see above
+    # Keyed by the path from the root (the reading wave's round-2 M1): by name, the fixtures' `Router.swift`
+    # and six other same-named files replaced the app's, so the gate never read them.
+    texts = _leak_scan_texts(root, sources)
+    # The round-3 review's N3: one text per file read, so no file hides another of the same name.
+    assert len(texts) == len(sources), f"{len(sources) - len(texts)} file(s) read under another's key"
     # #119 (M18-W7): the probe's other sets too, which the tests and the tuning read; each live set
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
@@ -211,13 +239,14 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
 #: added after them with no origin shown); `heldout_questions.json` and
 #: `offtopic_heldout_questions.json` ran in M13 and M16 (its second review's K4); M19-W4's two,
 #: measured there and replayed by five review rounds, retired at M20-W5 (#195) when a fresh set
-#: (`wording_heldout_m20_questions.json`) took their place. Shared by the held-out gates (#117).
+#: (`wording_heldout_m20_questions.json`) took their place; it was measured three times and retired at
+#: #237, when an independent seat wrote `reading_heldout_m22_questions.json`. Shared by the held-out gates.
 RETIRED_HELD_OUT = {"heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
                     "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
                     "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
                     "image_heldout_m18_questions.json", "notasearch_heldout_m19_questions.json",
-                    "image_heldout_m19_questions.json"}
+                    "image_heldout_m19_questions.json", "wording_heldout_m20_questions.json"}
 
 
 def _live_held_out_sets() -> list[pathlib.Path]:
@@ -235,15 +264,52 @@ def _json_strings(value: object) -> list[str]:
     return [s for item in value for s in _json_strings(item)] if isinstance(value, list) else []
 
 
+def _unescaped(text: str) -> str:
+    r"""Swift's `\u{...}` and Python's `\uXXXX`, `\UXXXXXXXX`, `\xXX` and `\N{...}` escapes, as the characters
+    they stand for."""
+    def char(code: str) -> str:
+        value = int(code, 16)
+        return chr(value) if value <= 0x10FFFF else ""
+
+    def named(match: re.Match[str]) -> str:
+        try:
+            return unicodedata.lookup(match.group(1))
+        except KeyError:
+            return match.group(0)
+
+    text = re.sub(r"\\u\{([0-9A-Fa-f]{1,8})\}", lambda m: char(m.group(1)), text)
+    text = re.sub(r"\\U([0-9A-Fa-f]{8})", lambda m: char(m.group(1)), text)
+    text = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: char(m.group(1)), text)
+    text = re.sub(r"\\x([0-9A-Fa-f]{2})", lambda m: char(m.group(1)), text)
+    return re.sub(r"\\N\{([A-Za-z0-9 \-]+)\}", named, text)
+
+
+def _forms(text: str) -> tuple[str, str]:
+    """The text as it is read for a leak: composed and case-folded, and the same in plain letters (the
+    reading wave's review, N4: Turkish is written here without its letters by habit, and a decomposed
+    letter is the same letter)."""
+    folded = unicodedata.normalize("NFC", text).casefold()
+    plain = "".join(c for c in unicodedata.normalize("NFKD", folded.replace("\u0131", "i"))
+                    if not unicodedata.combining(c))
+    return folded, plain
+
+
 def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, list[str]]) -> list[tuple[str, int]]:
     """(file, length) for each held-out question found. A question of 25 characters or more counts
     anywhere; a shorter one only whole. The question itself is never printed."""
-    # Case-folded, so a question copied in capitals is found too (the W7 review's K4).
-    folded_texts = {name: text.casefold() for name, text in texts.items()}
-    in_code = {(name, len(q)) for name, text in folded_texts.items() for q in (h.casefold() for h in held)
-               if (len(q) >= 25 and q in text) or f'"{q}"' in text}
-    in_sets = {(name, len(q)) for name, strings in tuning.items() for q in (h.casefold() for h in held)
-               if any(q == s.casefold() or (len(q) >= 25 and q in s.casefold()) for s in strings)}
+    # Case-folded, so a question copied in capitals is found too (the W7 review's K4). Escapes decoded
+    # first (the reading wave of 2026-10-14): a Turkish line in an ASCII-only test is written
+    # `do\u{011F}ru` in Swift or `do\u011fru` in Python, and the raw text would hide it. Each side is also
+    # read in plain letters and composed (`_forms`, the wave's review N4). A question split across two
+    # string literals is not found.
+    code_forms = {name: _forms(_unescaped(text)) for name, text in texts.items()}
+    held_forms = [(len(h), _forms(h)) for h in held]
+    in_code = {(name, size) for name, forms in code_forms.items() for size, questions in held_forms
+               if any((size >= 25 and q in text) or f'"{q}"' in text for q, text in zip(questions, forms, strict=True))}
+    set_forms = {name: [_forms(_unescaped(s)) for s in strings] for name, strings in tuning.items()}
+    in_sets = {(name, size) for name, strings in set_forms.items() for size, questions in held_forms
+               if any(q == text or (size >= 25 and q in text)
+                      for forms in strings for q, text in zip(questions, forms, strict=True))}
     return sorted(in_code | in_sets)
 
 
@@ -255,6 +321,60 @@ def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
     assert _held_out_leaks({planted}, {}, {"tuning.json": [f"prefix: {planted}"]})
     assert not _held_out_leaks({"short one here"}, {}, {"tuning.json": ["a short one here, inside"]})
     assert _held_out_leaks({planted}, {}, {"tuning.json": [planted.upper()]}), "a question in capitals passed"
+    # The reading wave of 2026-10-14: a question written with escapes, as an ASCII-only test writes one.
+    turkish = "\u00e7ok uzun bir \u00f6rnek soru, hi\u00e7bir sette yok"
+    swift = "".join(c if c.isascii() else f"\\u{{{ord(c):04X}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{swift}"'}, {}), "a Swift-escaped question passed"
+    # The review's N4: Swift's eight-digit escape, Python's `\U` and `\N{}`, a decomposed letter, plain letters.
+    eight = "".join(c if c.isascii() else f"\\u{{{ord(c):08X}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{eight}"'}, {}), "an eight-digit escape passed"
+    wide = "".join(c if c.isascii() else f"\\U{ord(c):08x}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{wide}"'}, {}), "a \\U escape passed"
+    by_name = "".join(c if c.isascii() else f"\\N{{{unicodedata.name(c)}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{by_name}"'}, {}), "a \\N escape passed"
+    lower = "".join(c if c.isascii() else f"\\N{{{unicodedata.name(c).lower()}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{lower}"'}, {}), "a lowercase \\N escape passed"
+    decomposed = unicodedata.normalize("NFD", turkish)
+    assert _held_out_leaks({turkish}, {}, {"tuning.json": [decomposed]}), "a decomposed question passed"
+    plain = "cok uzun bir ornek soru, hicbir sette yok"
+    assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{plain}"'}, {}), "plain letters passed in code"
+    assert _held_out_leaks({turkish}, {}, {"tuning.json": [plain]}), "plain letters passed in a set"
+    for python in (turkish.encode("ascii", "backslashreplace").decode(),
+                   "".join(c if c.isascii() else f"\\u{ord(c):04x}" for c in turkish)):
+        assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{python}"'}, {}), "a Python-escaped question passed"
+
+
+def test_a_held_out_question_with_a_dotless_i_is_found_in_plain_letters() -> None:
+    """The reading wave's Tester (T2): `_forms` reads the dotless i as a plain i, and the planted question
+    above holds none, so the gate passed a plain-typed copy of a question with one once that fold went. A
+    made-up question, never a real one."""
+    question = "bu uzun soruda nas\u0131l yaz\u0131ld\u0131\u011f\u0131 hi\u00e7 \u00f6nemli de\u011fil"
+    plain = question.translate(str.maketrans("\u0131\u011f\u00e7\u00f6", "igco"))
+    assert plain.isascii()
+    assert _held_out_leaks({question}, {"Tests.swift": f'let q = "{plain}"'}, {}), "a plain dotless i passed in code"
+    assert _held_out_leaks({question}, {}, {"tuning.json": [plain]}), "a plain dotless i passed in a set"
+
+
+def test_a_held_out_question_of_twenty_five_characters_is_found_inside_a_longer_string() -> None:
+    """The reading wave's Tester (T4): the wave rewrote the length rule (`size >= 25`), and no planted
+    question sat near it, so a rule of 60 passed. Made-up questions, never real ones."""
+    at = "which model writes haikus"
+    below = "which model writes haiku"
+    assert (len(at), len(below)) == (25, 24)
+    assert _held_out_leaks({at}, {"Tests.swift": f'let q = "{at}, please"'}, {}), "25 characters inside a string passed"
+    assert _held_out_leaks({at}, {}, {"tuning.json": [f"{at}, please"]}), "25 characters inside a set's string passed"
+    assert not _held_out_leaks({below}, {"Tests.swift": f'let q = "{below}, please"'}, {}), "24 characters is matched whole"
+
+
+def test_the_held_out_check_reads_each_folder_and_both_kinds_of_file() -> None:
+    """The reading wave's Tester (T3): the round-2 test holds two `Router.swift` files only, so a scan that
+    dropped `tests/`, `src/` or the `.py` files read none of them and stayed green. Each folder is read, with
+    each kind of file it holds."""
+    root = CLIENT.parents[1]
+    read = {(p.relative_to(root).parts[0], p.suffix) for p in _leak_scan_sources(root)}
+    wanted = {("ios", ".swift"), ("scripts", ".swift"), ("scripts", ".py"), ("src", ".py"), ("tests", ".py")}
+    assert wanted <= read, f"not read: {sorted(wanted - read)}"
+    assert "tests/unit/test_ios_client_contract.py" in _leak_scan_texts(root, _leak_scan_sources(root))
 
 
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
@@ -1543,6 +1663,20 @@ def test_a_swift_read_in_this_file_goes_through_swift_which_drops_literally_fals
     assert not raw, f"Swift read past `_swift`, so a `#if false` branch reads as live: {raw}"
 
 
+def test_swift_blanks_a_block_comment_and_keeps_its_lines_and_line_comments(tmp_path: pathlib.Path) -> None:
+    """#247 (the M21-W3 review's round 6, K1): `_swift` kept comments, so a line a pin requires, kept in
+    a `/* */` block beside its changed copy, satisfied the pin (INV-71's ceiling went to `Int.max` and
+    passed). Block comments are blanked now; their newlines stay, and so do `//` comments, which pins cut
+    lines at."""
+    path = tmp_path / "Probe.swift"
+    path.write_text('let a = 1\n/* let ceiling = byteCeiling(for: path)\n   still the comment */\n'
+                    'let b = 2 // a note\nlet s = "/* text */"\n', encoding="utf-8")
+    swift = _swift(path)
+    assert "byteCeiling" not in swift and "still the comment" not in swift
+    assert swift.split("\n")[3] == "let b = 2 // a note", "a line comment or the line count moved"
+    assert '"/* text */"' in swift, "a comment marker inside a string is text"
+
+
 def test_a_directive_inside_a_block_comment_is_not_read_as_one(tmp_path: pathlib.Path) -> None:
     """The second W2 review's M3 (#110, INV-78): `_swift` read directives in comments, so a `#if false`
     and an `#endif`, each in a block comment, hid the live code between them (F3), which the pins
@@ -1653,14 +1787,19 @@ def test_every_signal_word_only_a_live_held_out_set_holds_is_reviewed() -> None:
 
 
 #: #117: each entry of `Reading.swift`'s lists that a live held-out set holds and no tuning set does,
-#: with where it came from. The M19 sets the earlier entries came from are retired (#195, M20-W5);
-#: the live set is M20-W5's, written by an independent seat. Each entry below was in the app before
-#: that set was written, so it cannot have come from it.
+#: with where it came from. The live set is #237's, written by an independent seat that read no code; each
+#: entry below was in `Reading.swift` at its last change, before that set was written, so it cannot have
+#: come from it.
 _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "chatgpt": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
-    "grok": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
-    "resmin": _BEFORE.format(set="wording_heldout_m20", sha="bd273bc"),
+    "disregard": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "instruction": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "maths": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "opus": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "reveal": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "slm": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "sonnet": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
+    "translation": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
 #: ones in its functions too, derived from the source rather than named here. One literal is a list
@@ -1870,6 +2009,7 @@ def test_the_wording_tiers_tuned_text_is_read_by_the_held_out_check() -> None:
     assert entries.get("codebase") is True, "a word is matched whole"
     assert entries.get("unit test") is False and entries.get("book a flight") is True, "phrases"
     assert entries.get("lawyer") is True and entries.get("hukuk") is False, "the refinement words"
+    assert entries.get("cevapla") is True, "the Turkish example sentences are read word by word (Tester's M1)"
 
 
 def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> None:
@@ -1881,41 +2021,56 @@ def test_every_wording_entry_only_a_live_held_out_set_holds_is_reviewed() -> Non
 
 
 #: #180 (M21-W2): each entry of the wording tier's tuned text that a live held-out set holds and no tuning
-#: set does, with where it came from. The live set (`wording_heldout_m20`) was written by an independent
-#: seat that read no code, after M20-W3's `fb773fe`; every entry below was in the app before it, at `main`
-#: (`bd273bc`: the hint sentences and D-187's keyword lists) or in M20-W3 (the refinement words, #206).
-_WORDING_AT_MAIN = "in the app at bd273bc, before wording_heldout_m20 was written, so not read from it"
-_WORDING_IN_W3 = "added at {sha} (M20-W3), before wording_heldout_m20 was written by a seat that read no code"
+#: set does, with where it came from. The live set (`reading_heldout_m22`, #237) was written by an
+#: independent seat that read no code, on `wave/backlog-reading` after `a61ce21`; every entry below was in
+#: the app's hint sentences, keyword lists, refinement words or family words at `a61ce21`, before it.
+_WORDING_BEFORE = "in the app at a61ce21, before reading_heldout_m22 was written, so not read from it"
+#: The Turkish sentences came after the set, so the provenance above does not fit them. Each of these words
+#: is everyday Turkish, in `examplesTurkish` as first committed (`be0b101`), written by the author, who has
+#: never read the set; no outcome of the change on it had been seen then. None was added or kept since.
+_WORDING_TURKISH = "everyday Turkish in examplesTurkish at be0b101, written by an author who never read the set"
 WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
-    "agents": _WORDING_AT_MAIN,
-    "best llm": _WORDING_AT_MAIN,
-    "bilim": _WORDING_AT_MAIN,
-    "chatgpt": _WORDING_AT_MAIN,
-    "coding agent": _WORDING_AT_MAIN,
-    "commands": _WORDING_AT_MAIN,
-    "dress": _WORDING_AT_MAIN,
-    "grok": _WORDING_AT_MAIN,
-    "integral": _WORDING_AT_MAIN,
-    "kurgu": _WORDING_AT_MAIN,
-    "law": _WORDING_AT_MAIN,
-    "overall": _WORDING_AT_MAIN,
-    "php": _WORDING_AT_MAIN,
-    "rust code": _WORDING_AT_MAIN,
-    "searching": _WORDING_AT_MAIN,
-    "tasks": _WORDING_AT_MAIN,
-    "turev": _WORDING_AT_MAIN,
-    "user": _WORDING_AT_MAIN,
-    "yazan": _WORDING_AT_MAIN,
-    "learn": _WORDING_IN_W3.format(sha="fb773fe"),
-    "pazarlama": _WORDING_IN_W3.format(sha="7c12a7b"),
-    "poetry": _WORDING_IN_W3.format(sha="7c12a7b"),
-    "yoksa": _WORDING_IN_W3.format(sha="fb773fe"),
+    "automate": _WORDING_BEFORE,
+    "belge": _WORDING_BEFORE,
+    "bilgi uydur": _WORDING_BEFORE,
+    "biology": _WORDING_BEFORE,
+    "citing": _WORDING_BEFORE,
+    "current": _WORDING_BEFORE,
+    "dogruluk": _WORDING_BEFORE,
+    "gemma": _WORDING_BEFORE,
+    "kaynak goster": _WORDING_BEFORE,
+    "kimya": _WORDING_BEFORE,
+    "literature": _WORDING_BEFORE,
+    "maths": _WORDING_BEFORE,
+    "medical": _WORDING_BEFORE,
+    "mercury": _WORDING_BEFORE,
+    "mini": _WORDING_BEFORE,
+    "minimax": _WORDING_BEFORE,
+    "mixtral": _WORDING_BEFORE,
+    "note": _WORDING_BEFORE,
+    "opus": _WORDING_BEFORE,
+    "phi": _WORDING_BEFORE,
+    "physics": _WORDING_BEFORE,
+    "sonnet": _WORDING_BEFORE,
+    "this contract": _WORDING_BEFORE,
+    "translates": _WORDING_BEFORE,
+    "translation": _WORDING_BEFORE,
+    "vergi": _WORDING_BEFORE,
+    # The reading wave's Tester M1: words of the wave's Turkish example sentences, read word by word.
+    "aray\u00fcz": _WORDING_TURKISH,
+    "cevapla": _WORDING_TURKISH,
+    "da\u011f\u0131": _WORDING_TURKISH,
+    "g\u00f6stererek": _WORDING_TURKISH,
+    "kullan\u0131m": _WORDING_TURKISH,
+    "otomatik": _WORDING_TURKISH,
+    "token": _WORDING_TURKISH,
 }
 
 
 def _wording_lists() -> list[tuple[list[str], bool]]:
     """#180 (M21-W2): the wording tier's tuned text, each entry with whether it is matched whole:
-    - the hint sentences (`CategoryHints.examples`), word by word, whole;
+    - the hint sentences (`CategoryHints.examples`, `examplesTurkish` and both `unmeasuredHints` tables),
+      word by word, whole;
     - the keyword lists (D-187): `stems:` by their start, `words:`, `unless:` and `names:` whole, each of
       `phrases:` as words in a row (by its start where it ends in `*`), `marks:` by their start;
     - every other literal in `CategoryHints` and in the refinement words (D-188 clause 6), whole, or by
@@ -1931,8 +2086,8 @@ def _wording_lists() -> list[tuple[list[str], bool]]:
     for region in regions:
         code = "\n".join(line.split("//")[0] for line in region.splitlines())
         taken: list[tuple[int, int]] = []
-        examples = re.search(r"static let examples[^=]*=\s*\[", code)
-        if examples:
+        # The reading wave's Tester M1: every example and image-hint table, the Turkish ones too.
+        for examples in re.finditer(r"static let (?:examples|unmeasuredHints)\w*[^=\n]*=\s*\[", code):
             end = _closing(code, examples.end() - 1)
             taken.append((examples.start(), end))
             sentences = re.findall(r'"([^"\n]*)"', code[examples.end():end])

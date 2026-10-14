@@ -79,8 +79,8 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 def _code(swift: str) -> str:
     """The source with its comments removed and a branch whose condition is literally false dropped
-    (`_built`): at least what some build compiles. Eight pins here read the app's Swift without it, and a
-    ninth reads `FrontDoorTests.swift` raw in its last assertion (G-15, INV-78)."""
+    (`_built`): at least what some build compiles. Every pin here reads the app's Swift through it; a raw
+    read says why on its line (#247, INV-78)."""
     return _built(_stripped(swift))
 
 
@@ -123,6 +123,42 @@ def _stripped(swift: str) -> str:
             i += 1
     if depth:  # W5 Tester: a comment Swift would refuse to build means the scan misread the file
         msg = "a block comment never closes: `_code` misread a literal, and would erase live code"
+        raise ValueError(msg)
+    return "".join(out)
+
+
+def _without_block_comments(swift: str) -> str:
+    """The source with its block comments blanked and everything else kept: `//` comments, which some
+    pins cut a line at, and every newline (#247, the M21-W3 review's round 6). It scans as `_stripped`
+    does, so a `/*` inside a `//` comment or a string literal opens nothing, and block comments nest."""
+    out: list[str] = []
+    i, depth, n = 0, 0, len(swift)
+    while i < n:
+        two = swift[i:i + 2]
+        if depth:
+            if two == "/*":
+                depth, i = depth + 1, i + 2
+            elif two == "*/":
+                depth, i = depth - 1, i + 2
+            else:
+                out.append("\n" if swift[i] == "\n" else "")
+                i += 1
+        elif two == "/*":
+            depth, i = 1, i + 2
+        elif two == "//":
+            end = swift.find("\n", i)
+            end = n if end < 0 else end
+            out.append(swift[i:end])
+            i = end
+        elif swift[i] == '"' or (swift[i] == "#" and re.match(r'#+"', swift[i:i + 8])):
+            close = _string_end(swift, i)
+            out.append(swift[i:close])
+            i = close
+        else:
+            out.append(swift[i])
+            i += 1
+    if depth:
+        msg = "a block comment never closes: the scan misread a literal, and would erase live code"
         raise ValueError(msg)
     return "".join(out)
 
@@ -219,7 +255,7 @@ def _built_mask(swift: str) -> list[bool]:
 
 def _hint_ids() -> set[str]:
     """The category ids the client has a routing hint for, parsed from the Swift."""
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     block = source[source.index("static let byID:") : source.index("unmeasuredFallback")]
     # `[a-z-]` missed `search_factuality` when M15-W3 added it -- a surface id may carry an
     # underscore (the engine's own ids do), and a hint the pattern cannot see reads here as a hint
@@ -254,10 +290,10 @@ def test_every_surface_the_engine_advertises_has_a_routing_hint() -> None:
     )
 
 
-def _example_counts() -> dict[str, int]:
+def _example_counts(table: str = "examples") -> dict[str, int]:
     """How many example questions the WORDING tier holds per surface, parsed from the Swift."""
-    source = ROUTER.read_text(encoding="utf-8")
-    start = source.index("static let examples:")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
+    start = source.index(f"static let {table}:")
     block = source[start : source.index("\n    ]\n", start)]
     return {
         match.group(1): len(re.findall(r'"[^"]*"', match.group(2)))
@@ -283,6 +319,15 @@ def test_every_described_surface_has_example_questions_for_the_wording_tier() ->
     assert not thin, f"{thin} have fewer than two examples, so their score is one stray sentence"
 
 
+def test_the_turkish_examples_cover_every_described_surface() -> None:
+    """#222: a confidently Turkish question is read against `examplesTurkish`, so a surface missing
+    there is one a Turkish reader on a device without the model can never reach."""
+    counts = _example_counts("examplesTurkish")
+    assert set(counts) == _hint_ids(), f"Turkish examples cover {sorted(counts)}, not {sorted(_hint_ids())}"
+    thin = sorted(surface for surface, count in counts.items() if count < 2)
+    assert not thin, f"{thin} have fewer than two Turkish examples"
+
+
 def test_the_unmeasured_fallback_is_a_surface_the_engine_actually_serves() -> None:
     """REQ-RTR-005, and the owner's ruling that an unmeasured question goes to general chat.
 
@@ -290,7 +335,7 @@ def test_the_unmeasured_fallback_is_a_surface_the_engine_actually_serves() -> No
     genuinely is the tool for a question nothing here measures specifically. Pointing the fallback
     at an id the engine does not serve would turn the front door into a dead end.
     """
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     match = re.search(r'unmeasuredFallback\s*=\s*"([a-z-]+)"', source)
     assert match, "the router has no fallback for a question the catalogue does not measure"
 
@@ -424,7 +469,7 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
     praise: String = "the best model is X"` passed. A computed property carries a `{` on its line
     and stores nothing, so it is not a field.
     """
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     block = source[source.index("struct RoutingOutcome") : source.index("var explanation")]
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
@@ -440,7 +485,7 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
     assert re.search(r"var reading:\s*InputReading\s*=\s*\.search\s*$", block, re.MULTILINE), (
         "`reading` must stay the closed InputReading enum"
     )
-    reading_source = (ROUTER.parent / "Reading.swift").read_text(encoding="utf-8")
+    reading_source = _code((ROUTER.parent / "Reading.swift").read_text(encoding="utf-8"))
     enum = reading_source[reading_source.index("enum InputReading") :]
     enum = enum[: enum.index("\n}\n")]
     code = "\n".join(line.split("//", 1)[0] for line in enum.splitlines())
@@ -461,14 +506,14 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
     )
     for swift in sorted(CLIENT.rglob("*.swift")):
         if swift.name != "Refinements.swift":
-            assert not re.search(r"\bRefinement\s*\(", swift.read_text(encoding="utf-8")), (
+            assert not re.search(r"\bRefinement\s*\(", _code(swift.read_text(encoding="utf-8"))), (
                 f"{swift.name} constructs a Refinement; only the declared table may (D-168)"
             )
 
 
 def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_reads() -> None:
     """REQ-RTR-004. The engine is asked for a SURFACE, never for a question. This pin refuses the
-    spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-11, G-14, G-15; see INV-64).
+    spellings it reads; any other spelling is not held (G-11, G-14; see INV-64).
 
     `/v1` takes `task` and `budget` and nothing else, and the router's only contribution to a
     request is which of nine ids the task is. The scoring path is untouched (D-104) because the
@@ -481,7 +526,7 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
     of every engine call is the bare `task` or `budget`, and `task` is only ever assigned the
     router's surface id or the id the reader tapped.
     """
-    view = (ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8")
+    view = _code((ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8"))
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
 
     calls = re.findall(r"\bclient\.(\w+)\(([^)]*)\)", code)
@@ -534,7 +579,7 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
         "the reader's typed question is being put into a request to the engine"
     )
 
-    client = (ROUTER.parent / "EngineClient.swift").read_text(encoding="utf-8")
+    client = _code((ROUTER.parent / "EngineClient.swift").read_text(encoding="utf-8"))
     assert not re.search(r"\bquestion\b", client), (
         "the engine client mentions the reader's question; it must only ever send task and budget"
     )
@@ -542,17 +587,17 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
 
 def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> None:
     """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else. This pin
-    refuses the spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-13, G-14, G-15; see INV-62 and INV-67).
+    refuses the spellings it reads; any other spelling is not held (G-13, G-14; see INV-62 and INV-67).
 
     The register is the one place the app keeps the reader's words, so it is the most likely place
     for them to leak. Held structurally: it is saved only through `GapRegisterStore`, whose file is
     excluded from iCloud backup; the register code opens no network connection; and no engine call
     is ever handed the register (the data-flow test above already pins every `client.` argument).
     """
-    front = (ROUTER.parent / "FrontDoor.swift").read_text(encoding="utf-8")
-    view = (ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8")
-    register = front[front.index("// MARK: - The gap register") :]
-    code = "\n".join(line.split("//", 1)[0] for line in register.splitlines())
+    front = _code((ROUTER.parent / "FrontDoor.swift").read_text(encoding="utf-8"))
+    view = _code((ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8"))
+    # #247: from the register's first declaration, since `_code` drops the `// MARK:` line that opened it.
+    code = front[front.index("public struct GapEntry") :]
 
     assert "isExcludedFromBackup = true" in code, "the register would be uploaded with the backup"
     # Review S-1: on the phone the register is unreadable while the device is locked.
@@ -561,7 +606,7 @@ def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> Non
     )
     for network in ("URLSession", "URLRequest", "EngineClient", "http"):
         assert network not in code, f"the gap register reaches for `{network}`"
-    view_code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    view_code = view
     # Review m-1: through the tested predicate, so a router failure (manual tier) is not a gap.
     assert re.search(r"if recordsGap\(outcome\) \{\s*gaps\.record\(typed\)", view_code), (
         "the register is not fed by the routed unmeasured outcome, or is fed something else"
@@ -666,6 +711,11 @@ EGRESS_PERMITTED = {
 #: the scan -- never a pattern over a whole file. The W4 seat sent the register itself off the
 #: device with a second `Data(contentsOf:)` inside `save()`, which a file-wide permission let through.
 EGRESS_EXACT = {
+    # #261: the Apache License's own two addresses, in the text the Credits sheet shows verbatim (Apache-2.0
+    # section 4(a)). Text on a screen, selectable, never opened: D-126 keeps every way to open a URL out.
+    # The longer one first, since the shorter is its start.
+    ("Models.swift", "http://www.apache.org/licenses/LICENSE-2.0"): "#261: the Apache-2.0 text, its appendix's address",
+    ("Models.swift", "http://www.apache.org/licenses/"): "#261: the Apache-2.0 text, its heading's address",
     ("FrontDoor.swift", "FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)"): "REQ-GAP-001: where the register lives",
     ("FrontDoor.swift", "FileManager.default.temporaryDirectory"): "REQ-GAP-001: the fallback folder",
     ("FrontDoor.swift", "FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"): "REQ-GAP-001: the register's folder",
@@ -730,7 +780,7 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
         )
         if path.suffix != ".swift":
             continue
-        code = path.read_text(encoding="utf-8")
+        code = path.read_text(encoding="utf-8")  # raw: the egress check reading dead code only refuses more
         # Every `import`, anywhere -- not only at the start of a line, and through comments.
         for module in IMPORT.findall(code.replace("`", "")):
             assert module in CLIENT_IMPORTS, (
@@ -775,7 +825,7 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     # The app target compiles the synchronized `ModelRanking` folder. A source file referenced
     # from anywhere else would be compiled and never read by this gate (W4 review, N10's note).
     # Another target may sync its own folder only if it is a test bundle, which never ships (D-175).
-    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift
     assert "sourcecode." not in project, "the project references a source file outside the folder"
     folders = dict(re.findall(r"(\w+) /\* \w+ \*/ = \{\s*isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project))
     targets = re.findall(r"isa = PBXNativeTarget;.*?fileSystemSynchronizedGroups = \((.*?)\);.*?productType = \"([\w.-]+)\";",
@@ -850,7 +900,7 @@ def test_the_model_tier_hands_the_boundary_the_verdict_it_asked_for() -> None:
     test passed: the model's "something else" was asked for and thrown away, so on a device with
     Apple Intelligence only the code's signals read the question. `ModelRouter.route` needs the
     on-device model, so this is a pin on the source."""
-    code = "\n".join(line.split("//", 1)[0] for line in ROUTER.read_text(encoding="utf-8").splitlines())
+    code = _code(ROUTER.read_text(encoding="utf-8"))
     asked = re.findall(r'DynamicGenerationSchema\.Property\(\s*name:\s*"(\w+)",\s*description:\s*ModelOutputBoundary\.requestGuidance', code)
     assert asked == ["request"], "the schema no longer asks the model for its verdict"
     assert re.search(
@@ -868,7 +918,7 @@ def test_the_model_is_told_what_each_of_its_two_verdicts_means() -> None:
     reading runs on the owner's Mac alone. This pins that the instructions name both closed values,
     from the boundary's own constants, so what the model is told and what the boundary maps cannot
     part."""
-    code = ROUTER.read_text(encoding="utf-8")
+    code = _code(ROUTER.read_text(encoding="utf-8"))
     session = re.search(r'LanguageModelSession\(\s*instructions: """(.*?)"""', code, re.S)
     assert session, "the model tier's instructions are gone"
     told = session.group(1)
@@ -895,7 +945,7 @@ def test_only_tests_hand_the_gap_register_a_writer_of_their_own() -> None:
             if "write:" in call or code[end:].lstrip().startswith("{"):
                 passed.append(f"{path.relative_to(root)}: {call[:60]}")
     assert not passed, f"the app hands the gap register a writer of its own: {passed}"
-    assert "write:" in (root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8"), (
+    assert "write:" in _code((root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8")), (
         "the test that needs the parameter is gone; then the parameter can go too")
 
 
@@ -1000,7 +1050,7 @@ def _sink_pin_problems(sources: dict[str, str]) -> list[str]:
 
 
 def _client_sources() -> dict[str, str]:
-    return {str(p.relative_to(CLIENT)): p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}
+    return {str(p.relative_to(CLIENT)): p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}  # raw: each caller reads it through `_code`
 
 
 def test_the_privacy_sinks_hold_by_text_too() -> None:
@@ -1112,3 +1162,56 @@ def test_a_directive_inside_a_string_is_text() -> None:
     another holding `#endif`, hid the live code between them from the pins. A string is text."""
     swift = 'let a = """\n#if false\n"""\nstatic var probeTag = ""\nlet b = """\n#endif\n"""\n'
     assert "static var probeTag" in _code(swift)
+
+
+#: A read of a file's text; the pattern is spelled so that this line is not one.
+_READ = re.compile(r"\.read_text\(")
+
+
+def test_a_swift_read_in_this_file_goes_through_code() -> None:
+    """#247 (G-15, the M21-W3 review's rounds 5 and 6): eight pins here read the app's Swift raw, so a
+    `#if false` or `/* */` copy of a line a pin requires satisfied it. Every read goes through `_code`
+    now; a raw read says why on its own line, as `test_ios_client_contract.py`'s guard asks."""
+    lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()  # raw: this file's own text
+    raw = [f"{number}: {line.strip()}" for number, line in enumerate(lines, start=1)
+           if _READ.search(line) and "_code(" not in line and "# raw:" not in line]
+    assert not raw, f"Swift read past `_code`, so a dead or commented copy reads as live: {raw}"
+
+
+def test_the_raw_read_guard_sees_the_reads_it_lets_through() -> None:
+    """#247, the gates Tester (T3). The guard above passes when it finds no raw read, and it also passed
+    with a pattern that matched no read at all: a control whose derived set is empty passes vacuously
+    (AGENTS.md 3.5). It must see the reads it lets through, each pin's `_code(` read among them."""
+    lines = pathlib.Path(__file__).read_text(encoding="utf-8").splitlines()  # raw: this file's own text
+    through_code = [line for line in lines if _READ.search(line) and "_code(" in line]
+    assert len(through_code) >= 8, f"the guard's pattern sees {len(through_code)} `_code` reads, not the pins' eight"
+
+
+@pytest.mark.parametrize(
+    ("swift", "live", "dead"),
+    [
+        # Swift's block comments nest: the inner `*/` does not end the outer one.
+        ("/* outer /* inner */ still the comment */\nlet live = 1\n", "let live = 1", "still the comment"),
+        # A `/*` inside a `//` comment opens nothing.
+        ("let a = 1 // see /* here\nlet live = 2\n", "let live = 2", None),
+        # A `/*` inside a string, or a raw string holding a quote, is text.
+        ('let s = "/* text"\nlet live = 3\n', "let live = 3", None),
+        ('let r = #"a " /* b"#\nlet live = 4\n', "let live = 4", None),
+    ],
+)
+def test_without_block_comments_reads_nesting_line_comments_and_strings(swift: str, live: str, dead: str | None) -> None:
+    """#247, the gates Tester (T2). `_without_block_comments` says block comments nest and that a `/*`
+    inside a `//` comment or a string literal opens nothing; no test held either, and each, broken, blanks
+    live code or keeps a comment's text as code."""
+    kept = _without_block_comments(swift)
+    assert live in kept
+    assert kept.count("\n") == swift.count("\n")
+    if dead is not None:
+        assert dead not in kept
+
+
+def test_a_block_comment_that_never_closes_fails_loud() -> None:
+    """#247, the gates Tester (T2). An unclosed `/*` means the scan misread a literal, and blanking to the
+    end would erase live code, so it raises rather than hand a pin less than the build compiles."""
+    with pytest.raises(ValueError, match="never closes"):
+        _without_block_comments("let a = 1\n/* opened\nlet live = 2\n")

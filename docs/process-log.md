@@ -820,3 +820,44 @@ maintainers had withdrawn, and models.dev's makers' catalogues held other makers
 Lesson: read the ADRs of an issue's area before writing its test. D-191 named this wave's #218 rule as
 taken out, and its failures as the ones to avoid; a search of the decisions would have found it first.
 
+
+## 2026-10-14 — the reading wave: Turkish read through the embedding (D-196)
+
+- The owner merged #270; its nine issues were closed. The reading wave started on #237's fresh held-out
+  set (147 questions), written by an independent seat and unread by the author.
+- Before, the wording tier left 8 of 89 searches "not measured", all Turkish: it declines what the
+  recogniser is sure is not English. Apple's contextual embedding turned out to be one multilingual model
+  for Latin script, so a Turkish question is now compared against Turkish examples, with no word list
+  (D-191's class does not arise). The review (MAJOR) found that it changed general questions answered
+  before, and read Azerbaijani as Turkish; both are fixed. Held-out after the fixes: searches right 59
+  to 62, not measured 8 to 0, none lost. The example vectors are now kept: 147 rows probe in 33 s.
+- #194 was closed on its own sign (1 and 3 of 89 searches asked on the model tier), #238 ruled (the four
+  core brands stay models), and #218 and #66 stay open with the fresh set's counts.
+- The leak gate missed escaped text: a held-out question written `\u{...}` in Swift passed it. It now
+  decodes escapes and reads plain letters. Two of the wave's own sentences equalled held-out rows; they
+  were removed unread.
+- Three Code-Reviewer rounds (MAJOR, MAJOR, MINOR). Round 2 found the leak check had never read the
+  app's `Router.swift`: it keyed files by name, and a fixture of the same name replaced it. Round 3
+  narrowed the letter rule to the five letters Azerbaijani and Turkmen write and Turkish never does.
+  Filed: #271 (L1 and escapes), #272 (the leak check and `docs/`), #273 (unsure languages on the English
+  path).
+- DeepSWE (#265): the token lists the dataset's files but cannot read them; the owner's access request is
+  not yet granted.
+
+## 2026-10-14 — the gates and licences wave: the pins read the built code, and the Credits sheet carries the licences (D-197)
+
+- #253: A1 reads the pointer pairs both ways; D-176 and D-179 gain the `Amends` they implied.
+- #247 (G-15 closed): every Swift pin in `test_router_hints.py` and `test_ios_client_contract.py` reads through
+  `_code` or `_swift`, a raw read says why on its line,
+  and `_swift` blanks block comments. The three probes the M21-W3 review planted now fail their pins.
+- #246 (G-13 narrowed): a store makes no URL by a URL initialiser or by a decode whose type prints as `URL`, and the gap register's file
+  references only the Foundation declarations measured on the shipping client (`STORE_FOUNDATION_ALLOWED`,
+  since the backlog-gates review round 1's M2); the M21-W3 review's round-3 probe and a parse strategy are refused in all four configurations. A
+  decode through a generic helper or a `typealias` is not (G-13, rounds 2 to 4's M1; #276).
+- #244 (G-11 narrowed): no key path may name what a request sends, and each other file reaches only the
+  engine-client members measured on it, matched whole (since the backlog-gates review round 1's M1).
+- #245 closed on its remainder, which only a compiler can hold (#243's macOS lane, the owner's).
+- #261 (D-197): each Apache-2.0 or MIT credit carries its copyright notice, and the sheet carries those
+  licences' texts, held word for word by hash.
+- #242 stays open: an allowlist for what a served number may meet would start from 123 distinct calls on
+  the shipping client, each to be justified; it is its own piece of work.

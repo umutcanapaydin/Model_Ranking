@@ -86,6 +86,48 @@ final class CreditsTests: OfflineTestCase {
         XCTAssertEqual(turkish[0].licence, "\(UIText.creditsLicence(.turkish)): CC BY-NC 4.0")
     }
 
+    /// #261 (the #260 review's K1): Apache-2.0 and MIT ask a redistributor for the licence's text and the
+    /// copyright notice. Each credit's notice is shown on its row, and the sheet carries the full text of
+    /// each such licence the credits name, once, however many publishers use it; an older engine's credit
+    /// with no notice still reads, and so does the notice through the copy kept on the phone.
+    func testACreditsNoticeIsShownAndEachLicencesTextIsCarriedOnce() throws {
+        let data = Data("""
+        {"api_version": "v1", "attributions": ["a"], "boards": [], "models": [],
+         "credits": [
+           {"id": "litellm", "publisher": "BerriAI", "data": "LiteLLM model prices",
+            "url": "https://github.com/BerriAI/litellm", "licence": "MIT",
+            "licence_url": "https://github.com/BerriAI/litellm/blob/main/LICENSE", "notice": "Copyright (c) 2023 Berri AI"},
+           {"id": "aider", "publisher": "Aider", "data": "Aider polyglot leaderboard",
+            "url": "https://github.com/Aider-AI/aider", "licence": "Apache-2.0",
+            "licence_url": "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt", "notice": null},
+           {"id": "helm", "publisher": "Stanford CRFM HELM", "data": "MMLU scores", "url": "https://crfm.stanford.edu",
+            "licence": "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
+            "licence_url": "https://github.com/stanford-crfm/helm/blob/main/LICENSE",
+            "notice": "Copyright 2022 Stanford University"},
+           {"id": "swebench", "publisher": "SWE-bench", "data": "SWE-bench leaderboard",
+            "url": "https://www.swebench.com", "licence": "CC BY-NC 4.0",
+            "licence_url": "https://creativecommons.org/licenses/by-nc/4.0/"}
+         ]}
+        """.utf8)
+        let standings = try JSONDecoder().decode(Standings.self, from: data)
+        guard case let .listed(rows) = CreditsScreen.state(standings, .english) else {
+            return XCTFail("the credits were not listed")
+        }
+        XCTAssertEqual(rows.map(\.notice), ["Copyright (c) 2023 Berri AI", nil, "Copyright 2022 Stanford University", nil])
+        let kept = try JSONDecoder().decode(Standings.self, from: JSONEncoder().encode(standings))
+        XCTAssertEqual(kept.credits?.first?.notice, "Copyright (c) 2023 Berri AI")
+
+        let texts = CreditsScreen.licenceTexts(standings)
+        XCTAssertEqual(texts.map(\.name), ["MIT", "Apache-2.0"])
+        XCTAssertTrue(texts[0].text.contains("Permission is hereby granted, free of charge"))
+        XCTAssertTrue(texts[0].text.contains("THE SOFTWARE IS PROVIDED \"AS IS\""))
+        XCTAssertTrue(texts[1].text.contains("TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION"))
+        XCTAssertTrue(texts[1].text.contains("END OF TERMS AND CONDITIONS"))
+        XCTAssertTrue(CreditsScreen.licenceTexts(nil).isEmpty)
+        XCTAssertFalse(UIText.creditsLicenceTexts(.english).isEmpty)
+        XCTAssertNotEqual(UIText.creditsLicenceTexts(.english), UIText.creditsLicenceTexts(.turkish))
+    }
+
     func testTheCreditsScreenSpeaksBothLanguages() {
         let texts: [(Language) -> String] = [UIText.creditsTitle, UIText.creditsPurpose, UIText.creditsLicence,
                                              UIText.creditsData, UIText.creditsUnavailable, UIText.creditsNotSent]

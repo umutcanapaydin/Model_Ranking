@@ -3780,7 +3780,7 @@ place among all the shared models, and the screen says how many it shows of how 
 ## D-176 — The notices are composed by the app from facts; the close call gains its fact
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2
-· **Date:** 2026-10-04 · from #63 (finding 2). **Moves the `/v1` answer payload, additively.**
+· **Date:** 2026-10-04 · **Amends** D-136 (its recorded English remainder; the field added by #253) · from #63 (finding 2). **Moves the `/v1` answer payload, additively.**
 
 **Context.** D-136 had the app compose the two sentences under a pick from `/v1`'s facts, and left the
 notices in the engine's English as a recorded remainder. M18-W2 reproduced #63 on the Turkish screen:
@@ -3904,7 +3904,7 @@ Mac.
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29
 ("proceed with what you recommend, don't ask", owner, translated from Turkish); M19-W1 · **Date:**
-2026-10-06 · **Amends** D-159, D-164 and D-173 clause 2 · from #100.
+2026-10-06 · **Amends** D-156 clause 3 (named by #253), D-159, D-164 and D-173 clause 2 · from #100.
 
 **Context.** D-173 clause 2 moved the roster guards to model ids (#39). The board guards (D-159 on a
 surface's own board, D-164 on every declared board) still compared raw names. The M18-W4 reviewer
@@ -4471,6 +4471,8 @@ composing a list from the boards).
 
 **Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
 
+**Amended by D-196 (2026-10-14)**: clause 1 -- a confidently Turkish question that names no surface is read by the embedding against Turkish examples instead of declining (#222).
+
 ## D-188 — Our own list for every question: a family of boards per task, combined by position
 
 **Status:** proposed -- the agent's proposal for the owner's goal of 2026-10-08 ("our biggest
@@ -4700,6 +4702,8 @@ about (#194).
 or #222 starts, with only words that have one reading; or the owner rules on the four core brands'
 second readings (#238).
 
+**Amended by D-196 (2026-10-14)**: the fourth attempt on the fresh set (#237) reads Turkish through the embedding with no word list (#222); #194 is closed on its sign and #238 ruled; #218 stays open.
+
 ## D-192 — The close checks read the history, and the records may not say more than a gate holds
 
 **Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29; the
@@ -4817,6 +4821,8 @@ testers or the App Store (guideline 5.2.2). A paid app ends SWE-bench's place (C
 **Revisit when:** a publisher answers, the app becomes paid, or the owner rules on Terminal-Bench 4.0.
 
 **Amended by D-194 (2026-10-13)**: clauses 1 and 2 -- ARC-AGI, Terminal-Bench and OpenRouter move to their publishers' licensed data instead of waiting for permission; DeepSWE moves when the owner's Hugging Face token is in place (#265).
+
+**Amended by D-197 (2026-10-14)**: each Apache-2.0 or MIT credit carries its copyright notice, and the sheet carries those licences' full texts (#261).
 
 ## D-194 — The unlicensed boards and OpenRouter's prices move to their publishers' licensed data
 
@@ -4973,3 +4979,104 @@ artifact of 2026-10-13, every link made again (the backlog-data review's rounds 
 **Revisit when:** a maker publishes a Pro or speed tier with an id and price of its own, another family's
 speed tier is read (GLM's `-Fast`, DeepSeek's `-Turbo`), or a board ranks a gathered snapshot apart in a way
 D-182 does not settle.
+
+## D-196 — A Turkish question is read against Turkish examples; #194 and #238 are ruled, not given a fourth rule
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option) and the owner's word of 2026-10-13 to finish the open backlog
+(`docs/research/reading-wave-m22-probe.md`) · **Date:** 2026-10-14 · **Amends** D-187 clause 1 and
+D-191's "Revisit when" · from #222, #237, #194, #238; #218 and #66 stay open.
+
+**Context.** D-191 sent a fourth attempt at #194, #218 and #222 to a fresh held-out set (#237). An
+independent seat wrote it: 147 questions, 89 searches and 58 that are not a search. On it, before this
+wave, the wording tier left 8 of 89 searches "not measured". It declines every question the recogniser
+is sure is not English, and answers one only from a word that names a surface. Apple's contextual
+embedding for Latin script is one multilingual model, the same for English and Turkish, and on the
+device.
+
+**Decision.**
+1. **A confidently Turkish question that had no answer is read against Turkish examples (#222).**
+   - `CategoryHints.examplesTurkish` holds six per surface and `unmeasuredHintsTurkish` the three
+     groups, written for this wave, each also read in plain letters. The scoring, the floor and the
+     image rule are the English path's.
+   - It uses no word list, so D-191's class (a word with a second reading) does not arise.
+   - A word that names a surface still decides first (D-187 clause 1), and a question about models in
+     general (`generalSurface`) keeps `everyday` (the review's M1). So no question answered before the
+     wave changes its surface; one that names its surface now also offers the two closest others, as an
+     English one does. Where `everyday` is not served, the embedding answers.
+   - A question with a letter Azerbaijani or Turkmen writes and Turkish never does (the schwa, a with
+     diaeresis, n with caron, y with acute and z with caron) is not Turkish (the review's M2): the recogniser reads those two languages as Turkish. The
+     question is composed first, so a decomposed letter counts; any other letter (a Greek one, an
+     accented Latin one) and any mark keep it Turkish (rounds 2 and 3). An emoji is still embedded with
+     the question and can move its surface. Azerbaijani or Turkmen written without such a letter is
+     still read as Turkish. Every other language the recogniser is sure of still declines.
+   - The English path is unchanged, except that every example's vector is now computed once per
+     language and kept (the review's K2).
+2. **#194 is closed without a fourth rule.** Its sign was "more than 4 of 40 genuine searches asked".
+   On the fresh set the model tier asked 1 and 3 of 89 searches, and the wording tier none. Three
+   verdicts found a second reading in every list of model names tried (D-191 clause 2).
+3. **#238: claude, gemini, mistral and grok stay read as models wherever they stand.** In an app whose
+   every question is about models, "how much does claude cost" is the common reading. A question of
+   fact about Monet or the zodiac given a ranking is the cost, and is accepted. `AMBIGUOUS_FAMILY_WORDS`,
+   which the issue names, went out with D-191's rules: nothing reads these four as ambiguous today.
+4. **The held-out leak gate reads escapes.** A Turkish line in an ASCII-only test is written with
+   `\u{...}` in Swift or `\uXXXX`/`\xXX` in Python. The gate compared the raw text, so an escaped
+   held-out question passed it. It now decodes them first (Swift's one to eight digits, Python's `\U`
+   and `\N{}` too) and compares each side in plain letters as well (the review's N4), which also finds
+   a letter composed or decomposed; planted tests hold the escapes, the plain letters and the dotless i
+   (the Tester's M9). A question split across two string literals is still not found.
+5. **#237's set is live and `wording_heldout_m20_questions.json` is retired** (`RETIRED_HELD_OUT`).
+
+**Measured** (the wording tier, two runs each, counts only):
+- **Held-out set, after the review's fixes:** 88 right of 147 before, 91 after. Searches right went
+  from 59 to 62 of 89, and searches not measured from 8 to 0. Lines that are not a search caught stay
+  at 29 of 58. Against the first head, before M1's rule (65), 4 searches are lost and 1 gained: three
+  of the 4 are answered `everyday` again, as before the wave, and the fourth, "not measured" before
+  the wave, now reads another surface.
+- **Question by question:** 3 rows gained and none lost.
+- **The wave's own 61 Turkish searches:** 31 right before and 44 after; typed in plain letters, 29 and
+  39.
+- **The cost:** 10 Turkish lines that are not a search, which the reading does not catch, fell to "not
+  measured" before. They get a ranking now. The reading catches less in Turkish than in English (the
+  review's N5); catching them is #66's.
+- **A floor does not separate them:** on the wave's own sentences, Turkish searches scored 0.18 to 0.51
+  and Turkish lines that are not a search 0.24 to 0.56, as in English at M16-W1. That run was measured
+  once and not kept; no committed run carries a score (the Tester's M9).
+
+**Revisit when:**
+- #218's short Turkish questions are read by a means with no second reading, measured on a set fresher
+  than `reading_heldout_m22`, which this wave and its reviews have run at least eight times on the wording tier;
+- #66's bars are met;
+- or the owner asks for another language to be read.
+
+## D-197 — The app carries the Apache-2.0 and MIT texts, and each publisher's notice
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take the
+recommended option) · **Date:** 2026-10-14 · **Amends** D-193 (the Credits screen) · from #261.
+
+**Context.** The Credits screen (#260, D-193) names each publisher's licence and links to it. Apache-2.0
+section 4(a) asks a redistributor to give recipients a copy of the licence, and 4(c) to keep the copyright
+notices; MIT asks that the copyright and permission notice be included. That covers Aider, Terminal-Bench,
+HELM and the ARC-AGI-2 tasks and solutions the app scores the runs against (Apache-2.0, D-194 clause 3),
+and LiteLLM, models.dev and the ARC Prize evaluation runs (MIT). Whether serving
+positions and medians derived from their files is a redistribution was left open
+(`docs/research/data-licences-2026-10-04.md`, rows 9 and 10). #261 offered an owner's ruling that it is
+not, or carrying the texts.
+
+**Decision.**
+1. **The texts are carried, rather than ruled away.** It costs one sheet section, and holds under either
+   reading of "redistribution".
+2. **The engine sends each credit's notice** (`Credit.notice`): the copyright line the publisher's LICENSE
+   file states, read on 2026-10-14. A publisher whose file states none is named in `PUBLISHES_NO_NOTICE`
+   with why (Aider's and Terminal-Bench's appendix templates are unfilled; the ARC Prize runs' dataset holds
+   no LICENSE file). The ARC-AGI-2 solutions are credited on their own (`arc_prize_solutions`), with the
+   line their repository's LICENSE states at the pinned commit (the backlog-gates review round 1's N2). No publisher
+   here has a NOTICE file. An older engine sends none, and the phone reads it.
+3. **The app carries the full text of each licence** (`LicenceText`) and shows it once, under "Licence
+   texts", for each licence the served credits name. A test holds each text against the published one, by
+   hash, word for word, read as the build compiles it and once (the backlog-gates review round 1's N1).
+4. **The Apache text's two addresses are text on the screen, never opened** (D-126): the egress pin
+   permits each exactly once, in `Models.swift`.
+
+**Revisit when:** a publisher adds a NOTICE file or a copyright line, a new Apache-2.0 or MIT source is
+credited, or the owner rules that derived positions are not a redistribution.

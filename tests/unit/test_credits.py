@@ -24,7 +24,7 @@ from app.workflows.rank import (
 
 from .test_board_standings import _chess, _conn, _payload
 
-CREDIT_KEYS = {"id", "publisher", "data", "url", "licence", "licence_url"}
+CREDIT_KEYS = {"id", "publisher", "data", "url", "licence", "licence_url", "notice"}
 
 
 def credits_for(attributions: list[str] | tuple[str, ...]) -> list[dict[str, str | None]]:
@@ -164,7 +164,12 @@ def test_the_credits_sheet_shows_what_the_engine_layer_decides() -> None:
     import pathlib
     import re
 
-    view = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(encoding="utf-8")
+    from .test_router_hints import _code
+
+    # The backlog-gates review round 3's N2 and round 4's N1: read as the build compiles it, with no
+    # comment of either kind (#247).
+    view = _code((pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(
+        encoding="utf-8"))
     sheet = view[view.index("private var creditsSheet"):]
     sheet = sheet[: sheet.index("\n    }\n") + 6]
     assert "CreditsScreen.state(standings, language)" in sheet
@@ -185,7 +190,12 @@ def test_the_credits_button_opens_the_sheet() -> None:
     import pathlib
     import re
 
-    view = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(encoding="utf-8")
+    from .test_router_hints import _code
+
+    # The backlog-gates review round 3's N2 and round 4's N1: read as the build compiles it, with no
+    # comment of either kind (#247).
+    view = _code((pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(
+        encoding="utf-8"))
     assert ".sheet(isPresented: $showingCredits) { creditsSheet }" in view
     assert re.search(r'Button \{ showingCredits = true \} label: \{[^}]*\}\s*\.accessibilityIdentifier\("credits"\)', view)
 
@@ -206,6 +216,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "litellm": ("MIT", "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
         "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
         "arc_prize": ("MIT", "https://opensource.org/license/mit"),
+        "arc_prize_solutions": ("Apache-2.0", "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE"),
         "datacurve": ("\u00a9 Datacurve; no licence published", None),
         "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
@@ -233,3 +244,72 @@ def test_every_citation_a_source_can_owe_is_in_the_catalogue() -> None:
     assert set(SOURCE_ATTRIBUTION.values()) <= catalogue
     assert set(rank.METADATA_ATTRIBUTION.values()) <= catalogue
 
+
+
+def test_an_apache_or_mit_credit_carries_the_notice_its_licence_asks_to_keep() -> None:
+    """#261 (the #260 review's K1): Apache-2.0 section 4(c) and MIT ask a redistributor to keep the
+    copyright notice. Each such credit carries the line its publisher's LICENSE file holds, read on
+    2026-10-14; a publisher whose file holds none is named in `PUBLISHES_NO_NOTICE` with why."""
+    from app.workflows.board_tables import CREDITS, PUBLISHES_NO_NOTICE
+
+    notices = {credit.id: credit.notice for credit in CREDITS.values()}
+    assert notices["litellm"] == "Copyright (c) 2023 Berri AI"
+    assert notices["models_dev"] == "Copyright (c) 2025 models.dev"
+    assert notices["helm"] == "Copyright 2022 Stanford University"
+    # The backlog-gates review round 1's N2: the ARC-AGI-2 solutions the runs are scored against are Apache-2.0.
+    assert notices["arc_prize_solutions"] == "Copyright 2019 ARC Prize Foundation."
+    for credit in CREDITS.values():
+        if credit.licence.startswith(("Apache-2.0", "MIT")):
+            assert bool(credit.notice) != (credit.id in PUBLISHES_NO_NOTICE), credit.id
+        else:
+            assert credit.notice is None and credit.id not in PUBLISHES_NO_NOTICE, credit.id
+    assert credits_for([PRICING_ATTRIBUTION_LITELLM])[0]["notice"] == "Copyright (c) 2023 Berri AI"
+
+
+#: #261: the published texts, whitespace folded, as read on 2026-10-14: Apache-2.0 from Aider's and
+#: Terminal-Bench's LICENSE files (the same text), MIT's terms from models.dev's and LiteLLM's.
+LICENCE_TEXT_SHA256 = {
+    "apache20": "0ffddef9e48f8a09aed5caf2d44f7ba1c1be2d9b8e0a6f693b1635b2d5566645",
+    "mit": "fe2a9817987f862eaced948f0468c7f51d2fedfc48c5c505b246a49a3870e9a5",
+}
+
+
+@pytest.mark.parametrize("name", sorted(LICENCE_TEXT_SHA256))
+def test_the_app_carries_each_licence_text_verbatim(name: str) -> None:
+    """#261: the licences ask for a copy of themselves, so the app's copy is the published text, word for
+    word; only its line breaks may differ. The backlog-gates review round 1's N1: the text is read as the build
+    compiles it (`_swift`, #247), and once, so a dead copy above a changed live one satisfies nothing."""
+    import hashlib
+    import pathlib
+    import re
+
+    from .test_ios_client_contract import _swift
+
+    models = _swift(pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Models.swift")
+    found = re.findall(rf'static let {name} = """\n(.*?)\n"""', models, re.S)
+    assert len(found) == 1, f"Models.swift holds {len(found)} live `{name}` texts, not one"
+    match = re.search(rf'static let {name} = """\n(.*?)\n"""', models, re.S)
+    assert match
+    folded = " ".join(match.group(1).split())
+    assert hashlib.sha256(folded.encode()).hexdigest() == LICENCE_TEXT_SHA256[name]
+
+
+def test_the_credits_sheet_draws_each_notice_and_the_licence_texts() -> None:
+    """#261 (D-197 clauses 2 and 3), the gates Tester (T5). `swift test` holds what `CreditsScreen` decides;
+    the sheet must draw it. With the notice's `Text` removed from a row, or the licence texts' section
+    inverted or drawing the name in place of the text, every test passed."""
+    import pathlib
+    import re
+
+    from .test_router_hints import _code
+
+    view = _code((pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/ContentView.swift").read_text(
+        encoding="utf-8"))
+    sheet = view[view.index("private var creditsSheet"):]
+    sheet = sheet[: sheet.index("\n    }\n") + 6]
+    rows = sheet[sheet.index("ForEach(rows)"):sheet.index("case let .notSent")]
+    assert re.search(r"if let notice = row\.notice \{\s*Text\(notice\)", rows)
+    texts = sheet[sheet.index("case let .notSent"):]
+    assert re.search(r"let texts = CreditsScreen\.licenceTexts\(standings\)\s*if !texts\.isEmpty \{\s*"
+                     r"Section\(UIText\.creditsLicenceTexts\(language\)\) \{\s*ForEach\(texts\) \{ licence in\s*"
+                     r"DisclosureGroup\(licence\.name\) \{\s*Text\(licence\.text\)", texts), texts

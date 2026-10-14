@@ -392,6 +392,11 @@ public enum UIText {
         language == .turkish ? "Veri" : "Data"
     }
 
+    /// #261: the heading over the licences' full texts.
+    public static func creditsLicenceTexts(_ language: Language) -> String {
+        language == .turkish ? "Lisans metinleri" : "Licence texts"
+    }
+
     /// The boards loaded, from an engine older than the Credits screen (the #260 round-2 review's M1).
     public static func creditsNotSent(_ language: Language) -> String {
         language == .turkish

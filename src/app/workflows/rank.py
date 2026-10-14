@@ -136,7 +136,7 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     SWEBENCH_ATTRIBUTION: ("swebench",),
     AIDER_ATTRIBUTION: ("aider",),
     TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
-    ARC_ATTRIBUTION: ("arc_prize",),
+    ARC_ATTRIBUTION: ("arc_prize", "arc_prize_solutions"),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).

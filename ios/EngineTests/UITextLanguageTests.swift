@@ -35,6 +35,7 @@ final class UITextLanguageTests: OfflineTestCase {
             ("creditsData", { UIText.creditsData($0) }),
             ("creditsUnavailable", { UIText.creditsUnavailable($0) }),
             ("creditsNotSent", { UIText.creditsNotSent($0) }),
+            ("creditsLicenceTexts", { UIText.creditsLicenceTexts($0) }),
             ("loading", { UIText.loading($0) }),
             ("heroTitle", { UIText.heroTitle($0) }),
             ("heroSubtitle", { UIText.heroSubtitle($0) }),

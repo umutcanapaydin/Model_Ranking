@@ -756,12 +756,26 @@ struct ContentView: View {
                             if let licenceLink = row.licenceLink {
                                 Text(licenceLink).font(.caption).foregroundStyle(.secondary)
                             }
+                            if let notice = row.notice {
+                                Text(notice).font(.caption)
+                            }
                         }
                         .textSelection(.enabled)
                         .accessibilityElement(children: .combine)
                     }
                 case let .notSent(text), let .notLoaded(text):
                     Text(text).foregroundStyle(.secondary)
+                }
+                // #261: the full text of each licence the credits name that asks for it, once each.
+                let texts = CreditsScreen.licenceTexts(standings)
+                if !texts.isEmpty {
+                    Section(UIText.creditsLicenceTexts(language)) {
+                        ForEach(texts) { licence in
+                            DisclosureGroup(licence.name) {
+                                Text(licence.text).font(.caption2.monospaced()).textSelection(.enabled)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle(UIText.creditsTitle(language))

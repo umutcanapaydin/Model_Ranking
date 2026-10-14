@@ -40,8 +40,10 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   holds (`scripts/client_decl_fixtures/`), each as written there; the same form written another way
   (bound to a name first, split over lines, behind a widened type) is not held, and any other form is
   not held (G-1, G-2; see INV-66 and INV-76 in `docs/security-invariants.md`).
-- The gap register's own URLs: `FrontDoor.swift` may make a URL and load it with `Data(contentsOf:)`,
-  so a URL its own code makes is held on the compiled module by nothing (G-13, #246).
+- The gap register's own URLs: `FrontDoor.swift` may make a URL and load it with `Data(contentsOf:)`.
+  Since #246 a URL initialiser or a decode whose type prints as `URL` is refused there, and its Foundation
+  declarations are listed (`STORE_FOUNDATION_ALLOWED`); a URL decoded through a generic helper is not held
+  (G-13, #276).
   `StandingsStore.swift` is a privacy sink, so a Foundation declaration off `SINK_FOUNDATION_ALLOWED`
   is refused there, and any other form is not held (G-1).
 - It does not see arguments, and some of the check lives in the text gate for that reason:
@@ -155,6 +157,31 @@ FILESYSTEM_FILES = {
     "FrontDoor.swift": "the gap register (REQ-GAP-001)",
     "StandingsStore.swift": "the standings the engine sent (D-167)",
 }
+
+#: #246 (G-13, the M21-W3 review's round 3; the backlog-gates review round 1's M2): a store reads with
+#: `Data(contentsOf:)`, which fetches an `https` address as readily as a file, so the Foundation
+#: declarations the gap register's own file may reference are listed, each by the path the compiler
+#: resolves (measured on the shipping client, the four configurations, 2026-10-14). Any other one is
+#: refused by absence, a URL parse strategy or format style among them, so a new one is a reviewed edit.
+#: `StandingsStore.swift` is a privacy sink, held so by `SINK_FOUNDATION_ALLOWED`.
+STORE_FOUNDATION_ALLOWED: dict[str, frozenset[str]] = {
+    "FrontDoor.swift": frozenset({
+        "CharacterSet.newlines", "CharacterSet.whitespaces", "CharacterSet.whitespacesAndNewlines",
+        "Data.init(contentsOf:options:", "Data.write(to:options:", "Date.init(",
+        "FileManager.SearchPathDirectory.applicationSupportDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
+        "FileManager.createDirectory(at:withIntermediateDirectories:attributes:", "FileManager.default",
+        "FileManager.temporaryDirectory", "FileManager.urls(for:in:",
+        "JSONDecoder.decode(_:from:", "JSONDecoder.init(", "JSONEncoder.encode", "JSONEncoder.init(",
+        "Locale.init(identifier:", "NSData.WritingOptions.atomic", "NSData.WritingOptions.completeFileProtection",
+        "StringProtocol.components(separatedBy:", "StringProtocol.lowercased(with:", "StringProtocol.trimmingCharacters(in:",
+        "URL.appendingPathComponent", "URL.appendingPathComponent(_:isDirectory:", "URL.deletingLastPathComponent(",
+        "URL.isFileURL", "URL.made", "URL.setResourceValues", "URLResourceValues.init(",
+        "URLResourceValues.isExcludedFromBackup",
+    }),
+}
+#: A symbol that makes a URL by its own name: an initialiser of a URL type, or a decode of one. Refused in
+#: both stores, the privacy sink's list notwithstanding (it lists `URL.init(string:` for the engine client).
+URL_MADE_BY_NAME = re.compile(r"^(?:URL|NSURL)\.(?:init\(|decoded\b)")
 
 #: Appending a path component builds a route inside a URL that already exists, so it belongs to
 #: whoever owns that URL: the register's folder in one file, the engine's request path in the other.
@@ -325,6 +352,16 @@ REQUEST_SOURCE_SHAPES: dict[str, list[re.Pattern[str]]] = {
     "ContentView.task": [re.compile(r"^ContentView\.apply\([\w:]*\)\.outcome\|RoutingOutcome\.categoryID$"),
                          re.compile(r"^ContentView\.select\(_:\)\.id$")],
 }
+#: #244 (the M21-W3 review's round-2 B2; the backlog-gates review round 1's M1): the members of the engine client
+#: each file other than its own may reach, each matched whole (measured on the shipping client, the four
+#: configurations, 2026-10-14). Anything else on it, an initialiser, a subscript, or a member whose name
+#: begins like a listed one, added there or in an extension elsewhere, is a door past `REQUEST_ARGUMENTS`,
+#: so it is refused until it is listed here by a reviewed edit.
+ENGINE_CLIENT_REACHABLE: dict[str, frozenset[str]] = {
+    "ContentView.swift": frozenset({"EngineClient.init(", "EngineClient.baseURL", "EngineClient.boards(",
+                                    "EngineClient.categories(", "EngineClient.recommendation(task:budget:"}),
+    "Models.swift": frozenset({"EngineClient.maxStandingsBytes"}),
+}
 #: A declaration's other names: a `@State` property's storage and its binding are the property.
 REQUEST_ALIASES = {"ContentView._task": "ContentView.task", "ContentView.$task": "ContentView.task"}
 
@@ -422,6 +459,16 @@ SNAPSHOT = ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt"
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
+    # #246 (G-13): a store makes a URL from text and loads it.
+    ("FrontDoor.swift", "a store makes a URL only"),
+    # #244: round two's twins of the surface.
+    ("ContentView.swift", "a key path to `ContentView.task`"), ("ContentView.swift", "EngineClient.subscript"),
+    # The backlog-gates review round 1's M1 and M2: an initialiser and a lookalike member of the engine client, and
+    # a store's parse strategy.
+    ("ContentView.swift", "EngineClient.init(asking:"), ("ContentView.swift", "EngineClient.baseURLSender"),
+    ("FrontDoor.swift", "URL.ParseStrategy"), ("Detail.swift", "a member of the engine client off the list"),
+    # The relays above reach the engine client's members too, which #244's list refuses as well.
+    ("Detail.swift", "EngineClient.localDefault"), ("StandingsStore.swift", "a member of the engine client off the list"),
     ("Detail.swift", "FileManager"), ("Detail.swift", "URL.decoded"),
     # #85 (D-180): the M17 relay through shared state, both halves, and P3's standings.
     ("EngineClient.swift", "mutable stored state"),
@@ -529,6 +576,9 @@ FIXTURE_RULES: dict[str, str] = {
     "the router's outcomes": "builds RoutingOutcome",
     "an expression by name": "NSExpression",
     "reflection and the runtime by name": "ObjectiveC.objc_",
+    "a URL a store makes from text": "a store makes a URL only",
+    "a key path to a request's source": "a key path to `ContentView.task`",
+    "the engine client's members": "a member of the engine client off the list",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -1683,6 +1733,14 @@ def _request_source(node: _Node) -> list[str]:
     found += [f"main.<request source>.{path}|{REQUEST_ALIASES[path]} through {path}@{_line(node)}"
               for module, path, *_ in NAMED_DECL.findall(node.line)
               if module == "main" and path in REQUEST_ALIASES and " implicit " not in node.line]
+    # #244: a key path to it, whatever is done with the path afterwards. A declaration a request sends,
+    # named in a key path, can be written through it from anywhere (bound to a name first, or handed to a
+    # generic writer), so no key path may name one.
+    if node.kind == "keypath_expr":
+        named = {path for item in node.walk() for module, path, *_ in NAMED_DECL.findall(item.line) if module == "main"}
+        found += [f"main.<request source>.{REQUEST_ALIASES.get(path, path)}|a key path to "
+                  f"`{REQUEST_ALIASES.get(path, path)}`@{_line(node)}"
+                  for path in named if path in REQUEST_SOURCES or path in REQUEST_ALIASES]
     return found
 
 
@@ -1781,6 +1839,11 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 if (name, called) not in seen_calls]
     seen_types = {fact.split(">.")[1] for facts in found.values() for fact in facts if fact.startswith("main.<unserved>.")}
     missing += [f"`{name}`, which no type decodes" for name in NOT_SERVED if name not in seen_types]
+    # The backlog-gates review round 2's N1: the store's Foundation list and the engine client's members.
+    missing += [f"{name}: `{entry}` on the store's Foundation list" for name, allowed in STORE_FOUNDATION_ALLOWED.items()
+                for entry in sorted(allowed) if f"Foundation.{entry}" not in found.get(name, set())]
+    missing += [f"{name}: `{entry}` on the engine client's list" for name, allowed in ENGINE_CLIENT_REACHABLE.items()
+                for entry in sorted(allowed) if f"main.{entry}" not in found.get(name, set())]
     return missing
 
 
@@ -1887,6 +1950,27 @@ def _reach_anything_problem(name: str, symbol: str, head: str, decl: str) -> str
     return None
 
 
+def _store_url_problem(name: str, symbol: str, decl: str) -> str | None:
+    """#246 (G-13): a store makes no URL by an initialiser or a decode."""
+    if name in FILESYSTEM_FILES and URL_MADE_BY_NAME.match(symbol):
+        return (f"{name}: `{decl}` makes a URL, and a store makes a URL only from the file system's folders: "
+                "its read fetches an https address as readily as a file (#246)")
+    return None
+
+
+def _store_module_problem(name: str, module: str, symbol: str) -> str | None:
+    """#246 (the backlog-gates review round 1's M2): the gap register's own file references only the Foundation
+    declarations on its list."""
+    allowed = STORE_FOUNDATION_ALLOWED.get(name)
+    if allowed is None or module not in SINK_MODULES or symbol == "<imported>":
+        return None
+    if symbol in allowed or any(entry.startswith(f"{symbol}.") for entry in allowed):
+        return None
+    return (f"{name}: `{module}.{symbol}` is not on the list of Foundation declarations a store may reference "
+            f"({FILESYSTEM_FILES[name]}); its read fetches an https address as readily as a file, so a store "
+            "makes a URL only from the file system's folders, and the list widens only by a reviewed edit (#246)")
+
+
 def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     """Network, file system and the ways text leaves a phone, inside the allowed modules."""
     head = symbol.split("(")[0]
@@ -1894,7 +1978,7 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
         return None
     if any(symbol.startswith(p) or head == p for p in FORBIDDEN):
         return f"{name}: `{decl}` carries text off the device or into shared storage"
-    if (reached := _reach_anything_problem(name, symbol, head, decl)) is not None:
+    if (reached := _reach_anything_problem(name, symbol, head, decl) or _store_url_problem(name, symbol, decl)) is not None:
         return reached
     if any(symbol.startswith(p) for p in PATH_BUILDING):
         if name in {*FILESYSTEM_FILES, NETWORK_FILE}:
@@ -1930,6 +2014,17 @@ def release_problems(found: dict[str, set[str]]) -> list[str]:
             if any(hook in decl for hook in DEBUG_ONLY)]
 
 
+def _engine_client_problem(name: str, module: str, symbol: str) -> str | None:
+    """#244: a member of the engine client off `ENGINE_CLIENT_REACHABLE`, reached from another file."""
+    if name == NETWORK_FILE or module != "main" or not symbol.startswith("EngineClient."):
+        return None
+    allowed = ENGINE_CLIENT_REACHABLE.get(name, frozenset())
+    if symbol in allowed:
+        return None
+    return (f"{name}: reaches `{symbol}`, a member of the engine client off the list this file may reach "
+            f"({', '.join(sorted(allowed)) or 'none'}); a new one is a reviewed edit (INV-64, #244)")
+
+
 def _sink_module_problem(name: str, module: str, symbol: str) -> str | None:
     """The M21-W3 review's B1 (#242): a privacy sink's own file references only the Foundation
     declarations on its list, and none of the standard library's process-wide state."""
@@ -1956,7 +2051,8 @@ def problems(found: dict[str, set[str]]) -> list[str]:
                         or _request_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
-            problem = _module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)
+            problem = (_module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)
+                       or _store_module_problem(name, module, symbol) or _engine_client_problem(name, module, symbol))
             if problem is None and symbol != "<imported>" and module not in {"main", "UIKit", "CoreFoundation"}:
                 problem = _capability_problem(name, symbol, decl)
             if problem is not None:

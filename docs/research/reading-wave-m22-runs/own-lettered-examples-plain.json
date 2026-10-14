@@ -1,0 +1,612 @@
+[
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "sql sorgum cok yavas calisiyor hizlandirmama yardim et",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "go dilinde bir http sunucusu yazmak istiyorum",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kotlin uygulamamda bellek sizintisi var",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "regex ile e-posta adreslerini nasil ayiklarim",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "typescript tiplerini anlamakta zorlaniyorum",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "python kodumdaki hatayi bulur musun",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kod tabanimdaki tum testleri kendisi yazacak bir ajan istiyorum",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "projemi bastan sona kendi kendine guncelleyecek yapay zeka",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "terminalde komut calistirip hatalari kendisi gideren bir asistan",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "annemin dogum gunu icin guzel bir mesaj yazar misin",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "ev sahibine kira icin nazik bir e-posta yaz",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "tatil icin bavul listesi hazirla",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "sinava nasil daha verimli calisirim",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bir arkadasimla aram bozuldu ne yapmaliyim",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "genel isler icin hangi yapay zekayi kullanayim",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "her gun kullanabilecegim en iyi sohbet botu",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "cok yonlu bir model onerir misin",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kuantum dolaniklik nedir detaylica anlat",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "hucre zarindan iyonlar nasil gecer",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "termodinamigin ikinci yasasini acikla",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "dna replikasyonunda hangi enzimler gorev alir",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bu integrali adim adim coz",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "matris tersini nasil hesaplarim",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "asal sayilarin sonsuz oldugunu kanitla",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "lineer cebir sorusu cozecek model",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "denklemi coz",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bilgisayarimda dosyalari klasorlere ayiracak yapay zeka",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "benim yerime otel sitesinde form dolduracak bir sey",
+  "reading": "search",
+  "routed": "computer-use",
+  "surface": "computer-use",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "ekranimdaki uygulamalari kontrol edebilen model",
+  "reading": "search",
+  "routed": "computer-use",
+  "surface": "computer-use",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "zor bir mantik bulmacasi cozmem lazim",
+  "reading": "search",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "sayi dizisinin devamini tahmin et",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "sudoku cozebilen yapay zeka",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kisisel blogum icin bir site tasarla",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "restoranim icin menu sayfasi olan bir web sitesi",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "vue ile bir yonetim paneli arayuzu",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "web sitesi yapacak en iyi model hangisi",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "yuz sayfalik raporu kisaca ozetle",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bu sozlesmede beni baglayan maddeleri bul",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "tez makalemin ozetini cikar",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bu pdfi ozetle",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bu haberin dogru olup olmadigini kontrol et",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "yapay zeka bana yanlis bilgi verdi mi anlamak istiyorum",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "en az uydurma yapan model hangisi",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "fotograftaki yaziyi metne cevir",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bu rontgen goruntusunde ne gorunuyor",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "el yazisi notlarimin fotografini oku",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "fotograftaki kopek hangi cins",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "bugunku dolar kuru ne",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "dun aksamki macin sonucu",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "yakinimdaki eczaneleri bul",
+  "reading": "search",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kaynaklariyla birlikte guncel bilgileri arastir",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "buldugun her bilgi icin link goster",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "gemini mi gpt mi odev",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "o3 mu o4 mu",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "llama mi mistral mi kod",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "ceviri icin claude mu",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "grok mu gemini mi matematik",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "deepseek mi qwen mi yazilim",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "claude mu gpt mi makale ozeti",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "sohbet icin gemini mi",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kimi mi glm mi web sitesi",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false"
+ }
+]

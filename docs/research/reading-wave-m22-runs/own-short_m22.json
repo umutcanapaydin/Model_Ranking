@@ -1,0 +1,92 @@
+[
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "gemini mi gpt mi \u00f6dev",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "o3 m\u00fc o4 m\u00fc",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "llama m\u0131 mistral mi kod",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "\u00e7eviri i\u00e7in claude mu",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "grok mu gemini mi matematik",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "deepseek mi qwen mi yaz\u0131l\u0131m",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "claude mu gpt mi makale \u00f6zeti",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "sohbet i\u00e7in gemini mi",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false"
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "q": "kimi mi glm mi web sitesi",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false"
+ }
+]

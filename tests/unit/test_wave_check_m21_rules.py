@@ -803,6 +803,51 @@ def test_an_amended_by_pointer_below_its_adrs_separator_is_refused(tmp_path: Pat
     assert any("below" in m and "D-1" in m for m in found), found
 
 
+def test_an_amended_by_pointer_whose_adr_declares_no_such_amendment_is_refused(tmp_path: Path) -> None:
+    """#253 (the M21 closure fixes review's K1): A1 read the pairs one way. "Amended by D-176" sat under
+    D-136 and D-176 had no `Amends`; "Amended by D-179" sat under D-156 and D-179 amended three others."""
+    check = _module("check_records")
+    paired = AMENDED.format(pointer="\n**Amended by D-2 (2026-09-02)**: clause 2.\n")
+    paired = paired.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    stray = paired.replace("Body.\n\n**Amended by D-3", "Body.\n\n**Amended by D-1 (2026-09-01)**: none.\n\n**Amended by D-3")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "a", stray))]
+    assert any("D-1" in m and "D-2" in m and "does not name" in m for m in found), found
+    # A pointer to an ADR the log does not hold is refused too: it points at nothing.
+    ghost = paired.replace("**Amended by D-2 (2026-09-02)**", "**Amended by D-9 (2026-09-09)**")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "b", ghost))]
+    assert any("D-9" in m for m in found), found
+    assert [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "c", paired))] == []
+    # The backlog-gates review round 1's N3: a stray pointer in the middle of another pointer's line, as D-170
+    # holds two on one, is refused too.
+    inline = paired.replace("**Amended by D-3 (2026-09-03, proposed)**: all.",
+                            "**Amended by D-3 (2026-09-03, proposed)**: all. **Amended by D-1 (2026-09-01)**: none.")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "d", inline))]
+    assert any("D-1" in m and "D-2" in m and "does not name" in m for m in found), found
+
+
+def test_a_pointer_whose_adr_amends_others_or_names_it_outside_amends_is_refused_at_its_line(tmp_path: Path) -> None:
+    """#253, the gates Tester (T1). The issue's second case: "Amended by D-179" sat under D-156, and D-179
+    amended three others. The test above plants only a source that declares no amendment at all, so a
+    check that refused only those passed. A source that names the ADR in its text but not in its
+    `**Amends**` (here `**applies** D-3`) declares nothing either. The finding is reported at the
+    pointer's own line."""
+    check = _module("check_records")
+    paired = AMENDED.format(pointer="\n**Amended by D-2 (2026-09-02)**: clause 2.\n")
+    paired = paired.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    # D-3 amends D-2 only; a pointer to it under D-1 is stray.
+    others = paired.replace("**Amended by D-2 (2026-09-02)**: clause 2.\n",
+                            "**Amended by D-2 (2026-09-02)**: clause 2.\n\n**Amended by D-3 (2026-09-03)**: none.\n")
+    found = check.adr_pointer_findings(_decisions(tmp_path / "a", others))
+    stray = [f for f in found if "D-1 carries" in f.msg and "D-3" in f.msg and "does not name" in f.msg]
+    assert stray, [f.msg for f in found]
+    assert stray[0].line == others.splitlines().index("**Amended by D-3 (2026-09-03)**: none.") + 1
+    # D-2 applies D-3 and amends D-1; a pointer to it under D-3 is stray.
+    applies = paired.replace("**Would amend** D-2 · from #10.\n",
+                             "**Would amend** D-2 · from #10.\n\n**Amended by D-2 (2026-09-02)**: none.\n")
+    assert applies != paired
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "b", applies))]
+    assert any("D-3 carries" in m and "D-2" in m and "does not name" in m for m in found), found
+
 
 # --- the M21 closure fixes review: M3 (the ledger's kinds and dates) ---------------------------------------
 

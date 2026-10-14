@@ -1545,7 +1545,8 @@ AMENDS_FIELD = re.compile(r"\*\*(?:Amends|Would amend):?\*\*(.*?)(?=\s·\s|\*\*|
 
 
 def adr_pointer_findings(root: Path) -> list[Finding]:
-    """A1 (#200, D-192 clause 1) -- every ADR an ADR amends carries an `**Amended by D-n` line naming it.
+    """A1 (#200, D-192 clause 1) -- every ADR an ADR amends carries an `**Amended by D-n` line naming it,
+    and every such line names an ADR whose `**Amends**` names it back (#253).
 
     D-180 and D-181 amended five ADRs and none carried a pointer until a closure added them by hand,
     so a reader of the amended ADR saw the rule as it was. Derived from the log itself, not listed."""
@@ -1559,10 +1560,12 @@ def adr_pointer_findings(root: Path) -> list[Finding]:
         end = heads[i + 1][0] if i + 1 < len(heads) else len(text)
         sections.setdefault(adr, (text.count("\n", 0, pos) + 1, text[pos:end]))
     findings: list[Finding] = []
+    declared: dict[str, set[str]] = {}
     for adr, (line, body) in sections.items():
         for field in AMENDS_FIELD.finditer(body):
             said = field.group(1) or field.group(2) or ""
             for target in sorted(set(re.findall(r"\bD-\d+\b", said)), key=lambda d: int(d[2:])):
+                declared.setdefault(adr, set()).add(target)
                 if target == adr or target not in sections:
                     continue
                 if not re.search(rf"\*\*Amended by {re.escape(adr)}\b", sections[target][1]):
@@ -1570,6 +1573,18 @@ def adr_pointer_findings(root: Path) -> list[Finding]:
                                             f"{adr} amends {target}, and {target} carries no `**Amended by "
                                             f"{adr}` line -- a reader of {target} sees the rule as it was (#200)"))
     for adr, (line, body) in sections.items():
+        # #253: the reverse of the pair. A pointer names an ADR whose `**Amends**` names this one, or it
+        # sends the reader to an ADR that says nothing about it.
+        # The backlog-gates review round 1's N3: anywhere on a line, as the forward check reads `Amends`.
+        for pointer in re.finditer(r"\*\*Amended by (D-\d+)\b", body):
+            source, at = pointer.group(1), line + body.count("\n", 0, pointer.start())
+            if source not in sections:
+                findings.append(Finding(Path("docs/decisions.md"), at, "A1",
+                                        f"{adr} carries `**Amended by {source}`, and the log holds no {source} (#253)"))
+            elif adr not in declared.get(source, set()):
+                findings.append(Finding(Path("docs/decisions.md"), at, "A1",
+                                        f"{adr} carries `**Amended by {source}`, and {source}'s `**Amends**` does not "
+                                        f"name {adr} -- the pointer sends a reader to an ADR silent on it (#253)"))
         # The M21 repo review's M5: a pointer after the ADR's closing `---` reads as the next ADR's first line.
         rules = [m.end() for m in re.finditer(r"^---\s*$", body, re.M)]
         for pointer in re.finditer(r"^\*\*Amended by D-\d+", body, re.M):

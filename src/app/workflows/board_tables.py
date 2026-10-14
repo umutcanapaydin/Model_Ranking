@@ -86,7 +86,19 @@ class Credit:
     url: str
     licence: str
     licence_url: str | None
+    #: #261: the copyright notice Apache-2.0 section 4(c) or MIT asks a redistributor to keep, as the
+    #: publisher's LICENSE file states it (read 2026-10-14); `None` for any other licence, or where the
+    #: file states none (`PUBLISHES_NO_NOTICE`).
+    notice: str | None = None
 
+
+#: #261: the Apache-2.0 and MIT publishers whose licence file holds no copyright line to keep, and why.
+PUBLISHES_NO_NOTICE: dict[str, str] = {
+    "aider": "LICENSE.txt is the Apache-2.0 text with its appendix template unfilled, and no NOTICE file",
+    "terminal_bench": "LICENSE is the Apache-2.0 text with its appendix template unfilled, and no NOTICE file",
+    "arc_prize": "the runs' dataset card names MIT and the dataset holds no LICENSE file; the solutions they "
+                 "are scored against carry their own credit, `arc_prize_solutions`",
+}
 
 _CC_BY_URL = "https://creativecommons.org/licenses/by/4.0/"
 #: The owner's D-185 ruling of 2026-10-12 (#260): every publisher whose data the engine serves. What
@@ -107,12 +119,17 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("aider", "Aider", "Aider polyglot leaderboard", "https://github.com/Aider-AI/aider", "Apache-2.0",
            "https://github.com/Aider-AI/aider/blob/main/LICENSE.txt"),
     Credit("litellm", "BerriAI", "LiteLLM model prices", "https://github.com/BerriAI/litellm", "MIT",
-           "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
+           "https://github.com/BerriAI/litellm/blob/main/LICENSE", "Copyright (c) 2023 Berri AI"),
     Credit("models_dev", "models.dev (SST)", "Model prices, from each model maker's own entry", "https://models.dev",
-           "MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
+           "MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE", "Copyright (c) 2025 models.dev"),
     Credit("arc_prize", "ARC Prize Foundation", "ARC-AGI-2 public evaluation runs, scored by this app",
            "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval", "MIT",
            "https://opensource.org/license/mit"),
+    # The backlog-gates review round 1's N2: the runs are scored against the published solutions (D-194 clause 3),
+    # whose repository is Apache-2.0 with its own copyright line (LICENSE at the pinned commit `f3283f72`).
+    Credit("arc_prize_solutions", "ARC Prize Foundation", "ARC-AGI-2 public evaluation tasks and solutions, "
+           "which this app scores the runs against", "https://github.com/arcprize/ARC-AGI-2", "Apache-2.0",
+           "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE", "Copyright 2019 ARC Prize Foundation."),
     Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
            "\u00a9 Datacurve; no licence published", None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
@@ -121,7 +138,7 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("helm", "Stanford CRFM HELM and the model makers", "MMLU scores: HELM Lite, and the model makers' "
            "technical reports on arXiv, compiled by Epoch AI", "https://crfm.stanford.edu/helm/lite/latest/",
            "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
-           "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
+           "https://github.com/stanford-crfm/helm/blob/main/LICENSE", "Copyright 2022 Stanford University"),
     # The #265 review's B2: the publishers of the retired sources, as D-193 credited them, for an artifact
     # an older release built (`RETIRED_EXTERNAL_ATTRIBUTION`).
     Credit("arc_prize_leaderboard", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI",

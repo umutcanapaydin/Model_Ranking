@@ -518,9 +518,25 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
     monkeypatch.setattr(gate, "references", lambda ast: {name: set() for name in names})
     assert gate.main() == 1, "a client that uses none of the permissions passed the gate"
     # The control: with no permission granted, the same client passes, so the failure above is theirs.
-    for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED"):
+    for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED",
+                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
+
+
+def test_an_entry_of_the_stores_or_the_engine_clients_list_the_client_no_longer_uses_fails_the_gate() -> None:
+    """The backlog-gates review round 2's N1: `STORE_FOUNDATION_ALLOWED` and `ENGINE_CLIENT_REACHABLE` are
+    permissions too, so an entry the shipping client no longer references is reported, per file, and the
+    next file to need it does not inherit it unreviewed."""
+    store = {f"Foundation.{entry}" for entry in gate.STORE_FOUNDATION_ALLOWED["FrontDoor.swift"]}
+    found = {"FrontDoor.swift": store - {"Foundation.URL.made"}, **ENGINE_CLIENT_SHIPPING}
+    missing = gate.unseen_permissions(found)
+    assert any("FrontDoor.swift" in line and "`URL.made`" in line for line in missing), missing
+    found = {"FrontDoor.swift": store, **ENGINE_CLIENT_SHIPPING, "Models.swift": set()}
+    missing = gate.unseen_permissions(found)
+    assert any("Models.swift" in line and "`EngineClient.maxStandingsBytes`" in line for line in missing), missing
+    found = {"FrontDoor.swift": store, **ENGINE_CLIENT_SHIPPING}
+    assert not [line for line in gate.unseen_permissions(found) if line.endswith(("Foundation list", "engine client's list"))]
 
 
 #: M19-W2 Tester: two routes D-180 clause 2 names for the code a sink runs elsewhere, which no fixture
@@ -574,9 +590,9 @@ def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not(
     assert _refused_in("ContentView.swift", "the request's `budget` argument")
     assert _refused_in("ContentView.swift", "assigns `ContentView.task`")
     refused = _refused_in("ContentView.swift", "#174, #188")
-    # The two lines above, and the M21-W3 review's four twins (B2): six, and the screen's own request,
-    # `apply`'s routed surface and `select`'s chosen one are not among them.
-    assert len(refused) == 6, refused
+    # The two lines above, the M21-W3 review's four twins (B2) and round two's two key paths (#244): eight,
+    # and the screen's own request, `apply`'s routed surface and `select`'s chosen one are not among them.
+    assert len(refused) == 8, refused
 
 
 def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:
@@ -858,3 +874,104 @@ def test_the_fixture_holds_a_runtime_call_the_module_rule_refuses() -> None:
     assert "sel_registerName" in fixture
     refused = gate.problems(gate.references((ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")))
     assert any("Imports.swift" in line and "ObjectiveC" in line for line in refused), refused[:5]
+
+
+#: #246: every URL, file-system and resource symbol the two stores reference on the shipping client,
+#: as `references` reads them (measured 2026-10-14, the simulator's Release configuration).
+STORES_SHIPPING_URLS = {
+    "Foundation.Data.init(contentsOf:options:", "Foundation.FileManager.urls(for:in:", "Foundation.FileManager.temporaryDirectory",
+    "Foundation.URL.appendingPathComponent", "Foundation.URL.appendingPathComponent(_:isDirectory:",
+    "Foundation.URL.deletingLastPathComponent(", "Foundation.URL.isFileURL", "Foundation.URL.made",
+}
+
+
+@pytest.mark.parametrize("store", ["FrontDoor.swift", "StandingsStore.swift"])
+@pytest.mark.parametrize("maker", ["Foundation.URL.init(_:strategy:", "Foundation.URL.init(string:",
+                                   "Foundation.URL.init(string:relativeTo:", "Foundation.URL.init(dataRepresentation:relativeTo:isAbsolute:",
+                                   "Foundation.URL.init(resolvingBookmarkData:options:relativeTo:bookmarkDataIsStale:",
+                                   "Foundation.URL.decoded", "Foundation.NSURL.init(string:"])
+def test_a_store_makes_a_url_only_from_the_file_systems_folders(store: str, maker: str) -> None:
+    """#246 (G-13, the M21-W3 review's round 3): the stores were allowed to make a URL by any call, and
+    `Data(contentsOf:)` fetches an `https` address as readily as a file. A store now makes one only by
+    a folder the file manager names, and a component appended to it or removed. Any URL initialiser or
+    decode in a store is refused."""
+    refused = gate.problems({store: {maker, "Foundation.Data.init(contentsOf:options:"}})
+    # `StandingsStore.swift` is also a privacy sink, whose Foundation list refuses most of these first.
+    reasons = ("a store makes a URL only", "not on the list of Foundation declarations a privacy sink")
+    assert any(line.startswith(f"{store}:") and any(r in line for r in reasons) for line in refused), refused
+    if store == "FrontDoor.swift" or maker in {"Foundation.URL.init(string:", "Foundation.URL.decoded"}:
+        assert any("a store makes a URL only" in line for line in refused), refused
+
+
+def test_the_stores_shipping_urls_pass() -> None:
+    """#246: what the stores do today is on the list, so the rule refuses nothing they ship."""
+    assert gate.problems({"FrontDoor.swift": STORES_SHIPPING_URLS}) == []
+    assert "a URL a store makes from text" in gate.FIXTURE_RULES
+
+
+def test_the_gap_registers_file_references_only_its_listed_foundation_declarations() -> None:
+    """The backlog-gates review round 1's M2: `STORE_URL_MAKERS` matched nothing the rule read, so a URL parsed by
+    a strategy and loaded passed. The register's file now references only the Foundation declarations
+    measured on the shipping client; a parse strategy or a format style is refused by absence."""
+    assert gate.problems({"FrontDoor.swift": {f"Foundation.{d}" for d in gate.STORE_FOUNDATION_ALLOWED["FrontDoor.swift"]}}) == []
+    for symbol in ("Foundation.URL.ParseStrategy.init(", "Foundation.URL.ParseStrategy.parse(",
+                   "Foundation.URL.FormatStyle.parseStrategy", "Foundation.URLComponents.url"):
+        refused = gate.problems({"FrontDoor.swift": {symbol}})
+        assert any("a store may reference" in line and symbol in line for line in refused), refused
+    assert not hasattr(gate, "STORE_URL_MAKERS")
+
+
+def test_round_two_twins_of_the_surface_are_refused() -> None:
+    """#244 (the M21-W3 review's round-2 B2, gap G-11): a key path to the surface bound to a name before the
+    write, the same key path handed to a generic writer, and a subscript on the engine client that forwards
+    to the request. Each was refused by no rule; the fixture holds each now."""
+    assert len(_refused_in("ContentView.swift", "a key path to `ContentView.task`")) >= 2
+    assert _refused_in("ContentView.swift", "EngineClient.subscript")
+
+
+#: #244: every member of the engine client a file other than its own references on the shipping client,
+#: as `references` reads them (measured 2026-10-14, the simulator's Release configuration).
+ENGINE_CLIENT_SHIPPING = {
+    "ContentView.swift": {"main.EngineClient.baseURL", "main.EngineClient.boards(", "main.EngineClient.categories(",
+                          "main.EngineClient.init(", "main.EngineClient.recommendation(task:budget:"},
+    "Models.swift": {"main.EngineClient.maxStandingsBytes"},
+}
+
+
+def test_a_file_reaches_only_the_engine_clients_listed_members() -> None:
+    """#244: outside its own file the engine client is reached only through `ENGINE_CLIENT_REACHABLE`; a
+    member added to it, or to an extension of it anywhere, is a reviewed edit, not a new door. The
+    backlog-gates review round 1's M1: each member is matched whole, and per file."""
+    assert gate.problems(ENGINE_CLIENT_SHIPPING) == []
+    for member in ("main.EngineClient.subscript(asking:", "main.EngineClient.ask(_:", "main.EngineClient.session",
+                   "main.EngineClient.init(asking:", "main.EngineClient.baseURLSender",
+                   "main.EngineClient.recommendation(task:budget:asking:"):
+        refused = gate.problems({"ContentView.swift": {member}})
+        assert any("engine client" in line and member.removeprefix("main.") in line for line in refused), refused
+    for name in ("Models.swift", "FrontDoor.swift"):
+        refused = gate.problems({name: {"main.EngineClient.baseURL"}})
+        assert any("engine client" in line and line.startswith(f"{name}:") for line in refused), refused
+    assert gate.problems({"EngineClient.swift": {"main.EngineClient.session"}}) == []
+
+
+def test_the_gap_registers_file_matches_its_foundation_list_whole_and_in_each_foundation_module() -> None:
+    """#246, the gates Tester (T4). The store's list is matched as the engine client's is: a declaration
+    whose name begins like a listed one is another declaration, and is refused until it is listed. With
+    a prefix match, `URL.appendingPathComponent(_:conformingTo:` passed under the listed
+    `URL.appendingPathComponent`. The list covers each module the privacy sink's does (`SINK_MODULES`),
+    not Foundation alone."""
+    for symbol in ("Foundation.URL.appendingPathComponent(_:conformingTo:", "Foundation.Date.init(timeIntervalSince1970:",
+                   "_DarwinFoundation1.probe("):
+        refused = gate.problems({"FrontDoor.swift": {symbol}})
+        assert any(line.startswith("FrontDoor.swift:") and "a store may reference" in line for line in refused), (symbol, refused)
+
+
+def test_a_store_entry_is_seen_only_by_its_own_declaration() -> None:
+    """The backlog-gates review round 2's N1, the gates Tester (T4). An entry counts as used only when the
+    file references that declaration. `URL.appendingPathComponent` and
+    `URL.appendingPathComponent(_:isDirectory:` are two entries; with the first gone from the client and the
+    second kept, the first is stale. A match by substring read it as still used."""
+    store = {f"Foundation.{entry}" for entry in gate.STORE_FOUNDATION_ALLOWED["FrontDoor.swift"]}
+    found = {"FrontDoor.swift": store - {"Foundation.URL.appendingPathComponent"}, **ENGINE_CLIENT_SHIPPING}
+    missing = gate.unseen_permissions(found)
+    assert any("FrontDoor.swift" in line and "`URL.appendingPathComponent`" in line for line in missing), missing

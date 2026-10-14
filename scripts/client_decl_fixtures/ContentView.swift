@@ -252,6 +252,35 @@ struct ContentView {
         let ask = client.recommendation
         return ask(typed, budget)
     }
+
+    // The M21-W3 review's round-2 B2 (#244): three more twins. REFUSED, each: a key path to the surface
+    // bound to a name before the write, the same key path handed to a generic writer, and a member of
+    // the engine client the screen may not reach (a subscript that forwards to the request).
+    mutating func keepAskedThroughAKeyPath(_ typed: String) {
+        let path = \ContentView.task
+        self[keyPath: path] = typed
+    }
+
+    mutating func keepAskedThroughAGenericWriter(_ typed: String) {
+        fixtureWrite(&self, \.task, typed)
+    }
+
+    func askThroughASubscript(_ typed: String) -> URL {
+        client[asking: typed]
+    }
+
+    // The backlog-gates review round 1's M1: REFUSED, both. The engine client's members are matched whole.
+    func askThroughAnInitialiser(_ typed: String) -> EngineClient {
+        EngineClient(asking: typed)
+    }
+
+    func askThroughALookalikeMember(_ typed: String) -> URL {
+        client.baseURLSender(typed)
+    }
+}
+
+func fixtureWrite<Root, Value>(_ root: inout Root, _ path: WritableKeyPath<Root, Value>, _ value: Value) {
+    root[keyPath: path] = value
 }
 
 // The M21-W3 review's B1: a mutable Foundation container held in a constant, here and as a static,
