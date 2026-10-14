@@ -234,6 +234,68 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
 
+#: #272: stubs, filled by the fix.
+HELD_OUT_PUBLISHED_OVERLAP: dict[str, dict[str, int]] = {}
+
+
+def _leak_scan_docs(root: pathlib.Path) -> dict[str, str]:
+    return {}
+
+
+def _held_questions(path: pathlib.Path) -> set[str]:
+    return set()
+
+
+def _record_matches(held: set[str], texts: dict[str, str]) -> dict[str, int]:
+    return {}
+
+
+def test_a_held_out_question_quoted_in_a_record_is_found() -> None:
+    """#272 (D-198 clause 2): the check read no record in `docs/`, so a wave could quote a live question in
+    its research note and the next wave tune on it. Planted with a made-up question, never a real one."""
+    planted = "which model would best plan a three day hike in the alps"
+    texts = {"docs/research/note.md": f"The probe asked: {planted}.", "docs/reviews/r.md": "nothing held"}
+    assert _record_matches({planted}, texts) == {"docs/research/note.md": 1}
+    assert _record_matches({planted}, {"docs/a.md": planted.upper()}) == {"docs/a.md": 1}
+
+
+def test_a_live_held_out_set_overlaps_only_the_records_named_and_none_is_new() -> None:
+    """#272 (D-198 clause 2): each live set's matches in `docs/**/*.md`, by file and count, are exactly
+    `HELD_OUT_PUBLISHED_OVERLAP`'s. A record written after a set cannot hold one of its questions; a record
+    written before is the set's overlap with published text, which the next set's seat should see. The
+    questions are never printed, only files and counts."""
+    root = CLIENT.parents[1]
+    found = {}
+    for path in _live_held_out_sets():
+        matches = _record_matches(_held_questions(path), _leak_scan_docs(root))
+        if matches:
+            found[path.name] = matches
+    assert found == HELD_OUT_PUBLISHED_OVERLAP, f"held-out questions in docs/ (set: {{file: count}}): {found}"
+
+
+def test_each_record_a_live_set_overlaps_was_committed_before_the_set() -> None:
+    """#272 (D-198 clause 2): an overlap is excused only for a record older than its set. Read from the git
+    history; a shallow clone (CI's test job) cannot tell, and says so by skipping."""
+    import subprocess
+
+    root = CLIENT.parents[1]
+    shallow = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-shallow-repository"],
+                             capture_output=True, text=True, check=False).stdout.strip()
+    if shallow != "false":
+        pytest.skip("a shallow clone holds no first commit to compare")
+
+    def first(rel: str) -> int:
+        out = subprocess.run(["git", "-C", str(root), "log", "--diff-filter=A", "--format=%ct", "--", rel],
+                             capture_output=True, text=True, check=True).stdout.split()
+        assert out, f"{rel} has no commit that adds it"
+        return int(out[-1])
+
+    for set_name, records in HELD_OUT_PUBLISHED_OVERLAP.items():
+        born = first(f"scripts/router_probe/{set_name}")
+        for record in records:
+            assert first(record) < born, f"{record} was committed after {set_name}: an overlap is a leak"
+
+
 #: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),
 #: and M18-W3's three fresh ones, spent there and retired at M19-W4 (#177: four signal words were
 #: added after them with no origin shown); `heldout_questions.json` and
