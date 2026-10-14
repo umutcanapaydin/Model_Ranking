@@ -883,4 +883,7 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   the #272 age check until the owner's workflow fetches the whole history (#278).
 - Lesson: a check that reads text is held only as far as its plants reach; each review round found a
   spelling the last one's plants did not try, so a rule's limits go in its decision, not only its fix.
+- The Tester (MINOR): of 75 planted faults, 39 Python ones passed the whole suite; its 20 added cases catch
+  32 of them, and the other 7 are equivalent, a belt, or a deleted assertion. The two Swift plants each
+  failed only their store's new on-device test.
 

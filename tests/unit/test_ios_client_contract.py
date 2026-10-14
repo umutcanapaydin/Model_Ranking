@@ -296,24 +296,33 @@ def test_a_live_held_out_set_overlaps_only_the_records_named_and_none_is_new() -
     assert found == HELD_OUT_PUBLISHED_OVERLAP, f"held-out questions in docs/ (set: {{file: count}}): {found}"
 
 
+def _first_added(root: pathlib.Path, rel: str) -> int:
+    """When `rel` was first committed under `root`: its oldest adding commit's time."""
+    import subprocess
+
+    out = subprocess.run(["git", "-C", str(root), "log", "--diff-filter=A", "--format=%ct", "--", rel],
+                         capture_output=True, text=True, check=True).stdout.split()
+    assert out, f"{rel} has no commit that adds it"
+    return int(out[-1])
+
+
+def _records_not_older_than_their_set(root: pathlib.Path, overlap: dict[str, dict[str, int]]) -> list[str]:
+    """#272 (D-198 clause 2): each record `overlap` excuses that was not first committed before its set, by
+    path and set name. A helper, so a test can plant a newer record in a scratch repository (the hardening
+    wave's Tester: the comparison could be made to read nothing and no test failed)."""
+    late = []
+    for set_name, records in overlap.items():
+        born = _first_added(root, f"scripts/router_probe/{set_name}")
+        late += [f"{record} ({set_name})" for record in records if not _first_added(root, record) < born]
+    return late
+
+
 @pytest.mark.needs("git_history")
 def test_each_record_a_live_set_overlaps_was_committed_before_the_set() -> None:
     """#272 (D-198 clause 2): an overlap is excused only for a record older than its set. Read from the git
     history, which CI's one-commit checkout does not hold."""
-    import subprocess
-
-    root = CLIENT.parents[1]
-
-    def first(rel: str) -> int:
-        out = subprocess.run(["git", "-C", str(root), "log", "--diff-filter=A", "--format=%ct", "--", rel],
-                             capture_output=True, text=True, check=True).stdout.split()
-        assert out, f"{rel} has no commit that adds it"
-        return int(out[-1])
-
-    for set_name, records in HELD_OUT_PUBLISHED_OVERLAP.items():
-        born = first(f"scripts/router_probe/{set_name}")
-        for record in records:
-            assert first(record) < born, f"{record} was committed after {set_name}: an overlap is a leak"
+    late = _records_not_older_than_their_set(CLIENT.parents[1], HELD_OUT_PUBLISHED_OVERLAP)
+    assert not late, f"committed no earlier than the set they overlap, so an overlap is a leak: {late}"
 
 
 #: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),

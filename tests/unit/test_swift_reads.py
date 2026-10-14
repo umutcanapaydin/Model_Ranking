@@ -88,9 +88,14 @@ def test_the_detector_finds_the_reads_of_the_ios_folder() -> None:
     assert [number for number, _ in swift_reads(planted)] == [4, 7]
 
 
+def pin_files() -> list[Path]:
+    """Every file the guard reads: each `test_*.py` under `tests/unit/` but `OWN_GUARDS`. One list for the guard
+    and its floor, so the hardening wave's Tester could hold it from outside (`test_hardening_tester.py`)."""
+    return [path for path in sorted(UNIT.glob("test_*.py")) if path.name not in OWN_GUARDS]
+
+
 def test_every_read_of_the_ios_folder_in_a_pin_file_goes_through_swift_or_says_why() -> None:
-    unexplained = [f"{path.name}:{number}: {line.strip()}" for path in sorted(UNIT.glob("test_*.py"))
-                   if path.name not in OWN_GUARDS
+    unexplained = [f"{path.name}:{number}: {line.strip()}" for path in pin_files()
                    for number, line in swift_reads(path.read_text(encoding="utf-8"))  # raw: this folder's Python
                    if not explained(line)]
     assert not unexplained, ("a read of the app's Swift past `_code`, so a dead or commented copy of a line "
@@ -99,7 +104,7 @@ def test_every_read_of_the_ios_folder_in_a_pin_file_goes_through_swift_or_says_w
 
 def test_the_guard_sees_reads_it_lets_through() -> None:
     """A guard whose derived set is empty passes vacuously (AGENTS.md 3.5)."""
-    seen = [line for path in sorted(UNIT.glob("test_*.py")) if path.name not in OWN_GUARDS
+    seen = [line for path in pin_files()
             for _, line in swift_reads(path.read_text(encoding="utf-8"))]  # raw: this folder's Python
     assert sum("_swift(" in line or "_code(" in line for line in seen) >= 3, "the guard sees no `_code` read"
     assert sum("# raw:" in line for line in seen) >= 10, "the guard sees no raw read it lets through"
