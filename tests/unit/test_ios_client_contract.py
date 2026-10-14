@@ -26,7 +26,7 @@ import unicodedata
 
 import pytest
 
-from tests.unit.test_router_hints import _built_mask, _stripped
+from tests.unit.test_router_hints import _built_mask, _stripped, _without_block_comments
 
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 MODELS = CLIENT / "Engine/Models.swift"
@@ -35,10 +35,12 @@ MODELS = CLIENT / "Engine/Models.swift"
 def _swift(path: pathlib.Path) -> str:
     """A Swift file with each branch `_built_mask` reads as never built blanked (`#if false`, and the
     conditions `_decide` reads as false from their literals), so a pin does not read that branch as
-    live (#110, the W2 review's M3). Comments are kept, so a `/* */` copy of a line a pin requires satisfies it (G-15, #247); a
-    directive inside a comment or a string is none (the second W2 review's M3)."""
+    live (#110, the W2 review's M3). Block comments are blanked, so a `/* */` copy of a line a pin
+    requires does not satisfy it (#247); `//` comments are kept, since pins cut a line at them. A directive
+    inside a comment or a string is none (the second W2 review's M3)."""
     raw = path.read_text(encoding="utf-8")
-    return "\n".join(line if built else "" for line, built in zip(raw.split("\n"), _built_mask(_stripped(raw)), strict=True))
+    kept = _without_block_comments(raw)
+    return "\n".join(line if built else "" for line, built in zip(kept.split("\n"), _built_mask(_stripped(raw)), strict=True))
 
 
 def _swift_sources() -> dict[str, str]:

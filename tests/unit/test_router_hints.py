@@ -127,6 +127,42 @@ def _stripped(swift: str) -> str:
     return "".join(out)
 
 
+def _without_block_comments(swift: str) -> str:
+    """The source with its block comments blanked and everything else kept: `//` comments, which some
+    pins cut a line at, and every newline (#247, the M21-W3 review's round 6). It scans as `_stripped`
+    does, so a `/*` inside a `//` comment or a string literal opens nothing, and block comments nest."""
+    out: list[str] = []
+    i, depth, n = 0, 0, len(swift)
+    while i < n:
+        two = swift[i:i + 2]
+        if depth:
+            if two == "/*":
+                depth, i = depth + 1, i + 2
+            elif two == "*/":
+                depth, i = depth - 1, i + 2
+            else:
+                out.append("\n" if swift[i] == "\n" else "")
+                i += 1
+        elif two == "/*":
+            depth, i = 1, i + 2
+        elif two == "//":
+            end = swift.find("\n", i)
+            end = n if end < 0 else end
+            out.append(swift[i:end])
+            i = end
+        elif swift[i] == '"' or (swift[i] == "#" and re.match(r'#+"', swift[i:i + 8])):
+            close = _string_end(swift, i)
+            out.append(swift[i:close])
+            i = close
+        else:
+            out.append(swift[i])
+            i += 1
+    if depth:
+        msg = "a block comment never closes: the scan misread a literal, and would erase live code"
+        raise ValueError(msg)
+    return "".join(out)
+
+
 #: #110: a compilation condition's tokens: `!`, `&&`, `||`, parentheses, and a name or a call.
 _CONDITION_TOKEN = re.compile(r"\s*(\|\||&&|!|\(|\)|[A-Za-z_]\w*|[^\s()!&|]+)")
 
@@ -219,7 +255,7 @@ def _built_mask(swift: str) -> list[bool]:
 
 def _hint_ids() -> set[str]:
     """The category ids the client has a routing hint for, parsed from the Swift."""
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     block = source[source.index("static let byID:") : source.index("unmeasuredFallback")]
     # `[a-z-]` missed `search_factuality` when M15-W3 added it -- a surface id may carry an
     # underscore (the engine's own ids do), and a hint the pattern cannot see reads here as a hint
@@ -256,7 +292,7 @@ def test_every_surface_the_engine_advertises_has_a_routing_hint() -> None:
 
 def _example_counts(table: str = "examples") -> dict[str, int]:
     """How many example questions the WORDING tier holds per surface, parsed from the Swift."""
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     start = source.index(f"static let {table}:")
     block = source[start : source.index("\n    ]\n", start)]
     return {
@@ -299,7 +335,7 @@ def test_the_unmeasured_fallback_is_a_surface_the_engine_actually_serves() -> No
     genuinely is the tool for a question nothing here measures specifically. Pointing the fallback
     at an id the engine does not serve would turn the front door into a dead end.
     """
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     match = re.search(r'unmeasuredFallback\s*=\s*"([a-z-]+)"', source)
     assert match, "the router has no fallback for a question the catalogue does not measure"
 
@@ -433,7 +469,7 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
     praise: String = "the best model is X"` passed. A computed property carries a `{` on its line
     and stores nothing, so it is not a field.
     """
-    source = ROUTER.read_text(encoding="utf-8")
+    source = _code(ROUTER.read_text(encoding="utf-8"))
     block = source[source.index("struct RoutingOutcome") : source.index("var explanation")]
     fields = set(
         re.findall(r"^\s*(?:public\s+)?(?:let|var)\s+(\w+)\s*:[^{\n]*$", block, re.MULTILINE)
@@ -449,7 +485,7 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
     assert re.search(r"var reading:\s*InputReading\s*=\s*\.search\s*$", block, re.MULTILINE), (
         "`reading` must stay the closed InputReading enum"
     )
-    reading_source = (ROUTER.parent / "Reading.swift").read_text(encoding="utf-8")
+    reading_source = _code((ROUTER.parent / "Reading.swift").read_text(encoding="utf-8"))
     enum = reading_source[reading_source.index("enum InputReading") :]
     enum = enum[: enum.index("\n}\n")]
     code = "\n".join(line.split("//", 1)[0] for line in enum.splitlines())
@@ -470,7 +506,7 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
     )
     for swift in sorted(CLIENT.rglob("*.swift")):
         if swift.name != "Refinements.swift":
-            assert not re.search(r"\bRefinement\s*\(", swift.read_text(encoding="utf-8")), (
+            assert not re.search(r"\bRefinement\s*\(", _code(swift.read_text(encoding="utf-8"))), (
                 f"{swift.name} constructs a Refinement; only the declared table may (D-168)"
             )
 
@@ -490,7 +526,7 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
     of every engine call is the bare `task` or `budget`, and `task` is only ever assigned the
     router's surface id or the id the reader tapped.
     """
-    view = (ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8")
+    view = _code((ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8"))
     code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
 
     calls = re.findall(r"\bclient\.(\w+)\(([^)]*)\)", code)
@@ -543,7 +579,7 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
         "the reader's typed question is being put into a request to the engine"
     )
 
-    client = (ROUTER.parent / "EngineClient.swift").read_text(encoding="utf-8")
+    client = _code((ROUTER.parent / "EngineClient.swift").read_text(encoding="utf-8"))
     assert not re.search(r"\bquestion\b", client), (
         "the engine client mentions the reader's question; it must only ever send task and budget"
     )
@@ -558,10 +594,10 @@ def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> Non
     excluded from iCloud backup; the register code opens no network connection; and no engine call
     is ever handed the register (the data-flow test above already pins every `client.` argument).
     """
-    front = (ROUTER.parent / "FrontDoor.swift").read_text(encoding="utf-8")
-    view = (ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8")
-    register = front[front.index("// MARK: - The gap register") :]
-    code = "\n".join(line.split("//", 1)[0] for line in register.splitlines())
+    front = _code((ROUTER.parent / "FrontDoor.swift").read_text(encoding="utf-8"))
+    view = _code((ROUTER.parent.parent / "ContentView.swift").read_text(encoding="utf-8"))
+    # #247: from the register's first declaration, since `_code` drops the `// MARK:` line that opened it.
+    code = front[front.index("public struct GapEntry") :]
 
     assert "isExcludedFromBackup = true" in code, "the register would be uploaded with the backup"
     # Review S-1: on the phone the register is unreadable while the device is locked.
@@ -570,7 +606,7 @@ def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> Non
     )
     for network in ("URLSession", "URLRequest", "EngineClient", "http"):
         assert network not in code, f"the gap register reaches for `{network}`"
-    view_code = "\n".join(line.split("//", 1)[0] for line in view.splitlines())
+    view_code = view
     # Review m-1: through the tested predicate, so a router failure (manual tier) is not a gap.
     assert re.search(r"if recordsGap\(outcome\) \{\s*gaps\.record\(typed\)", view_code), (
         "the register is not fed by the routed unmeasured outcome, or is fed something else"
@@ -739,7 +775,7 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
         )
         if path.suffix != ".swift":
             continue
-        code = path.read_text(encoding="utf-8")
+        code = path.read_text(encoding="utf-8")  # raw: the egress check reading dead code only refuses more
         # Every `import`, anywhere -- not only at the start of a line, and through comments.
         for module in IMPORT.findall(code.replace("`", "")):
             assert module in CLIENT_IMPORTS, (
@@ -784,7 +820,7 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     # The app target compiles the synchronized `ModelRanking` folder. A source file referenced
     # from anywhere else would be compiled and never read by this gate (W4 review, N10's note).
     # Another target may sync its own folder only if it is a test bundle, which never ships (D-175).
-    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift  # raw: not Swift
     assert "sourcecode." not in project, "the project references a source file outside the folder"
     folders = dict(re.findall(r"(\w+) /\* \w+ \*/ = \{\s*isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project))
     targets = re.findall(r"isa = PBXNativeTarget;.*?fileSystemSynchronizedGroups = \((.*?)\);.*?productType = \"([\w.-]+)\";",
@@ -859,7 +895,7 @@ def test_the_model_tier_hands_the_boundary_the_verdict_it_asked_for() -> None:
     test passed: the model's "something else" was asked for and thrown away, so on a device with
     Apple Intelligence only the code's signals read the question. `ModelRouter.route` needs the
     on-device model, so this is a pin on the source."""
-    code = "\n".join(line.split("//", 1)[0] for line in ROUTER.read_text(encoding="utf-8").splitlines())
+    code = _code(ROUTER.read_text(encoding="utf-8"))
     asked = re.findall(r'DynamicGenerationSchema\.Property\(\s*name:\s*"(\w+)",\s*description:\s*ModelOutputBoundary\.requestGuidance', code)
     assert asked == ["request"], "the schema no longer asks the model for its verdict"
     assert re.search(
@@ -877,7 +913,7 @@ def test_the_model_is_told_what_each_of_its_two_verdicts_means() -> None:
     reading runs on the owner's Mac alone. This pins that the instructions name both closed values,
     from the boundary's own constants, so what the model is told and what the boundary maps cannot
     part."""
-    code = ROUTER.read_text(encoding="utf-8")
+    code = _code(ROUTER.read_text(encoding="utf-8"))
     session = re.search(r'LanguageModelSession\(\s*instructions: """(.*?)"""', code, re.S)
     assert session, "the model tier's instructions are gone"
     told = session.group(1)
@@ -904,7 +940,7 @@ def test_only_tests_hand_the_gap_register_a_writer_of_their_own() -> None:
             if "write:" in call or code[end:].lstrip().startswith("{"):
                 passed.append(f"{path.relative_to(root)}: {call[:60]}")
     assert not passed, f"the app hands the gap register a writer of its own: {passed}"
-    assert "write:" in (root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8"), (
+    assert "write:" in _code((root / "ios/EngineTests/FrontDoorTests.swift").read_text(encoding="utf-8")), (
         "the test that needs the parameter is gone; then the parameter can go too")
 
 
@@ -1009,7 +1045,7 @@ def _sink_pin_problems(sources: dict[str, str]) -> list[str]:
 
 
 def _client_sources() -> dict[str, str]:
-    return {str(p.relative_to(CLIENT)): p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}
+    return {str(p.relative_to(CLIENT)): p.read_text(encoding="utf-8") for p in CLIENT.rglob("*.swift")}  # raw: each caller reads it through `_code`
 
 
 def test_the_privacy_sinks_hold_by_text_too() -> None:
