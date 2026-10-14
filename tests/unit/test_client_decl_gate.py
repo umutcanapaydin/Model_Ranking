@@ -880,7 +880,11 @@ def test_a_store_makes_a_url_only_from_the_file_systems_folders(store: str, make
     the calls on `STORE_URL_MAKERS`: a folder the file manager names, and a component appended to it or
     removed. Any other URL initialiser or decode in a store is refused."""
     refused = gate.problems({store: {maker, "Foundation.Data.init(contentsOf:options:"}})
-    assert any(line.startswith(f"{store}:") and "a store makes a URL only" in line for line in refused), refused
+    # `StandingsStore.swift` is also a privacy sink, whose Foundation list refuses most of these first.
+    reasons = ("a store makes a URL only", "not on the list of Foundation declarations a privacy sink")
+    assert any(line.startswith(f"{store}:") and any(r in line for r in reasons) for line in refused), refused
+    if store == "FrontDoor.swift" or maker in {"Foundation.URL.init(string:", "Foundation.URL.decoded"}:
+        assert any("a store makes a URL only" in line for line in refused), refused
 
 
 def test_the_stores_shipping_urls_pass() -> None:

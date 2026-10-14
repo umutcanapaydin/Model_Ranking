@@ -6524,6 +6524,113 @@
       (parameter_list)
       (brace_stmt implicit range=[/x/EngineClient.swift:90:8 - line:90:8]
         (return_stmt implicit range=[/x/EngineClient.swift:90:8 - line:90:8])))))
+(source_file "/x/FrontDoor.swift"
+  (import_decl range=[/x/FrontDoor.swift:3:1 - line:3:8] module="Foundation")
+  (func_decl range=[/x/FrontDoor.swift:5:1 - line:9:1] "fixtureStoreLoad(_:)" interface_type="(String) -> Data?" access=internal result="Data?" thrown_type="<null>"
+    (parameter_list range=[/x/FrontDoor.swift:5:22 - line:5:38]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/FrontDoor.swift:5:49 - line:9:1]
+      (pattern_binding_decl range=[/x/FrontDoor.swift:6:5 - line:6:93]
+        (pattern_entry
+          (pattern_typed type="URL?"
+            (pattern_named type="URL?" "target")
+            (type_optional
+              (type_unqualified_ident id="URL" bind="Foundation.(file).URL")))
+          (original_init=optional_try_expr type="URL?" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:24 - line:6:93] thrown_error="any Error"
+            (inject_into_optional implicit type="URL?" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:29 - line:6:93]
+              (call_expr type="URL" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:29 - line:6:93] throws isolation_crossing="none"
+                (constructor_ref_call_expr type="(URL.ParseStrategy.ParseInput, URL.ParseStrategy) throws -> URL" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:29 - line:6:30] nothrow isolation_crossing="none"
+                  (declref_expr type="(URL.Type) -> (URL.ParseStrategy.ParseInput, URL.ParseStrategy) throws -> URL" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:30 - line:6:30] decl="Foundation.(file).URL extension.init(_:strategy:) [with (substitution_map generic_signature=<T where T : ParseStrategy, T.ParseOutput == URL> T -> URL.ParseStrategy)]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr implicit type="URL.Type" location=/x/FrontDoor.swift:6:29 range=[/x/FrontDoor.swift:6:29 - line:6:29] typerepr="URL"))))
+                (argument_list labels="_:strategy:"
+                  (argument
+                    (binary_expr type="String" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:35 - line:6:72] nothrow isolation_crossing="none"
+                      (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:70 - line:6:70] nothrow isolation_crossing="none"
+                        (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:70 - line:6:70] decl="Swift.(file).String extension.+" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr implicit type="String.Type" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:70 - line:6:70] typerepr="String"))))
+                      (argument_list implicit
+                        (argument
+                          (binary_expr type="String" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:35 - line:6:42] nothrow isolation_crossing="none"
+                            (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:40 - line:6:40] nothrow isolation_crossing="none"
+                              (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:40 - line:6:40] decl="Swift.(file).String extension.+" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr implicit type="String.Type" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:40 - line:6:40] typerepr="String"))))
+                            (argument_list implicit
+                              (argument
+                                (string_literal_expr type="String" location=/x/FrontDoor.swift:6:35 range=[/x/FrontDoor.swift:6:35 - line:6:35] encoding=utf8 value="ht" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                              (argument
+                                (string_literal_expr type="String" location=/x/FrontDoor.swift:6:42 range=[/x/FrontDoor.swift:6:42 - line:6:42] encoding=utf8 value="tps://example.invalid/?q=" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))
+                        (argument
+                          (declref_expr type="String" location=/x/FrontDoor.swift:6:72 range=[/x/FrontDoor.swift:6:72 - line:6:72] decl="main.(file).fixtureStoreLoad(_:).typed@/x/FrontDoor.swift:5:25" function_ref=unapplied)))))
+                  (argument label="strategy"
+                    (member_ref_expr type="URL.ParseStrategy" location=/x/FrontDoor.swift:6:90 range=[/x/FrontDoor.swift:6:89 - line:6:90] decl="Foundation.(file).ParseStrategy extension.url [with (substitution_map generic_signature=<Self where Self == URL.ParseStrategy> Self -> URL.ParseStrategy)]"
+                      (type_expr implicit type="URL.ParseStrategy.Type" location=/x/FrontDoor.swift:6:89 range=[/x/FrontDoor.swift:6:89 - line:6:89] typerepr="URL.ParseStrategy")))))))
+          (processed_init=optional_try_expr type="URL?" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:24 - line:6:93] thrown_error="any Error"
+            (inject_into_optional implicit type="URL?" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:29 - line:6:93]
+              (call_expr type="URL" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:29 - line:6:93] throws isolation_crossing="none"
+                (constructor_ref_call_expr type="(URL.ParseStrategy.ParseInput, URL.ParseStrategy) throws -> URL" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:29 - line:6:30] nothrow isolation_crossing="none"
+                  (declref_expr type="(URL.Type) -> (URL.ParseStrategy.ParseInput, URL.ParseStrategy) throws -> URL" location=/x/FrontDoor.swift:6:30 range=[/x/FrontDoor.swift:6:30 - line:6:30] decl="Foundation.(file).URL extension.init(_:strategy:) [with (substitution_map generic_signature=<T where T : ParseStrategy, T.ParseOutput == URL> T -> URL.ParseStrategy)]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr implicit type="URL.Type" location=/x/FrontDoor.swift:6:29 range=[/x/FrontDoor.swift:6:29 - line:6:29] typerepr="URL"))))
+                (argument_list labels="_:strategy:"
+                  (argument
+                    (binary_expr type="String" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:35 - line:6:72] nothrow isolation_crossing="none"
+                      (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:70 - line:6:70] nothrow isolation_crossing="none"
+                        (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:70 - line:6:70] decl="Swift.(file).String extension.+" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr implicit type="String.Type" location=/x/FrontDoor.swift:6:70 range=[/x/FrontDoor.swift:6:70 - line:6:70] typerepr="String"))))
+                      (argument_list implicit
+                        (argument
+                          (binary_expr type="String" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:35 - line:6:42] nothrow isolation_crossing="none"
+                            (dot_syntax_call_expr implicit type="(String, String) -> String" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:40 - line:6:40] nothrow isolation_crossing="none"
+                              (declref_expr type="(String.Type) -> (String, String) -> String" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:40 - line:6:40] decl="Swift.(file).String extension.+" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr implicit type="String.Type" location=/x/FrontDoor.swift:6:40 range=[/x/FrontDoor.swift:6:40 - line:6:40] typerepr="String"))))
+                            (argument_list implicit
+                              (argument
+                                (string_literal_expr type="String" location=/x/FrontDoor.swift:6:35 range=[/x/FrontDoor.swift:6:35 - line:6:35] encoding=utf8 value="ht" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                              (argument
+                                (string_literal_expr type="String" location=/x/FrontDoor.swift:6:42 range=[/x/FrontDoor.swift:6:42 - line:6:42] encoding=utf8 value="tps://example.invalid/?q=" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))
+                        (argument
+                          (declref_expr type="String" location=/x/FrontDoor.swift:6:72 range=[/x/FrontDoor.swift:6:72 - line:6:72] decl="main.(file).fixtureStoreLoad(_:).typed@/x/FrontDoor.swift:5:25" function_ref=unapplied)))))
+                  (argument label="strategy"
+                    (member_ref_expr type="URL.ParseStrategy" location=/x/FrontDoor.swift:6:90 range=[/x/FrontDoor.swift:6:89 - line:6:90] decl="Foundation.(file).ParseStrategy extension.url [with (substitution_map generic_signature=<Self where Self == URL.ParseStrategy> Self -> URL.ParseStrategy)]"
+                      (type_expr implicit type="URL.ParseStrategy.Type" location=/x/FrontDoor.swift:6:89 range=[/x/FrontDoor.swift:6:89 - line:6:89] typerepr="URL.ParseStrategy")))))))))
+      (var_decl range=[/x/FrontDoor.swift:6:9 - line:6:9] "target" interface_type="URL?" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (guard_stmt range=[/x/FrontDoor.swift:7:5 - line:7:40]
+        (conditions=array
+          (pattern
+            (pattern_optional_some implicit type="URL?"
+              (pattern_binding implicit type="URL" kind=let
+                (pattern_named type="URL" "target")))
+            (declref_expr type="URL?" location=/x/FrontDoor.swift:7:15 range=[/x/FrontDoor.swift:7:15 - line:7:15] decl="main.(file).fixtureStoreLoad(_:).target@/x/FrontDoor.swift:6:9" function_ref=unapplied)))
+        (brace_stmt range=[/x/FrontDoor.swift:7:27 - line:7:40]
+          (return_stmt range=[/x/FrontDoor.swift:7:29 - line:7:36]
+            (nil_literal_expr type="Data?" location=/x/FrontDoor.swift:7:36 range=[/x/FrontDoor.swift:7:36 - line:7:36] initializer="**NULL**"))))
+      (return_stmt range=[/x/FrontDoor.swift:8:5 - line:8:40]
+        (optional_try_expr type="Data?" location=/x/FrontDoor.swift:8:17 range=[/x/FrontDoor.swift:8:12 - line:8:40] thrown_error="any Error"
+          (inject_into_optional implicit type="Data?" location=/x/FrontDoor.swift:8:17 range=[/x/FrontDoor.swift:8:17 - line:8:40]
+            (call_expr type="Data" location=/x/FrontDoor.swift:8:17 range=[/x/FrontDoor.swift:8:17 - line:8:40] throws isolation_crossing="none"
+              (constructor_ref_call_expr type="(__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:8:17 range=[/x/FrontDoor.swift:8:17 - line:8:17] nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Data.Type) -> (__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:8:17 range=[/x/FrontDoor.swift:8:17 - line:8:17] decl="Foundation.(file).Data.init(contentsOf:options:)" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr type="Data.Type" location=/x/FrontDoor.swift:8:17 range=[/x/FrontDoor.swift:8:17 - line:8:17] typerepr="Data"))))
+              (argument_list labels="contentsOf:options:"
+                (argument label="contentsOf"
+                  (declref_expr type="URL" location=/x/FrontDoor.swift:8:34 range=[/x/FrontDoor.swift:8:34 - line:8:34] decl="main.(file).fixtureStoreLoad(_:).target@/x/FrontDoor.swift:7:15" function_ref=unapplied))
+                (argument label="options"
+                  (default_argument_expr implicit type="Data.ReadingOptions" location=/x/FrontDoor.swift:8:21 range=[/x/FrontDoor.swift:8:21 - line:8:21] default_args_owner="Foundation.(file).Data.init(contentsOf:options:)" param=1))))))))))
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")

@@ -156,6 +156,17 @@ FILESYSTEM_FILES = {
     "StandingsStore.swift": "the standings the engine sent (D-167)",
 }
 
+#: #246 (G-13, the M21-W3 review's round 3): the calls by which a store may make a URL. A store reads
+#: with `Data(contentsOf:)`, which fetches an `https` address as readily as a file, so it makes a URL
+#: only from a folder the file manager names, with a component appended or removed. Any other URL
+#: initialiser or decode in a store (`URL_MADE_BY_NAME`) is refused, `URL(_:strategy:)` among them.
+STORE_URL_MAKERS = frozenset({
+    "FileManager.urls(for:in:", "FileManager.url(for:in:appropriateFor:create:", "FileManager.temporaryDirectory",
+    "URL.appendingPathComponent", "URL.appendingPathComponent(_:isDirectory:", "URL.deletingLastPathComponent(",
+})
+#: A symbol that makes a URL by its own name: an initialiser of a URL type, or a decode of one.
+URL_MADE_BY_NAME = re.compile(r"^(?:URL|NSURL)\.(?:init\(|decoded\b)")
+
 #: Appending a path component builds a route inside a URL that already exists, so it belongs to
 #: whoever owns that URL: the register's folder in one file, the engine's request path in the other.
 #: It cannot turn a local URL into a remote one, which is what the two lists above are about.
@@ -422,6 +433,8 @@ SNAPSHOT = ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt"
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
+    # #246 (G-13): a store makes a URL from text and loads it.
+    ("FrontDoor.swift", "a store makes a URL only"),
     ("Detail.swift", "FileManager"), ("Detail.swift", "URL.decoded"),
     # #85 (D-180): the M17 relay through shared state, both halves, and P3's standings.
     ("EngineClient.swift", "mutable stored state"),
@@ -529,6 +542,7 @@ FIXTURE_RULES: dict[str, str] = {
     "the router's outcomes": "builds RoutingOutcome",
     "an expression by name": "NSExpression",
     "reflection and the runtime by name": "ObjectiveC.objc_",
+    "a URL a store makes from text": "a store makes a URL only",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -1887,6 +1901,15 @@ def _reach_anything_problem(name: str, symbol: str, head: str, decl: str) -> str
     return None
 
 
+def _store_url_problem(name: str, symbol: str, decl: str) -> str | None:
+    """#246 (G-13): a store makes a URL only by the calls `STORE_URL_MAKERS` lists."""
+    if name in FILESYSTEM_FILES and URL_MADE_BY_NAME.match(symbol) and symbol not in STORE_URL_MAKERS:
+        return (f"{name}: `{decl}` makes a URL, and a store makes a URL only from the file system's folders "
+                f"({', '.join(sorted(STORE_URL_MAKERS))}): its read fetches an https address as readily as a "
+                "file (#246)")
+    return None
+
+
 def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
     """Network, file system and the ways text leaves a phone, inside the allowed modules."""
     head = symbol.split("(")[0]
@@ -1894,7 +1917,7 @@ def _capability_problem(name: str, symbol: str, decl: str) -> str | None:
         return None
     if any(symbol.startswith(p) or head == p for p in FORBIDDEN):
         return f"{name}: `{decl}` carries text off the device or into shared storage"
-    if (reached := _reach_anything_problem(name, symbol, head, decl)) is not None:
+    if (reached := _reach_anything_problem(name, symbol, head, decl) or _store_url_problem(name, symbol, decl)) is not None:
         return reached
     if any(symbol.startswith(p) for p in PATH_BUILDING):
         if name in {*FILESYSTEM_FILES, NETWORK_FILE}:
