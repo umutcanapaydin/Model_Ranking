@@ -236,10 +236,12 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
 
 #: #272 (D-198 clause 2): each live set's matches in a record older than the set, by file and count, measured
 #: 2026-10-14. The questions are not printed. `m21-wave-2-review.md` (M21-W2) quotes the probe questions it
-#: ran, and the seat that wrote `reading_heldout_m22` repeated three of them: the set's overlap with
-#: published text, not a leak from it.
+#: ran, and the seat that wrote `reading_heldout_m22` repeated three of them; `m20-wave-3-review.md` holds
+#: one more, found once the scan read a record's wrapped lines and backticks (the hardening review's M3).
+#: The set's overlap with published text, not a leak from it.
 HELD_OUT_PUBLISHED_OVERLAP: dict[str, dict[str, int]] = {
-    "reading_heldout_m22_questions.json": {"docs/reviews/m21-wave-2-review.md": 3},
+    "reading_heldout_m22_questions.json": {"docs/reviews/m20-wave-3-review.md": 1,
+                                           "docs/reviews/m21-wave-2-review.md": 3},
 }
 
 
@@ -260,8 +262,11 @@ def _held_questions(path: pathlib.Path) -> set[str]:
 def _record_matches(held: set[str], texts: dict[str, str]) -> dict[str, int]:
     """#272: how many of `held` each record holds, as `_held_out_leaks` finds them; the questions are never
     returned."""
+    # The hardening review's M3: a record wraps its lines, doubles its spaces and quotes in backticks, so
+    # its whitespace is collapsed and a backtick quotes as a double quote does.
+    read = {name: " ".join(text.split()).replace("`", '"') for name, text in texts.items()}
     counts: dict[str, int] = {}
-    for name, _size in _held_out_leaks(held, texts, {}):
+    for name, _size in _held_out_leaks({" ".join(q.split()) for q in held}, read, {}):
         counts[name] = counts.get(name, 0) + 1
     return counts
 

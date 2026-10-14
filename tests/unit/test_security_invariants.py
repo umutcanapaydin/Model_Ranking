@@ -22,6 +22,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.unit.test_router_hints import _code
+
 ROOT = Path(__file__).resolve().parents[2]
 LIST = ROOT / "docs" / "security-invariants.md"
 
@@ -97,8 +99,10 @@ def parse(text: str) -> tuple[list[Row], dict[str, str], set[int]]:
 @functools.cache
 def declared_names(path: Path) -> frozenset[str]:
     """The functions a test file declares: `def` in Python, `func` in Swift."""
-    pattern = r"^\s*(?:async\s+)?def (\w+)\(" if path.suffix == ".py" else r"\bfunc (\w+)\("
-    return frozenset(re.findall(pattern, path.read_text(encoding="utf-8"), re.M))
+    if path.suffix == ".py":
+        return frozenset(re.findall(r"^\s*(?:async\s+)?def (\w+)\(", path.read_text(encoding="utf-8"), re.M))  # raw: Python
+    # The hardening review's N1: a Swift test is declared only where a build compiles it.
+    return frozenset(re.findall(r"\bfunc (\w+)\(", _code(path.read_text(encoding="utf-8")), re.M))
 
 
 def problems(text: str, root: Path = ROOT) -> list[str]:

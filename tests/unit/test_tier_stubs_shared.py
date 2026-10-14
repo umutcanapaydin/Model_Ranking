@@ -10,7 +10,7 @@ from __future__ import annotations
 import pathlib
 import re
 
-from tests.unit.test_ios_client_contract import _swift
+from tests.unit.test_router_hints import _code
 
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 
@@ -25,7 +25,7 @@ def test_the_swift_tests_share_one_set_of_tier_stubs() -> None:
     declares = re.compile(r"\b(?:struct|class|enum|actor)\s+(\w+)\s*:[^{\n]*\bQuestionRouter\b")
     elsewhere = [f"{path.name}: {match.group(1)}" for path in sorted(tests.glob("*.swift")) if path != home
                  for match in declares.finditer(path.read_text(encoding="utf-8"))]  # raw: an absence check, which reads dead code too and so refuses more
-    shared = declares.findall(_swift(home)) if home.exists() else []
+    shared = declares.findall(_code(home.read_text(encoding="utf-8"))) if home.exists() else []
     assert len(shared) >= 4, f"TierStubs.swift declares {shared}; the shared tiers are missing"
     assert not elsewhere, f"tier stubs declared outside TierStubs.swift: {elsewhere}"
 
@@ -40,7 +40,7 @@ def test_no_test_file_declares_a_tier_stub_in_any_shape() -> None:
     home = tests / "TierStubs.swift"
     conforms = re.compile(r"\b(?:struct|class|enum|actor|extension)\s+[\w.]+\s*(?:<[^>{]*>)?"
                           r"\s*:[^{]*\bQuestionRouter\b")
-    assert conforms.search(_swift(home)), "the pattern finds no shared stub"
+    assert conforms.search(_code(home.read_text(encoding="utf-8"))), "the pattern finds no shared stub"
     sources = sorted(path for path in tests.rglob("*.swift") if path != home)
     assert len(sources) >= 10, f"read {len(sources)} test sources; was EngineTests read?"
     found = []

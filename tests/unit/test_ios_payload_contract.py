@@ -25,7 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.adapter import main as adapter
-from tests.unit.test_ios_client_contract import _swift
+from tests.unit.test_router_hints import _code
 
 SWIFT_MODELS = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Models.swift"
 
@@ -40,7 +40,7 @@ def _struct_body(struct: str) -> str:
     derivation that reads past its subject is worse than a hand-written list, because it looks
     authoritative.
     """
-    source = _swift(SWIFT_MODELS)
+    source = _code(SWIFT_MODELS.read_text(encoding="utf-8"))
     start = source.index(f"struct {struct}:")
     following = re.search(r"^struct \w+[:\s]", source[start + 1 :], re.MULTILINE)
     return source[start : start + 1 + following.start()] if following else source[start:]

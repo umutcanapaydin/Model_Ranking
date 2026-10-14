@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.adapter import main as adapter
-from tests.unit.test_ios_client_contract import _swift
+from tests.unit.test_router_hints import _code
 
 from .test_api_v1 import _seeded_db
 
@@ -136,5 +136,5 @@ def test_the_app_matches_the_code_the_engine_sends_for_an_unknown_host(db: Path,
     refusal by matching its code in Swift; each side held only its own literal."""
     monkeypatch.setenv(HOSTS, LIST)
     code = TestClient(adapter.app, base_url="http://evil.example").get("/v1/categories").json()["error"]["code"]
-    client = _swift(Path(__file__).resolve().parents[2] / "ios" / "ModelRanking" / "Engine" / "EngineClient.swift")
+    client = _code((Path(__file__).resolve().parents[2] / "ios" / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8"))
     assert f'code == "{code}"' in client, code

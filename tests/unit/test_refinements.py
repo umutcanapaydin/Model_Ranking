@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 from app.clients.arena_slices import ARENA_SLICES
 from app.workflows.categories import CATEGORIES
-from tests.unit.test_ios_client_contract import _swift
+from tests.unit.test_router_hints import _code
 
 TABLE = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Refinements.swift"
 ENTRY = re.compile(
@@ -26,7 +26,7 @@ ENTRY = re.compile(
 
 
 def _entries() -> list[dict[str, object]]:
-    text = _swift(TABLE)
+    text = _code(TABLE.read_text(encoding="utf-8"))
     entries = [
         {**m.groupdict(), "surfaces": re.findall(r'"([^"]+)"', m.group("surfaces"))}
         for m in ENTRY.finditer(text)

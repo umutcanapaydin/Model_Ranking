@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests.unit.test_router_hints import _code
+
 TESTS = Path(__file__).resolve().parents[2] / "ios" / "EngineTests"
 BASE = "OfflineTestCase.swift"
 
@@ -43,7 +45,7 @@ def test_the_check_sees_a_class_setup_that_skips_super() -> None:
 
 def test_the_base_checks_every_test_and_calls_through() -> None:
     """The check is in the base's tearDown, and a subclass that overrides setUp or tearDown calls super."""
-    base = (TESTS / BASE).read_text(encoding="utf-8")  # raw: every test class, live or dead, is held
+    base = _code((TESTS / BASE).read_text(encoding="utf-8"))  # M1: the base's own lines are required, so read as built
     assert re.search(r"override func tearDown\(\)[^}]*OfflineGuard", base, re.S), "the base checks nothing"
     skipping = [f"{path.name}: {hook}" for path in sorted(TESTS.glob("*.swift")) if path.name != BASE
                 for hook in _hooks_skipping_super(path.read_text(encoding="utf-8"))]  # raw: every test class, live or dead, is held
@@ -82,7 +84,7 @@ def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
     nothing and every test passed (the check above matches `OfflineGuard` in the body, which the drain
     alone satisfies). Swift cannot hold this here: the way to expect a failure is `XCTExpectFailure`,
     which `scripts/swift_xunit_gate.py` refuses because the parallel run reports it as a pass."""
-    base = (TESTS / BASE).read_text(encoding="utf-8")  # raw: every test class, live or dead, is held
+    base = _code((TESTS / BASE).read_text(encoding="utf-8"))  # M1: the base's own lines are required, so read as built
     tear_down = re.search(r"override func tearDown\(\) \{(.*?)\n    \}", base, re.S)
     assert tear_down, "the base has no tearDown"
     body = tear_down.group(1)

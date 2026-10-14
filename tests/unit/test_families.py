@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.workflows import families
 from app.workflows.categories import CATEGORIES
-from tests.unit.test_ios_client_contract import _swift
+from tests.unit.test_router_hints import _code
 
 
 def _declared_boards() -> set[str]:
@@ -118,7 +118,7 @@ def test_a_board_outside_as_a_refinement_is_one_the_refinement_table_adds() -> N
     import re
 
     swift = (pathlib.Path(__file__).resolve().parents[2] / "ios" / "ModelRanking" / "Engine" / "Refinements.swift")
-    added = set(re.findall(r'board: "([a-z_]+)"', _swift(swift)))
+    added = set(re.findall(r'board: "([a-z_]+)"', _code(swift.read_text(encoding="utf-8"))))
     assert len(added) > 10, "the refinement table was not read"
     said = {board for board, reason in families.OUTSIDE_FAMILIES.items() if "refinement the question adds" in reason}
     assert said <= added, sorted(said - added)

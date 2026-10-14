@@ -438,7 +438,8 @@ def _adrs(log: str) -> set[str]:
     return set(re.findall(r"^## (D-\d+)\b", log, re.M))
 
 
-def adr_order_problems(root: pathlib.Path, base: str, end: str, plan_rel: str | None) -> list[str]:
+def adr_order_problems(root: pathlib.Path, base: str, end: str, plan_rel: str | None,
+                       code_dirs: tuple[str, ...] = CODE_DIRS) -> list[str]:
     """#201 (D-192 clause 2): an ADR the range `base..end` adds first appears in a commit that changes no
     code, after no code commit of the range that cites it, and after no code commit at all unless the plan
     (`plan_rel`, a milestone's) named it before. A backlog wave has no plan (#274)."""
@@ -459,8 +460,8 @@ def adr_order_problems(root: pathlib.Path, base: str, end: str, plan_rel: str | 
         named = plan_rel is not None and bool(re.search(rf"\b{re.escape(adr)}\b",
                                                        _git(root, "show", f"{first[0]}^:{plan_rel}") or ""))
         earlier = [entry.split("\x1f", 1) for entry in (_git(root, "log", "--format=%h\x1f%B\x1e", f"{base}..{first[0]}^",
-                                                                 "--", *CODE_DIRS) or "").split("\x1e") if entry.strip()]
-        if any(f.startswith(CODE_DIRS) for f in files) and not named:
+                                                                 "--", *code_dirs) or "").split("\x1e") if entry.strip()]
+        if any(f.startswith(code_dirs) for f in files) and not named:
             problems.append(f"{adr} first appears in `{first[0][:7]}`, which also changes code, and no plan named "
                             "it before -- write the decision before the code it governs (#201)")
         # A backlog wave has no plan (#274, D-198 clause 3): only a code commit that cites the ADR comes too early.
@@ -487,8 +488,11 @@ def branch_adr_problems(root: pathlib.Path) -> tuple[list[str], str | None]:
     added = (_git(root, "diff", "--name-only", "--diff-filter=A", base, "HEAD") or "").splitlines()
     if any(re.search(r"(^|/)m\d+-wave-\d+-close\.md$", path) for path in added):
         return [], None
-    return [f"{problem.removesuffix(' (#201)')} (#201, #274)" for problem in
-            adr_order_problems(root, base.strip(), "HEAD", None)], None
+    # The hardening review's K1 and N3: a backlog wave's tests are code its decision governs, and the
+    # message names the range it read, so a stale `origin/main` shows as such.
+    span = f"{base.strip()[:7]}..HEAD"
+    return [f"{problem.removesuffix(' (#201)')} (#201, #274; read on {span})" for problem in
+            adr_order_problems(root, base.strip(), "HEAD", None, (*CODE_DIRS, "tests/"))], None
 
 
 def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tuple[list[str], str | None]:

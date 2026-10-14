@@ -19,13 +19,13 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from tests.unit.test_ios_client_contract import _swift
+from tests.unit.test_router_hints import _code
 
 IOS = Path(__file__).resolve().parents[2] / "ios"
 
 
 def _package_ios_floor() -> str:
-    manifest = _swift(IOS / "Package.swift")
+    manifest = _code((IOS / "Package.swift").read_text(encoding="utf-8"))
     match = re.search(r"\.iOS\(\.v(\d+)\)", manifest)
     assert match, "Package.swift declares no iOS platform at all"
     return match.group(1)
@@ -62,7 +62,7 @@ def test_the_project_does_not_declare_two_different_floors_for_itself() -> None:
 
 
 def _package_language_mode() -> str:
-    manifest = _swift(IOS / "Package.swift")
+    manifest = _code((IOS / "Package.swift").read_text(encoding="utf-8"))
     match = re.search(r"\.swiftLanguageMode\(\.v(\d+)\)", manifest)
     assert match, (
         "the Engine target pins no language mode, so it inherits the tools version — which is how "

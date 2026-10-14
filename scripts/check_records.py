@@ -1320,7 +1320,8 @@ def rule_id_refs(root: Path) -> list[Finding]:
 #: matched first, so `\\\\u015f` stays a backslash and text.
 _ESCAPES = {
     ".json": re.compile(r"(\\\\)|\\u([0-9a-fA-F]{4})(?:\\u([0-9a-fA-F]{4}))?"),
-    ".swift": re.compile(r"(\\\\)|\\u\{([0-9a-fA-F]{1,8})\}()"),
+    # A raw string's escape carries its hashes, `\#u{...}` (the hardening review's N2).
+    ".swift": re.compile(r"(\\\\)|\\#*u\{([0-9a-fA-F]{1,8})\}()"),
 }
 
 
@@ -1408,7 +1409,8 @@ def language_rule(root: Path) -> list[Finding]:
                 continue
             if fenced:
                 continue
-            prose = INLINE_CODE.sub(_strip_short_span, _decoded(line, p.suffix))
+            # Spans first, then escapes: an escaped backtick opens no span (the hardening review's N2).
+            prose = _decoded(INLINE_CODE.sub(_strip_short_span, line), p.suffix)
             if TR_CHARS.search(prose):
                 f.append(Finding(Path(rel), i, "L1",
                                  "Turkish text in an English-only repository (V4C-79). Translate it; "

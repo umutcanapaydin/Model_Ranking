@@ -53,7 +53,7 @@ def test_the_client_asks_for_the_key_the_plist_carries() -> None:
     """W1 review M4: the key is one fact in two files. Reading nothing, or a misspelt key, passed every
     gate; the phone would then talk to its own loopback."""
     info = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())
-    client = _swift(IOS / "ModelRanking" / "Engine" / "EngineClient.swift")
+    client = _code((IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8"))
     found = re.search(
         r'static let localDefault = engineURL\(from: Bundle\.main\.object\(forInfoDictionaryKey: "(\w+)"\) as\? String\)',
         client,

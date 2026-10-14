@@ -674,7 +674,7 @@ def test_a_url_rebound_between_a_stores_guard_and_its_read_is_refused(
     assert code.count(guard) == 1, f"{store} no longer reads as `{guard}`"
     path.write_text(code.replace(guard, REBOUND_READ), encoding="utf-8")
     monkeypatch.setattr(sys.modules[__name__], "CLIENT", copy / CLIENT.name)
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match=r"guard url\.isFileURL.*exactly once|Data\(contentsOf"):
         _assert_the_client_has_no_way_off_the_device()
 
 
