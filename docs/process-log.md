@@ -843,3 +843,18 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   path).
 - DeepSWE (#265): the token lists the dataset's files but cannot read them; the owner's access request is
   not yet granted.
+
+## 2026-10-14 — the gates and licences wave: the pins read the built code, and the Credits sheet carries the licences (D-197)
+
+- #253: A1 reads the pointer pairs both ways; D-176 and D-179 gain the `Amends` they implied.
+- #247 (G-15 closed): every Swift pin reads through `_code` or `_swift`, a raw read says why on its line,
+  and `_swift` blanks block comments. The three probes the M21-W3 review planted now fail their pins.
+- #246 (G-13 narrowed): a store makes a URL only by `STORE_URL_MAKERS`; the round-3 probe in the shipping
+  `FrontDoor.swift` is refused in all four configurations.
+- #244 (G-11 narrowed): no key path may name what a request sends, and another file reaches only the six
+  engine-client members measured on the shipping client.
+- #245 closed on its remainder, which only a compiler can hold (#243's macOS lane, the owner's).
+- #261 (D-197): each Apache-2.0 or MIT credit carries its copyright notice, and the sheet carries those
+  licences' texts, held word for word by hash.
+- #242 stays open: an allowlist for what a served number may meet would start from 123 distinct calls on
+  the shipping client, each to be justified; it is its own piece of work.
