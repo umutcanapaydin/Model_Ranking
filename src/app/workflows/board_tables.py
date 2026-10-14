@@ -96,7 +96,8 @@ class Credit:
 PUBLISHES_NO_NOTICE: dict[str, str] = {
     "aider": "LICENSE.txt is the Apache-2.0 text with its appendix template unfilled, and no NOTICE file",
     "terminal_bench": "LICENSE is the Apache-2.0 text with its appendix template unfilled, and no NOTICE file",
-    "arc_prize": "the dataset card names MIT and the dataset holds no LICENSE file",
+    "arc_prize": "the runs' dataset card names MIT and the dataset holds no LICENSE file; the solutions they "
+                 "are scored against carry their own credit, `arc_prize_solutions`",
 }
 
 _CC_BY_URL = "https://creativecommons.org/licenses/by/4.0/"
@@ -124,6 +125,11 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("arc_prize", "ARC Prize Foundation", "ARC-AGI-2 public evaluation runs, scored by this app",
            "https://huggingface.co/datasets/arcprize/arc_agi_v2_public_eval", "MIT",
            "https://opensource.org/license/mit"),
+    # The backlog-gates review's N2: the runs are scored against the published solutions (D-194 clause 3),
+    # whose repository is Apache-2.0 with its own copyright line (LICENSE at the pinned commit `f3283f72`).
+    Credit("arc_prize_solutions", "ARC Prize Foundation", "ARC-AGI-2 public evaluation tasks and solutions, "
+           "which this app scores the runs against", "https://github.com/arcprize/ARC-AGI-2", "Apache-2.0",
+           "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE", "Copyright 2019 ARC Prize Foundation."),
     Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
            "\u00a9 Datacurve; no licence published", None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",

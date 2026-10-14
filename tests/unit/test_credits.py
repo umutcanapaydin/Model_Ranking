@@ -206,6 +206,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "litellm": ("MIT", "https://github.com/BerriAI/litellm/blob/main/LICENSE"),
         "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
         "arc_prize": ("MIT", "https://opensource.org/license/mit"),
+        "arc_prize_solutions": ("Apache-2.0", "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE"),
         "datacurve": ("\u00a9 Datacurve; no licence published", None),
         "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
@@ -245,6 +246,8 @@ def test_an_apache_or_mit_credit_carries_the_notice_its_licence_asks_to_keep() -
     assert notices["litellm"] == "Copyright (c) 2023 Berri AI"
     assert notices["models_dev"] == "Copyright (c) 2025 models.dev"
     assert notices["helm"] == "Copyright 2022 Stanford University"
+    # The backlog-gates review's N2: the ARC-AGI-2 solutions the runs are scored against are Apache-2.0.
+    assert notices["arc_prize_solutions"] == "Copyright 2019 ARC Prize Foundation."
     for credit in CREDITS.values():
         if credit.licence.startswith(("Apache-2.0", "MIT")):
             assert bool(credit.notice) != (credit.id in PUBLISHES_NO_NOTICE), credit.id

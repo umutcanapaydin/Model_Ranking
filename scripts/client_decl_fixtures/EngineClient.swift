@@ -58,6 +58,17 @@ struct EngineClient {
         recommendation(task: typed, budget: "unlimited")
     }
 
+    // The backlog-gates review's M1: an initialiser, and a member whose name begins like a listed one,
+    // each forwarding what it is handed as the surface. The screen may reach neither.
+    init(asking typed: String) {
+        self.init()
+        _ = recommendation(task: typed, budget: "unlimited")
+    }
+
+    var baseURLSender: (String) -> URL {
+        { recommendation(task: $0, budget: "unlimited") }
+    }
+
     func recommendation(task: String, budget: String) -> URL {
         baseURL.appendingPathComponent(task + budget)
     }

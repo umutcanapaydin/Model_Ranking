@@ -268,6 +268,15 @@ struct ContentView {
     func askThroughASubscript(_ typed: String) -> URL {
         client[asking: typed]
     }
+
+    // The backlog-gates review's M1: REFUSED, both. The engine client's members are matched whole.
+    func askThroughAnInitialiser(_ typed: String) -> EngineClient {
+        EngineClient(asking: typed)
+    }
+
+    func askThroughALookalikeMember(_ typed: String) -> URL {
+        client.baseURLSender(typed)
+    }
 }
 
 func fixtureWrite<Root, Value>(_ root: inout Root, _ path: WritableKeyPath<Root, Value>, _ value: Value) {

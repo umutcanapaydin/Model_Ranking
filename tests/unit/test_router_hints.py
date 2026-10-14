@@ -79,8 +79,8 @@ def _interpolation_end(swift: str, i: int) -> int:
 
 def _code(swift: str) -> str:
     """The source with its comments removed and a branch whose condition is literally false dropped
-    (`_built`): at least what some build compiles. Eight pins here read the app's Swift without it, and a
-    ninth reads `FrontDoorTests.swift` raw in its last assertion (G-15, INV-78)."""
+    (`_built`): at least what some build compiles. Every pin here reads the app's Swift through it; a raw
+    read says why on its line (#247, INV-78)."""
     return _built(_stripped(swift))
 
 
@@ -513,7 +513,7 @@ def test_the_routing_outcome_declares_the_six_fields_and_types_the_pin_reads() -
 
 def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_reads() -> None:
     """REQ-RTR-004. The engine is asked for a SURFACE, never for a question. This pin refuses the
-    spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-11, G-14, G-15; see INV-64).
+    spellings it reads; any other spelling is not held (G-11, G-14; see INV-64).
 
     `/v1` takes `task` and `budget` and nothing else, and the router's only contribution to a
     request is which of nine ids the task is. The scoring path is untouched (D-104) because the
@@ -587,7 +587,7 @@ def test_the_engine_calls_take_only_the_spellings_of_task_and_budget_the_pin_rea
 
 def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> None:
     """REQ-GAP-001 (M14-W3): what the reader typed is recorded locally and nowhere else. This pin
-    refuses the spellings it reads; any other spelling is not held, and it reads the Swift without `_code` (G-13, G-14, G-15; see INV-62 and INV-67).
+    refuses the spellings it reads; any other spelling is not held (G-13, G-14; see INV-62 and INV-67).
 
     The register is the one place the app keeps the reader's words, so it is the most likely place
     for them to leak. Held structurally: it is saved only through `GapRegisterStore`, whose file is
@@ -825,7 +825,7 @@ def _assert_the_client_has_no_way_off_the_device() -> None:
     # The app target compiles the synchronized `ModelRanking` folder. A source file referenced
     # from anywhere else would be compiled and never read by this gate (W4 review, N10's note).
     # Another target may sync its own folder only if it is a test bundle, which never ships (D-175).
-    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift  # raw: not Swift
+    project = (CLIENT.parent / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift
     assert "sourcecode." not in project, "the project references a source file outside the folder"
     folders = dict(re.findall(r"(\w+) /\* \w+ \*/ = \{\s*isa = PBXFileSystemSynchronizedRootGroup;\s*path = (\w+);", project))
     targets = re.findall(r"isa = PBXNativeTarget;.*?fileSystemSynchronizedGroups = \((.*?)\);.*?productType = \"([\w.-]+)\";",

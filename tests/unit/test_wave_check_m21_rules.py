@@ -819,8 +819,8 @@ def test_an_amended_by_pointer_whose_adr_declares_no_such_amendment_is_refused(t
     assert [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "c", paired))] == []
     # The backlog-gates review's N3: a stray pointer in the middle of another pointer's line, as D-170
     # holds two on one, is refused too.
-    inline = paired.replace("**Amended by D-2 (2026-09-02)**: clause 2.",
-                            "**Amended by D-2 (2026-09-02)**: clause 2. **Amended by D-1 (2026-09-01)**: none.")
+    inline = paired.replace("**Amended by D-3 (2026-09-03, proposed)**: all.",
+                            "**Amended by D-3 (2026-09-03, proposed)**: all. **Amended by D-1 (2026-09-01)**: none.")
     found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "d", inline))]
     assert any("D-1" in m and "D-2" in m and "does not name" in m for m in found), found
 

@@ -5056,8 +5056,9 @@ recommended option) · **Date:** 2026-10-14 · **Amends** D-193 (the Credits scr
 
 **Context.** The Credits screen (#260, D-193) names each publisher's licence and links to it. Apache-2.0
 section 4(a) asks a redistributor to give recipients a copy of the licence, and 4(c) to keep the copyright
-notices; MIT asks that the copyright and permission notice be included. That covers Aider, Terminal-Bench
-and HELM (Apache-2.0), and LiteLLM, models.dev and the ARC Prize evaluation runs (MIT). Whether serving
+notices; MIT asks that the copyright and permission notice be included. That covers Aider, Terminal-Bench,
+HELM and the ARC-AGI-2 tasks and solutions the app scores the runs against (Apache-2.0, D-194 clause 3),
+and LiteLLM, models.dev and the ARC Prize evaluation runs (MIT). Whether serving
 positions and medians derived from their files is a redistribution was left open
 (`docs/research/data-licences-2026-10-04.md`, rows 9 and 10). #261 offered an owner's ruling that it is
 not, or carrying the texts.
@@ -5067,11 +5068,13 @@ not, or carrying the texts.
    reading of "redistribution".
 2. **The engine sends each credit's notice** (`Credit.notice`): the copyright line the publisher's LICENSE
    file states, read on 2026-10-14. A publisher whose file states none is named in `PUBLISHES_NO_NOTICE`
-   with why (Aider's and Terminal-Bench's appendix templates are unfilled; the ARC Prize dataset holds no
-   LICENSE file). No publisher here has a NOTICE file. An older engine sends none, and the phone reads it.
+   with why (Aider's and Terminal-Bench's appendix templates are unfilled; the ARC Prize runs' dataset holds
+   no LICENSE file). The ARC-AGI-2 solutions are credited on their own (`arc_prize_solutions`), with the
+   line their repository's LICENSE states at the pinned commit (the backlog-gates review's N2). No publisher
+   here has a NOTICE file. An older engine sends none, and the phone reads it.
 3. **The app carries the full text of each licence** (`LicenceText`) and shows it once, under "Licence
    texts", for each licence the served credits name. A test holds each text against the published one, by
-   hash, word for word.
+   hash, word for word, read as the build compiles it and once (the backlog-gates review's N1).
 4. **The Apache text's two addresses are text on the screen, never opened** (D-126): the egress pin
    permits each exactly once, in `Models.swift`.
 
