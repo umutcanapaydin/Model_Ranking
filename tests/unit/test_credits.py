@@ -264,14 +264,18 @@ LICENCE_TEXT_SHA256 = {
 @pytest.mark.parametrize("name", sorted(LICENCE_TEXT_SHA256))
 def test_the_app_carries_each_licence_text_verbatim(name: str) -> None:
     """#261: the licences ask for a copy of themselves, so the app's copy is the published text, word for
-    word; only its line breaks may differ."""
+    word; only its line breaks may differ. The backlog-gates review's N1: the text is read as the build
+    compiles it (`_swift`, #247), and once, so a dead copy above a changed live one satisfies nothing."""
     import hashlib
     import pathlib
     import re
 
-    models = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Models.swift").read_text(
-        encoding="utf-8")  # raw: the text itself, not code
+    from .test_ios_client_contract import _swift
+
+    models = _swift(pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Models.swift")
+    found = re.findall(rf'static let {name} = """\n(.*?)\n"""', models, re.S)
+    assert len(found) == 1, f"Models.swift holds {len(found)} live `{name}` texts, not one"
     match = re.search(rf'static let {name} = """\n(.*?)\n"""', models, re.S)
-    assert match, f"Models.swift holds no `{name}` text"
+    assert match
     folded = " ".join(match.group(1).split())
     assert hashlib.sha256(folded.encode()).hexdigest() == LICENCE_TEXT_SHA256[name]
