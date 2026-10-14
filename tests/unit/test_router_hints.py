@@ -646,6 +646,38 @@ def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> Non
     _assert_the_client_has_no_way_off_the_device()
 
 
+#: #276 (D-198 clause 5): the backlog-gates review round 4's probe, a URL decoded by a generic helper and
+#: bound to `url` between `load()`'s guard and its one read. Its address is `example.invalid`.
+REBOUND_READ = (
+    "guard url.isFileURL,\n"
+    "              let encoded = try? JSONEncoder().encode(\"ht\" + \"tps://example.invalid/\"),\n"
+    "              let url = probeDecode(encoded) ?? Optional(url),\n"
+    "              let data = try? Data(contentsOf: url),"
+)
+
+
+@pytest.mark.parametrize("store", ["FrontDoor.swift", "StandingsStore.swift"])
+def test_a_url_rebound_between_a_stores_guard_and_its_read_is_refused(
+        store: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#276 (D-198 clause 5): the guard checked the store's own `url`, and a clause between it and the one
+    permitted `Data(contentsOf: url)` could bind another, which every gate passed. The guard and the read
+    are now one permitted expression, so a clause between them leaves a read the pin does not permit."""
+    import shutil
+    import sys
+
+    copy = tmp_path / "ios"
+    shutil.copytree(CLIENT, copy / CLIENT.name)
+    shutil.copytree(CLIENT.parent / "ModelRanking.xcodeproj", copy / "ModelRanking.xcodeproj")
+    path = next((copy / CLIENT.name).rglob(store))
+    code = path.read_text(encoding="utf-8")  # raw: a plant in a copy
+    guard = "guard url.isFileURL,\n              let data = try? Data(contentsOf: url),"
+    assert code.count(guard) == 1, f"{store} no longer reads as `{guard}`"
+    path.write_text(code.replace(guard, REBOUND_READ), encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "CLIENT", copy / CLIENT.name)
+    with pytest.raises(AssertionError):
+        _assert_the_client_has_no_way_off_the_device()
+
+
 #: Frameworks the client may import. `Network`, `WebKit`, `CloudKit`, `UIKit`, `os`, `SafariServices`
 #: and the rest are refused by their absence here: a new one is a reviewed edit to this set.
 CLIENT_IMPORTS = {"Foundation", "SwiftUI", "NaturalLanguage", "FoundationModels"}
