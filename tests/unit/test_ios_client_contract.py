@@ -234,20 +234,36 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
 
-#: #272: stubs, filled by the fix.
-HELD_OUT_PUBLISHED_OVERLAP: dict[str, dict[str, int]] = {}
+#: #272 (D-198 clause 2): each live set's matches in a record older than the set, by file and count, measured
+#: 2026-10-14. The questions are not printed. `m21-wave-2-review.md` (M21-W2) quotes the probe questions it
+#: ran, and the seat that wrote `reading_heldout_m22` repeated three of them: the set's overlap with
+#: published text, not a leak from it.
+HELD_OUT_PUBLISHED_OVERLAP: dict[str, dict[str, int]] = {
+    "reading_heldout_m22_questions.json": {"docs/reviews/m21-wave-2-review.md": 3},
+}
 
 
 def _leak_scan_docs(root: pathlib.Path) -> dict[str, str]:
-    return {}
+    """Every record under `docs/`, raw, keyed by its path from the root (#272)."""
+    return {str(p.relative_to(root)): p.read_text(encoding="utf-8", errors="ignore")  # raw: Markdown, not Swift
+            for p in sorted((root / "docs").rglob("*.md"))}
 
 
 def _held_questions(path: pathlib.Path) -> set[str]:
-    return set()
+    """A held-out set's questions of 15 characters or more, as the leak check reads them."""
+    import json
+
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {text for row in rows if len(text := row[0] if isinstance(row, list) else row["q"]) >= 15}
 
 
 def _record_matches(held: set[str], texts: dict[str, str]) -> dict[str, int]:
-    return {}
+    """#272: how many of `held` each record holds, as `_held_out_leaks` finds them; the questions are never
+    returned."""
+    counts: dict[str, int] = {}
+    for name, _size in _held_out_leaks(held, texts, {}):
+        counts[name] = counts.get(name, 0) + 1
+    return counts
 
 
 def test_a_held_out_question_quoted_in_a_record_is_found() -> None:
@@ -273,16 +289,13 @@ def test_a_live_held_out_set_overlaps_only_the_records_named_and_none_is_new() -
     assert found == HELD_OUT_PUBLISHED_OVERLAP, f"held-out questions in docs/ (set: {{file: count}}): {found}"
 
 
+@pytest.mark.needs("git_history")
 def test_each_record_a_live_set_overlaps_was_committed_before_the_set() -> None:
     """#272 (D-198 clause 2): an overlap is excused only for a record older than its set. Read from the git
-    history; a shallow clone (CI's test job) cannot tell, and says so by skipping."""
+    history, which CI's one-commit checkout does not hold."""
     import subprocess
 
     root = CLIENT.parents[1]
-    shallow = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-shallow-repository"],
-                             capture_output=True, text=True, check=False).stdout.strip()
-    if shallow != "false":
-        pytest.skip("a shallow clone holds no first commit to compare")
 
     def first(rel: str) -> int:
         out = subprocess.run(["git", "-C", str(root), "log", "--diff-filter=A", "--format=%ct", "--", rel],
