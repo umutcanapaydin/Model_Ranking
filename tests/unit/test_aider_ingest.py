@@ -115,3 +115,19 @@ def test_invalid_yaml_fails_loudly() -> None:
 def test_non_list_payload_fails_loudly() -> None:
     with pytest.raises(SourceError, match="not a list"):
         parse_polyglot("just: a-mapping")
+
+
+def test_an_architect_and_editor_pair_is_two_models_and_is_never_stored_as_either() -> None:
+    """#233: on Aider's board `A + B` is an architect and an editor, not a harness and a model; read as
+    one, GPT-4.1 ranked at the pair's 78.2 against its own 52.4. The pair is skipped and counted."""
+    raw = """
+- model: o3 (high) + gpt-4.1
+  pass_rate_2: 78.2
+- model: DeepSeek R1 + claude-3-5-sonnet-20241022
+  pass_rate_2: 64.0
+- model: gpt-4.1
+  pass_rate_2: 52.4
+"""
+    rows, skipped = parse_polyglot(raw)
+    assert [(r.raw_name, r.score) for r in rows] == [("gpt-4.1", 52.4)]
+    assert skipped == 2

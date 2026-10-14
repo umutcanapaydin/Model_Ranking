@@ -44,7 +44,7 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    release built (#198). Since #258 the engine starts that refresh itself, a minute after the install,
    when the data it serves was built by another release; a cycle usually takes a few minutes and is
    stopped at 27. It must *publish*: a cycle whose data is unchanged keeps the old builder's name (then
-   wait for a night that publishes), and a refresh run by hand without `APP_BUILD` records `unknown`. Then
+   wait for a night that publishes), and a refresh run by hand without `APP_BUILD` records `unstamped`, which no `DEPLOY_ACCEPT_DATA_FROM` accepts. Then
    `<served>.refresh.json` names `release-<sha>` for `main`'s tip. Do not use `DEPLOY_ACCEPT_DATA_FROM`
    for v2.
    **The first install past D-194 (#265)** boots on the artifact the previous release built and refreshes
@@ -80,7 +80,7 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    and check that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. The refresh
    records which release built the served data (`<served>.refresh.json`, `served_built_by`, #198), and
    the deploy refuses data another release built: a night whose data is unchanged keeps the old
-   builder's name, and a refresh run by hand without `APP_BUILD` records `unknown`.
+   builder's name, and a refresh run by hand without `APP_BUILD` records `unstamped`, which no `DEPLOY_ACCEPT_DATA_FROM` accepts.
 2. **Log in and add a card.** `fly auth login`. Fly asks for a payment method before it places a
    machine, even the smallest (D-123): add one at https://fly.io/dashboard → Billing. The
    declared machine (`shared-cpu-1x`, 256 MB, always on; the script deploys one, `--ha=false`)

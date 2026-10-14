@@ -163,6 +163,8 @@ class RefreshOutcome:
     #: then board rows re-spelled while their model did not (#100, D-179), `old -> new on <board>`.
     #: Information, never a reason to refuse.
     renamed: tuple[str, ...] = ()
+    #: #230: the board that changed most against the live artifact, as `largest_board_change` reads it.
+    largest_board_change: dict[str, object] | None = None
 
     def as_json(self) -> str:
         return json.dumps(
@@ -172,6 +174,10 @@ class RefreshOutcome:
                 "live_fingerprint": self.live_fingerprint,
                 "candidate_fingerprint": self.candidate_fingerprint,
                 "surfaces_answering": self.surfaces,
+                # #230: the service log keeps only this line, and the record is rewritten each night,
+                # so what a release's simulated first nights predict is read from here.
+                "renamed_count": len(self.renamed),
+                "largest_board_change": self.largest_board_change,
             }
         )
 
@@ -286,6 +292,34 @@ def _mostly_lost(
                 f"({lost / len(was):.0%}, at or over the {MAX_SURFACE_LOSS:.0%} limit); {why}"
             )
     return reasons
+
+
+def largest_board_change(
+    live: ServingSummary, candidate: ServingSummary, baseline: ServingSummary | None
+) -> dict[str, object] | None:
+    """The board, own or declared, whose rows changed most, as the two guards judge it (#230): rows lost
+    against the cycle's baseline (`degradations`), rows new against it over the boards `live` serves,
+    a board appearing for the first time excused (`upward_anomalies`). Its changed rows, of how many,
+    and the limit; None when no board row changed. Information, never a reason to refuse."""
+    base = baseline or live
+    largest: tuple[float, dict[str, object]] | None = None
+
+    def weigh(subject: str, name: str, changed: int, of: int, limit: float) -> None:
+        nonlocal largest
+        if of and changed and (largest is None or changed / of > largest[0]):
+            largest = (changed / of, {"board": subject.format(name=name), "changed": changed, "of": of,
+                                      "limit": limit})
+
+    for subject, field in ((OWN_BOARD, "board"), (DECLARED_BOARD, "boards")):
+        was_by: dict[str, frozenset[BoardRow]] = getattr(base, field)
+        now_by: dict[str, frozenset[BoardRow]] = getattr(candidate, field)
+        for name, was in sorted(was_by.items()):
+            weigh(subject, name, len(was - now_by.get(name, frozenset())), len(was), MAX_SURFACE_LOSS)
+        for name, rows in sorted(getattr(live, field).items()):
+            was, now = was_by.get(name) or rows, now_by.get(name, frozenset())
+            if was and now:
+                weigh(subject, name, len(now - was), len(now), MAX_SURFACE_GAIN)
+    return largest[1] if largest is not None else None
 
 
 def upward_anomalies(
@@ -790,7 +824,9 @@ def _builds(previous: dict[str, object], code: int) -> tuple[str, str]:
     """#198 (seed L.7 for the data): the build that ran this cycle, and the one that made the artifact
     served now. Names and ids are applied when the data is built, so the hosted deploy names the
     release that built what it ships (`scripts/deploy_hosted_engine.sh`)."""
-    built_by = os.environ.get("APP_BUILD", "").strip() or "unknown"
+    # #235 R2: a cycle run without APP_BUILD (by hand, or dev code) is `unstamped`; `unknown` stays what a
+    # record from before #198 says, the one name a deploy may accept for data whose builder is unnamed.
+    built_by = os.environ.get("APP_BUILD", "").strip() or "unstamped"
     if code == EXIT_PUBLISHED:
         return built_by, built_by
     served_before = previous.get("served_built_by")
@@ -1350,6 +1386,8 @@ def _cycle(
                 EXIT_UNCHANGED,
             )
 
+        # #230: computed once, so a published night and a refused one report the same figure.
+        largest = largest_board_change(live, fresh, baseline) if live is not None else None
         refusal = _reason_to_refuse(target, live, fresh, baseline, candidate)
         if refusal is not None:
             return record(
@@ -1365,6 +1403,7 @@ def _cycle(
                     derived=derived,
                     unmatched=unmatched,
                     renamed=renamed,
+                    largest_board_change=largest,
                 ),
                 EXIT_REFUSED,
             )
@@ -1404,6 +1443,7 @@ def _cycle(
                 derived=derived,
                 unmatched=unmatched,
                 renamed=renamed,
+                largest_board_change=largest,
             ),
             EXIT_PUBLISHED,
         )

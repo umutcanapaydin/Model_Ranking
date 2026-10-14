@@ -49,9 +49,20 @@ def test_the_record_names_the_build_that_made_the_served_artifact(
     assert published["served_built_by"] == "release-bbbbbbb"
 
 
-def test_a_record_without_a_build_says_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_cycle_run_without_a_build_says_unstamped_not_unknown(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#235 R2 (the backlog-data round 2's M3): `unknown` is a record from before #198, which names no builder.
+    A cycle run by hand without APP_BUILD, dev code included, says so apart."""
     monkeypatch.delenv("APP_BUILD", raising=False)
-    assert _cycle(tmp_path / "advisor.db", EXIT_PUBLISHED)["served_built_by"] == "unknown"
+    assert _cycle(tmp_path / "advisor.db", EXIT_PUBLISHED)["served_built_by"] == "unstamped"
+
+
+@pytest.mark.parametrize("named", ["unknown", "unstamped"])
+def test_data_from_an_unstamped_cycle_never_deploys(tmp_path: Path, named: str) -> None:
+    _repo, served, calls, env = _scratch(tmp_path)
+    status_path(served).write_text(json.dumps({"served_built_by": "unstamped"}), encoding="utf-8")
+    done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": named})
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert not calls.exists()
 
 
 def test_the_deploy_stamp_names_the_release_that_built_the_data(tmp_path: Path) -> None:
@@ -185,3 +196,27 @@ def test_no_name_accepts_a_missing_or_unreadable_record(tmp_path: Path, record: 
     assert not calls.exists()
     assert "DEPLOY_ACCEPT_DATA_FROM=missing" not in done.stderr
     assert "DEPLOY_ACCEPT_DATA_FROM=unreadable" not in done.stderr
+
+
+def test_a_dev_builds_data_is_refused_even_when_named_so_unknown_never_stands_for_it(tmp_path: Path) -> None:
+    """#235 R2: a dev build's data was once accepted and stamped `-from-unknown`, like a record from before
+    #198. Since S5 only a release or `unknown` may be named, so a dev build's data never deploys and
+    `-from-unknown` names only a record that names no builder."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    status_path(served).write_text(json.dumps({"served_built_by": "dev-abc1234"}), encoding="utf-8")
+    for named in ("dev-abc1234", "unknown"):
+        done = _deploy({**env, "DEPLOY_ACCEPT_DATA_FROM": named})
+        assert done.returncode != 0, (named, done.stdout + done.stderr)
+        assert "DEPLOY_ACCEPT_DATA_FROM=dev-abc1234" not in done.stderr, done.stderr
+    assert not calls.exists()
+
+
+def test_a_refused_cycle_over_a_record_from_before_198_still_says_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Round 3's M2: `unknown` is the name a record from before #198 keeps, the one `DEPLOY_ACCEPT_DATA_FROM`
+    may accept; a cycle that does not publish over it must not turn it into `unstamped`."""
+    monkeypatch.setenv("APP_BUILD", "release-1234567")
+    target = tmp_path / "advisor.db"
+    status_path(target).write_text("{}", encoding="utf-8")
+    assert _cycle(target, EXIT_REFUSED)["served_built_by"] == "unknown"

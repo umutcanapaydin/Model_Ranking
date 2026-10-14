@@ -248,3 +248,178 @@ def test_a_price_feeds_expiry_is_judged_against_the_links_a_build_would_make(tmp
     baseline = _served_without(live_path, {"litellm"})
     reasons = degradations(baseline, candidate) + upward_anomalies(live, candidate, baseline)
     assert not [r for r in reasons if SLICE.source in r or r.startswith("accessibility")], reasons
+
+
+def test_the_logged_outcome_line_carries_the_nights_renamed_count_and_largest_board_change(tmp_path: Path) -> None:
+    """#230: the record is rewritten each night and the service log keeps only the outcome line, so
+    that line carries what a simulation of a release's first nights predicts: how many entries were
+    renamed, and the board that changed most, with its changed rows and the limit."""
+    import json
+
+    live = _boards(tmp_path / "advisor.db")
+
+    def night(argv: list[str]) -> int:
+        def change(conn: sqlite3.Connection) -> None:
+            _re_spell(conn)
+            conn.execute("DELETE FROM scores WHERE source = ? AND raw_name IN ('PROBE 00', 'PROBE 01')",
+                         (SLICE.source,))
+
+        _boards(Path(argv[argv.index("--db") + 1]), change)
+        return 0
+
+    outcome, code = refresh(live, builder=night)
+    assert code == EXIT_PUBLISHED, outcome.reason
+    line = json.loads(outcome.as_json())
+    assert line["renamed_count"] == len(outcome.renamed) > 0
+    assert line["largest_board_change"] == {"board": f"board {SLICE.source}", "changed": 2, "of": 12,
+                                            "limit": 0.25}
+
+
+# --- The backlog-data review's M1 and M2: the figure judges boards as the two guards do -------------------
+
+def _night(tmp_path: Path, change: Change) -> tuple[dict[str, object], int]:
+    import json
+
+    live = _boards(tmp_path / "advisor.db")
+
+    def build(argv: list[str]) -> int:
+        _boards(Path(argv[argv.index("--db") + 1]), change)
+        return 0
+
+    outcome, code = refresh(live, builder=build)
+    return json.loads(outcome.as_json()), code
+
+
+def _two_new_coding_models(conn: sqlite3.Connection) -> None:
+    conn.executemany(
+        "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort, source_url,"
+        " observed_at) VALUES (?, ?, 'swebench', 'SWE-bench Verified', '% resolved', 40, 'none', 'unspecified',"
+        " 'fixture://x', 't')", [(f"fresh-{i}", f"Fresh {i}") for i in range(2)])
+
+
+def test_a_gain_on_a_surfaces_own_board_is_reported_against_the_gain_limit(tmp_path: Path) -> None:
+    line, code = _night(tmp_path, _two_new_coding_models)
+    assert code == EXIT_PUBLISHED, line
+    assert line["largest_board_change"] == {"board": "coding's board", "changed": 2, "of": 14, "limit": 0.25}
+
+
+def test_a_refused_night_carries_the_figure_too(tmp_path: Path) -> None:
+    from app.workflows.refresh import EXIT_REFUSED
+
+    line, code = _night(tmp_path, _a_quarter_lost)
+    assert code == EXIT_REFUSED, line
+    assert line["largest_board_change"] == {"board": f"board {SLICE.source}", "changed": 3, "of": 12, "limit": 0.25}
+
+
+def test_a_night_that_changes_no_board_row_reports_none(tmp_path: Path) -> None:
+    def rescored(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scores SET score = score + 0.5 WHERE source = ?", (SLICE.source,))
+
+    line, code = _night(tmp_path, rescored)
+    assert code == EXIT_PUBLISHED, line
+    assert line["largest_board_change"] is None
+
+
+def test_a_board_appearing_for_the_first_time_is_not_the_largest_change(tmp_path: Path) -> None:
+    """`_mostly_new` lets a returning board through, so its rows are not a change the figure reports."""
+    other = declared_boards.uncovered()[1]
+
+    def change(conn: sqlite3.Connection) -> None:
+        conn.execute("DELETE FROM scores WHERE source = ? AND raw_name IN ('Probe 00', 'Probe 01')", (SLICE.source,))
+        conn.executemany(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, source_url,"
+            " observed_at) VALUES (?, ?, ?, ?, 'elo', 1000, 'arena-crowd', 'fixture://x', 't')",
+            [(f"probe-{i:02d}", f"Probe {i:02d}", other.source, other.benchmark) for i in range(3)])
+
+    line, code = _night(tmp_path, change)
+    assert code == EXIT_PUBLISHED, line
+    assert line["largest_board_change"] == {"board": f"board {SLICE.source}", "changed": 2, "of": 12, "limit": 0.25}
+
+
+def test_an_expiry_night_is_judged_against_the_baseline_the_guards_read(tmp_path: Path) -> None:
+    """On the night a feed's data expires the guards compare with the live artifact without it; read
+    against `live`, a third of `SLICE` read as lost and as new."""
+    from app.workflows.refresh import _served_without, largest_board_change
+
+    live_path = _priced_by_two_feeds(tmp_path / "live.db")
+    live = fingerprint_of(live_path)
+    candidate = fingerprint_of(_built_without(live_path, tmp_path / "candidate.db", "litellm"))
+    assert live is not None and candidate is not None
+    assert largest_board_change(live, candidate, None) is not None, "the fixture proves nothing"
+    assert largest_board_change(live, candidate, _served_without(live_path, {"litellm"})) is None
+
+
+def test_a_board_the_baseline_emptied_is_judged_against_its_live_rows() -> None:
+    """Round 2's M4: as `upward_anomalies` does, a board an expiry emptied in the baseline is read from the
+    live artifact's rows, so a row new to it still counts."""
+    from app.workflows.refresh import ServingSummary, largest_board_change
+
+    def summary(boards: dict[str, frozenset[str]]) -> ServingSummary:
+        return ServingSummary(digest="d", surfaces={}, models={}, median_price={}, eligible={}, boards=boards)
+
+    rows = frozenset({"a", "b", "c", "d"})
+    live, baseline, candidate = summary({"x": rows}), summary({}), summary({"x": rows | {"e"}})
+    assert largest_board_change(live, candidate, baseline) == {"board": "board x", "changed": 1, "of": 5,
+                                                               "limit": 0.25}
+
+
+# --- The backlog-data Tester: #230's figure, where planted faults survived the wave's own tests ----------
+
+
+def test_an_expiry_night_through_the_cycle_records_the_figure_against_its_baseline(tmp_path: Path) -> None:
+    """#230 and round 3's M2 (covers the backlog-data Tester's F46 and F47): the cycle itself, not a direct call,
+    must hand the baseline in. On the night `litellm` expires, a build without it unlinks a third of `SLICE`;
+    the guards excuse that against the baseline, and so must the recorded figure. With the baseline dropped
+    from the one call, or `live` passed in its place, the record named `SLICE` 4 of 12 lost."""
+    import json
+    import shutil
+
+    target = _priced_by_two_feeds(tmp_path / "advisor.db")
+    built = _built_without(target, tmp_path / "without-litellm.db", "litellm")
+
+    def expiring(argv: list[str]) -> int:
+        shutil.copyfile(built, argv[argv.index("--db") + 1])
+        Path(argv[argv.index("--report-out") + 1]).write_text(json.dumps(
+            {"arrived": [], "carried": {}, "expired": {"litellm": None}, "since": {}}), encoding="utf-8")
+        return 0
+
+    outcome, code = refresh(target, builder=expiring)
+    assert outcome.expired, ("the fixture proves nothing", outcome)
+    line = json.loads(outcome.as_json())
+    assert line["largest_board_change"] is None, (code, outcome.reason, line)
+
+
+def test_of_several_boards_that_changed_the_figure_names_the_one_nearest_its_limit(tmp_path: Path) -> None:
+    """#230 (covers the backlog-data Tester's F53): every test changed one board, so a figure that kept the
+    smallest change passed them all. Here `coding`'s board gains 1 row of 13 and `SLICE` loses 2 of 12."""
+
+    def both(conn: sqlite3.Connection) -> None:
+        conn.execute("DELETE FROM scores WHERE source = ? AND raw_name IN ('Probe 00', 'Probe 01')", (SLICE.source,))
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort, source_url,"
+            " observed_at) VALUES ('fresh-0', 'Fresh 0', 'swebench', 'SWE-bench Verified', '% resolved', 40, 'none',"
+            " 'unspecified', 'fixture://x', 't')")
+
+    line, code = _night(tmp_path, both)
+    assert code == EXIT_PUBLISHED, line
+    assert line["largest_board_change"] == {"board": f"board {SLICE.source}", "changed": 2, "of": 12, "limit": 0.25}
+
+
+def test_a_loss_reports_the_loss_limit_and_a_gain_the_gain_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#230 ("the board, its changed rows and the limit"; covers the backlog-data Tester's F54): the two limits
+    are both 0.25 today, so a figure that swapped them passed every test. They are set apart here."""
+    from app.workflows import refresh as module
+    from app.workflows.refresh import ServingSummary, largest_board_change
+
+    monkeypatch.setattr(module, "MAX_SURFACE_LOSS", 0.2)
+    monkeypatch.setattr(module, "MAX_SURFACE_GAIN", 0.3)
+
+    def summary(boards: dict[str, frozenset[str]]) -> ServingSummary:
+        return ServingSummary(digest="d", surfaces={}, models={}, median_price={}, eligible={}, boards=boards)
+
+    rows = frozenset({"a", "b", "c", "d"})
+    live = summary({"x": rows})
+    assert largest_board_change(live, summary({"x": rows - {"a"}}), live) == {
+        "board": "board x", "changed": 1, "of": 4, "limit": 0.2}
+    assert largest_board_change(live, summary({"x": rows | {"e"}}), live) == {
+        "board": "board x", "changed": 1, "of": 5, "limit": 0.3}

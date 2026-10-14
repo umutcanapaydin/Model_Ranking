@@ -796,3 +796,27 @@ commit in the closure, and still refused the first ordinary commit in the owner'
   their deploy failed until they reinstalled (#264). This wave's worktree built its own venv.
 Lesson: a licence is a property of a copy, not of a benchmark. TB 2.0's licensed copy held what its own
 maintainers had withdrawn, and models.dev's makers' catalogues held other makers' models.
+
+## 2026-10-13 — the backlog's data wave: makers' releases, speed tiers, and the night's figures (D-195)
+
+- The owner asked to finish the open backlog before any further release. This wave took the data issues:
+  #234, #232, #233, #230, #264, #235, #262, #266 and #269. #124, #241, #239 and #220 were closed as already
+  delivered, and #267 by ruling (thinking budgets stay `unspecified`).
+- The makers' pages were read for #232's candidates. Seven releases are split (Kimi K2 Thinking and K2.7
+  Code, Qwen3-Coder 30B-A3B and Next, DeepSeek V3.1-Terminus, V3.2-Exp and V3.2-Speciale), Fireworks' `p`
+  spellings reach their point release, and the GPT Cyber models are their own. #266's fix was not taken:
+  OpenAI's guide makes GPT-5.6 Pro a reasoning mode of each model, billed at its rates.
+- Three Code-Reviewer rounds (BLOCKING, BLOCKING, MINOR) and a Tester (MINOR). The first speed-tier fix
+  was a regex: it cut Arena's only spelling of Kimi K2 Thinking off its scores (round 2's B1). A speed
+  tier is now refused only as a price (`registry.price_refusal`). D-195's first Consequence was written
+  from a link-preserving reconcile and was wrong in four places; it is now measured with every link made
+  again, which reproduces `main`'s artifact exactly.
+- #218 was attempted and reverted the same day: D-191 clause 2 had already taken that very rule out after
+  three verdicts. #194, #218 and #222 start again only from #237's fresh held-out set.
+- On the relinked artifact both refresh gates pass; the night's largest board change is 6 of 232 rows.
+  DeepSeek V3's median is 0.89/1.0 (was 0.56/1.25), Qwen3-Coder's 0.975/4.65 (was 0.712/3.157), and
+  MiniMax M2.7's and M2.5's fall about 20%.
+- DeepSWE (#265) still waits for the owner to accept the dataset's terms on Hugging Face; the token works.
+Lesson: read the ADRs of an issue's area before writing its test. D-191 named this wave's #218 rule as
+taken out, and its failures as the ones to avoid; a search of the decisions would have found it first.
+

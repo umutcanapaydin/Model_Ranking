@@ -92,6 +92,11 @@ def parse_polyglot(
         if not isinstance(name, str) or not isinstance(rate, int | float) or isinstance(rate, bool):
             skipped += 1
             continue
+        if "+" in name:
+            # #233: `A + B` on this board is an architect model and an editor model. Read as a harness
+            # and a model it credits the editor with the pair's score, so the pair is neither model.
+            skipped += 1
+            continue
         cost = entry.get("total_cost")
         row = ScoreRow(
             raw_name=name,
