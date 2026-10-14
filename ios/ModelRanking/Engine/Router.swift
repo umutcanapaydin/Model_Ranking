@@ -617,8 +617,15 @@ struct SimilarityRouter: QuestionRouter {
         return confidence < confidentLanguage
     }
 
-    /// The letters beyond ASCII that Turkish writes, in both cases, and the dotted capital's combining dot.
-    static let turkishLetters = Set("çğıöşüâîûÇĞİÖŞÜÂÎÛ\u{307}".unicodeScalars)
+    /// The letters beyond ASCII that Turkish writes, in both cases.
+    static let turkishLetters = Set("çğıöşüâîûÇĞİÖŞÜÂÎÛ".unicodeScalars)
+
+    private static func isLetter(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .otherLetter, .modifierLetter: return true
+        default: return false
+        }
+    }
 
     /// How sure the recogniser must be before a question is read as another language than English.
     static let confidentLanguage = 0.65
@@ -632,8 +639,11 @@ struct SimilarityRouter: QuestionRouter {
     /// `turkishLetters`) is not Turkish. Each such letter has one reading; Azerbaijani written without
     /// one of them is still read as Turkish.
     static func readsTurkish(_ text: String) -> Bool {
-        guard !text.unicodeScalars.contains(where: { $0.value > 127 && CharacterSet.letters.contains($0)
-                                                      && !turkishLetters.contains($0) }) else { return false }
+        // Composed first, and letters only (the round-2 review's M2): an emoji's variation selector, a keycap
+        // or a decomposed accent is a mark, not a letter, and a question that carries one is still Turkish.
+        let composed = text.precomposedStringWithCanonicalMapping
+        guard !composed.unicodeScalars.contains(where: { $0.value > 127 && isLetter($0) && !turkishLetters.contains($0) })
+        else { return false }
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
         guard recogniser.dominantLanguage == .turkish else { return false }
@@ -690,7 +700,9 @@ struct SimilarityRouter: QuestionRouter {
         // The reading wave's review, K2: an example's vector is the same on every question, so it is
         // computed once per language and kept (`ExampleVectors`); only the question is embedded each time.
         func example(_ string: String) -> [Double]? {
-            ExampleVectors.shared.vector("\(language.rawValue)\n\(string)") { vector(string) }
+            ExampleVectors.shared.vector(
+                "\(embedding.modelIdentifier)\n\(embedding.revision)\n\(language.rawValue)\n\(string)"
+            ) { vector(string) }
         }
 
         var hints: [(id: String, vectors: [[Double]])] = []
@@ -793,11 +805,19 @@ struct SimilarityRouter: QuestionRouter {
 
 /// The wording tier's example vectors, computed once per language and example (the reading wave's
 /// review, K2: each route re-embedded about 120 examples, some 1.4 s on a Mac). It holds the router's own
-/// example sentences only, never anything typed.
+/// example sentences only, never anything typed, keyed by the embedding's model and revision as well as
+/// the language, so a model loaded later never reads another's vectors (the round-2 review's N3).
 final class ExampleVectors: @unchecked Sendable {
     static let shared = ExampleVectors()
     private let lock = NSLock()
     private var kept: [String: [Double]] = [:]
+
+    /// What is kept, for a test: the router's examples only (the round-2 review's N3).
+    var keys: Set<String> {
+        lock.lock()
+        defer { lock.unlock() }
+        return Set(kept.keys)
+    }
 
     func vector(_ key: String, _ make: () -> [Double]?) -> [Double]? {
         lock.lock()

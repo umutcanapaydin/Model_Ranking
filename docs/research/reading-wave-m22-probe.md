@@ -36,6 +36,9 @@ question the recogniser is sure is not English, and answers it only from a word 
 
 ## 3. The change (#222)
 
+*Superseded in part by section 6: the brand-only rule below became `generalSurface`'s, and a letter
+Turkish never writes now keeps another language out.*
+
 Apple's contextual embedding for Latin script is one multilingual model:
 `NLContextualEmbedding(language: .turkish)` and `.english` return the same `modelIdentifier`, with
 assets on the device.
@@ -84,8 +87,8 @@ Question by question, between the first run before and the first after:
 
 ## 5. What stays open
 
-- **#218.** A short Turkish question the recogniser is not sure of ("claude mu chatgpt mi almanca",
-  the issue's own example, or "o3 mu o4 mu" typed with its letters) still reaches the English path.
+- **#218.** A short Turkish question the recogniser is not sure of (the issue's own
+  example, or two model versions compared with Turkish particles) still reaches the English path.
   - On the tuning set, adding the Turkish examples to the English path did not move either.
   - The signals D-191 took out are not tried again.
 - **#66.** The wording tier catches 29 of 58 lines that are not a search on the fresh set, and the model
@@ -102,7 +105,8 @@ The review's verdict was MAJOR. Its numbers reproduced the runs above exactly. T
   holding a letter Turkish never writes (any letter beyond ASCII and `turkishLetters`, such as the
   schwa) is not Turkish, so it declines as before. Azerbaijani written without such a letter is still
   read as Turkish.
-- **N1.** Each Turkish example is also read in plain letters (`examplesTurkishBothSpellings`).
+- **N1.** Each Turkish example is also read in plain letters (`examplesTurkishBothSpellings`). The runs
+  below are committed (`own-*.json`, `own_tuning_plain.json`) and scored by `score.py`.
 - **K2.** Each example's vector is computed once per language (`ExampleVectors`). One wording-tier run
   over the 147 rows (two routes each) took 33 s, where the review measured about 1.4 s a route before.
   Every row came out the same.
@@ -122,11 +126,26 @@ The review's verdict was MAJOR. Its numbers reproduced the runs above exactly. T
 | wording, after the review 1 and 2 | 91, 91 | 62, 62 | 0, 0 | 29, 29 |
 
 - **Against before:** 3 rows gained and none lost; 25 rows' outcomes moved.
-- **Against the first head:** 3 fewer searches are right. The embedding had answered them where
-  `everyday` does now, and M1's rule keeps every question that was answered before. The choice was made
-  from the review's sentences and the rule itself, before this run.
+- **Against the first head:** 4 searches lost and 1 gained (round 2's N4). Three of the 4 are answered
+  `everyday` again under M1's rule, which keeps every question answered before; the fourth was "not
+  measured" before the wave and now reads another surface, likely through the plain spellings. The rule
+  was chosen from the review's sentences and the rule itself, before this run.
+- **A Turkish question that names its surface** keeps it, and now also offers the two closest others, as
+  an English one does (round 2's N4; held by a test).
 - **The cost:** 10 lines that are not a search, uncaught by the reading, moved from "not measured" to a
   ranking.
 - **Not fixed:** a request for sound ("sing a song in my own voice", in Turkish) reaches `vision` through
   the Turkish image group; D-187 clause 2 sends it to the closest surface. A request to change an image
   reaches `vision` only through the Turkish groups, and a test holds that.
+
+## 7. After the second review (`docs/reviews/backlog-reading-review-round-2.md`)
+
+- **M1.** The held-out check keyed the files it read by name, so the fixtures' `Router.swift` replaced the
+  app's, and the app's router (with this wave's Turkish examples) was never read. It is keyed by path now;
+  read so, the live set shows no leak.
+- **M2.** The letter rule counted marks: an emoji's variation selector or a decomposed accent sent a
+  Turkish question back to "not measured". The question is composed first and only letters are tested.
+- **N3.** The kept vectors are keyed by the embedding's model and revision too, and a test holds that only
+  the router's examples are kept.
+- **Held-out, once more with the final code:** every one of the 147 rows reads as in the first run after
+  the first review's fixes. The wave's own 61 searches read 44 and 39, as in section 6.

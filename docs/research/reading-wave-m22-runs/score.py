@@ -30,3 +30,17 @@ for name in ["before-wording-1", "before-wording-2", "after-wording-1", "after-w
           f" not measured {sum(r['unmeasured'] == 'true' for r in searches)},"
           f" asked {sum(r['reading'] == 'unsure' for r in searches)}"
           f" | not a search {len(others)}: caught {sum(r['reading'] != 'search' for r in others)}")
+
+# The wave's own 61 Turkish searches (round 2's N1): typed with their letters
+# (`scripts/router_probe/turkish_tuning_questions.json`, its searches) and in plain letters
+# (`own_tuning_plain.json`), before the wave, with lettered examples only, and with both spellings (shipped).
+TUNING = HERE.parents[2] / "scripts/router_probe/turkish_tuning_questions.json"
+own = {"letters": {q: label for q, label in json.loads(TUNING.read_text(encoding="utf-8")) if label != "NOT_A_SEARCH"},
+       "plain": dict(json.loads((HERE / "own_tuning_plain.json").read_text(encoding="utf-8")))}
+for variant in ["own-before", "own-lettered-examples", "own-both-spellings"]:
+    counts = []
+    for spelling, wanted in own.items():
+        rows = json.loads((HERE / f"{variant}-{spelling}.json").read_text(encoding="utf-8"))
+        right = sum(r["unmeasured"] == "false" and r["surface"] in wanted[r["q"]].split("|") for r in rows)
+        counts.append(f"{spelling} {right}/{len(rows)} (not measured {sum(r['unmeasured'] == 'true' for r in rows)})")
+    print(f"{variant}: " + ", ".join(counts))

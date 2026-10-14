@@ -174,6 +174,28 @@ def test_the_combined_list_renders_the_disclosures_its_plan_carries() -> None:
     )
 
 
+def _leak_scan_sources(root: pathlib.Path) -> list[pathlib.Path]:
+    """The app, its tests, the engine and the scripts, as the held-out check reads them."""
+    return [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
+            if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
+
+
+def _leak_scan_texts(root: pathlib.Path, sources: list[pathlib.Path]) -> dict[str, str]:
+    """Each source's raw text, keyed by its path from the root (the reading wave's round-2 M1)."""
+    return {str(p.relative_to(root)): p.read_text(encoding="utf-8", errors="ignore") for p in sources}  # raw: see the check
+
+
+def test_the_held_out_check_reads_each_same_named_file_on_its_own() -> None:
+    """The reading wave's round-2 M1: the check keyed what it read by file name, so a fixture named like
+    an app file (`scripts/client_decl_fixtures/Router.swift`) replaced the app's, and the app's router,
+    which holds the wave's Turkish examples, was never read. Keyed by path, both are."""
+    root = CLIENT.parents[1]
+    read = set(_leak_scan_texts(root, _leak_scan_sources(root)))
+    assert {"ios/ModelRanking/Engine/Router.swift", "scripts/client_decl_fixtures/Router.swift"} <= read
+    names = [p.name for p in _leak_scan_sources(root)]
+    assert len(read) == len(names) > len(set(names)), "no two files share a name, so this test holds nothing"
+
+
 def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     """M18-W3 review B2 and K2: a held-out set measures only while nothing was tuned on it (D-147
     clause 5). The #66 measure was spoiled that way: held-out questions were asserted word for word
@@ -189,13 +211,14 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
             text = row[0] if isinstance(row, list) else row["q"]
             if len(text) >= 15:
                 held.add(text)
-    sources = [p for folder in ("ios", "src", "scripts", "tests") for p in (root / folder).rglob("*")
-               if p.is_file() and p.suffix in {".swift", ".py"} and ".build" not in p.parts and "build" not in p.parts]
+    sources = _leak_scan_sources(root)
     # A question of 25 characters or more anywhere (the second review's M13: inside a longer string
     # too); a shorter one only as a whole quoted string, since a tuning question may hold a short
     # phrase by chance. The question's text is not printed, so a failure does not spoil its set.
     # raw: a held-out question in a comment or a dead branch is still a leak.
-    texts = {p.name: p.read_text(encoding="utf-8", errors="ignore") for p in sources}  # raw: see above
+    # Keyed by the path from the root (the reading wave's round-2 M1): by name, the fixtures' `Router.swift`
+    # and six other same-named files replaced the app's, so the gate never read them.
+    texts = _leak_scan_texts(root, sources)
     # #119 (M18-W7): the probe's other sets too, which the tests and the tuning read; each live set
     # is left out of its own comparison. Their strings are compared as strings, after JSON decoding.
     tuning = {p.name: _json_strings(json.loads(p.read_text(encoding="utf-8")))
@@ -254,7 +277,7 @@ def _unescaped(text: str) -> str:
     text = re.sub(r"\\U([0-9A-Fa-f]{8})", lambda m: char(m.group(1)), text)
     text = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: char(m.group(1)), text)
     text = re.sub(r"\\x([0-9A-Fa-f]{2})", lambda m: char(m.group(1)), text)
-    return re.sub(r"\\N\{([A-Z0-9 \-]+)\}", named, text)
+    return re.sub(r"\\N\{([A-Za-z0-9 \-]+)\}", named, text)
 
 
 def _forms(text: str) -> tuple[str, str]:
@@ -305,6 +328,8 @@ def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
     assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{wide}"'}, {}), "a \\U escape passed"
     by_name = "".join(c if c.isascii() else f"\\N{{{unicodedata.name(c)}}}" for c in turkish)
     assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{by_name}"'}, {}), "a \\N escape passed"
+    lower = "".join(c if c.isascii() else f"\\N{{{unicodedata.name(c).lower()}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{lower}"'}, {}), "a lowercase \\N escape passed"
     decomposed = unicodedata.normalize("NFD", turkish)
     assert _held_out_leaks({turkish}, {}, {"tuning.json": [decomposed]}), "a decomposed question passed"
     plain = "cok uzun bir ornek soru, hicbir sette yok"

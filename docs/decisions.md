@@ -5000,9 +5000,11 @@ device.
    - It uses no word list, so D-191's class (a word with a second reading) does not arise.
    - A word that names a surface still decides first (D-187 clause 1), and a question about models in
      general (`generalSurface`) keeps `everyday` (the review's M1). So no question answered before the
-     wave changes; where `everyday` is not served, the embedding answers.
+     wave changes its surface; one that names its surface now also offers the two closest others, as an
+     English one does. Where `everyday` is not served, the embedding answers.
    - A question with a letter Turkish never writes is not Turkish (the review's M2): the recogniser
-     reads Azerbaijani and Turkmen as Turkish. Azerbaijani written without such a letter is still read
+     reads Azerbaijani and Turkmen as Turkish. Marks are not letters, so an emoji or a decomposed accent
+     changes nothing (round 2's M2). Azerbaijani written without such a letter is still read
      as Turkish. Every other language the recogniser is sure of still declines.
    - The English path is unchanged, except that every example's vector is now computed once per
      language and kept (the review's K2).
