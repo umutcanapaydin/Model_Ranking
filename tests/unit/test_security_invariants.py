@@ -161,7 +161,7 @@ def test_the_list_holds_together() -> None:
 def test_every_invariant_the_code_names_is_on_the_list() -> None:
     files = tracked(".py", ".sh", ".swift")
     assert len(files) > 100, "the scan read almost nothing"
-    texts = {str(path.relative_to(ROOT)): path.read_text(encoding="utf-8", errors="replace") for path in files}
+    texts = {str(path.relative_to(ROOT)): path.read_text(encoding="utf-8", errors="replace") for path in files}  # raw: an absence check, which reads dead code too and so refuses more
     assert not dangling(texts, LIST.read_text(encoding="utf-8")), dangling(texts, LIST.read_text(encoding="utf-8"))
 
 

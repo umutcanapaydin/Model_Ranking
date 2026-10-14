@@ -19,7 +19,7 @@ def test_every_swift_test_class_derives_from_the_offline_base() -> None:
     direct = [
         f"{path.name}: {match.group(1)}"
         for path in sorted(TESTS.glob("*.swift")) if path.name != BASE
-        for match in re.finditer(r"class\s+(\w+)\s*:\s*XCTestCase\b", path.read_text(encoding="utf-8"))
+        for match in re.finditer(r"class\s+(\w+)\s*:\s*XCTestCase\b", path.read_text(encoding="utf-8"))  # raw: every test class, live or dead, is held
     ]
     assert direct == [], "test classes that skip the network tripwire: " + ", ".join(direct)
 
@@ -43,17 +43,17 @@ def test_the_check_sees_a_class_setup_that_skips_super() -> None:
 
 def test_the_base_checks_every_test_and_calls_through() -> None:
     """The check is in the base's tearDown, and a subclass that overrides setUp or tearDown calls super."""
-    base = (TESTS / BASE).read_text(encoding="utf-8")
+    base = (TESTS / BASE).read_text(encoding="utf-8")  # raw: every test class, live or dead, is held
     assert re.search(r"override func tearDown\(\)[^}]*OfflineGuard", base, re.S), "the base checks nothing"
     skipping = [f"{path.name}: {hook}" for path in sorted(TESTS.glob("*.swift")) if path.name != BASE
-                for hook in _hooks_skipping_super(path.read_text(encoding="utf-8"))]
+                for hook in _hooks_skipping_super(path.read_text(encoding="utf-8"))]  # raw: every test class, live or dead, is held
     assert skipping == [], "overrides that skip the base: " + ", ".join(skipping)
 
 
 def test_no_swift_test_runs_outside_the_tripwire() -> None:
     """W5 review M1: Swift Testing's `@Test` functions are not `XCTestCase` methods and get no tearDown."""
     users = [p.name for p in sorted(TESTS.glob("*.swift")) if re.search(r"^\s*import\s+Testing\b",
-                                                                           p.read_text(encoding="utf-8"), re.M)]
+                                                                           p.read_text(encoding="utf-8"), re.M)]  # raw: every test class, live or dead, is held
     assert users == [], users
 
 
@@ -61,7 +61,7 @@ def test_no_test_class_reaches_xctestcase_through_an_alias() -> None:
     """W5 second review M11: `typealias PlainCase = XCTestCase` let a class derive from XCTestCase under
     another name, past the check that every class derives from the offline base."""
     aliases = [p.name for p in sorted(TESTS.glob("*.swift"))
-               if re.search(r"typealias\s+\w+\s*=\s*(?:XCTest\.)?XCTestCase\b", p.read_text(encoding="utf-8"))]
+               if re.search(r"typealias\s+\w+\s*=\s*(?:XCTest\.)?XCTestCase\b", p.read_text(encoding="utf-8"))]  # raw: every test class, live or dead, is held
     assert aliases == [], aliases
 
 
@@ -73,7 +73,7 @@ def test_no_swift_source_builds_a_background_session() -> None:
     engine = TESTS.parent / "ModelRanking"
     users = [p.name for p in sorted([*TESTS.glob("*.swift"), *engine.rglob("*.swift")]) if p.name != BASE
              and re.search(r"\bbackground\s*\(\s*withIdentifier|backgroundSessionConfiguration",
-                           p.read_text(encoding="utf-8"))]
+                           p.read_text(encoding="utf-8"))]  # raw: every test class, live or dead, is held
     assert users == [], users
 
 
@@ -82,7 +82,7 @@ def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
     nothing and every test passed (the check above matches `OfflineGuard` in the body, which the drain
     alone satisfies). Swift cannot hold this here: the way to expect a failure is `XCTExpectFailure`,
     which `scripts/swift_xunit_gate.py` refuses because the parallel run reports it as a pass."""
-    base = (TESTS / BASE).read_text(encoding="utf-8")
+    base = (TESTS / BASE).read_text(encoding="utf-8")  # raw: every test class, live or dead, is held
     tear_down = re.search(r"override func tearDown\(\) \{(.*?)\n    \}", base, re.S)
     assert tear_down, "the base has no tearDown"
     body = tear_down.group(1)
@@ -112,7 +112,7 @@ def test_no_swift_source_builds_a_bare_session_configuration() -> None:
     # Every Swift file under `ios/`, the UI tests and `Package.swift` too, keyed by its path so two
     # files with one name are both read (the W3 Tester's M8); the build folders are not sources.
     ios = TESTS.parent
-    sources = {str(p.relative_to(ios)): p.read_text(encoding="utf-8") for p in sorted(ios.rglob("*.swift"))
+    sources = {str(p.relative_to(ios)): p.read_text(encoding="utf-8") for p in sorted(ios.rglob("*.swift"))  # raw: every test class, live or dead, is held
                if not {".build", "build", "DerivedData"} & set(p.relative_to(ios).parts)}
     assert any(name.startswith("UITests/") for name in sources) and "Package.swift" in sources, sorted(sources)[:5]
     assert len(sources) > 20, "the Swift sources were not read"

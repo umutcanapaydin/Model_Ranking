@@ -11,6 +11,8 @@ from __future__ import annotations
 import pathlib
 import re
 
+from tests.unit.test_ios_client_contract import _swift
+
 CLIENT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking"
 
 
@@ -19,7 +21,7 @@ def test_every_screen_sentence_has_a_row_in_the_language_test() -> None:
     one that is empty or the same in Turkish as in English. Its table is a hand-kept list beside the
     functions it covers, so the functions are read here from `Language.swift`, and a sentence added
     without a row, or a row naming no sentence, fails (AGENTS.md section 3.5)."""
-    language = (CLIENT / "Engine/Language.swift").read_text(encoding="utf-8")
+    language = _swift(CLIENT / "Engine/Language.swift")
     declared: set[str] = set()
     for opening in re.finditer(r"^(?:public )?(?:enum|extension) UIText \{$", language, re.M):
         body = language[opening.end():]
@@ -27,7 +29,7 @@ def test_every_screen_sentence_has_a_row_in_the_language_test() -> None:
         declared |= set(re.findall(r"\bstatic func (\w+)\(", body))
     assert len(declared) >= 40, f"read {len(declared)} UIText functions; was Language.swift read?"
     test = CLIENT.parent / "EngineTests/UITextLanguageTests.swift"
-    rows = set(re.findall(r'\("(\w+)", \{', test.read_text(encoding="utf-8"))) if test.exists() else set()
+    rows = set(re.findall(r'\("(\w+)", \{', _swift(test))) if test.exists() else set()
     assert not declared - rows, f"sentences no test composes in both languages: {sorted(declared - rows)}"
     assert not rows - declared, f"rows naming no UIText function: {sorted(rows - declared)}"
 
@@ -41,7 +43,7 @@ def test_every_uitext_sentence_anywhere_in_the_app_has_a_row() -> None:
     for path in sorted(CLIENT.rglob("*.swift")):
         if ".build" in path.parts:
             continue
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8")  # raw: every declared function, live or dead, needs a row
         for opening in re.finditer(r"^(?:\w+ )*(?:enum|extension) UIText\b[^{\n]*\{$", text, re.M):
             body = text[opening.end():]
             closing = re.search(r"^\}$", body, re.M)
@@ -50,6 +52,6 @@ def test_every_uitext_sentence_anywhere_in_the_app_has_a_row() -> None:
                 declared[name] = path.name
     assert len(declared) >= 40, f"read {len(declared)} UIText functions; were the sources read?"
     table = CLIENT.parent / "EngineTests/UITextLanguageTests.swift"
-    rows = set(re.findall(r'\("(\w+)", \{', table.read_text(encoding="utf-8")))
+    rows = set(re.findall(r'\("(\w+)", \{', _swift(table)))
     missing = sorted(f"{name} ({where})" for name, where in declared.items() if name not in rows)
     assert not missing, f"sentences no test composes in both languages: {missing}"

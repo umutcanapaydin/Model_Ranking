@@ -35,7 +35,7 @@ SETTING = re.compile(r"^\s*([A-Za-z_]\w*(?:\[[^\]]*\])*)\s*=\s*(.*?)\s*$")
 
 
 def _xcconfig(name: str) -> dict[str, str]:
-    lines = (CONFIG / name).read_text(encoding="utf-8").splitlines()
+    lines = (CONFIG / name).read_text(encoding="utf-8").splitlines()  # raw: not Swift
     found = (SETTING.match(line) for line in lines if not line.lstrip().startswith("//"))
     return {match.group(1): match.group(2) for match in found if match}
 
@@ -58,7 +58,7 @@ def test_the_privacy_manifest_gives_a_reason_for_every_required_reason_api_the_a
     assert manifest["NSPrivacyTracking"] is False and manifest["NSPrivacyTrackingDomains"] == []
     declared = {entry["NSPrivacyAccessedAPIType"]: entry["NSPrivacyAccessedAPITypeReasons"]
                 for entry in manifest["NSPrivacyAccessedAPITypes"]}
-    source = "\n".join(path.read_text(encoding="utf-8") for path in APP.rglob("*.swift"))
+    source = "\n".join(path.read_text(encoding="utf-8") for path in APP.rglob("*.swift"))  # raw: a call in dead code still needs its reason
     used = {category for category, (pattern, _reason) in REQUIRED_REASONS.items() if re.search(pattern, source)}
     assert "NSPrivacyAccessedAPICategoryUserDefaults" in used, "the scan reads the app's source"
     assert set(declared) == used, (declared, used)
@@ -93,7 +93,7 @@ def test_a_release_build_reaches_the_hosted_engine_whatever_the_local_config_say
     """The M19 security review's S1: in an xcconfig the last matching setting wins, and
     `Engine.local.xcconfig` was included after the Release line, so the owner's own `ENGINE_URL` (as
     the iPhone guide said to write it) sent a TestFlight archive to the owner's Mac over plain http."""
-    lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()
+    lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()  # raw: not Swift
     include = next(i for i, line in enumerate(lines) if line.startswith('#include? "Engine.local.xcconfig"'))
     release = next(i for i, line in enumerate(lines) if line.startswith("ENGINE_URL[config=Release]"))
     assert release > include, "the Release address must come after the local file, which may set ENGINE_URL"
@@ -115,7 +115,7 @@ def test_the_shared_scheme_archives_the_app_in_release() -> None:
 def test_nothing_after_the_release_address_can_replace_it() -> None:
     """The second W5 review's M4: a later ENGINE_URL of any condition, or a later include, would win
     over the Release address as the local file once did."""
-    lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()
+    lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()  # raw: not Swift
     release = next(i for i, line in enumerate(lines) if line.startswith("ENGINE_URL[config=Release]"))
     after = [line for line in lines[release + 1:] if line.strip() and not line.lstrip().startswith("//")]
     assert not any(line.lstrip().startswith(("ENGINE_URL", "#include")) for line in after), after
@@ -137,7 +137,7 @@ def test_no_target_setting_overrides_what_the_engine_config_or_the_local_file_se
     one set to "" drops the icon. Planted in the project's Release configuration (the Tester's X1, X2),
     each passed every test, which read the xcconfig alone. The local file's `DEVELOPMENT_TEAM` and
     `PRODUCT_BUNDLE_IDENTIFIER` would be overridden the same way."""
-    project = (REPO / "ios" / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+    project = (REPO / "ios" / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift
     configs = {match["name"]: match["settings"] for match in _ENGINE_CONFIG.finditer(project)}
     assert set(configs) == {"Debug", "Release"}, sorted(configs)
     owned = {name.split("[")[0] for name in _xcconfig("Engine.xcconfig")} | {"DEVELOPMENT_TEAM", "PRODUCT_BUNDLE_IDENTIFIER"}
