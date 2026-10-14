@@ -858,3 +858,32 @@ def test_the_fixture_holds_a_runtime_call_the_module_rule_refuses() -> None:
     assert "sel_registerName" in fixture
     refused = gate.problems(gate.references((ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")))
     assert any("Imports.swift" in line and "ObjectiveC" in line for line in refused), refused[:5]
+
+
+#: #246: every URL, file-system and resource symbol the two stores reference on the shipping client,
+#: as `references` reads them (measured 2026-10-14, the simulator's Release configuration).
+STORES_SHIPPING_URLS = {
+    "Foundation.Data.init(contentsOf:options:", "Foundation.FileManager.urls(for:in:", "Foundation.FileManager.temporaryDirectory",
+    "Foundation.URL.appendingPathComponent", "Foundation.URL.appendingPathComponent(_:isDirectory:",
+    "Foundation.URL.deletingLastPathComponent(", "Foundation.URL.isFileURL", "Foundation.URL.made",
+}
+
+
+@pytest.mark.parametrize("store", ["FrontDoor.swift", "StandingsStore.swift"])
+@pytest.mark.parametrize("maker", ["Foundation.URL.init(_:strategy:", "Foundation.URL.init(string:",
+                                   "Foundation.URL.init(string:relativeTo:", "Foundation.URL.init(dataRepresentation:relativeTo:isAbsolute:",
+                                   "Foundation.URL.init(resolvingBookmarkData:options:relativeTo:bookmarkDataIsStale:",
+                                   "Foundation.URL.decoded", "Foundation.NSURL.init(string:"])
+def test_a_store_makes_a_url_only_from_the_file_systems_folders(store: str, maker: str) -> None:
+    """#246 (G-13, the M21-W3 review's round 3): the stores were allowed to make a URL by any call, and
+    `Data(contentsOf:)` fetches an `https` address as readily as a file. A store now makes one only by
+    the calls on `STORE_URL_MAKERS`: a folder the file manager names, and a component appended to it or
+    removed. Any other URL initialiser or decode in a store is refused."""
+    refused = gate.problems({store: {maker, "Foundation.Data.init(contentsOf:options:"}})
+    assert any(line.startswith(f"{store}:") and "a store makes a URL only" in line for line in refused), refused
+
+
+def test_the_stores_shipping_urls_pass() -> None:
+    """#246: what the stores do today is on the list, so the rule refuses nothing they ship."""
+    assert gate.problems({"FrontDoor.swift": STORES_SHIPPING_URLS}) == []
+    assert "a URL a store makes from text" in gate.FIXTURE_RULES
