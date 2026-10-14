@@ -711,6 +711,11 @@ EGRESS_PERMITTED = {
 #: the scan -- never a pattern over a whole file. The W4 seat sent the register itself off the
 #: device with a second `Data(contentsOf:)` inside `save()`, which a file-wide permission let through.
 EGRESS_EXACT = {
+    # #261: the Apache License's own two addresses, in the text the Credits sheet shows verbatim (Apache-2.0
+    # section 4(a)). Text on a screen, selectable, never opened: D-126 keeps every way to open a URL out.
+    # The longer one first, since the shorter is its start.
+    ("Models.swift", "http://www.apache.org/licenses/LICENSE-2.0"): "#261: the Apache-2.0 text, its appendix's address",
+    ("Models.swift", "http://www.apache.org/licenses/"): "#261: the Apache-2.0 text, its heading's address",
     ("FrontDoor.swift", "FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)"): "REQ-GAP-001: where the register lives",
     ("FrontDoor.swift", "FileManager.default.temporaryDirectory"): "REQ-GAP-001: the fallback folder",
     ("FrontDoor.swift", "FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"): "REQ-GAP-001: the register's folder",

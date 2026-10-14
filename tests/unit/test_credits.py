@@ -251,3 +251,27 @@ def test_an_apache_or_mit_credit_carries_the_notice_its_licence_asks_to_keep() -
         else:
             assert credit.notice is None and credit.id not in PUBLISHES_NO_NOTICE, credit.id
     assert credits_for([PRICING_ATTRIBUTION_LITELLM])[0]["notice"] == "Copyright (c) 2023 Berri AI"
+
+
+#: #261: the published texts, whitespace folded, as read on 2026-10-14: Apache-2.0 from Aider's and
+#: Terminal-Bench's LICENSE files (the same text), MIT's terms from models.dev's and LiteLLM's.
+LICENCE_TEXT_SHA256 = {
+    "apache20": "0ffddef9e48f8a09aed5caf2d44f7ba1c1be2d9b8e0a6f693b1635b2d5566645",
+    "mit": "fe2a9817987f862eaced948f0468c7f51d2fedfc48c5c505b246a49a3870e9a5",
+}
+
+
+@pytest.mark.parametrize("name", sorted(LICENCE_TEXT_SHA256))
+def test_the_app_carries_each_licence_text_verbatim(name: str) -> None:
+    """#261: the licences ask for a copy of themselves, so the app's copy is the published text, word for
+    word; only its line breaks may differ."""
+    import hashlib
+    import pathlib
+    import re
+
+    models = (pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/Models.swift").read_text(
+        encoding="utf-8")  # raw: the text itself, not code
+    match = re.search(rf'static let {name} = """\n(.*?)\n"""', models, re.S)
+    assert match, f"Models.swift holds no `{name}` text"
+    folded = " ".join(match.group(1).split())
+    assert hashlib.sha256(folded.encode()).hexdigest() == LICENCE_TEXT_SHA256[name]

@@ -4822,6 +4822,8 @@ testers or the App Store (guideline 5.2.2). A paid app ends SWE-bench's place (C
 
 **Amended by D-194 (2026-10-13)**: clauses 1 and 2 -- ARC-AGI, Terminal-Bench and OpenRouter move to their publishers' licensed data instead of waiting for permission; DeepSWE moves when the owner's Hugging Face token is in place (#265).
 
+**Amended by D-197 (2026-10-14)**: each Apache-2.0 or MIT credit carries its copyright notice, and the sheet carries those licences' full texts (#261).
+
 ## D-194 — The unlicensed boards and OpenRouter's prices move to their publishers' licensed data
 
 **Status:** accepted -- decided by the owner on 2026-10-13. They first wrote "Terminal-Bench to the TB 4.0
@@ -5046,3 +5048,32 @@ device.
   than `reading_heldout_m22`, which this wave and its reviews have run at least eight times on the wording tier;
 - #66's bars are met;
 - or the owner asks for another language to be read.
+
+## D-197 — The app carries the Apache-2.0 and MIT texts, and each publisher's notice
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take the
+recommended option) · **Date:** 2026-10-14 · **Amends** D-193 (the Credits screen) · from #261.
+
+**Context.** The Credits screen (#260, D-193) names each publisher's licence and links to it. Apache-2.0
+section 4(a) asks a redistributor to give recipients a copy of the licence, and 4(c) to keep the copyright
+notices; MIT asks that the copyright and permission notice be included. That covers Aider, Terminal-Bench
+and HELM (Apache-2.0), and LiteLLM, models.dev and the ARC Prize evaluation runs (MIT). Whether serving
+positions and medians derived from their files is a redistribution was left open
+(`docs/research/data-licences-2026-10-04.md`, rows 9 and 10). #261 offered an owner's ruling that it is
+not, or carrying the texts.
+
+**Decision.**
+1. **The texts are carried, rather than ruled away.** It costs one sheet section, and holds under either
+   reading of "redistribution".
+2. **The engine sends each credit's notice** (`Credit.notice`): the copyright line the publisher's LICENSE
+   file states, read on 2026-10-14. A publisher whose file states none is named in `PUBLISHES_NO_NOTICE`
+   with why (Aider's and Terminal-Bench's appendix templates are unfilled; the ARC Prize dataset holds no
+   LICENSE file). No publisher here has a NOTICE file. An older engine sends none, and the phone reads it.
+3. **The app carries the full text of each licence** (`LicenceText`) and shows it once, under "Licence
+   texts", for each licence the served credits name. A test holds each text against the published one, by
+   hash, word for word.
+4. **The Apache text's two addresses are text on the screen, never opened** (D-126): the egress pin
+   permits each exactly once, in `Models.swift`.
+
+**Revisit when:** a publisher adds a NOTICE file or a copyright line, a new Apache-2.0 or MIT source is
+credited, or the owner rules that derived positions are not a redistribution.
