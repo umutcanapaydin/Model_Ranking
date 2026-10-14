@@ -254,10 +254,10 @@ def test_every_surface_the_engine_advertises_has_a_routing_hint() -> None:
     )
 
 
-def _example_counts() -> dict[str, int]:
+def _example_counts(table: str = "examples") -> dict[str, int]:
     """How many example questions the WORDING tier holds per surface, parsed from the Swift."""
     source = ROUTER.read_text(encoding="utf-8")
-    start = source.index("static let examples:")
+    start = source.index(f"static let {table}:")
     block = source[start : source.index("\n    ]\n", start)]
     return {
         match.group(1): len(re.findall(r'"[^"]*"', match.group(2)))
@@ -281,6 +281,15 @@ def test_every_described_surface_has_example_questions_for_the_wording_tier() ->
     )
     thin = sorted(surface for surface, count in counts.items() if count < 2)
     assert not thin, f"{thin} have fewer than two examples, so their score is one stray sentence"
+
+
+def test_the_turkish_examples_cover_every_described_surface() -> None:
+    """#222: a confidently Turkish question is read against `examplesTurkish`, so a surface missing
+    there is one a Turkish reader on a device without the model can never reach."""
+    counts = _example_counts("examplesTurkish")
+    assert set(counts) == _hint_ids(), f"Turkish examples cover {sorted(counts)}, not {sorted(_hint_ids())}"
+    thin = sorted(surface for surface, count in counts.items() if count < 2)
+    assert not thin, f"{thin} have fewer than two Turkish examples"
 
 
 def test_the_unmeasured_fallback_is_a_surface_the_engine_actually_serves() -> None:

@@ -4471,6 +4471,8 @@ composing a list from the boards).
 
 **Amended by D-188 (2026-10-08, proposed)**: clause 1 -- a short question made only of model names, their tier names and Turkish particles ("claude mu chatgpt mi") is a general question before the embedding is tried, since the embedding reads it as English (#206, M20-W3; `CategoryHints.comparesModelsOnly`).
 
+**Amended by D-196 (2026-10-14)**: clause 1 -- a confidently Turkish question that names no surface is read by the embedding against Turkish examples instead of declining (#222).
+
 ## D-188 — Our own list for every question: a family of boards per task, combined by position
 
 **Status:** proposed -- the agent's proposal for the owner's goal of 2026-10-08 ("our biggest
@@ -4699,6 +4701,8 @@ about (#194).
 **Revisit when:** a fresh held-out set (#237) is written, which is where a fourth attempt at #194, #218
 or #222 starts, with only words that have one reading; or the owner rules on the four core brands'
 second readings (#238).
+
+**Amended by D-196 (2026-10-14)**: the fourth attempt on the fresh set (#237) reads Turkish through the embedding with no word list (#222); #194 is closed on its sign and #238 ruled; #218 stays open.
 
 ## D-192 — The close checks read the history, and the records may not say more than a gate holds
 
@@ -4973,3 +4977,53 @@ artifact of 2026-10-13, every link made again (the backlog-data review's rounds 
 **Revisit when:** a maker publishes a Pro or speed tier with an id and price of its own, another family's
 speed tier is read (GLM's `-Fast`, DeepSeek's `-Turbo`), or a board ranks a gathered snapshot apart in a way
 D-182 does not settle.
+
+## D-196 — A Turkish question is read against Turkish examples; #194 and #238 are ruled, not given a fourth rule
+
+**Status:** accepted -- the agent's ruling under the owner's standing instruction of 2026-09-29 (take
+the recommended option) and the owner's word of 2026-10-13 to finish the open backlog
+(`docs/research/reading-wave-m22-probe.md`) · **Date:** 2026-10-14 · **Amends** D-187 clause 1 and
+D-191's "Revisit when" · from #222, #237, #194, #238; #218 and #66 stay open.
+
+**Context.** D-191 sent a fourth attempt at #194, #218 and #222 to a fresh held-out set (#237). An
+independent seat wrote it: 147 questions, 89 searches and 58 that are not a search. On it, before this
+wave, the wording tier left 8 of 89 searches "not measured". It declines every question the recogniser
+is sure is not English, and answers one only from a word that names a surface. Apple's contextual
+embedding for Latin script is one multilingual model, the same for English and Turkish, and on the
+device.
+
+**Decision.**
+1. **A confidently Turkish question is read against Turkish examples (#222).**
+   - `CategoryHints.examplesTurkish` holds six per surface and `unmeasuredHintsTurkish` the three
+     groups, written for this wave. The scoring, the floor and the image rule are the English path's.
+   - It uses no word list, so D-191's class (a word with a second reading) does not arise.
+   - A word that names a surface still decides first (D-187 clause 1).
+   - A Turkish question that names an AI brand (`generalWords`) keeps `everyday`, as before: on the
+     tuning set the names pulled the embedding off the task word.
+   - Every other language the recogniser is sure of still declines. The English path is unchanged.
+2. **#194 is closed without a fourth rule.** Its sign was "more than 4 of 40 genuine searches asked".
+   On the fresh set the model tier asked 1 and 3 of 89 searches, and the wording tier none. Three
+   verdicts found a second reading in every list of model names tried (D-191 clause 2).
+3. **#238: claude, gemini, mistral and grok stay read as models wherever they stand.** In an app whose
+   every question is about models, "how much does claude cost" is the common reading. A question of
+   fact about Monet or the zodiac given a ranking is the cost, and is accepted. `AMBIGUOUS_FAMILY_WORDS`,
+   which the issue names, went out with D-191's rules: nothing reads these four as ambiguous today.
+4. **The held-out leak gate reads escapes.** A Turkish line in an ASCII-only test is written with
+   `\u{...}` in Swift or `\uXXXX`/`\xXX` in Python. The gate compared the raw text, so an escaped
+   held-out question passed it. It now decodes them first, and a planted test holds both.
+5. **#237's set is live and `wording_heldout_m20_questions.json` is retired** (`RETIRED_HELD_OUT`).
+
+**Measured** (the wording tier, two runs each, counts only):
+- **Held-out set:** 88 right of 147 before, 94 after. Searches right went from 59 to 65 of 89, and
+  searches not measured from 8 to 0. Lines that are not a search caught stay at 29 of 58.
+- **Question by question:** 6 rows gained and none lost.
+- **The cost:** 9 Turkish lines that are not a search, which the reading does not catch, fell to "not
+  measured" before. They get a ranking now, as the same input in English already does. Catching them
+  is #66's.
+- **A floor does not separate them:** on the wave's own sentences, Turkish searches scored 0.18 to 0.51
+  and Turkish lines that are not a search 0.24 to 0.56, as in English at M16-W1.
+
+**Revisit when:**
+- #218's short Turkish questions are read by a means with no second reading;
+- #66's bars are met;
+- or the owner asks for another language to be read.

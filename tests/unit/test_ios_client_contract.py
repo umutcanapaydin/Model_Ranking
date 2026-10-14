@@ -236,11 +236,20 @@ def _json_strings(value: object) -> list[str]:
     return [s for item in value for s in _json_strings(item)] if isinstance(value, list) else []
 
 
+def _unescaped(text: str) -> str:
+    r"""Swift's `\u{...}` and Python's `\uXXXX` and `\xXX` escapes, as the characters they stand for."""
+    text = re.sub(r"\\u\{([0-9A-Fa-f]{1,6})\}", lambda m: chr(int(m.group(1), 16)), text)
+    text = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: chr(int(m.group(1), 16)), text)
+    return re.sub(r"\\x([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), text)
+
+
 def _held_out_leaks(held: set[str], texts: dict[str, str], tuning: dict[str, list[str]]) -> list[tuple[str, int]]:
     """(file, length) for each held-out question found. A question of 25 characters or more counts
     anywhere; a shorter one only whole. The question itself is never printed."""
-    # Case-folded, so a question copied in capitals is found too (the W7 review's K4).
-    folded_texts = {name: text.casefold() for name, text in texts.items()}
+    # Case-folded, so a question copied in capitals is found too (the W7 review's K4). Escapes decoded
+    # first (the reading wave of 2026-10-14): a Turkish line in an ASCII-only test is written
+    # `do\u{011F}ru` in Swift or `do\u011fru` in Python, and the raw text would hide it.
+    folded_texts = {name: _unescaped(text).casefold() for name, text in texts.items()}
     in_code = {(name, len(q)) for name, text in folded_texts.items() for q in (h.casefold() for h in held)
                if (len(q) >= 25 and q in text) or f'"{q}"' in text}
     in_sets = {(name, len(q)) for name, strings in tuning.items() for q in (h.casefold() for h in held)
@@ -256,6 +265,13 @@ def test_a_held_out_question_copied_into_a_tuning_set_is_found() -> None:
     assert _held_out_leaks({planted}, {}, {"tuning.json": [f"prefix: {planted}"]})
     assert not _held_out_leaks({"short one here"}, {}, {"tuning.json": ["a short one here, inside"]})
     assert _held_out_leaks({planted}, {}, {"tuning.json": [planted.upper()]}), "a question in capitals passed"
+    # The reading wave of 2026-10-14: a question written with escapes, as an ASCII-only test writes one.
+    turkish = "\u00e7ok uzun bir \u00f6rnek soru, hi\u00e7bir sette yok"
+    swift = "".join(c if c.isascii() else f"\\u{{{ord(c):04X}}}" for c in turkish)
+    assert _held_out_leaks({turkish}, {"Tests.swift": f'let q = "{swift}"'}, {}), "a Swift-escaped question passed"
+    for python in (turkish.encode("ascii", "backslashreplace").decode(),
+                   "".join(c if c.isascii() else f"\\u{ord(c):04x}" for c in turkish)):
+        assert _held_out_leaks({turkish}, {"test_x.py": f'q = "{python}"'}, {}), "a Python-escaped question passed"
 
 
 def test_the_apps_copy_of_the_ordering_note_is_the_engines() -> None:
@@ -1661,15 +1677,12 @@ _BEFORE = "in the app before {set} was written ({sha}), so not read from it"
 HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "disregard": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "instruction": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
-    "llama": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "maths": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
-    "mistral": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "opus": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "reveal": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "slm": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "sonnet": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
     "translation": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
-    "\u00f6dev": _BEFORE.format(set="reading_heldout_m22", sha="b38819b"),
 }
 #: A list of string literals: every word, phrase, verb and noun list in `Reading.swift`, the inline
 #: ones in its functions too, derived from the source rather than named here. One literal is a list
@@ -1903,24 +1916,19 @@ WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "current": _WORDING_BEFORE,
     "dogruluk": _WORDING_BEFORE,
     "gemma": _WORDING_BEFORE,
-    "glm": _WORDING_BEFORE,
     "kaynak goster": _WORDING_BEFORE,
-    "kimi": _WORDING_BEFORE,
     "kimya": _WORDING_BEFORE,
     "literature": _WORDING_BEFORE,
-    "llama": _WORDING_BEFORE,
     "maths": _WORDING_BEFORE,
     "medical": _WORDING_BEFORE,
     "mercury": _WORDING_BEFORE,
     "mini": _WORDING_BEFORE,
     "minimax": _WORDING_BEFORE,
-    "mistral": _WORDING_BEFORE,
     "mixtral": _WORDING_BEFORE,
     "note": _WORDING_BEFORE,
     "opus": _WORDING_BEFORE,
     "phi": _WORDING_BEFORE,
     "physics": _WORDING_BEFORE,
-    "qwen": _WORDING_BEFORE,
     "sonnet": _WORDING_BEFORE,
     "this contract": _WORDING_BEFORE,
     "translates": _WORDING_BEFORE,

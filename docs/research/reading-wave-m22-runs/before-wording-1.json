@@ -1,0 +1,1472 @@
+[
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 0
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 1
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "agentic-coding",
+  "surface": "agentic-coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 2
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 3
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 4
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 5
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 6
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 7
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 8
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 9
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 10
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 11
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 12
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 13
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 14
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 15
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 16
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 17
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 18
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 19
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 20
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 21
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 22
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 23
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 24
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 25
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 26
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 27
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 28
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 29
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 30
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 31
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 32
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 33
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 34
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 35
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 36
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 37
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 38
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 39
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 40
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 41
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 42
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 43
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 44
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 45
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 46
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 47
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 48
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 49
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "notASearch",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 50
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 51
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 52
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 53
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "unsure",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 54
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 55
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 56
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 57
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 58
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 59
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 60
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 61
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 62
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 63
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 64
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 65
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 66
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 67
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 68
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "agentic-coding",
+  "surface": "agentic-coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 69
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 70
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 71
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 72
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 73
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 74
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 75
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 76
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 77
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 78
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 79
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 80
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 81
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 82
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 83
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 84
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 85
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 86
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 87
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 88
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search_factuality",
+  "surface": "search_factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 89
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 90
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 91
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 92
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 93
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 94
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 95
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "agentic-coding",
+  "surface": "agentic-coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 96
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 97
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 98
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 99
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 100
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 101
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 102
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 103
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 104
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 105
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 106
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 107
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 108
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 109
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 110
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 111
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 112
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 113
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 114
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 115
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 116
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 117
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "assistant",
+  "surface": "assistant",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 118
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 119
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 120
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 121
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 122
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "factuality",
+  "surface": "factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 123
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 124
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 125
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 126
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 127
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "vision",
+  "surface": "vision",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 128
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 129
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 130
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 131
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 132
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "document",
+  "surface": "document",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 133
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 134
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "mathematics",
+  "surface": "mathematics",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 135
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "web-dev",
+  "surface": "web-dev",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 136
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "coding",
+  "surface": "coding",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 137
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "abstract",
+  "surface": "abstract",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 138
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 139
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 140
+ },
+ {
+  "declined": "true",
+  "model": "nil",
+  "reading": "search",
+  "routed": "nil",
+  "surface": "assistant",
+  "tier": "manual",
+  "unmeasured": "true",
+  "row": 141
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search",
+  "surface": "search",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 142
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "search_factuality",
+  "surface": "search_factuality",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 143
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 144
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "everyday",
+  "surface": "everyday",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 145
+ },
+ {
+  "declined": "false",
+  "model": "nil",
+  "reading": "search",
+  "routed": "expert",
+  "surface": "expert",
+  "tier": "similarity",
+  "unmeasured": "false",
+  "row": 146
+ }
+]

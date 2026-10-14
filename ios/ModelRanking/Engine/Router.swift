@@ -148,6 +148,16 @@ enum CategoryHints {
          "which model responds quickest", "how many tokens can it read at once", "tokens per second"],
     ]
 
+    /// #222: the same three groups in Turkish, read against a confidently Turkish question.
+    static let unmeasuredHintsTurkish: [[String]] = [
+        ["bu fotoğrafı düzenle", "resmimin arka planını kaldır", "bir kedi resmi oluştur", "bana bir logo çiz",
+         "selfiemi daha güzel göster", "bir illüstrasyon yap"],
+        ["bir video yap", "müzik üret", "metni sese çevir", "bu ses kaydını yazıya dök", "sesimi klonla",
+         "bu ses kaydını düzenle"],
+        ["en hızlı model hangisi", "modellerin yanıt sürelerini karşılaştır", "bağlam penceresi ne kadar uzun",
+         "hangi model en çabuk cevap veriyor", "aynı anda kaç token okuyabilir", "saniyede kaç token"],
+    ]
+
     /// What the WORDING tier compares a question against: six questions a reader might type, per
     /// surface. `byID` stays for the on-device model, which reads a description; this tier cannot.
     ///
@@ -214,6 +224,63 @@ enum CategoryHints {
                               "give me links to the sources you used",
                               "search and make sure the facts come from real pages",
                               "find the original article and quote it", "research this online with accurate citations"],
+    ]
+
+    /// #222 (the reading wave of 2026-10-14): the same six questions per surface, as a Turkish reader
+    /// types them. The wording tier compares a CONFIDENTLY Turkish question against these, through the
+    /// same on-device embedding: Apple's contextual embedding for Latin script is one multilingual
+    /// model, English and Turkish alike (`NLContextualEmbedding.modelIdentifier`). Before it, every such
+    /// question that named no surface fell to "not measured". Written for this wave, never from a
+    /// held-out set; `test_router_hints.py` holds that they cover the surfaces `examples` covers.
+    static let examplesTurkish: [String: [String]] = [
+        "coding": ["csv dosyasını okuyan bir python fonksiyonu yaz", "javascript kodum neden null hatası veriyor",
+                   "bu sınıfı test etmesi daha kolay olacak şekilde yeniden düzenle",
+                   "rust programımdaki çökmeyi bulmama yardım et", "bu döngüyü list comprehension ile yeniden yaz",
+                   "pull request'imdeki hataları incele"],
+        "agentic-coding": ["bir ajan bu özelliği tüm kod tabanımda kendisi geliştirsin",
+                           "testleri çalıştırıp başarısız olanları kendi düzelten bir ajan",
+                           "yapay zeka projemi kendi başına yeni bir framework'e taşısın",
+                           "bir github issue'sunu baştan sona çözen kodlama ajanı",
+                           "depomda birden fazla dosyada değişikliği otomatik yaptır",
+                           "dosyaları düzenleyip komutları kendisi çalıştıran bir yapay zeka geliştirici"],
+        "assistant": ["iş arkadaşıma bir teşekkür notu yaz", "bu mesaja nasıl cevap vereyim yardım et",
+                      "dünyanın en yüksek dağı hangisi", "enflasyonu basit kelimelerle açıkla",
+                      "halıdaki şarap lekesini nasıl çıkarırım", "merhaba bir konuda yardım eder misin"],
+        "everyday": ["günlük işler için en iyi yapay zeka hangisi", "her işe yarayan iyi bir model",
+                     "genel günlük kullanım için hangi modeli seçmeliyim",
+                     "her şeyden biraz yapan en iyi genel amaçlı yapay zeka", "iş, okul ve ev için tek bir model",
+                     "genel olarak en faydalı sohbet botu hangisi"],
+        "expert": ["bir katalizör aktivasyon enerjisini nasıl düşürür", "heisenberg belirsizlik ilkesi ne söyler",
+                   "enzimler şekillerini nasıl katlanarak alır", "lisansüstü düzeyde bir organik kimya sorusu",
+                   "süperiletkenliğin fiziğini açıkla", "bağışıklık sistemi bir virüsü nasıl tanır"],
+        "mathematics": ["bu denklemi x için çöz", "bu fonksiyonun türevini bul", "bu eşitsizliği ispatla",
+                        "iki zarın ikisinin de altı gelme olasılığını hesapla",
+                        "bir olimpiyat sayılar teorisi problemi", "bu üçgenin alanını hesapla"],
+        "computer-use": ["bu çevrimiçi formu benim yerime doldur", "tarayıcımı kullanarak market siparişi ver",
+                         "ayarlara girip karanlık modu aç", "siteye girip faturayı indir",
+                         "masaüstü uygulamalarımı kullanarak dosyaları yeniden adlandır",
+                         "portala giriş yapıp siparişlerimi kontrol et"],
+        "abstract": ["bu şekil dizisinin arkasındaki kuralı bul", "bu dizide sırada ne gelir", "bu bilmeceyi çöz",
+                     "dönüşümü bulman gereken bir ızgara bulmacası", "örüntüyü bul ve tabloyu tamamla",
+                     "mantık yürütme gerektiren bir zeka sorusu"],
+        "web-dev": ["pastanem için bir web sitesi yap", "kayıt formu olan bir açılış sayfası hazırla",
+                    "portfolyo sitem için html ve css yaz", "web uygulamam için react ile bir arayüz oluştur",
+                    "mobil uyumlu bir web sayfası tasarla", "bir online mağaza sitesi kur"],
+        "document": ["bu pdf'i özetle", "bu uzun sözleşme hakkındaki sorularımı cevapla",
+                     "bu makalenin ana noktalarını çıkar", "bu raporu okuyup sonuçları söyle",
+                     "bu anlaşmadaki fesih maddesini bul", "bu sayfaları tarayıp tarihleri çıkar"],
+        "factuality": ["bu iddia doğru mu", "model bu bilgiyi uydurdu mu",
+                       "bu rakamların doğru olup olmadığını kontrol et", "bu kaynak gerçek mi yoksa uydurma mı",
+                       "bu tarihi bilginin doğruluğunu teyit et", "bu cevapta halüsinasyon var mı"],
+        "vision": ["yüklediğim fotoğrafta ne var", "bu fotoğrafı anlat", "bu ekran görüntüsündeki yazıyı oku",
+                   "resimdeki bu grafik ne gösteriyor", "bu fotoğraftaki bitkiyi tanı", "bu görseldeki şemayı açıkla"],
+        "search": ["internette en son haberleri ara", "şu an bitcoin fiyatı ne kadar", "bugünkü hava durumuna bak",
+                   "güncel uçak bileti fiyatlarını bul", "bugün haberlerde ne oldu",
+                   "bir dükkanın çalışma saatlerini internetten bul"],
+        "search_factuality": ["internette gerçek bir kaynak bulup alıntı yap", "araştır ve sayfadan aynen alıntıla",
+                              "kullandığın kaynakların linklerini ver",
+                              "ara ve bilgilerin gerçek sayfalardan geldiğinden emin ol",
+                              "orijinal makaleyi bulup alıntı yap", "bunu doğru kaynak göstererek internette araştır"],
     ]
 }
 
@@ -426,6 +493,11 @@ extension CategoryHints {
         return nil
     }
 
+    /// #222: a question that names an AI brand by one of `generalWords`' names.
+    static func namesABrand(_ question: String) -> Bool {
+        readings(question).contains { words in words.contains(where: generalWords.words.contains) }
+    }
+
     /// `everyday` for a question about AI models in general, where the embedding cannot read it.
     static func generalSurface(_ question: String, within known: [String]) -> String? {
         known.contains(generalWords.id) && names(generalWords, readings(question), question.lowercased())
@@ -523,6 +595,9 @@ struct SimilarityRouter: QuestionRouter {
     /// is the honest answer: the alternative is a confident answer computed from a sentence this
     /// tier did not understand.** D-136 records what it does not localise; the router is the item
     /// that list was missing.
+    ///
+    /// **#222 (2026-10-14): Turkish is read now**, against Turkish examples (`readsTurkish`,
+    /// `CategoryHints.examplesTurkish`). This still declines every other language it is sure of.
     static func readsEnglish(_ text: String) -> Bool {
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
@@ -532,7 +607,20 @@ struct SimilarityRouter: QuestionRouter {
         // non-English reading declines.
         guard language != .english, language != .undetermined else { return true }
         let confidence = recogniser.languageHypotheses(withMaximum: 1)[language] ?? 0
-        return confidence < 0.65
+        return confidence < confidentLanguage
+    }
+
+    /// How sure the recogniser must be before a question is read as another language than English.
+    static let confidentLanguage = 0.65
+
+    /// #222: a question confidently Turkish, the one other language this tier reads. It is compared
+    /// against `examplesTurkish` through the same multilingual embedding; any other language the
+    /// recogniser is sure of still declines (`readsEnglish`).
+    static func readsTurkish(_ text: String) -> Bool {
+        let recogniser = NLLanguageRecognizer()
+        recogniser.processString(text)
+        guard recogniser.dominantLanguage == .turkish else { return false }
+        return (recogniser.languageHypotheses(withMaximum: 1)[.turkish] ?? 0) >= confidentLanguage
     }
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
@@ -547,8 +635,19 @@ struct SimilarityRouter: QuestionRouter {
             return known.contains("everyday")
                 ? RoutingOutcome(categoryID: "everyday", tier: .similarity, unmeasured: false) : nil
         }
-        guard SimilarityRouter.readsEnglish(text),
-              let embedding = NLContextualEmbedding(language: .english),
+        // #222: a Turkish question is read against Turkish examples. One that names an AI brand
+        // ("gemini mi gpt mi ödev") keeps `everyday`, as before: the names pull the embedding away from
+        // the one word that is the task, and the question is about models in general.
+        let turkish = SimilarityRouter.readsTurkish(text)
+        if turkish, named == nil, CategoryHints.namesABrand(question) {
+            return CategoryHints.generalSurface(question, within: known)
+                .map { RoutingOutcome(categoryID: $0, tier: .similarity, unmeasured: false) }
+        }
+        let language: NLLanguage = turkish ? .turkish : .english
+        let exampleSet = turkish ? CategoryHints.examplesTurkish : CategoryHints.examples
+        let unmeasuredHints = turkish ? CategoryHints.unmeasuredHintsTurkish : CategoryHints.unmeasuredHints
+        guard turkish || SimilarityRouter.readsEnglish(text),
+              let embedding = NLContextualEmbedding(language: language),
               embedding.hasAvailableAssets,
               (try? embedding.load()) != nil
         else {
@@ -559,7 +658,7 @@ struct SimilarityRouter: QuestionRouter {
         }
 
         func vector(_ string: String) -> [Double]? {
-            guard let result = try? embedding.embeddingResult(for: string, language: .english)
+            guard let result = try? embedding.embeddingResult(for: string, language: language)
             else { return nil }
             var total = [Double](repeating: 0, count: embedding.dimension)
             var count = 0
@@ -574,7 +673,7 @@ struct SimilarityRouter: QuestionRouter {
 
         var hints: [(id: String, vectors: [[Double]])] = []
         for id in known {
-            let vectors = (CategoryHints.examples[id] ?? []).compactMap(vector)
+            let vectors = (exampleSet[id] ?? []).compactMap(vector)
             if !vectors.isEmpty { hints.append((id, vectors)) }
         }
         // The hotfix review's M3: an embedding that loads and cannot read this question still leaves
@@ -648,7 +747,7 @@ struct SimilarityRouter: QuestionRouter {
         // board, never "not measured". The decline groups no longer decline. A question closest to
         // making or changing an image goes to `vision`, the board of models that read images best; one
         // closest to sound, video or speed is answered by the closest surface below.
-        let declines = CategoryHints.unmeasuredHints.map { $0.compactMap(vector) }.map { $0.isEmpty ? -Double.infinity : score($0) }
+        let declines = unmeasuredHints.map { $0.compactMap(vector) }.map { $0.isEmpty ? -Double.infinity : score($0) }
         if let image = declines.first, image > best.score, declines.allSatisfy({ $0 <= image }),
            known.contains("vision") {
             return RoutingOutcome(categoryID: "vision", tier: .similarity, unmeasured: false,
