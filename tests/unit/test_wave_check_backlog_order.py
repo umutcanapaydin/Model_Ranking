@@ -66,4 +66,4 @@ def test_no_origin_main_says_it_skipped_and_main_itself_reads_nothing(tmp_path: 
 
 def test_wave_check_all_runs_the_backlog_rule() -> None:
     source = (Path(__file__).resolve().parents[2] / "scripts" / "wave_check_all.py").read_text(encoding="utf-8")  # raw: not Swift
-    assert "branch_adr_problems(" in source, "make wave-check-all does not read a backlog wave's decision order"
+    assert "\"branch_adr_problems\"" in source, "make wave-check-all does not read a backlog wave's decision order"

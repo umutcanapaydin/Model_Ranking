@@ -214,6 +214,14 @@ def main() -> int:
     check = _load_wave_check()
 
     failed, skipped = _run(check, in_scope)
+    # #274 (D-198 clause 3): a backlog wave has no close, so its branch's range is read here.
+    # A `wave_check` without the rule says so, as a skipped rule does (D-192 clause 2), never passes in silence.
+    branch_rule = getattr(check, "branch_adr_problems", None)
+    order, order_skipped = (branch_rule(ROOT) if branch_rule is not None
+                            else ([], "a backlog wave's decision order (#274) read nothing: wave_check has no such rule"))
+    failed += [f"wave-check-all: {problem}" for problem in order]
+    if order_skipped:
+        skipped.append(f"SKIPPED [wave-check-all]: {order_skipped}")
 
     unclosed = [*missing_closes(ROOT), *headless_waves(ROOT)]
     for message in failed:
