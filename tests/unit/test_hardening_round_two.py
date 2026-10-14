@@ -1,4 +1,4 @@
-"""The hardening wave's second review (`docs/reviews/backlog-hardening-review-round-2.md`): each finding,
+"""The hardening wave's second review (`docs/reviews/backlog-hardening-review.md`): each finding,
 planted. Every plant goes into a copy under `tmp_path`; the app's files are never written."""
 
 from __future__ import annotations

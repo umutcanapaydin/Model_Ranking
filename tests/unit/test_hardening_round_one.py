@@ -1,4 +1,4 @@
-"""The hardening wave's first review (`docs/reviews/backlog-hardening-review.md`): each finding, planted.
+"""The hardening wave's first review (`docs/reviews/backlog-hardening-review-round-1.md`): each finding, planted.
 
 Every plant goes into a copy under `tmp_path`; the app's files are never written."""
 
