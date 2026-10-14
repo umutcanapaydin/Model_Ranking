@@ -24,7 +24,7 @@ from app.workflows.rank import (
 
 from .test_board_standings import _chess, _conn, _payload
 
-CREDIT_KEYS = {"id", "publisher", "data", "url", "licence", "licence_url"}
+CREDIT_KEYS = {"id", "publisher", "data", "url", "licence", "licence_url", "notice"}
 
 
 def credits_for(attributions: list[str] | tuple[str, ...]) -> list[dict[str, str | None]]:
@@ -233,3 +233,21 @@ def test_every_citation_a_source_can_owe_is_in_the_catalogue() -> None:
     assert set(SOURCE_ATTRIBUTION.values()) <= catalogue
     assert set(rank.METADATA_ATTRIBUTION.values()) <= catalogue
 
+
+
+def test_an_apache_or_mit_credit_carries_the_notice_its_licence_asks_to_keep() -> None:
+    """#261 (the #260 review's K1): Apache-2.0 section 4(c) and MIT ask a redistributor to keep the
+    copyright notice. Each such credit carries the line its publisher's LICENSE file holds, read on
+    2026-10-14; a publisher whose file holds none is named in `PUBLISHES_NO_NOTICE` with why."""
+    from app.workflows.board_tables import CREDITS, PUBLISHES_NO_NOTICE
+
+    notices = {credit.id: credit.notice for credit in CREDITS.values()}
+    assert notices["litellm"] == "Copyright (c) 2023 Berri AI"
+    assert notices["models_dev"] == "Copyright (c) 2025 models.dev"
+    assert notices["helm"] == "Copyright 2022 Stanford University"
+    for credit in CREDITS.values():
+        if credit.licence.startswith(("Apache-2.0", "MIT")):
+            assert bool(credit.notice) != (credit.id in PUBLISHES_NO_NOTICE), credit.id
+        else:
+            assert credit.notice is None and credit.id not in PUBLISHES_NO_NOTICE, credit.id
+    assert credits_for([PRICING_ATTRIBUTION_LITELLM])[0]["notice"] == "Copyright (c) 2023 Berri AI"

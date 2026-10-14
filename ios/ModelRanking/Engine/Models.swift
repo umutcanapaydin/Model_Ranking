@@ -378,6 +378,20 @@ struct Credit: Codable, Equatable, Identifiable {
     let licence: String
     /// `nil` where the publisher states no licence.
     let licenceUrl: String?
+    /// #261: the copyright notice the licence asks to keep; `nil` where none is published, or from an
+    /// engine older than it.
+    let notice: String?
+
+    init(id: String, publisher: String, data: String, url: String, licence: String, licenceUrl: String?,
+         notice: String? = nil) {
+        self.id = id
+        self.publisher = publisher
+        self.data = data
+        self.url = url
+        self.licence = licence
+        self.licenceUrl = licenceUrl
+        self.notice = notice
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -386,6 +400,7 @@ struct Credit: Codable, Equatable, Identifiable {
         case url
         case licence
         case licenceUrl = "licence_url"
+        case notice
     }
 }
 
@@ -411,6 +426,18 @@ enum CreditsScreen: Equatable {
         }
         return .listed(credits.map { CreditRow($0, language) })
     }
+
+    /// #261: the full text of each licence the credits name that asks for it, once each.
+    static func licenceTexts(_ standings: Standings?) -> [LicenceText] {
+        []
+    }
+}
+
+/// #261: one licence's name and full text, as the Credits sheet carries it.
+struct LicenceText: Equatable, Identifiable {
+    let name: String
+    let text: String
+    var id: String { name }
 }
 
 /// One credit's lines. Each link is a line of its own, so selecting it copies the address alone.
@@ -422,6 +449,7 @@ struct CreditRow: Equatable, Identifiable {
     let dataLink: String
     let licence: String
     let licenceLink: String?
+    let notice: String?
 
     init(_ credit: Credit, _ language: Language) {
         id = credit.id
@@ -431,6 +459,7 @@ struct CreditRow: Equatable, Identifiable {
         dataLink = credit.url
         licence = "\(UIText.creditsLicence(language)): \(credit.licence)"
         licenceLink = credit.licenceUrl
+        notice = nil
     }
 }
 
