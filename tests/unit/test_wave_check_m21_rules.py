@@ -803,6 +803,21 @@ def test_an_amended_by_pointer_below_its_adrs_separator_is_refused(tmp_path: Pat
     assert any("below" in m and "D-1" in m for m in found), found
 
 
+def test_an_amended_by_pointer_whose_adr_declares_no_such_amendment_is_refused(tmp_path: Path) -> None:
+    """#253 (the M21 closure fixes review's K1): A1 read the pairs one way. "Amended by D-176" sat under
+    D-136 and D-176 had no `Amends`; "Amended by D-179" sat under D-156 and D-179 amended three others."""
+    check = _module("check_records")
+    paired = AMENDED.format(pointer="\n**Amended by D-2 (2026-09-02)**: clause 2.\n")
+    paired = paired.replace("Body.\n\n## D-3", "Body.\n\n**Amended by D-3 (2026-09-03, proposed)**: all.\n\n## D-3")
+    stray = paired.replace("Body.\n\n**Amended by D-3", "Body.\n\n**Amended by D-1 (2026-09-01)**: none.\n\n**Amended by D-3")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "a", stray))]
+    assert any("D-1" in m and "D-2" in m and "does not name" in m for m in found), found
+    # A pointer to an ADR the log does not hold is refused too: it points at nothing.
+    ghost = paired.replace("**Amended by D-2 (2026-09-02)**", "**Amended by D-9 (2026-09-09)**")
+    found = [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "b", ghost))]
+    assert any("D-9" in m for m in found), found
+    assert [f.msg for f in check.adr_pointer_findings(_decisions(tmp_path / "c", paired))] == []
+
 
 # --- the M21 closure fixes review: M3 (the ledger's kinds and dates) ---------------------------------------
 
