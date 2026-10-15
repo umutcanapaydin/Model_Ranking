@@ -899,3 +899,16 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Lesson: an upgrade over a project that grew its own copies of a version's features is a merge of two
   designs, not a patch. The conflicts were where the project had got there first.
 
+
+## 2026-10-15 — The v7.1 upgrade's reviews, and the queue triaged (D-200)
+
+- A new session started in the repository passed `make session-check`, so the upgrade was committed and pushed
+  from it (`27d2022`, `18ebafd`), with `make check` and `make gate` green, and opened as draft PR #281.
+- `make review-need` asked for `code-reviewer+security`. The Code-Reviewer found the ledger merge had loosened
+  the three-row rule (BLOCKING-1) and let one wave's skip row cover its whole milestone (MAJOR-1). The owner
+  accepted v7.1's reset (D-200) and chose exact matching. MAJOR-1, M1, M3 and a later NIT were fixed red first.
+  Round 2 found no BLOCKING, MAJOR or MINOR.
+- All eleven untriaged issues were triaged: #242 goes to a wave, and the rest are `work-issue`. The review's K1
+  is filed as #282: removing a parent of `.claude/` passes the guard.
+- Lesson: "every project rule kept or replaced by a stricter one" is a claim a merge cannot check on itself.
+  The reviewer found the one rule that got looser by running `main`'s deleted assertions against HEAD.
