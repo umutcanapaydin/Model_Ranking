@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v6.6
+process_version: v7.1
 date: 2026-08-11
 ---
 # Decisions
@@ -80,15 +80,17 @@ date: 2026-08-11
 
 ---
 
-## D-005 — Mandatory subagent profiles: Code-Reviewer + Tester per wave, Security-Reviewer per release (UNIVERSAL)
+## D-005 — Mandatory subagent profiles: reviews computed from the change (UNIVERSAL)
 
 **Status:** accepted — **superseded in part by P-004 (v3, V3C-68):** the per-wave pair is now Code-Reviewer + Tester; Security-Reviewer moves to Stage-4 closure (BLOCKING before deploy). Decision body preserved below per B.2 (supersede, don't edit).
 
-**Decision:** Every wave-end fires two subagent profiles in Stage 3: `subagent-profiles/Code-Reviewer.md` (3a) and `subagent-profiles/Security-Reviewer.md` (3b). These are MANDATORY. Other profiles (Architect, Docs, etc.) are project-specific and added per need. Profile content invoked via `/review` and `/security-review` skills.
+**Decision:** Reviews are fresh-eyes subagents (`.claude/agents/`) and `make review-need` computes which a change gets. Heavy mode: every wave the **Code-Reviewer**; the **Tester** once per milestone, on the plan's last wave. Both modes: the **Security-Reviewer** on a slice the signals flag, before every deploy (the deploy gate), and on the whole release at Stage 5.1, writing `docs/reviews/release-security.md` with its reviewed head. The read-only Explorer is used for exploration. Other profiles are project-specific and graduate per `docs/subagents.md`.
 
-**Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Testing is needed on every wave; security reads the whole release surface at once, which is more complete. Nothing deploys before the release, so the security review always precedes go-live.
+**Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Measured across two field projects: the per-wave Tester was the costliest review per real defect (41M–57M tokens against 1.9M–5.2M for the Code-Reviewer) and security the cheapest and highest-yield; three deploys in one project went out unreviewed while the rule was prose.
 
-**Mitigation:** `make wave-check` refuses a wave close without both verdict files in `docs/reviews/`, or with a BLOCKING one. No deploy step in `docs/closure-checklist.md` §E.2 runs before §E.1 passes.
+**Amended at `v7.1`** (the owner's ruling of 2026-10-13, DevFlow #16 D8; the body above is kept as written): the milestone **Tester** runs at every milestone close in both modes — in light mode once before each release, on everything merged since its last verdict, writing `docs/reviews/release-tester.md` with its reviewed head, which the deploy gate reads.
+
+**Mitigation:** `make wave-check` refuses a wave close without the verdicts its range needs (recomputed), or with a BLOCKING one. The deploy gate refuses a deploy command while code changed after the reviewed head.
 
 **Revisit when:** A release is harmed by late security feedback — then move a security pass earlier for that risk class.
 
@@ -98,13 +100,9 @@ date: 2026-08-11
 
 **Status:** accepted
 
-**Decision:** Per-wave verdicts (Code-Reviewer, Tester), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories:
+**Decision:** Review verdicts (the Code-Reviewer, the milestone Tester, the Security-Reviewer), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories:
 
-- **BLOCKING:** REQ unmet / test red / secret leak / contract-grep miss / coverage drop / PASS without `file:line` evidence / auth-PII-payment-migration without senior review / permission-matrix region touched without ADR / hook violation.
-- **MINOR:** style / doc drift / cross-wave K.9 candidate / AGENTS.md approaching cap (not over).
-- **Catastrophe-class (DENY always):** `git reset --hard` / `git push --force` / `rm -rf` / drop table / commit secret / log PII unredacted / self-merge agent's own PR / any `--force` on irreversible op without user confirmation.
-
-Full taxonomy in `permission-matrix.md` §11.
+- **The categories are `permission-matrix.md` §11** — BLOCKING, MINOR and Catastrophe-class, with their members. That list is the only one; this record fixes that it exists and who must use it, and does not repeat it. It once did, and the two copies had drifted to nine BLOCKING classes here against fourteen there.
 
 **Rationale:** An undefined BLOCKING drifts from reviewer to reviewer. Writing it down once removes the reinterpretation.
 
@@ -132,6 +130,8 @@ The full `make gate` runs before every push (`make hooks`) and at `/pre-merge`. 
 **Mitigation:** The promotion rule is in `permission-matrix.md`. The end-of-work harness diet (`/cycle-close`) retires hooks that never fired.
 
 **Revisit when:** A milestone surfaces a recurrent rule violation that would benefit from another hook.
+
+**Amended at `v7.1`** (the body above is kept as written): the shipped set is five hooks — SessionStart (the session marker `make session-check` reads); PreToolUse Write/Edit (`.env`, `.env.*`, `<x>.env`, `.envrc`); PreToolUse Bash, the pinned `.claude/hooks/bash_guard.py` (destructive git, `rm -rf` and `find -delete` outside scratch, a skipped hook, a moved protected ref, a shell write to a secrets file, `gh pr merge`/`ready`, the deploy gate); PostToolUse (`make check-fast`). Every hook sets `timeout` and `onFailure: block`, so one that cannot run blocks too.
 
 ---
 
@@ -2995,6 +2995,8 @@ changes as follows:
 
 **Amended by D-172 (2026-09-29)**: the per-milestone security seat is back, once at each milestone's closure, and never per wave.
 
+**Amended by D-199 (2026-10-15)**: the project runs on DevFlow v7.1; `make closes` stays out of `make check`, and the commit identity rule is unchanged.
+
 ## D-162 — The out-of-100 anchor is the surface's floor, and moves with it
 
 **Status:** accepted -- **ruled by the owner 2026-09-23** (asked in Turkish whether the reference
@@ -3598,6 +3600,7 @@ network surface (B1, M1) and the closure seat reads it again.
 **Revisit when:** a wave's defect that a slice pass would have caught reaches the owner, or anything
 deploys beyond the owner's Mac.
 
+**Amended by D-199 (2026-10-15)**: in heavy mode the Tester runs once per milestone, on the plan's last wave, not per wave; the security seat stays at each milestone's closure, and also runs where `make review-need` flags a change.
 
 ## D-173 — The engine's backlog decisions: stable ties, guards by id, an accessibility loss guard, bounds at refresh, a compressed boards route
 
@@ -5122,3 +5125,69 @@ by a review or a Tester and each a place where a check passes because it does no
 
 **Revisit when:** #242 moves the compiled rules to allowlists, #243 runs the compiled gate in CI, or a
 review finds a check here passing on something it does not read.
+
+## D-199 — The project runs on DevFlow v7.1, in heavy mode, with both deploy commands gated
+
+**Status:** accepted -- the owner asked for the upgrade (2026-10-14, translated from Turkish: *"we have
+reached DevFlow 7.1, we will upgrade our flow for it"*) and chose in session (2026-10-15): merge the Bash
+guard, heavy mode, gate both deploy commands · **Date:** 2026-10-15 · **Amends:** D-161, D-172.
+
+**Context.** DevFlow moved from v6.6 to v7.1 through v6.7 and v7.0:
+- a SessionStart marker and `make session-check`;
+- two working modes, with the reviews computed by `make review-need`, and the Tester once per milestone in heavy mode;
+- a deploy gate and `make deploy-check`;
+- the Bash guard as a pinned file;
+- a ledger whose row kinds come from a legend;
+- the brief's version checked (`V1`) and the process log's session numbers (`S1`).
+
+The project had grown its own copy of several of these: a pinned guard file (M21), project kinds in the
+control-events ledger (`ruling`, `within-scope`), and inline code spans read as notation (W-015).
+`git diff v6.6 v7.1` was applied three-way, with `.github/workflows/` left out.
+
+**Decision.**
+1. **Heavy mode** (`Working mode: heavy` in the brief). A wave gets the Code-Reviewer. The Tester runs once per
+   milestone, on the plan's last wave (`docs/reviews/m{N}-tester.md`), not per wave as D-172 said; waves
+   closed before this keep their per-wave Testers. `Paths that make a change HIGH:` is `none`, so the
+   security seat stays at each milestone's closure and on the release (D-172), except where
+   `make review-need` flags a sensitive name or a new parser.
+2. **The deploy gate guards `fly deploy` and `scripts/deploy_hosted_engine.sh`.** Each is refused until
+   `docs/reviews/release-security.md` and the milestone Tester's verdict name a reviewed head with no code
+   changed after it. This is stricter than D-185 in one place: the script's `--dry-run` is refused too while
+   the verdicts are stale. QA verification is off; no runtime config file sits outside git.
+3. **One guard, merged.** v7.1's `.claude/hooks/bash_guard.py` is the base. The project's M21 rules it lacked
+   are carried in it, held by `tests/unit/test_bash_guard_bounds.py`:
+   - D-185's refusal of `fly`/`flyctl` other than read-only subcommands, and of the deploy script without
+     `--dry-run`;
+   - the refusal of writes into any work tree's `.claude/` and `.githooks/`, now run by the Write/Edit hook
+     too (`--write`);
+   - `-t` read only for cp, mv, ln and install;
+   - `python -I -S` for every hook.
+
+   Taken from v7.1 by design: `rm -rf` passes only on scratch (the temp directory, a `mktemp` result,
+   `.claude/worktrees/<name>`), resolved from every directory the command can run in. The deadline is 10 s.
+   `make guard-pin` writes the pin into both hooks. G-7 and INV-82 say so.
+4. **The ledger takes v7.1's kinds.** Rows of kind `ruling` and `within-scope`, and waves written `m<N>` or
+   `m<N>-closure`, were rewritten in place, each marked `[rewritten at the DevFlow v7.1 upgrade, D-199: ...]`:
+   - an owner's ruling became a `review` row citing R-1, or this decision for `repository-hooks`, whose fix
+     is v7.1's session marker;
+   - a `within-scope` row became a `review` row citing R-1;
+   - a milestone-wide wave became the milestone's last wave.
+
+   A wave close's skip may be ledgered under any wave of its milestone, since v7.1 has no milestone-only
+   wave shape (`scripts/wave_check.py::skip_ledger_problems`).
+5. **What stays the project's own:**
+   - `make closes` stays out of `make check` (D-161). M1-M15's closure reports, the early wave closes, and
+     the release of 2026-10-07, which had per-wave Testers and no milestone Tester, fail today's rules;
+     `wave-check-all` grades the closes.
+   - W-015 stays: inline code spans are notation to `make bootstrap-check`. `conformance/test-placeholder-allow.py`
+     writes its notation outside backticks.
+   - `conformance/test-process-version.py` grades, in an installation, only the files the manifest ships.
+     The project's records keep the version they were written under.
+   - The optional §2a of `AGENTS.md` (two agent tools) is left out, since only one tool works here.
+6. **The upgrade session cannot pass `make session-check`**, since the hook did not exist when it began, and
+   records no skip for it. The owner commits and pushes the upgrade from a terminal, and the first session
+   started in the repository after the merge passes it. The `ci.yml` half of v6.7 (a `python` container,
+   the gitleaks binary, `DEVFLOW_RUNNER`) is the owner's, with #278.
+
+**Revisit when:** DevFlow ships the next version, the owner changes the working mode, or a release needs
+the milestone Tester that `make deploy-check` now asks for.
