@@ -5202,6 +5202,8 @@ the milestone Tester that `make deploy-check` now asks for.
 
 **Amended by D-200 (2026-10-15)**: clause 4 -- a `review` row citing a decision resets the three-row count, by the owner's choice; a skip row covers its own wave only, and a row for another wave of the milestone counts only when the upgrade moved it there from a milestone-only id.
 
+**Amended by D-201 (2026-10-16)**: clause 1 -- the project runs in light mode.
+
 ## D-200 — The three-row count takes v7.1's reset, and one wave's skip row covers that wave only
 
 **Status:** accepted -- the owner's choices of 2026-10-15, in session, on the v7.1 upgrade review
@@ -5236,3 +5238,40 @@ would show a run of bypasses, each followed by a `review` row that addresses som
 **Revisit when:** a struck control is cleared by a `review` row whose cited decision does not exist or
 does not address it, or DevFlow answers the field finding that a resetting `review` row should cite a
 decision that exists.
+
+## D-201 — The project runs in light mode
+
+**Status:** proposed
+**Owner ruling:** 2026-10-16, in chat, for run product-night
+**Date:** 2026-10-16 · **Amends:** D-199 (clause 1).
+
+**Decision:** `Working mode: light` in `docs/project-brief.md`. Work goes issue by issue (`/fix-issue`, `/work-enhancement`), each a red test, the change, `make gate` and one draft PR. No Code-Reviewer runs per change. The Security-Reviewer runs when `make review-need` says so and before every deploy. The milestone Tester runs once before a release, on everything merged since its last verdict (`docs/reviews/release-tester.md`).
+
+**Rationale:** The owner asked (translated from Turkish) for the run to put "less process, more product" first: ranking the right models for the right question, in an app the owner can test on the phone. Heavy mode's per-wave review rounds took two days on one upgrade.
+
+**Mitigation if violated:** A change lands with no independent code review. The red-to-green test per change, `make gate`, the security seat where the signals point, and the Tester before release are what hold it.
+
+**Revisit when:** a light-mode change reaches the owner broken in a way a code review would have caught, or the owner turns heavy mode back on.
+
+## D-202 — The product run: the right models for the right question, on the owner's iPhone
+
+**Status:** proposed
+**Owner ruling:** 2026-10-16, in chat, for run product-night
+**Date:** 2026-10-16
+
+**Decision:** The owner's answers (translated from Turkish):
+1. **Scope:** ranking correctness, non-English questions (#218, #273), input that is not a model search (#66), and an app that works on the phone. All four are in the run.
+2. **What "right" means:** each question in a golden set expects a surface and a top 3, both derived from the measurements on the published boards. The agent drafts 30 to 50 questions, and the owner corrects them in the morning. A question whose answer is not settled is marked `disputed`, and the tests put no hard expectation on it.
+3. **Test path:** the owner installs from Xcode on their own iPhone.
+
+Defaults the agent took, because the owner was asleep (run rule: an unanswered question takes its default, written down):
+4. A build running on a physical device with no local engine override talks to the hosted engine, not to loopback, which a phone can never reach.
+5. When the engine cannot be reached, the app shows the last answer it received for that question's surface, kept in Caches and dated, instead of the failure sentence. Nothing is bundled as fixture data, as REQ-APP-001 requires.
+6. A new reading rule (#218, #273, #66) is measured on a fresh held-out set written by an independent seat, as D-191 and D-196 require. A rule that does not beat the shipped one on that set is not shipped; the measurement is recorded instead.
+7. Nothing deploys and nothing is uploaded to TestFlight in the run.
+
+**Rationale:** The owner wants to pick up the app in the morning and judge its rankings on the phone. The golden set makes "right" checkable at all; until now nothing tested a real question against a top N.
+
+**Mitigation if violated:** If the golden expectations are wrong, the tests hold the wrong answer in place. The owner's morning review of the set, and the `disputed` mark, are the guard against that.
+
+**Revisit when:** the owner corrects the golden set, or a fresh held-out measurement shows a shipped rule is worse than the one before it.
