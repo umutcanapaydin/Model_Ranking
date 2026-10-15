@@ -16,7 +16,7 @@
 import Foundation
 
 /// The values the engine's `close_call` sentence quotes (D-176).
-struct CloseCallFact: Decodable, Equatable {
+struct CloseCallFact: Codable, Equatable {
     let model: String
     let behindBy: Double
     let unit: String
