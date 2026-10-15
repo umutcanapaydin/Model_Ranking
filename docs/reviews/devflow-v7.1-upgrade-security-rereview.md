@@ -200,3 +200,17 @@ one more owner patch to the guard, with `make guard-pin`.
 
 **Verdict: BLOCKING** -- 1 BLOCKING (B1-R), 0 MAJOR, 3 MINOR (R1, R2, R3), 3 NIT (N2, N3, N4). B1-R needs one
 owner patch, and a delta re-review of that patch.
+
+## Dispositions
+
+By the author, after the verdict.
+
+| Finding | Disposition | Where |
+|---|---|---|
+| B1-R | **Owner's patch**: prefix assignments (`NAME=value cmd`) set nothing for the command's words or for later commands; the name becomes unknown, so a target built from it is not scratch | red `f1e844a`; the owner's second patch re-pins the guard at sha256 `8788704f5cef` |
+| R1 | **Filed** #286, `work-issue` | #286 |
+| R2 | **Accepted**, as the seat rules: the residual of MAJOR-2 is documented under the guard's "Not held" | -- |
+| R3 | **Fixed**: a test refuses `rm -rf` of scratch that is too large to walk, and kills mutant N8 | `f1e844a` |
+| NITs | **Accepted** as written | -- |
+
+The two fixture directories the seat left under the temp directory are removed by the owner with the patch, since the guard rightly refuses an agent `rm -rf` of a tree that holds a git repository.

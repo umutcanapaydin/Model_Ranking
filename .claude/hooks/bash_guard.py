@@ -732,13 +732,20 @@ def judge_command(cmd: Command, depth: int) -> str | None:
         return ENV_WRITE
     if any(_owners(t) for t in written):
         return OWNERS
-    start = 0
+    start, prefix = 0, []
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
         if ASSIGNMENT.match(words[start].text):
-            _assign(words[start])
+            prefix.append(words[start])
         start += 1
     if start >= len(words):
+        for w in prefix:
+            _assign(w)
         return None
+    # `NAME=value cmd` puts NAME in that one program's environment: the shell expands the command's own words
+    # before it applies it, and no later command sees it. What NAME holds from here is not known, so a target
+    # built from it is no scratch (the v7.1 upgrade security rereview's B1-R).
+    for w in prefix:
+        SCOPE[w.text.partition("=")[0].rstrip("+").split("[", 1)[0]] = UNKNOWN
     first = _program(words[start])
     if first in SETTERS:
         for w in words[start + 1:]:
