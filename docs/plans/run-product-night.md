@@ -17,8 +17,8 @@ Rulings: D-201, D-202
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-288 | enhancement/issue-288-phone | none | none | queued |
-| issue-289 | enhancement/issue-289-golden | none | none | queued |
+| issue-288 | enhancement/issue-288-phone | none | none | running |
+| issue-289 | enhancement/issue-289-golden | none | none | running |
 | issue-273 | fix/issue-273-unsure-language | none | none | queued |
 | issue-218 | fix/issue-218-short-turkish | none | none | queued |
 | issue-66 | enhancement/issue-66-guiding-note | none | none | queued |
