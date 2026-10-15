@@ -291,14 +291,31 @@ def test_a_session_outside_the_repository_needs_its_ledger_row(tmp_path: Path) -
 
 
 
-def test_a_row_for_another_wave_of_the_milestone_counts_and_one_of_another_milestone_does_not() -> None:
-    """D-199: DevFlow v7.1's wave shapes have no milestone-only form, so a milestone-wide row sits under one of
-    the milestone's waves; it still counts for every wave of that milestone, and for no other milestone."""
+MILESTONE_WIDE = "x [rewritten at the DevFlow v7.1 upgrade, D-199: wave was `m30`]"
+
+
+def test_a_milestone_wide_row_the_upgrade_moved_under_a_wave_counts_for_every_wave_of_its_milestone() -> None:
+    """D-199: DevFlow v7.1's wave shapes have no milestone-only form, so the upgrade moved each milestone-wide
+    row (`m21`) under one of the milestone's waves and marked it; that row still counts for every wave of its
+    milestone, and for no other milestone."""
     check = _module("wave_check")
     skipped = _row9("make ui-test (no simulator)")
-    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m30-w4", "skip", "x", "2026-10-10"]]) == []
-    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m31-w1", "skip", "x", "2026-10-10"]])
-    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m300-w1", "skip", "x", "2026-10-10"]])
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m30-w4", "skip", MILESTONE_WIDE, "2026-10-10"]]) == []
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m31-w1", "skip", MILESTONE_WIDE, "2026-10-10"]])
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m300-w1", "skip", MILESTONE_WIDE, "2026-10-10"]])
+
+
+def test_a_row_for_another_wave_of_the_milestone_does_not_count() -> None:
+    """The v7.1 upgrade review's MAJOR-1 (the owner, 2026-10-15): a skip in each of three waves needs three rows,
+    or the three-row rule can never fire; one wave's row covers that wave only, and a row the upgrade rewrote
+    from another wave's shape (`wave was `m30-closure``) is still that one wave's row."""
+    check = _module("wave_check")
+    skipped = _row9("make ui-test (no simulator)")
+    assert check.skip_ledger_problems(skipped, "m30-w2", [["ui-test", "m30-w1", "skip", "x", "2026-10-15"]])
+    assert check.skip_ledger_problems(skipped, "m30-w3", [["ui-test", "m30-w1", "skip", "x", "2026-10-15"]])
+    closure = "x [rewritten at the DevFlow v7.1 upgrade, D-199: wave was `m30-closure`]"
+    assert check.skip_ledger_problems(skipped, "m30-w2", [["ui-test", "m30-w5", "skip", closure, "2026-10-15"]])
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m30-w1", "skip", "x", "2026-10-15"]]) == []
 
 def test_a_close_dated_before_the_rule_needs_no_ledger_row(tmp_path: Path) -> None:
     check = _module("wave_check")
