@@ -76,6 +76,23 @@ def test_the_hosted_engine_a_phone_falls_back_to_is_the_release_address() -> Non
     assert hosted[0].startswith("https://")
 
 
+def test_a_build_for_a_phone_says_so_and_the_client_reads_the_key_the_plist_carries() -> None:
+    """#288 (D-202 clause 4): the device flag is one fact in three files, the xcconfig that sets it for the
+    `iphoneos` SDK only, the Info plist that carries it, and the client that reads it. A misspelt key reads
+    as the simulator, and the phone would ask loopback again."""
+    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")  # raw: not Swift
+    settings = [line for line in xcconfig.splitlines() if line.strip() and not line.lstrip().startswith("//")]
+    assert [line for line in settings if line.startswith("ENGINE_ON_DEVICE")] == [
+        "ENGINE_ON_DEVICE = NO", "ENGINE_ON_DEVICE[sdk=iphoneos*] = YES"]
+    info = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())
+    client = _code((IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8"))
+    found = re.findall(
+        r'static let runsOnDevice = Bundle\.main\.object\(forInfoDictionaryKey: "(\w+)"\) as\? String == "YES"', client)
+    assert len(found) == 1, found
+    assert info[found[0]] == "$(ENGINE_ON_DEVICE)"
+    assert "self.init(onDevice: EngineClient.runsOnDevice)" in client, "the app's client does not read the flag"
+
+
 def test_the_bundle_id_is_set_where_the_owner_can_override_it() -> None:
     """W1 review M3: Xcode's Signing screen writes into the tracked project; the owner's team and a
     bundle id his Apple ID accepts belong in the git-ignored override, which a project-level value

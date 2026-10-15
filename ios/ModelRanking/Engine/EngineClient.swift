@@ -2,8 +2,8 @@
 //
 //  D-116 ships the engine as a service and D-123 keeps it on `localhost` until the app needs an
 //  endpoint off this machine. So the base URL is configuration, not a constant: the simulator
-//  reaches the developer's Mac at 127.0.0.1, and the day there is a deployed host only this value
-//  changes.
+//  reaches the developer's Mac at 127.0.0.1, and a build on a phone with no address of its own
+//  reaches the hosted engine (#288, D-202 clause 4).
 
 import Foundation
 
@@ -142,8 +142,9 @@ final class SameHostOnly: NSObject, URLSessionTaskDelegate {
 extension EngineError {
     /// The line the failure screen shows under a failure to reach the engine (M18-W1 review B2).
     ///
-    /// On a phone, a mistyped `ENGINE_URL` falls back to loopback, which the phone can never reach,
-    /// and a refused local-network permission can read as no connection at all. The address the app
+    /// On a phone, a mistyped `ENGINE_URL` once fell back to loopback, which the phone can never reach
+    /// (it asks the hosted engine since #288), and a refused local-network permission can read as no
+    /// connection at all. The address the app
     /// asked is what tells those apart from an engine that is down. So does the engine's own refusal
     /// of a name not on its list (D-171), and the platform's refusal of a cleartext name (W1 third
     /// review M10): there the address IS the cause. Any other answer the engine gave carries none.
@@ -201,22 +202,42 @@ struct EngineClient {
         }
     }
 
-    /// The hosted engine (#288 phase 1, red: not chosen yet).
+    /// The hosted engine (D-116, D-185): the address a Release build is given (`Engine.xcconfig`, held
+    /// to it by `test_engine_address.py`), and the one a build on a phone asks when it was given no
+    /// address of its own (#288, D-202 clause 4).
     static let hosted = URL(string: "https://model-ranking.fly.dev")!
 
-    /// #288 phase 1, red: the address is not chosen yet.
+    /// Whether this build runs on a phone rather than in the simulator, as the build says it
+    /// (`ENGINE_ON_DEVICE`, set for the `iphoneos` SDK only). Read from the Info plist rather than
+    /// decided by `#if`, so the Engine compiles the same way for `swift test` and for the app
+    /// (`test_ios_platform_drift.py`); `swift test` has no such key, so it reads as the simulator.
+    static let runsOnDevice = Bundle.main.object(forInfoDictionaryKey: "EngineOnDevice") as? String == "YES"
+
+    /// #288 (D-202 clause 4): the address the app asks. The simulator shares the Mac's loopback, so it
+    /// keeps whatever its build was given. A phone can never reach loopback, so a build on one that was
+    /// given loopback, which is what the tracked xcconfig gives a Debug build and what an address that
+    /// is not one falls back to, asks the hosted engine instead; an address of its own, the owner's
+    /// Mac in `Engine.local.xcconfig`, is kept.
     static func address(configured: URL, onDevice: Bool) -> URL {
-        configured
+        guard onDevice, isLoopback(configured) else { return configured }
+        return hosted
+    }
+
+    /// The names a phone resolves to itself: `localhost`, the IPv6 loopback, and 127.0.0.0/8.
+    private static func isLoopback(_ address: URL) -> Bool {
+        guard let host = address.host?.lowercased() else { return true }
+        return host == "localhost" || host == "::1" || host == "[::1]" || host.hasPrefix("127.")
     }
 
     /// The app's client: this build's engine address, and a session that keeps nothing (#144).
     init() {
-        self.init(baseURL: EngineClient.localDefault)
+        self.init(onDevice: EngineClient.runsOnDevice)
     }
 
-    /// #288 phase 1, red: the flag is not read yet.
+    /// The app's client, with the device-or-simulator flag given rather than read, so a test can ask
+    /// for either (#288).
     init(onDevice: Bool) {
-        self.init(baseURL: EngineClient.localDefault)
+        self.init(baseURL: EngineClient.address(configured: EngineClient.localDefault, onDevice: onDevice))
     }
 
     /// A client on a given address. Only this file builds one (D-180, the W2 review's B2): another
