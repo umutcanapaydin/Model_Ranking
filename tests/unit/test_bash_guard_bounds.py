@@ -371,6 +371,39 @@ def test_rm_rf_of_scratch_that_holds_no_work_tree_is_allowed(guard: ModuleType, 
     assert _bash(guard, "rm -rf build", ungoverned) is None
 
 
+@pytest.mark.parametrize("command", [
+    'HOME=$(mktemp -d) true && rm -rf "$HOME"', 'TMPDIR=$(mktemp -d) make test; rm -rf "$TMPDIR"',
+    "PWD=/tmp/x rm -rf $PWD", 'd=$(mktemp -d) env; rm -rf "$d"', "X=/tmp/x true; rm -rf $X",
+    'TMPDIR=$(mktemp -d) rm -rf "$TMPDIR"',
+])
+def test_an_assignment_before_a_program_sets_nothing_for_its_words_or_later_commands(
+        guard: ModuleType, temp_dir: Path, ungoverned: Path, command: str) -> None:
+    """The v7.1 upgrade security rereview's B1-R: `NAME=value cmd` puts NAME in that one program's environment
+    only. The shell expands the command's own words before it applies it, and no later command sees it, so the
+    name's value from there on is not known, and a target built from it is not scratch."""
+    why = _bash(guard, command, ungoverned)
+    assert why and "destructive" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", ['d=$(mktemp -d); X=1 true; rm -rf "$d"', "X=/tmp/x; rm -rf $TMPDIR/foo"])
+def test_a_plain_assignment_still_holds_for_later_commands(guard: ModuleType, temp_dir: Path, ungoverned: Path,
+                                                           command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
+
+
+def test_rm_rf_of_scratch_too_large_to_walk_is_refused(guard: ModuleType, temp_dir: Path, ungoverned: Path,
+                                                       monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rereview's R3 (mutant N8): a temp directory the guard cannot walk within its budget may hold a work
+    tree, so `rm -rf` of it is refused, not allowed."""
+    big = temp_dir / "big"
+    for i in range(3):
+        (big / f"d{i}").mkdir(parents=True)
+    assert _bash(guard, f"rm -rf {big}", ungoverned) is None
+    monkeypatch.setattr(guard, "MAX_WALK", 2)
+    why = _bash(guard, f"rm -rf {big}", ungoverned)
+    assert why and "destructive" in why, why
+
+
 def _git_init(where: Path) -> None:
     subprocess.run(["git", "init", "-q", str(where)], check=True, capture_output=True, timeout=60)
 
