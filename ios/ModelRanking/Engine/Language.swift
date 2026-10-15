@@ -465,7 +465,7 @@ public enum UIText {
 
     /// #288 (D-202 clause 5): over an answer kept from an earlier visit, shown because the engine could
     /// not be reached. The day is the UTC calendar day it arrived, written as the boards' dates are.
-    public static func keptAnswer(fetchedAt: Date, _ language: Language) -> String {
+    public static func keptAnswer(fetchedAt: Date, timeZone: TimeZone = .current, _ language: Language) -> String {
         let day = fetchedAt.formatted(.iso8601.year().month().day())
         return language == .turkish
             ? "Motora ulaşılamadı; bu, motorun \(day) tarihinde verdiği cevap."
