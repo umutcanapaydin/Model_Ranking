@@ -304,3 +304,22 @@ restored, and the md5 matched the value before the mutation.
 
 `make review-need RANGE=7bdb7c5..18ebafd`: `code-reviewer+security`. `make mode`: `heavy`. `make deploy-check`:
 FAIL (NIT-3). The worktree's `git status` was clean after every mutant.
+
+## Dispositions
+
+By the author, after the verdict; the findings above are as the seat wrote them.
+
+| Finding | Disposition | Where |
+|---|---|---|
+| BLOCKING-1 | **Ruled by the owner** (2026-10-15, remedy (c)): v7.1's reset of the three-row count replaces the 2026-10-10 rule, and its cost is written down | D-200 clause 1, `46834a4` |
+| MAJOR-1 | **Fixed**, the owner's choice of exact matching for new closes: a row for another wave of the milestone counts only when it carries the upgrade's ``wave was `m<N>` `` marker | red `fcd0592`, fix `c0a97ac` (`scripts/wave_check.py`, `skip_ledger_problems`); D-200 clause 2 |
+| M1 | **Fixed**: two tests run `main()` on a tree that breaks V1 and S1; Mu8 and the same mutant on the S1 call each fail one | `cad66fa`, `tests/unit/test_check_records_v1_s1_wiring.py` |
+| M2 | **Left to the Security-Reviewer seat**, which runs next on this PR | -- |
+| M3 | **Fixed**: D-005 and D-006 have their v6.6 bodies back, and v7.1's text follows each as an amendment, so "kept as written" is true | `46834a4`, `docs/decisions.md` |
+| NIT 1 | **Fixed** | `46834a4`, `README.md:1` |
+| NIT 2 | **Accepted**: D-199 clause 4 rules the in-place rewrite, and each row is marked | -- |
+| NIT 3 | **Accepted, and told to the owner**: no deploy until a release security review and a milestone Tester name a current head | -- |
+| NIT 4 | **Accepted**: the `.env.example` family is v6.6's and v7.1's rule, held at `tests/unit/test_bash_guard_bounds.py:200`. The pushed commit message of `18ebafd` says two conformance tests are fitted where four differ, each commented in place; it is not amended (AGENTS.md section 3) | -- |
+| K1 | **Filed** #282 (`bug`, `severity:medium`), triaged `work-issue` | #282 |
+| K2, K3, K4 | **Handed to the owner** to report to DevFlow: they are the package's, not this project's | -- |
+| R1 | Closed by D-200 and the MAJOR-1 fix | -- |
