@@ -199,7 +199,7 @@ def test_what_the_sinks_may_hold_and_others_may_read_passes() -> None:
 #: `/x/`: `Combine.swift`'s permitted position arithmetic and its two sorts of a list named `common`,
 #: `ContentView.swift` adding to a served position through another name, and since the W2 review's B1
 #: every shape that review got past the gate.
-FLOW_AST = (ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")
+FLOW_AST = (ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")  # raw: not Swift, the compiled dump
 
 
 def _without(ast: str, function: str) -> str:
@@ -639,7 +639,7 @@ def test_each_rule_fixture_rules_names_has_a_refused_shape() -> None:
 
 def _marked(mark: str) -> int:
     """The line of `Arithmetic.swift` in the fixture that carries `mark`."""
-    lines = (ROOT / "scripts" / "client_decl_fixtures" / "Arithmetic.swift").read_text(encoding="utf-8").splitlines()
+    lines = (ROOT / "scripts" / "client_decl_fixtures" / "Arithmetic.swift").read_text(encoding="utf-8").splitlines()  # raw: the gate's own fixture, read whole as the compiler reads it
     found = [number for number, line in enumerate(lines, start=1) if line.rstrip().endswith(mark)]
     assert len(found) == 1, f"{mark} marks {len(found)} lines"
     return found[0]
@@ -870,9 +870,9 @@ def test_the_objective_c_runtime_module_is_refused_in_the_client() -> None:
 def test_the_fixture_holds_a_runtime_call_the_module_rule_refuses() -> None:
     """S6: the fixture plants one call into the runtime, under the module allowlist, and the committed dump
     holds its refusal."""
-    fixture = (ROOT / "scripts" / "client_decl_fixtures" / "Imports.swift").read_text(encoding="utf-8")
+    fixture = (ROOT / "scripts" / "client_decl_fixtures" / "Imports.swift").read_text(encoding="utf-8")  # raw: the gate's own fixture, read whole as the compiler reads it
     assert "sel_registerName" in fixture
-    refused = gate.problems(gate.references((ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")))
+    refused = gate.problems(gate.references((ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt").read_text(encoding="utf-8")))  # raw: not Swift, the compiled dump
     assert any("Imports.swift" in line and "ObjectiveC" in line for line in refused), refused[:5]
 
 

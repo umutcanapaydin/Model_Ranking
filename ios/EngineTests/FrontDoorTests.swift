@@ -825,6 +825,13 @@ final class GapRegisterHardeningTests: OfflineTestCase {
         XCTAssertEqual(OfflineGuard.drain(), [], "the register reached for a remote address")
     }
 
+    /// #276 (D-198 clause 5): the store the app builds, read as the app reads it at launch, reaches
+    /// nothing. No test built the on-device store and loaded it, so a read it rebound passed the suite.
+    func testTheOnDeviceStoreLoadsWithoutReachingOut() {
+        _ = GapRegisterStore.onDevice.load()
+        XCTAssertEqual(OfflineGuard.drain(), [], "the on-device store reached for a remote address")
+    }
+
     /// #121 (M18-W7): the save side. Foundation cannot write to an https address, so a save there
     /// wrote nothing with or without the guard, and the guard was held by no test. The store's writer
     /// is a parameter: a save to anything but a file must not even try.

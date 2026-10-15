@@ -12,6 +12,8 @@ import plistlib
 import re
 from pathlib import Path
 
+from tests.unit.test_ios_client_contract import _swift
+
 from .test_router_hints import _code
 
 IOS = Path(__file__).resolve().parents[2] / "ios"
@@ -19,11 +21,11 @@ PROJECT = IOS / "ModelRanking.xcodeproj" / "project.pbxproj"
 
 
 def test_the_default_engine_is_loopback_and_the_owners_address_stays_on_his_mac() -> None:
-    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")
+    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")  # raw: not Swift
     settings = [line for line in xcconfig.splitlines() if line.strip() and not line.lstrip().startswith("//")]
     assert "ENGINE_URL = http:/$()/127.0.0.1:8080" in settings, settings
     assert '#include? "Engine.local.xcconfig"' in settings, "the owner's override is an optional include"
-    ignored = (IOS.parent / ".gitignore").read_text(encoding="utf-8").splitlines()
+    ignored = (IOS.parent / ".gitignore").read_text(encoding="utf-8").splitlines()  # raw: not Swift
     assert "ios/Config/Engine.local.xcconfig" in ignored, "the owner's address must not be committed"
     # M18-W2 review M6: the UI target's local override names a team, which the project never carries (#93).
     assert "ios/Config/UITests.local.xcconfig" in ignored, "the UI target's local override must not be committed"
@@ -39,7 +41,7 @@ def test_the_partial_plist_carries_the_address_and_only_the_local_network_except
 
 
 def test_the_app_target_reads_the_xcconfig_and_the_partial_plist_in_every_configuration() -> None:
-    project = PROJECT.read_text(encoding="utf-8")
+    project = PROJECT.read_text(encoding="utf-8")  # raw: not Swift
     app_configs = [block for block in project.split("isa = XCBuildConfiguration;")
                    if "INFOPLIST_FILE = Config/Info.plist;" in block]
     assert len(app_configs) == 2, "the app target's Debug and Release"
@@ -51,7 +53,7 @@ def test_the_client_asks_for_the_key_the_plist_carries() -> None:
     """W1 review M4: the key is one fact in two files. Reading nothing, or a misspelt key, passed every
     gate; the phone would then talk to its own loopback."""
     info = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())
-    client = (IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8")
+    client = _code((IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8"))
     found = re.search(
         r'static let localDefault = engineURL\(from: Bundle\.main\.object\(forInfoDictionaryKey: "(\w+)"\) as\? String\)',
         client,
@@ -64,9 +66,9 @@ def test_the_bundle_id_is_set_where_the_owner_can_override_it() -> None:
     """W1 review M3: Xcode's Signing screen writes into the tracked project; the owner's team and a
     bundle id his Apple ID accepts belong in the git-ignored override, which a project-level value
     would beat."""
-    project = PROJECT.read_text(encoding="utf-8")
+    project = PROJECT.read_text(encoding="utf-8")  # raw: not Swift
     assert "PRODUCT_BUNDLE_IDENTIFIER" not in project
-    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")
+    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")  # raw: not Swift
     assert "PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking" in xcconfig.splitlines()
 
 
@@ -77,7 +79,7 @@ def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     ENGINE_URL on the phone looked like an engine that was down. ContentView is not executed by any
     test (ios/Package.swift), so the view's use of the composed line is pinned here; the line itself is
     tested in EngineClientTests and LanguageTests."""
-    view = (IOS / "ModelRanking" / "ContentView.swift").read_text(encoding="utf-8")
+    view = _swift(IOS / "ModelRanking" / "ContentView.swift")  # keeps //: the pin cuts at `// MARK:`, then `_code`s the slice
     start = view.index("private func failure(")
     failure = _code(view[start : view.index("// MARK:", start)])  # block comments too (#98)
     # W1 third review M11: the line is shown, not only computed -- `let _ = error.addressNote(...)`
@@ -98,5 +100,5 @@ def test_the_local_network_prompt_speaks_turkish_too() -> None:
     english = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())["NSLocalNetworkUsageDescription"]
     turkish_letter = "[\u00e7\u011f\u0131\u00f6\u015f\u00fc]"
     assert found.group(1) != english and re.search(turkish_letter, found.group(1)), "not Turkish"
-    regions = re.search(r"knownRegions = \(([^)]*)\);", PROJECT.read_text(encoding="utf-8"))
+    regions = re.search(r"knownRegions = \(([^)]*)\);", PROJECT.read_text(encoding="utf-8"))  # raw: not Swift
     assert regions and re.search(r"\btr\b", regions.group(1)), "the project does not know the Turkish region"

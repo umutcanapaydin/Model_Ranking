@@ -266,7 +266,7 @@ def test_the_swift_tests_and_the_compiled_gate_read_no_markdown() -> None:
     """M2: `check-docs` leaves out the Swift tests and the compiled gate because neither reads a Markdown file;
     their comments and docstrings may cite one."""
     for swift in sorted((ROOT / "ios").glob("*Tests/**/*.swift")):
-        code = re.sub(r"/\*.*?\*/", "", swift.read_text(encoding="utf-8"), flags=re.S)
+        code = re.sub(r"/\*.*?\*/", "", swift.read_text(encoding="utf-8"), flags=re.S)  # raw: an absence check, which reads dead code too and so refuses more
         code = "\n".join(line.split("//", 1)[0] for line in code.splitlines())
         assert ".md" not in code, f"{swift.relative_to(ROOT)} reads a Markdown file"
     gate = ROOT / "scripts" / "client_decl_gate.py"

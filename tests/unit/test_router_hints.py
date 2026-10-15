@@ -646,6 +646,38 @@ def test_the_gap_register_code_carries_no_egress_spelling_the_pin_reads() -> Non
     _assert_the_client_has_no_way_off_the_device()
 
 
+#: #276 (D-198 clause 5): the backlog-gates review round 4's probe, a URL decoded by a generic helper and
+#: bound to `url` between `load()`'s guard and its one read. Its address is `example.invalid`.
+REBOUND_READ = (
+    "guard url.isFileURL,\n"
+    "              let encoded = try? JSONEncoder().encode(\"ht\" + \"tps://example.invalid/\"),\n"
+    "              let url = probeDecode(encoded) ?? Optional(url),\n"
+    "              let data = try? Data(contentsOf: url),"
+)
+
+
+@pytest.mark.parametrize("store", ["FrontDoor.swift", "StandingsStore.swift"])
+def test_a_url_rebound_between_a_stores_guard_and_its_read_is_refused(
+        store: str, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#276 (D-198 clause 5): the guard checked the store's own `url`, and a clause between it and the one
+    permitted `Data(contentsOf: url)` could bind another, which every gate passed. The guard and the read
+    are now one permitted expression, so a clause between them leaves a read the pin does not permit."""
+    import shutil
+    import sys
+
+    copy = tmp_path / "ios"
+    shutil.copytree(CLIENT, copy / CLIENT.name)
+    shutil.copytree(CLIENT.parent / "ModelRanking.xcodeproj", copy / "ModelRanking.xcodeproj")
+    path = next((copy / CLIENT.name).rglob(store))
+    code = path.read_text(encoding="utf-8")  # raw: a plant in a copy
+    guard = "guard url.isFileURL,\n              let data = try? Data(contentsOf: url),"
+    assert code.count(guard) == 1, f"{store} no longer reads as `{guard}`"
+    path.write_text(code.replace(guard, REBOUND_READ), encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "CLIENT", copy / CLIENT.name)
+    with pytest.raises(AssertionError, match=r"guard url\.isFileURL.*exactly once|Data\(contentsOf"):
+        _assert_the_client_has_no_way_off_the_device()
+
+
 #: Frameworks the client may import. `Network`, `WebKit`, `CloudKit`, `UIKit`, `os`, `SafariServices`
 #: and the rest are refused by their absence here: a new one is a reviewed edit to this set.
 CLIENT_IMPORTS = {"Foundation", "SwiftUI", "NaturalLanguage", "FoundationModels"}
@@ -668,6 +700,8 @@ EGRESS = (
     # W5 review B1 (#58): a URL as a type argument (`Optional<URL>`, `[URL].self`, a tuple), which is
     # what decoding one from text needs
     r"[<\[,(]\s*URL\b",
+    # The hardening review round 2's N6: a URL typed through its module, `Foundation.URL`.
+    r"\bFoundation\s*\.\s*(?:NS)?URL\b",
     r"\binit\s*\(\s*string\s*:", r"(?i)\b(?:https?|ftp|wss?)://", r"(?i)\bmailto:",
     r"\bresourceBytes\b", r"\.lines\b",
     # opening, sharing, handing off -- every system surface that carries text somewhere else
@@ -719,7 +753,10 @@ EGRESS_EXACT = {
     ("FrontDoor.swift", "FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)"): "REQ-GAP-001: where the register lives",
     ("FrontDoor.swift", "FileManager.default.temporaryDirectory"): "REQ-GAP-001: the fallback folder",
     ("FrontDoor.swift", "FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)"): "REQ-GAP-001: the register's folder",
-    ("FrontDoor.swift", "Data(contentsOf: url)"): "REQ-GAP-001: the register reads its own file",
+    # #276 (D-198 clause 5): the guard and the read are one expression, so no clause between them can
+    # bind another `url`.
+    ("FrontDoor.swift", "guard url.isFileURL,\n              let data = try? Data(contentsOf: url),"):
+        "REQ-GAP-001: the register reads its own file, and only a file",
     # #121 (M18-W7): the write is the store's default writer, a parameter so a test sees each attempt.
     ("FrontDoor.swift", "try data.write(to: store.url, options: store.writeOptions)"): "REQ-GAP-001: the register writes its own file",
     ("FrontDoor.swift", "try? write(data, self)"): "REQ-GAP-001: `save` hands its file to that writer, after `url.isFileURL`",
@@ -729,7 +766,8 @@ EGRESS_EXACT = {
     ("StandingsStore.swift", "FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)"): "D-167: where the standings live",
     ("StandingsStore.swift", "FileManager.default.temporaryDirectory"): "D-167: the fallback folder",
     ("StandingsStore.swift", "try? FileManager.default.createDirectory(\n            at: url.deletingLastPathComponent(), withIntermediateDirectories: true\n        )"): "D-167: the standings' folder",
-    ("StandingsStore.swift", "Data(contentsOf: url)"): "D-167: the store reads its own file",
+    ("StandingsStore.swift", "guard url.isFileURL,\n              let data = try? Data(contentsOf: url),"):
+        "D-167: the store reads its own file, and only a file (#276)",
     ("StandingsStore.swift", "data.write(to: url, options: .atomic)"): "D-167: the store writes its own file",
     ("StandingsStore.swift", "public let url: URL"): "D-167: the store's own file",
     ("StandingsStore.swift", "public init(url: URL)"): "D-167: the store's own file",

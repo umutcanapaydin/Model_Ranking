@@ -24,6 +24,12 @@ OFFLINE_STEP = (
     "          sudo unshare --net -- sh -c 'ip link set lo up && exec sudo --preserve-env -u \"$1\" env"
     " \"PATH=$2\" MODEL_RANKING_REQUIRE_OFFLINE=1 pytest' sh \"$USER\" \"$PATH\"\n"
 )
+#: The test job's own checkout, with the step after it that only that job has.
+TEST_CHECKOUT = (
+    "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4\n"
+    "      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5\n"
+    "        with:\n          python-version: ${{ matrix.python-version }}\n"
+)
 
 
 def _marks() -> dict[str, bool]:
@@ -54,8 +60,15 @@ def test_every_need_ci_marks_is_what_the_workflow_gives_its_test_job() -> None:
          "        with:\n          python-version: ${{ matrix.python-version }}\n",
          "      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5\n"
          "        with:\n          python-version: ${{ matrix.python-version }}\n", {"git"}),
+        # The hardening wave's Tester (T15; D-198 clause 2, #278): the owner's patch fetches the whole history,
+        # which gives the job `git_history`; a checkout of any other depth still holds a cut history.
+        (TEST_CHECKOUT, TEST_CHECKOUT.replace("  # v4\n", "  # v4\n        with:\n          fetch-depth: 0\n"),
+         {"git_history"}),
+        (TEST_CHECKOUT, TEST_CHECKOUT.replace("  # v4\n", "  # v4\n        with:\n          fetch-depth: 2\n"),
+         set()),
     ],
-    ids=["macos-runner", "contract-env", "epoch-env", "offline-patch", "sudo", "built-db", "no-checkout"],
+    ids=["macos-runner", "contract-env", "epoch-env", "offline-patch", "sudo", "built-db", "no-checkout",
+         "whole-history", "two-commits"],
 )
 def test_a_planted_change_to_the_test_job_flips_its_need_and_only_that(old: str, new: str, flipped: set[str]) -> None:
     """Shown red on each planted change: the facts move, so the comparison above would fail."""

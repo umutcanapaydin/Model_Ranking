@@ -234,6 +234,97 @@ def test_no_held_out_question_is_written_into_the_code_or_its_tests() -> None:
     assert not found, f"held-out questions written into code, tests or tuning sets (file, length): {found}"
 
 
+#: #272 (D-198 clause 2): each live set's matches in a record older than the set, by file and count, measured
+#: 2026-10-14. The questions are not printed. `m21-wave-2-review.md` (M21-W2) quotes the probe questions it
+#: ran, and the seat that wrote `reading_heldout_m22` repeated three of them; `m20-wave-3-review.md` holds
+#: one more, found once the scan read a record's wrapped lines and backticks (the hardening review's M3).
+#: The set's overlap with published text, not a leak from it.
+HELD_OUT_PUBLISHED_OVERLAP: dict[str, dict[str, int]] = {
+    "reading_heldout_m22_questions.json": {"docs/reviews/m20-wave-3-review.md": 1,
+                                           "docs/reviews/m21-wave-2-review.md": 3},
+}
+
+
+def _leak_scan_docs(root: pathlib.Path) -> dict[str, str]:
+    """Every record under `docs/`, raw, keyed by its path from the root (#272)."""
+    return {str(p.relative_to(root)): p.read_text(encoding="utf-8", errors="ignore")  # raw: Markdown, not Swift
+            for p in sorted((root / "docs").rglob("*.md"))}
+
+
+def _held_questions(path: pathlib.Path) -> set[str]:
+    """A held-out set's questions of 15 characters or more, as the leak check reads them."""
+    import json
+
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    return {text for row in rows if len(text := row[0] if isinstance(row, list) else row["q"]) >= 15}
+
+
+def _record_matches(held: set[str], texts: dict[str, str]) -> dict[str, int]:
+    """#272: how many of `held` each record holds, as `_held_out_leaks` finds them; the questions are never
+    returned."""
+    # The hardening review's M3: a record wraps its lines, doubles its spaces and quotes in backticks, so
+    # its whitespace is collapsed and a backtick quotes as a double quote does.
+    # Round 2's N5: a blockquote's `>` marks are dropped first, so its wrapped lines read as one.
+    read = {name: " ".join(re.sub(r"(?m)^\s*(?:>\s?)+", "", text).split()).replace("`", '"')
+            for name, text in texts.items()}
+    counts: dict[str, int] = {}
+    for name, _size in _held_out_leaks({" ".join(q.split()) for q in held}, read, {}):
+        counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+def test_a_held_out_question_quoted_in_a_record_is_found() -> None:
+    """#272 (D-198 clause 2): the check read no record in `docs/`, so a wave could quote a live question in
+    its research note and the next wave tune on it. Planted with a made-up question, never a real one."""
+    planted = "which model would best plan a three day hike in the alps"
+    texts = {"docs/research/note.md": f"The probe asked: {planted}.", "docs/reviews/r.md": "nothing held"}
+    assert _record_matches({planted}, texts) == {"docs/research/note.md": 1}
+    assert _record_matches({planted}, {"docs/a.md": planted.upper()}) == {"docs/a.md": 1}
+
+
+def test_a_live_held_out_set_overlaps_only_the_records_named_and_none_is_new() -> None:
+    """#272 (D-198 clause 2): each live set's matches in `docs/**/*.md`, by file and count, are exactly
+    `HELD_OUT_PUBLISHED_OVERLAP`'s. A record written after a set cannot hold one of its questions; a record
+    written before is the set's overlap with published text, which the next set's seat should see. The
+    questions are never printed, only files and counts."""
+    root = CLIENT.parents[1]
+    found = {}
+    for path in _live_held_out_sets():
+        matches = _record_matches(_held_questions(path), _leak_scan_docs(root))
+        if matches:
+            found[path.name] = matches
+    assert found == HELD_OUT_PUBLISHED_OVERLAP, f"held-out questions in docs/ (set: {{file: count}}): {found}"
+
+
+def _first_added(root: pathlib.Path, rel: str) -> int:
+    """When `rel` was first committed under `root`: its oldest adding commit's time."""
+    import subprocess
+
+    out = subprocess.run(["git", "-C", str(root), "log", "--diff-filter=A", "--format=%ct", "--", rel],
+                         capture_output=True, text=True, check=True).stdout.split()
+    assert out, f"{rel} has no commit that adds it"
+    return int(out[-1])
+
+
+def _records_not_older_than_their_set(root: pathlib.Path, overlap: dict[str, dict[str, int]]) -> list[str]:
+    """#272 (D-198 clause 2): each record `overlap` excuses that was not first committed before its set, by
+    path and set name. A helper, so a test can plant a newer record in a scratch repository (the hardening
+    wave's Tester: the comparison could be made to read nothing and no test failed)."""
+    late = []
+    for set_name, records in overlap.items():
+        born = _first_added(root, f"scripts/router_probe/{set_name}")
+        late += [f"{record} ({set_name})" for record in records if not _first_added(root, record) < born]
+    return late
+
+
+@pytest.mark.needs("git_history")
+def test_each_record_a_live_set_overlaps_was_committed_before_the_set() -> None:
+    """#272 (D-198 clause 2): an overlap is excused only for a record older than its set. Read from the git
+    history, which CI's one-commit checkout does not hold."""
+    late = _records_not_older_than_their_set(CLIENT.parents[1], HELD_OUT_PUBLISHED_OVERLAP)
+    assert not late, f"committed no earlier than the set they overlap, so an overlap is a leak: {late}"
+
+
 #: Held-out sets already run, and so tuning now: M16's and M17's, M18-W3's first two (review B2),
 #: and M18-W3's three fresh ones, spent there and retired at M19-W4 (#177: four signal words were
 #: added after them with no origin shown); `heldout_questions.json` and

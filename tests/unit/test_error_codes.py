@@ -8,6 +8,8 @@ from __future__ import annotations
 import pathlib
 import re
 
+from tests.unit.test_router_hints import _code
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 ENGINE = ROOT / "src" / "app" / "adapter" / "main.py"
 LANGUAGE = ROOT / "ios" / "ModelRanking" / "Engine" / "Language.swift"
@@ -22,7 +24,7 @@ def _engine_codes() -> set[str]:
 
 
 def _phone_codes() -> set[str]:
-    source = LANGUAGE.read_text(encoding="utf-8")
+    source = _code(LANGUAGE.read_text(encoding="utf-8"))
     match = re.search(r"static func refusalSentence\(.*?\n    \}\n", source, re.S)
     assert match, "the phone has no refusalSentence"
     return set(re.findall(r'case "([a-z_]+)"', match.group(0)))
@@ -30,7 +32,7 @@ def _phone_codes() -> set[str]:
 
 def _own_codes() -> set[str]:
     """The codes the phone gives a refusal itself (`code: "unexpected"`, the M21 repo review's M4)."""
-    codes = set(re.findall(r'code:\s*"([a-z_]+)"', CLIENT.read_text(encoding="utf-8")))
+    codes = set(re.findall(r'code:\s*"([a-z_]+)"', _code(CLIENT.read_text(encoding="utf-8"))))
     assert "unexpected" in codes, f"the phone's own refusal codes were not read: {sorted(codes)}"
     return codes
 

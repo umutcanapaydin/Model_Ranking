@@ -19,18 +19,20 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests.unit.test_router_hints import _code
+
 IOS = Path(__file__).resolve().parents[2] / "ios"
 
 
 def _package_ios_floor() -> str:
-    manifest = (IOS / "Package.swift").read_text(encoding="utf-8")
+    manifest = _code((IOS / "Package.swift").read_text(encoding="utf-8"))
     match = re.search(r"\.iOS\(\.v(\d+)\)", manifest)
     assert match, "Package.swift declares no iOS platform at all"
     return match.group(1)
 
 
 def _xcodeproj_ios_floors() -> set[str]:
-    pbxproj = (IOS / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+    pbxproj = (IOS / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift
     floors = set(re.findall(r"IPHONEOS_DEPLOYMENT_TARGET = ([\d.]+);", pbxproj))
     assert floors, "the project file declares no IPHONEOS_DEPLOYMENT_TARGET"
     return floors
@@ -60,7 +62,7 @@ def test_the_project_does_not_declare_two_different_floors_for_itself() -> None:
 
 
 def _package_language_mode() -> str:
-    manifest = (IOS / "Package.swift").read_text(encoding="utf-8")
+    manifest = _code((IOS / "Package.swift").read_text(encoding="utf-8"))
     match = re.search(r"\.swiftLanguageMode\(\.v(\d+)\)", manifest)
     assert match, (
         "the Engine target pins no language mode, so it inherits the tools version — which is how "
@@ -70,7 +72,7 @@ def _package_language_mode() -> str:
 
 
 def _xcodeproj_swift_versions() -> set[str]:
-    pbxproj = (IOS / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+    pbxproj = (IOS / "ModelRanking.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")  # raw: not Swift
     versions = set(re.findall(r"SWIFT_VERSION = ([\d.]+);", pbxproj))
     assert versions, "the project file declares no SWIFT_VERSION"
     return versions
@@ -101,7 +103,7 @@ def test_the_engine_sources_are_not_conditionally_compiled_on_debug_or_os() -> N
     """
     offenders: list[str] = []
     for source in sorted((IOS / "ModelRanking" / "Engine").glob("*.swift")):
-        for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), 1):
+        for number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), 1):  # raw: an absence check, which reads dead code too and so refuses more
             if re.match(r"\s*#if\s+(DEBUG|os\()", line):
                 offenders.append(f"{source.name}:{number}")
 

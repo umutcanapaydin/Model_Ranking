@@ -186,7 +186,7 @@ def test_the_launcher_starts_the_engine_the_way_the_app_script_did() -> None:
 
 def test_the_app_script_starts_through_the_launcher_and_restarts_the_service_in_place() -> None:
     """Review M2: bootout followed at once by bootstrap races launchd; a restart is `kickstart -k`."""
-    text = APP_SH.read_text(encoding="utf-8")
+    text = APP_SH.read_text(encoding="utf-8")  # raw: not Swift
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
     assert "scripts/engine_service.sh" in code and "-m uvicorn" not in code
     assert LABEL in code
@@ -337,7 +337,7 @@ def test_the_app_script_addresses_the_simulator_it_boots_by_name() -> None:
     `simctl install booted` put the fresh build on the other device, and the owner's screen ran a
     day-old test build that asked port 8081 ("the engine is not answering"). Every simctl call that
     acts on the app names `$DEVICE`, the device `app.sh` boots."""
-    script = (Path(__file__).resolve().parents[2] / "ios" / "app.sh").read_text(encoding="utf-8")
+    script = (Path(__file__).resolve().parents[2] / "ios" / "app.sh").read_text(encoding="utf-8")  # raw: not Swift
     code = "\n".join(line.split("#", 1)[0] for line in script.splitlines())
     acting = re.findall(r"xcrun simctl (?:install|launch|terminate|spawn)\s+(\S+)", code)
     assert len(acting) >= 4, f"the script's app commands were not found: {acting}"
@@ -478,7 +478,7 @@ def test_the_app_script_builds_for_the_simulators_loopback_whatever_the_owners_o
     """W1 review M2: the owner's Engine.local.xcconfig reached app.sh's simulator builds. A setting on
     the command line beats the xcconfig, so the simulator build talks to loopback, under the bundle id
     the script launches."""
-    script = APP_SH.read_text(encoding="utf-8")
+    script = APP_SH.read_text(encoding="utf-8")  # raw: not Swift
     build = script[script.index("xcodebuild -project"):]
     build = build[: build.index("then")]
     assert "ENGINE_URL=http://127.0.0.1:8080" in build, build
@@ -549,7 +549,7 @@ def test_nothing_in_the_repository_installs_the_retired_refresher() -> None:
 def test_every_simctl_call_in_the_app_script_names_its_device() -> None:
     """M17 closure Tester N1 (#92): the test above lists four simctl verbs, and an added
     `simctl uninstall booted` passed. Every simctl call addresses the simulator the script boots."""
-    script = (REPO / "ios" / "app.sh").read_text(encoding="utf-8")
+    script = (REPO / "ios" / "app.sh").read_text(encoding="utf-8")  # raw: not Swift
     # W5 review M5: a call continued over lines with `\` is one call.
     joined = re.sub(r"\\\n\s*", " ", script)
     calls = [line.strip() for line in joined.splitlines() if "simctl " in line and not line.strip().startswith("#")]

@@ -707,7 +707,7 @@ def test_the_launcher_does_not_pin_a_hand_kept_epoch_bundle() -> None:
     """Security review MINOR-4 (D-158): `ios/app.sh` defaulted MODEL_RANKING_EPOCH_DIR to the
     retired 2026-08-15 folder, so the engine's own nightly never fetched. Only an explicit
     MR_EPOCH_DIR may pass one."""
-    text = (Path(__file__).resolve().parents[2] / "ios" / "app.sh").read_text(encoding="utf-8")
+    text = (Path(__file__).resolve().parents[2] / "ios" / "app.sh").read_text(encoding="utf-8")  # raw: not Swift
     assert "epoch_data" not in text
     assert 'EPOCH_DIR="${MR_EPOCH_DIR:-}"' in text, "the default is no bundle, so the engine fetches"
     assert "unset MODEL_RANKING_EPOCH_DIR" in text, "an inherited one must not win over the fetch"

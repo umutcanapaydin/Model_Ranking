@@ -14,7 +14,7 @@ SWIFT = pathlib.Path(__file__).resolve().parents[2] / "ios/ModelRanking/Engine/M
 
 
 def _swift_set(name: str) -> set[str]:
-    text = SWIFT.read_text(encoding="utf-8")
+    text = SWIFT.read_text(encoding="utf-8")  # raw: the generated file, compared whole
     match = re.search(rf"static let {name}: Set<String> = \[(.*?)\]", text, re.S)
     assert match, f"ModelFamilies.{name} not found"
     return set(re.findall(r'"([^"]+)"', match.group(1)))
@@ -38,4 +38,4 @@ def test_the_written_file_is_the_generators_byte_for_byte() -> None:
     """M2: the file is what `render()` writes, not only the same words."""
     from scripts.model_family_words import render
 
-    assert SWIFT.read_text(encoding="utf-8") == render(), "ModelFamilies.swift is stale: run scripts/model_family_words.py"
+    assert SWIFT.read_text(encoding="utf-8") == render(), "ModelFamilies.swift is stale: run scripts/model_family_words.py"  # raw: the generated file, compared whole

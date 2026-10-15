@@ -1316,6 +1316,34 @@ def rule_id_refs(root: Path) -> list[Finding]:
     return f
 
 
+#: #271 (D-198 clause 1): the escapes a file's own language reads as a letter. An escaped backslash is
+#: matched first, so `\\\\u015f` stays a backslash and text.
+_ESCAPES = {
+    ".json": re.compile(r"(\\\\)|\\u([0-9a-fA-F]{4})(?:\\u([0-9a-fA-F]{4}))?"),
+    # A raw string's escape carries its hashes, `\#u{...}` (the hardening review's N2).
+    ".swift": re.compile(r"(\\\\)|\\#*u\{([0-9a-fA-F]{1,8})\}()"),
+}
+
+
+def _decoded(line: str, suffix: str) -> str:
+    """#271: the line with each escape its language reads as a letter replaced by that letter."""
+    pattern = _ESCAPES.get(suffix)
+    if pattern is None:
+        return line
+
+    def letter(found: re.Match[str]) -> str:
+        if found.group(1):
+            return " "
+        first = int(found.group(2), 16)
+        second = int(found.group(3), 16) if found.group(3) else None
+        if second is not None and 0xD800 <= first < 0xDC00 and 0xDC00 <= second < 0xE000:
+            return chr(0x10000 + ((first - 0xD800) << 10) + (second - 0xDC00))
+        tail = _decoded(f"\\u{found.group(3)}", suffix) if second is not None else ""
+        return (chr(first) if first <= 0x10FFFF and not 0xD800 <= first < 0xE000 else "?") + tail
+
+    return pattern.sub(letter, line)
+
+
 def language_rule(root: Path) -> list[Finding]:
     """L1 — no Turkish-specific letter in a tracked file, outside the reasoned allowlist."""
     allow: list = []
@@ -1381,7 +1409,8 @@ def language_rule(root: Path) -> list[Finding]:
                 continue
             if fenced:
                 continue
-            prose = INLINE_CODE.sub(_strip_short_span, line)
+            # Spans first, then escapes: an escaped backtick opens no span (the hardening review's N2).
+            prose = _decoded(INLINE_CODE.sub(_strip_short_span, line), p.suffix)
             if TR_CHARS.search(prose):
                 f.append(Finding(Path(rel), i, "L1",
                                  "Turkish text in an English-only repository (V4C-79). Translate it; "
@@ -1734,6 +1763,8 @@ def self_test(root: Path) -> int:
             "`bu cok uzun bir metin ve tamamen Turkce yazilmis olup bir sembol degil bir "
             "paragraftir ve boyle bir sey L1 tarafindan okunmalidir cunku kaydin ozu budur "
             "\u015fey`\n", encoding="utf-8")
+        # #271 (D-198 clause 1): an escaped Turkish letter is a Turkish letter.
+        (probe / "tr-escaped.json").write_text('["bu bir \\u015fey"]\n', encoding="utf-8")
         l1 = language_rule(probe)
         got |= {x.rule for x in l1}                                           # L1
         # L1's SCOPE, asserted per file — the half a "does the rule fire" probe cannot see.
@@ -1750,6 +1781,9 @@ def self_test(root: Path) -> int:
             ("tr-double-tick.md", False,
              "Turkish inside a DOUBLE-backtick span — the form CommonMark requires when the quote "
              "contains a backtick, and the one L1 used to read as prose"),
+            ("tr-escaped.json", True,
+             "Turkish written with JSON escapes -- a file that holds Turkish must say why, however "
+             "it spells it (#271)"),
             ("tr-long-span.md", True,
              "Turkish inside a code span long enough to BE the record — an exemption without a "
              "bound lets a whole record's substance hide behind one pair of backticks"),

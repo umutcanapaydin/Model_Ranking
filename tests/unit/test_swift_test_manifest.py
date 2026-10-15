@@ -46,7 +46,7 @@ def _declared() -> set[tuple[str, str]]:
     """`(class, test)` for every test function declared under `ios/EngineTests`."""
     found: set[tuple[str, str]] = set()
     for path in sorted(TESTS.rglob("*.swift")):
-        source = COMMENT.sub("", path.read_text(encoding="utf-8"))
+        source = COMMENT.sub("", path.read_text(encoding="utf-8"))  # raw: the test declarations, compared with what `swift test` lists
         # Split the file at each XCTestCase class so a function is attributed to the class it is in.
         marks = [(m.start(), m.group(1)) for m in CLASS.finditer(source)]
         for index, (start, name) in enumerate(marks):
@@ -56,7 +56,7 @@ def _declared() -> set[tuple[str, str]]:
 
 
 def test_the_manifest_lists_exactly_the_tests_the_sources_declare() -> None:
-    lines = [line for line in MANIFEST.read_text(encoding="utf-8").splitlines() if line.strip()]
+    lines = [line for line in MANIFEST.read_text(encoding="utf-8").splitlines() if line.strip()]  # raw: not Swift
     entries = [ENTRY.match(line) for line in lines]
     assert all(entries), [line for line, m in zip(lines, entries, strict=True) if not m]
 
@@ -111,7 +111,7 @@ def test_no_test_DECLARATION_compiles_conditionally() -> None:
     guarded = [
         f"{path.name}:{line}"
         for path in sorted(TESTS.rglob("*.swift"))
-        for line in _guarded_tests(COMMENT.sub("", path.read_text(encoding="utf-8")))
+        for line in _guarded_tests(COMMENT.sub("", path.read_text(encoding="utf-8")))  # raw: the test declarations, compared with what `swift test` lists
     ]
 
     assert not guarded, (
@@ -123,7 +123,7 @@ def test_no_test_DECLARATION_compiles_conditionally() -> None:
 def test_the_manifest_is_sorted_and_one_module(
 ) -> None:
     """A sorted single-module file makes a deletion one readable line in a diff, which is the point."""
-    lines = [line for line in MANIFEST.read_text(encoding="utf-8").splitlines() if line.strip()]
+    lines = [line for line in MANIFEST.read_text(encoding="utf-8").splitlines() if line.strip()]  # raw: not Swift
 
     assert lines == sorted(lines), "the manifest is not sorted; regenerate it with `| sort`"
     assert {ENTRY.match(line)["module"] for line in lines if ENTRY.match(line)} == {  # type: ignore[index]

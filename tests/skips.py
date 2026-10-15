@@ -75,6 +75,12 @@ NEEDS: dict[str, Need] = {
                       True, "both are on the ubuntu image"),
     "git": Need("a git checkout", lambda: shutil.which("git") is not None and (ROOT / ".git").exists(), True,
                 "the job checks the repository out"),
+    # #272 (D-198 clause 2): when a record was first committed, which a one-commit checkout cannot say.
+    "git_history": Need("a git checkout with its whole history",
+                        lambda: shutil.which("git") is not None and subprocess.run(
+                            ["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
+                            capture_output=True, text=True, check=False).stdout.strip() == "false",
+                        False, "the test job's checkout sets no fetch-depth, so it holds one commit"),
     "not_root": Need("a user that is not root", lambda: not (hasattr(os, "geteuid") and os.geteuid() == 0), True,
                      "the job runs as the runner user; root reads a mode-000 file"),
 }
@@ -107,6 +113,8 @@ def ci_job_facts(workflow_text: str) -> dict[str, bool]:
         "offline": bool(re.search(r"\bunshare\b[^&|;]*\s(?:--net\b|-[a-zA-Z]*n[a-zA-Z]*\b)", command)),
         "bash_curl": True,  # both are on the ubuntu and macOS images
         "git": any(str(step.get("uses", "")).startswith("actions/checkout@") for step in before),
+        "git_history": any(str(step.get("uses", "")).startswith("actions/checkout@")
+                           and str((step.get("with") or {}).get("fetch-depth", "")) == "0" for step in before),
         # Root unless the last `sudo` before pytest drops to a user (`-u`), as #122's patch does.
         "not_root": "container" not in job and not (sudo and not re.search(r"\s-u\s", sudo[-1])),
     }

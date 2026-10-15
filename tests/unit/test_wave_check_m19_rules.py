@@ -206,6 +206,6 @@ def test_more_footprint_shapes_and_a_tier_that_says_not_high(tmp_path: Path) -> 
         done = _wave_check(_close(tmp_path / str(i), tier="MED", touched=touched, plan=GLOBS))
         assert "EngineClient.swift" in done.stdout, touched
     record = _close(tmp_path / "tier", tier="MED", touched="ios/ModelRanking/Engine/EngineClient.swift", plan=GLOBS)
-    record.write_text(record.read_text(encoding="utf-8").replace("(risk: **MED**", "(risk: **MED**, not HIGH", 1),
+    record.write_text(record.read_text(encoding="utf-8").replace("(risk: **MED**", "(risk: **MED**, not HIGH", 1),  # raw: not Swift
                       encoding="utf-8")
     assert "EngineClient.swift" in _wave_check(record).stdout

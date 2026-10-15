@@ -434,6 +434,73 @@ def _names_wave(heading: str, milestone: str, wave: int) -> bool:
     return False
 
 
+def _adrs(log: str) -> set[str]:
+    return set(re.findall(r"^## (D-\d+)\b", log, re.M))
+
+
+def adr_order_problems(root: pathlib.Path, base: str, end: str, plan_rel: str | None,
+                       code_dirs: tuple[str, ...] = CODE_DIRS) -> list[str]:
+    """#201 (D-192 clause 2): an ADR the range `base..end` adds first appears in a commit that changes no
+    code, after no code commit of the range that cites it, and after no code commit at all unless the plan
+    (`plan_rel`, a milestone's) named it before. A backlog wave has no plan (#274)."""
+    problems: list[str] = []
+    added_adrs = _adrs(_git(root, "show", f"{end}:docs/decisions.md") or "") - _adrs(
+        _git(root, "show", f"{base}:docs/decisions.md") or "")
+    for adr in sorted(added_adrs, key=lambda d: int(d[2:])):
+        touching = set()
+        for pattern in (f"^## {adr}[^0-9]", f"^## {adr}$"):
+            touching |= set((_git(root, "log", "--format=%H", "-G", pattern, f"{base}..{end}", "--",
+                                  "docs/decisions.md") or "").split())
+        first = [sha for sha in (_git(root, "rev-list", "--reverse", f"{base}..{end}") or "").split() if sha in touching]
+        if not first:
+            problems.append(f"{adr} is added in the range and no commit in it adds its heading -- the rule cannot "
+                            "tell when the decision was written (#201)")
+            continue
+        files = (_git(root, "show", "--name-only", "--format=", first[0]) or "").splitlines()
+        named = plan_rel is not None and bool(re.search(rf"\b{re.escape(adr)}\b",
+                                                       _git(root, "show", f"{first[0]}^:{plan_rel}") or ""))
+        earlier = [entry.split("\x1f", 1) for entry in (_git(root, "log", "--format=%h\x1f%B\x1e", f"{base}..{first[0]}^",
+                                                                 "--", *code_dirs) or "").split("\x1e") if entry.strip()]
+        if any(f.startswith(code_dirs) for f in files) and not named:
+            problems.append(f"{adr} first appears in `{first[0][:7]}`, which also changes code, and no plan named "
+                            "it before -- write the decision before the code it governs (#201)")
+        # A backlog wave has no plan (#274, D-198 clause 3): only a code commit that cites the ADR comes too early.
+        elif earlier and ((plan_rel is not None and not named)
+                          or any(re.search(rf"\b{re.escape(adr)}\b", msg) for _, msg in earlier)):
+            problems.append(f"{adr} first appears in `{first[0][:7]}`, after the range's code commit "
+                            f"`{earlier[0][0].strip()}` -- write the decision before the code it governs (#201)")
+    return problems
+
+
+#: #274 (D-198 clause 3, the hardening review's K1 and round 2's N4): what a backlog wave's decision governs
+#: beside the code: its tests and the files that build and gate it.
+BACKLOG_CODE = (*CODE_DIRS, "tests/", "conformance/", "runner/", "requirements/", "schemas/", "Makefile",
+                "stack.mk", "pyproject.toml")
+
+
+def branch_adr_problems(root: pathlib.Path) -> tuple[list[str], str | None]:
+    """#274 (D-198 clause 3): a backlog wave's decision comes before its code. The branch's range from its
+    merge base with `origin/main` is read as a close's is (`adr_order_problems`, no plan) when it adds no
+    milestone close, which reads it itself. Returns (problems, skipped)."""
+    main = _git(root, "rev-parse", "--verify", "origin/main^{commit}")
+    if main is None or (_git(root, "rev-parse", "--is-shallow-repository") or "").strip() == "true":
+        return [], "a backlog wave's decision order (#274) read nothing: no origin/main in a whole history here"
+    head = _git(root, "rev-parse", "HEAD")
+    base = _git(root, "merge-base", main, "HEAD")
+    if head is None or base is None:
+        return [], "a backlog wave's decision order (#274) read nothing: no merge base with origin/main"
+    if base.strip() == head.strip():
+        return [], None
+    added = (_git(root, "diff", "--name-only", "--diff-filter=A", base, "HEAD") or "").splitlines()
+    if any(re.search(r"(^|/)m\d+-wave-\d+-close\.md$", path) for path in added):
+        return [], None
+    # The hardening review's K1 and N3: a backlog wave's tests are code its decision governs, and the
+    # message names the range it read, so a stale `origin/main` shows as such.
+    span = f"{base.strip()[:7]}..HEAD"
+    return [f"{problem.removesuffix(' (#201)')} (#201, #274; read on {span})" for problem in
+            adr_order_problems(root, base.strip(), "HEAD", None, BACKLOG_CODE)], None
+
+
 def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tuple[list[str], str | None]:
     """D-192 clause 2, as the M21-W4 review left it: what a close owes its wave's history.
 
@@ -511,31 +578,7 @@ def history_problems(close: pathlib.Path, text: str, root: pathlib.Path) -> tupl
         problems.append(f"the commit range `{spec}` changes its plan's security globs ({', '.join(hits)}) and row 1 "
                         "does not record the wave as HIGH -- the range's diff is the authority, not the footprint (#183)")
 
-    def adrs(log: str) -> set[str]:
-        return set(re.findall(r"^## (D-\d+)\b", log, re.M))
-
-    added_adrs = adrs(_git(root, "show", f"{end}:docs/decisions.md") or "") - adrs(
-        _git(root, "show", f"{base}:docs/decisions.md") or "")
-    for adr in sorted(added_adrs, key=lambda d: int(d[2:])):
-        touching = set()
-        for pattern in (f"^## {adr}[^0-9]", f"^## {adr}$"):
-            touching |= set((_git(root, "log", "--format=%H", "-G", pattern, f"{base}..{end}", "--",
-                                  "docs/decisions.md") or "").split())
-        first = [sha for sha in (_git(root, "rev-list", "--reverse", f"{base}..{end}") or "").split() if sha in touching]
-        if not first:
-            problems.append(f"{adr} is added in the range and no commit in it adds its heading -- the rule cannot "
-                            "tell when the decision was written (#201)")
-            continue
-        files = (_git(root, "show", "--name-only", "--format=", first[0]) or "").splitlines()
-        named = bool(re.search(rf"\b{re.escape(adr)}\b", _git(root, "show", f"{first[0]}^:{plan_rel}") or ""))
-        earlier = [entry.split("\x1f", 1) for entry in (_git(root, "log", "--format=%h\x1f%B\x1e", f"{base}..{first[0]}^",
-                                                                 "--", *CODE_DIRS) or "").split("\x1e") if entry.strip()]
-        if any(f.startswith(CODE_DIRS) for f in files) and not named:
-            problems.append(f"{adr} first appears in `{first[0][:7]}`, which also changes code, and the plan did not "
-                            "name it before -- write the decision before the code it governs (#201)")
-        elif earlier and (not named or any(re.search(rf"\b{re.escape(adr)}\b", msg) for _, msg in earlier)):
-            problems.append(f"{adr} first appears in `{first[0][:7]}`, after the range's code commit "
-                            f"`{earlier[0][0].strip()}` -- write the decision before the code it governs (#201)")
+    problems += adr_order_problems(root, base, end, plan_rel)
 
     days = (_git(root, "log", "--format=%cs", f"{base}..{end}") or "").split()
     log_path = root / "docs" / "process-log.md"  # the log as it stands: a stacked wave may add an earlier one's entry

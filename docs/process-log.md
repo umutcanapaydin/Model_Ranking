@@ -861,3 +861,29 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   licences' texts, held word for word by hash.
 - #242 stays open: an allowlist for what a served number may meet would start from 123 distinct calls on
   the shipping client, each to be justified; it is its own piece of work.
+
+## 2026-10-14 — the hardening wave: the gates read what the last two waves found them blind to (D-198)
+
+- D-198 was committed alone, before any code (`7e89544`), as #274 now asks.
+- #276: a store's `isFileURL` guard and its one read are one permitted expression, so a clause binding
+  another `url` between them fails the egress pin; a Swift test loads the on-device store under the tripwire.
+- #271: rule L1 decodes JSON and Swift escapes; the five sets and tests that hold escaped Turkish name why
+  in `.language-allow`.
+- #272: the held-out check reads `docs/**/*.md`. `reading_heldout_m22` overlaps one record written before
+  it (`m21-wave-2-review.md`, three questions), held by file and count; the age check needs the whole
+  history, so CI's one-commit test job skips it and the skip budget rises by one.
+- #275: every pin file reads the app's Swift through `_swift`, or says on the line why it reads raw; one
+  guard (`test_swift_reads.py`) reads every file under `tests/unit/`.
+- #274: `make wave-check-all` reads a backlog branch's decision order. Run on the two merged backlog waves,
+  it names D-196 and D-197, each written beside its code.
+- The owner capped review rounds at four (2026-10-14): a MAJOR still open after round 4 becomes an issue.
+- After the first two reviews (round 2 MINOR): the #275 pins read through `_code`, which drops `//` comments
+  too, and `_swift` needs its reason; the record scan reads wrapped lines, backticks and blockquotes, and
+  holds two older records (`m20-wave-3-review.md`, `m21-wave-2-review.md`); CI cannot run the #274 rule or
+  the #272 age check until the owner's workflow fetches the whole history (#278).
+- Lesson: a check that reads text is held only as far as its plants reach; each review round found a
+  spelling the last one's plants did not try, so a rule's limits go in its decision, not only its fix.
+- The Tester (MINOR): of 75 planted faults, 39 Python ones passed the whole suite; its 20 added cases catch
+  32 of them, and the other 7 are equivalent, a belt, or a deleted assertion. The two Swift plants each
+  failed only their store's new on-device test.
+
