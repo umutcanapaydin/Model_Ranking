@@ -119,6 +119,7 @@
     "expected_surface": "agentic-coding",
     "disputed": false,
     "reason": null,
+    "known_miss": 292,
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5",
@@ -499,6 +500,7 @@
     "expected_surface": "assistant",
     "disputed": false,
     "reason": null,
+    "known_miss": 293,
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -632,6 +634,7 @@
     "expected_surface": "search_factuality",
     "disputed": false,
     "reason": null,
+    "known_miss": 293,
     "expected_top3": [
       "claude-4.6-opus",
       "gpt-5.5",
@@ -670,6 +673,7 @@
     "expected_surface": "factuality",
     "disputed": false,
     "reason": null,
+    "known_miss": 294,
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -822,6 +826,7 @@
     "expected_surface": "computer-use",
     "disputed": false,
     "reason": null,
+    "known_miss": 295,
     "expected_top3": [
       "claude-fable-5.1",
       "claude-opus5.5",
