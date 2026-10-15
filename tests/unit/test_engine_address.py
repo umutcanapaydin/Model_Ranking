@@ -119,6 +119,25 @@ def test_the_failure_screen_shows_the_address_the_app_asked() -> None:
     assert shown, "the failure view does not show the address line"
 
 
+def test_the_screen_shows_the_kept_answer_and_its_day_when_the_engine_cannot_be_reached() -> None:
+    """#288 (D-202 clause 5): ContentView is not executed by any test (ios/Package.swift), so its use of the
+    kept answer is pinned here: a failed answer asks `KeptAnswers.shown` before it shows the failure, a
+    fresh one is kept and clears the date, and the home screen shows the dated line. The decision and the
+    line are tested in KeptAnswerTests."""
+    view = _code((IOS / "ModelRanking" / "ContentView.swift").read_text(encoding="utf-8"))
+    start = view.index("private func load() async {")
+    load = view[start : view.index("private func refreshStandings()", start)]
+    assert re.search(r"KeptAnswers\.shown\(after: error, StandingsStore\.onDevice\.keptAnswers\(\), "
+                     r"task: task, budget: budget, now: Date\(\)\)", load), "a failure does not ask for the kept answer"
+    assert load.index("KeptAnswers.shown(") < load.index("state = .failed(error)"), "the failure is shown first"
+    assert re.search(r"StandingsStore\.onDevice\.keep\(\s*route: KeptAnswers\.recommendationsRoute, task: task, "
+                     r"budget: budget,", load), "a fresh answer is not kept"
+    assert "answerKeptAt = nil" in load, "a fresh answer does not clear the kept answer's day"
+    home = view[view.index("private func home(") : view.index("private func failure(")]
+    shown = re.search(r"if let (\w+) = answerKeptAt \{\s*Text\(UIText\.keptAnswer\(fetchedAt: \1, language\)\)", home)
+    assert shown, "the home screen does not show the kept answer's day"
+
+
 def test_the_local_network_prompt_speaks_turkish_too() -> None:
     """#95 (M18-W1 review K2): the one system prompt the app triggers was English only, under an app
     that speaks Turkish and English (D-129). iOS picks the prompt's language from the device's, from

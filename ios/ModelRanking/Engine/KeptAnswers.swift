@@ -64,6 +64,10 @@ enum KeptAnswers {
         return (list.categories, entry.fetchedAt)
     }
 
+    /// #288 phase 3, red: nothing is shown yet.
+    static func shown(after error: EngineError, _ kept: [KeptAnswer], task: String, budget: String,
+                      now: Date) -> (recommendation: Recommendation, fetchedAt: Date)? { nil }
+
     /// Younger than `maxAge`, and not dated after `now` (a clock that stepped back).
     private static func usable(_ entry: KeptAnswer, now: Date) -> Bool {
         entry.fetchedAt <= now && now.timeIntervalSince(entry.fetchedAt) < maxAge

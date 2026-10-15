@@ -463,6 +463,11 @@ public enum UIText {
         language == .turkish ? "Şu anda cevap yok" : "No answer right now"
     }
 
+    /// #288 phase 3, red: not worded yet.
+    public static func keptAnswer(fetchedAt: Date, _ language: Language) -> String {
+        ""
+    }
+
     /// The engine address the app asked, under a failure to reach it (M18-W1 review B2).
     public static func engineAddress(_ language: Language, _ address: String) -> String {
         language == .turkish ? "Motor adresi: \(address)" : "Engine address: \(address)"

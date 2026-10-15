@@ -234,3 +234,49 @@ final class KeptAnswerTests: OfflineTestCase {
         XCTAssertEqual(OfflineGuard.drain(), [], "the on-device answers reached for a remote address")
     }
 }
+
+/// #288 phase 3: what the screen does with a kept answer when a fetch fails. The line it shows is
+/// asserted in `LanguageTests.swift`, by its words in both languages.
+final class KeptAnswerScreenTests: OfflineTestCase {
+    private var folder: URL!
+    private let arrived = Date(timeIntervalSince1970: 1_792_100_000)  // 2026-10-15, 21:33 UTC
+
+    override func setUp() {
+        super.setUp()
+        folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: folder)
+        super.tearDown()
+    }
+
+    private func kept() throws -> [KeptAnswer] {
+        let store = StandingsStore(url: folder.appendingPathComponent("standings.json"))
+        let answer = try JSONDecoder().decode(Recommendation.self, from: recommendationPayload())
+        store.keep(route: KeptAnswers.recommendationsRoute, task: "assistant", budget: "unlimited",
+                   payload: try XCTUnwrap(KeptAnswers.payload(answer)), at: arrived)
+        return store.keptAnswers()
+    }
+
+    func testAFailureToReachTheEngineShowsTheKeptAnswerForTheSameSurface() throws {
+        let kept = try kept()
+        for error: EngineError in [.unreachable("x"), .timedOut(seconds: 10), .offline] {
+            let shown = KeptAnswers.shown(after: error, kept, task: "assistant", budget: "unlimited",
+                                          now: arrived.addingTimeInterval(3_600))
+            XCTAssertEqual(shown?.recommendation.answers.map(\.surface), ["assistant"], "\(error)")
+            XCTAssertEqual(shown?.fetchedAt, arrived, "\(error)")
+        }
+        XCTAssertNil(KeptAnswers.shown(after: .offline, kept, task: "coding", budget: "unlimited", now: arrived),
+                     "another surface's answer was shown")
+    }
+
+    func testAnEngineThatAnsweredIsNeverStoodInFor() throws {
+        let kept = try kept()
+        for error: EngineError in [.refused(status: 503, code: "c", message: "m"), .undecodable("x"), .insecureTransport] {
+            XCTAssertNil(KeptAnswers.shown(after: error, kept, task: "assistant", budget: "unlimited", now: arrived),
+                         "\(error) showed a kept answer instead of its own sentence")
+        }
+    }
+}

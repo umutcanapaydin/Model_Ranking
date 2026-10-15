@@ -725,3 +725,15 @@ final class EffortNameTests: OfflineTestCase {
         XCTAssertEqual(effortName("ultra", .turkish), "ultra", "a level this build does not know keeps its name")
     }
 }
+
+/// #288 (D-202 clause 5): the line over a kept answer says the day the engine sent it, in the reader's
+/// language, so an old answer never reads as today's.
+final class KeptAnswerLineTests: OfflineTestCase {
+    func testTheKeptAnswerSaysTheDayItArrivedInTheReadersLanguage() {
+        let arrived = Date(timeIntervalSince1970: 1_792_100_000)  // 2026-10-15, 21:33 UTC
+        XCTAssertEqual(UIText.keptAnswer(fetchedAt: arrived, .english),
+                       "The engine could not be reached, so this is the answer it gave on 2026-10-15.")
+        XCTAssertEqual(UIText.keptAnswer(fetchedAt: arrived, .turkish),
+                       "Motora ulaşılamadı; bu, motorun 2026-10-15 tarihinde verdiği cevap.")
+    }
+}
