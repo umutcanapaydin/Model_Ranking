@@ -305,6 +305,15 @@ def test_a_milestone_wide_row_the_upgrade_moved_under_a_wave_counts_for_every_wa
     assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m300-w1", "skip", MILESTONE_WIDE, "2026-10-10"]])
 
 
+def test_a_row_written_after_the_upgrade_that_copies_its_marker_covers_its_own_wave_only() -> None:
+    """The v7.1 upgrade rereview's NIT-A: the marker is free text, so a later row could copy it; only a row
+    dated on or before the upgrade (2026-10-15) was moved by it."""
+    check = _module("wave_check")
+    skipped = _row9("make ui-test (no simulator)")
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m30-w4", "skip", MILESTONE_WIDE, "2026-10-15"]]) == []
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m30-w4", "skip", MILESTONE_WIDE, "2026-11-01"]])
+
+
 def test_a_row_for_another_wave_of_the_milestone_does_not_count() -> None:
     """The v7.1 upgrade review's MAJOR-1 (the owner, 2026-10-15): a skip in each of three waves needs three rows,
     or the three-row rule can never fire; one wave's row covers that wave only, and a row the upgrade rewrote
