@@ -72,10 +72,12 @@ def guard() -> ModuleType:
 
 @pytest.fixture
 def ungoverned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A directory outside any repository, with no `$CLAUDE_PROJECT_DIR`: no brief, so no deploy gate."""
-    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    """A directory outside any repository, and a `$CLAUDE_PROJECT_DIR` with no brief: no deploy gate. (The
+    deploy gate is the project root's own since the v7.1 upgrade security review's MAJOR-2, so an unset
+    `$CLAUDE_PROJECT_DIR` would make the guard's own checkout, which has a brief, the project root.)"""
     where = tmp_path / "elsewhere"
     where.mkdir()
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(where))
     return where
 
 
@@ -258,3 +260,187 @@ def test_the_settings_keep_the_project_attribution_and_exact_allow_targets() -> 
     cfg = json.loads(SETTINGS.read_text(encoding="utf-8"))
     assert cfg["attribution"] == {"commit": "", "pr": ""}
     assert not [r for r in cfg["permissions"]["allow"] if re.match(r"^(Bash|PowerShell)\(make\s+\S+:\*\)$", r)]
+
+
+# --- the v7.1 upgrade security review (B1, MAJOR-1, MAJOR-2, M1) and #282 --------------------------------
+
+@pytest.fixture
+def temp_dir(ungoverned: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """`$TMPDIR` as the guard's process sees it: a directory of its own under the system temp directory."""
+    where = ungoverned.parent / "T"
+    where.mkdir()
+    monkeypatch.setenv("TMPDIR", str(where))
+    return where
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf $TMPDIR/../../../../../../../../Users/x/model_ranking",
+    'rm -rf "${TMPDIR}/../../../../../../../../Users/x"',
+    'rm -rf "$TMPDIR/$unset"', 'rm -rf "$TMPDIR"', 'rm -rf "$TMPDIR/"', "rm -rf ${TMPDIR:-/}x",
+    'TMPDIR=/x; rm -rf "$TMPDIR"', 'TMPDIR=/x; rm -rf "$TMPDIR/sub"', "export TMPDIR=$HOME && rm -rf $TMPDIR",
+    "export TMPDIR=$HOME && rm -rf $TMPDIR/sub", "unset TMPDIR; rm -rf $TMPDIR/x",
+    'd=$(mktemp -d); rm -rf "$d/../.."', 'd=$(mktemp -d)/../../../../Users/x; rm -rf "$d"',
+    "d=$(mktemp -d; echo /Users/x); rm -rf $d", 'd=$(mktemp -d); rm -rf "${d}x"', 'd=$(mktemp -d); rm -rf "/x/$d"',
+    "find $TMPDIR/../../../../../../../../Users/x -delete",
+])
+def test_rm_rf_of_a_path_that_only_starts_with_a_temp_variable_is_refused(guard: ModuleType, temp_dir: Path,
+                                                                          ungoverned: Path, command: str) -> None:
+    """The v7.1 upgrade security review's B1: `$TMPDIR` or a `mktemp` variable at the start of a target made it
+    scratch, wherever the rest led. The target is resolved where it lands now, and a variable this text
+    assigned something else, or one it never assigned, is not scratch."""
+    why = _bash(guard, command, ungoverned)
+    assert why and "destructive" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    'd=$(mktemp -d); rm -rf "$d"', 'rm -rf "$TMPDIR/foo"', "rm -rf $TMPDIR/foo/bar", "rm -rf ${TMPDIR}/foo",
+    'd=$(mktemp -d) && rm -rf "$d/sub"', "D=`mktemp -d`; rm -rf $D", 'TMPDIR=$(mktemp -d); rm -rf "$TMPDIR/x"',
+    "find $TMPDIR/foo -delete",
+])
+def test_rm_rf_of_a_temp_variables_own_scratch_is_allowed(guard: ModuleType, temp_dir: Path, ungoverned: Path,
+                                                          command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
+
+
+@pytest.mark.parametrize(("command", "where"), [
+    ("rm -rf .", "."), ("rm -rf .git", "."), ("rm -rf ios", "."), ("rm -rf ./ios ./.git", "."), ("rm -rf ../", "."),
+    ("rm -rf ..", "ios"), ("rm -fr ../repo", "ios"), ("find . -delete", "."), ("find ios -delete", "."),
+])
+def test_rm_rf_in_above_or_of_a_work_tree_under_the_temp_directory_is_refused(guard: ModuleType, repo: Path,
+                                                                              command: str, where: str) -> None:
+    """The v7.1 upgrade security review's MAJOR-1 (round 1's M2): this project's work trees and review seats
+    live under the system temp directory, so "under a temp directory" let `rm -rf .` remove one."""
+    why = _bash(guard, command, repo / where)
+    assert why and ("destructive" in why or "#282" in why), (command, why)
+
+
+def test_rm_rf_of_a_temp_directory_that_holds_work_trees_is_refused(guard: ModuleType, repo: Path,
+                                                                    ungoverned: Path) -> None:
+    """`rm -rf /private/tmp/claude-501` held every session's tree; here the directory holding `repo`."""
+    why = _bash(guard, f"rm -rf {repo.parent}", ungoverned)
+    assert why and "destructive" in why, why
+    why = _bash(guard, f"rm -rf {repo.parent}/elsewhere {repo}", ungoverned)
+    assert why and "destructive" in why, why
+
+
+@pytest.mark.parametrize(("command", "where"), [
+    ("rm -r .", "."), ("rm -R ./", "."), ("rm -r ..", "ios"), ("rm --recursive ../../repo", "ios"),
+    ("mv ../repo ../gone", "."), ("mv . ../gone", "."), ("mv -t /x ../repo", "."), ("cd .. && mv repo gone", "."),
+    ("git rm -r .", "."), ("git mv ../../repo ../../gone", "ios"),
+])
+def test_removing_or_moving_what_holds_a_work_trees_claude_or_githooks_is_refused(guard: ModuleType, repo: Path,
+                                                                                  command: str, where: str) -> None:
+    """#282: the owner's-directory rule asked only whether a path lay inside `.claude/` or `.githooks/`, so a
+    directory that holds them -- the work tree's root, or a directory above it -- could be removed or moved."""
+    why = _bash(guard, command, repo / where)
+    assert why and "#282" in why, (command, why)
+
+
+@pytest.fixture
+def seat(repo: Path) -> Path:
+    """A throwaway worktree under `.claude/worktrees/`, a full checkout with its own `.claude/` and `.githooks/`."""
+    tree = repo / ".claude" / "worktrees" / "seat"
+    for d in ("src", ".claude/hooks", ".githooks"):
+        (tree / d).mkdir(parents=True)
+    (tree / ".git").write_text("gitdir: ../../../.git/worktrees/seat\n", encoding="utf-8")
+    return tree
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf .claude/worktrees/seat", "rm -r .claude/worktrees/seat", "rm -rf .claude/worktrees/seat/src",
+    "git worktree remove .claude/worktrees/seat", "git worktree remove --force .claude/worktrees/seat",
+    "rm -r ios", "mv ios/a ios/b", "git rm -r ios", "git mv ios mobile", "rm file.txt", "mv -t . ios/a",
+    "git rm -r --cached .",
+])
+def test_a_throwaway_worktree_and_ordinary_paths_may_still_be_removed(guard: ModuleType, repo: Path, seat: Path,
+                                                                      command: str) -> None:
+    """MAJOR-1's exception: `.claude/worktrees/<name>`. `git worktree remove [--force] <path>` is how an agent
+    drops its own throwaway worktree (git also prunes its record); the guard allows it."""
+    assert _bash(guard, command, repo) is None, command
+
+
+def test_rm_rf_of_scratch_that_holds_no_work_tree_is_allowed(guard: ModuleType, ungoverned: Path) -> None:
+    """A `git archive` copy has the owner's directories and no `.git`: it is no work tree, so it is scratch."""
+    copy = ungoverned.parent / "copy"
+    for d in (".claude/hooks", ".githooks", "src"):
+        (copy / d).mkdir(parents=True)
+    (copy / ".claude" / "hooks" / "bash_guard.py").write_text("x\n", encoding="utf-8")
+    assert _bash(guard, f"rm -rf {copy}", ungoverned) is None
+    assert _bash(guard, "rm -rf build", ungoverned) is None
+
+
+def _git_init(where: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(where)], check=True, capture_output=True, timeout=60)
+
+
+@pytest.fixture
+def foreign(ungoverned: Path) -> Path:
+    """Another repository, with a brief and a `scripts/deploy_gate.py` of its own that leaves a mark when run."""
+    other = ungoverned.parent / "foreign"
+    (other / "docs").mkdir(parents=True)
+    (other / "scripts").mkdir()
+    (other / "docs" / "project-brief.md").write_text("- **Deploy commands:** `vercel deploy`\n", encoding="utf-8")
+    (other / "scripts" / "deploy_gate.py").write_text(
+        "import pathlib\npathlib.Path(__file__).with_name('RAN').write_text('x')\n", encoding="utf-8")
+    _git_init(other)
+    return other
+
+
+@pytest.fixture
+def gated(ungoverned: Path) -> Path:
+    """The project root (`$CLAUDE_PROJECT_DIR`) with its own deploy gate."""
+    (ungoverned / "scripts").mkdir()
+    for name in ("deploy_gate.py", "brief_fields.py"):
+        (ungoverned / "scripts" / name).write_bytes((ROOT / "scripts" / name).read_bytes())
+    return ungoverned
+
+
+def test_another_repositorys_deploy_gate_never_runs(guard: ModuleType, gated: Path, foreign: Path) -> None:
+    """The v7.1 upgrade security review's MAJOR-2: the hook ran `scripts/deploy_gate.py` from whatever work
+    tree the call ran in, so a cloned repository's script ran on the next `ls`. Only the project's own gate
+    runs; the tree the call runs in still governs, so its declared deploy is refused by that gate."""
+    assert _bash(guard, "ls", foreign) is None
+    why = _bash(guard, "vercel deploy", foreign)
+    assert why and "is a deploy" in why, why
+    assert not (foreign / "scripts" / "RAN").exists()
+
+
+def test_another_repositorys_deploy_gate_never_runs_with_no_project_dir(guard: ModuleType, foreign: Path,
+                                                                        monkeypatch: pytest.MonkeyPatch) -> None:
+    """With `$CLAUDE_PROJECT_DIR` unset, the project root is the checkout the guard file lives in."""
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    assert _bash(guard, "ls", foreign) is None
+    assert not (foreign / "scripts" / "RAN").exists()
+
+
+def test_a_project_whose_gate_is_missing_refuses_even_from_another_repository(guard: ModuleType, foreign: Path,
+                                                                              ungoverned: Path) -> None:
+    """Fails closed: a brief declares deploys and the project root has no gate; another tree's is no stand-in."""
+    why = _bash(guard, "ls", foreign)
+    assert why and "has no scripts/deploy_gate.py" in why and str(ungoverned) in why, why
+    assert not (foreign / "scripts" / "RAN").exists()
+
+
+@pytest.mark.parametrize("command", [
+    "git config alias.nuke 'reset --hard' && git nuke", "git -c alias.p='push --force' p",
+    "git config --global alias.pm 'push origin main'", "git config alias.x '!rm -rf /'",
+    "git config set alias.x '!git push origin main'", "git -c 'alias.y=!sh -c \"git reset --hard\"' y",
+    "git config alias.c 'commit --no-verify'", "git --config-env=alias.z=ENV z",
+    "ssh host rm -rf /srv/data", "ssh -p 22 -i key host 'git push origin main'", "ssh host rm -rf build",
+    "ssh -o BatchMode=yes -- host git reset --hard", "ssh host 'fly deploy'",
+])
+def test_a_git_alias_and_an_ssh_command_are_judged_by_what_they_run(guard: ModuleType, ungoverned: Path,
+                                                                     command: str) -> None:
+    """The v7.1 upgrade security review's M1: `main` refused these as text and v7.1 let them through. An alias's
+    value is judged as the git subcommand it names, or as shell text after `!`; `ssh`'s remote words as a
+    command, a relative path in them resolved from the remote home, never a local temp directory."""
+    assert _bash(guard, command, ungoverned), command
+
+
+@pytest.mark.parametrize("command", [
+    "git config alias.st status", "git config alias.lg 'log --oneline --graph'", "git -c alias.l='log -1' l",
+    "git config user.name x", "git config --get alias.st", "git config --unset alias.st",
+    "ssh host", "ssh host ls -la", "ssh -i key -p 2222 host uptime", "ssh host 'fly status'",
+])
+def test_a_harmless_git_alias_and_ssh_command_are_allowed(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
