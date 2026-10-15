@@ -1,23 +1,59 @@
-"""#189: the Bash guard's second reading, and the Write and Edit hook's refusal (`--write`).
+#!/usr/bin/env python3
+"""The Bash guard: every Bash tool call, read as the shell splits it, judged one simple command at a time.
 
-The text guard in `.claude/settings.json` runs first, unchanged. This one reads the command with a lexer of
-its own and judges each simple command it finds. It is a best effort against an agent's ordinary commands,
-not a parser of bash or zsh, and it only adds blocks to the text guard's. Given `--write`, it judges the Write
-or Edit call's `file_path` instead: a `.env` file (permission-matrix.md S6), or a path `protected` refuses.
+`.claude/settings.json` runs this as the PreToolUse hook for `Bash`, and with `--write` as the PreToolUse
+hook for `Write`, `Edit` and `MultiEdit`, each after checking its sha256 against the pin written there
+(`make guard-pin` rewrites both pins; INSTALL.md, "Changing the Bash guard"). The hook's JSON arrives on
+stdin; exit 2 refuses the call with one `BLOCKED:` line on stderr, exit 0 allows it.
 
-What it blocks:
-- `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185);
+Until this file existed the guard was a set of regular expressions over the raw text. Measured in two
+field projects over two weeks: every refusal it made on a deploy command was wrong (a commit message, an
+issue comment, a heredoc, a self-test that mentioned the command), the commit message `... on main (#90)`
+matched the push-main rule, a heredoc holding `git checkout -- .` matched the destructive rule, sixteen
+refusals were `rm -rf` of the agent's own scratch directory, and the two evasions the field saw
+(`a=xcodebuild; $a ...`, a reviewer switching to the Write tool) were both provoked by a wrong refusal.
+A lexer reads the command the way the shell will: quoted text is data, a here-document's body is data,
+and a rule looks only at the words in command position.
+
+What it refuses, each in one simple command:
+- refused: `git push` that forces (`-f`, `--force`, `--force-with-lease`, `--force-if-includes`, a `+ref`),
+  mirrors, pushes every branch (`--all`, `--branches`), names `main`, `master` or `trunk` as the
+  destination (`main`, `HEAD:main`, `heads/main`, `refs/heads/main`), or runs behind `xargs`;
+- `git reset --hard`; `git clean -f`; `git checkout --`, `.`, `-f`, or a tree-ish followed by paths;
+  `git switch -f` or `--discard-changes`; `git stash clear`; `git restore` without `--staged` or with
+  `--worktree`. A git long option counts in any unique prefix, as git reads it;
+- a skipped hook, refused: `--no-verify` (or a prefix of it git reads as it), `git commit -n`, and a `core.hooksPath`
+  set on the command line (`-c`, `--config-env`); `git update-ref` naming `main`, `master` or `trunk`;
+- a shell write to a secrets file by name (`.env`, `.env.<x>` but `.env.example`, `.env.sample` and
+  `.env.template`, `<x>.env`, `.envrc`): a redirection, `tee`, or the destination of `cp`, `mv`, `install`
+  or `ln` (with `-t`, every source's name too);
+- `rm` both recursive and forced, and `find ... -delete`, unless every target is scratch: under `$TMPDIR` or
+  the system temp directory (the session scratchpad lives there), a `mktemp` result assigned earlier in the
+  same command (`d=$(mktemp -d) && rm -rf "$d"`), or a worktree under `.claude/worktrees/`. A relative target
+  is resolved from every directory the command may run in (WHERE, below) and must be scratch from each;
+- refused: `gh pr merge` and `gh pr ready` with flags anywhere (`gh -R a/b pr merge`, `gh pr -R a/b merge`),
+  `gh api` on `/pulls/<n>/merge`, and `gh api` on `/protection` or `/rulesets` with a mutating method
+  or a field (`-X PUT`, `--method delete`, `-f`, `-F`, `--input`, `--raw-field`);
+- a declared deploy command (`Deploy commands:` in `docs/project-brief.md`) while `scripts/deploy_gate.py`
+  refuses it: the repository is the git work tree of the directory the call runs in when it carries a
+  brief, else `$CLAUDE_PROJECT_DIR`; a brief with no `scripts/deploy_gate.py` beside it refuses every
+  call, never skips. The gate matches the declared words at command position, case-insensitively, by the
+  program's basename: `FLY DEPLOY`, `fly  deploy`, `'fly' deplo'y'`, `/usr/local/bin/fly deploy`,
+  `sudo fly deploy`, `bash -c 'fly deploy'` and `a=fly; $a deploy` are all the deploy; `echo 'fly deploy'`
+  and `git commit -m 'fly deploy notes'` are not;
+- a program word written as a pattern (`gi*`, `{git,ls}`), which could name anything.
+
+This project's own rules (model_ranking, carried over from its M21 guard in the DevFlow v7.1 upgrade):
+- `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185),
+  whatever the deploy gate says: the hosted engine is deployed and destroyed by the owner only;
 - `deploy_hosted_engine.sh` run with anything but exactly `--dry-run` (D-185);
-- blocked too: a `git push` that forces, mirrors, pushes every branch, names main, master or trunk as its
-  destination (`main`, `heads/main`, `refs/heads/main`), or runs behind `xargs` (AGENTS.md S3);
-- `git reset --hard`, `git clean -f`, `git checkout --`, `.`, `-f` or a tree-ish with paths, `git switch -f`
-  or `--discard-changes`, `git stash clear`, `git restore` without `--staged` or with `--worktree`, and `rm`
-  both recursive and forced (permission-matrix.md S5). A git long option counts in any unique prefix;
 - a write into the `.claude/` or `.githooks/` of any git work tree, the owner's hooks and settings (the M21
   closure security seat's S3): a redirection there; `rm`, `mv`, `tee`, `touch`, `chmod` and their kind on a
   path there; `cp`, `ln`, `install`, `rsync`, `ditto` or `dd` with a destination there (the last word, or
   `-t`/`--target-directory` for `cp`, `mv`, `ln` and `install`, or `of=` for `dd`); `sed -i` or `perl -i` on
-  one; and `git rm`, `git mv`, `git checkout` or `git restore` naming one. Reading them is not refused.
+  one; and `git rm`, `git mv`, `git checkout` or `git restore` naming one. Reading them is not refused. The
+  one exception is v7.1's scratch rule: `rm` of a directory under `.claude/worktrees/<name>` (a worktree's
+  own `.claude/` and `.githooks/` stay refused, below).
   In a cluster of short options, `t` is `-t` only before any letter that takes a value (VALUED: `install
   -ostaff` names an owner); a `t` after one is doubt, and then every operand is judged a destination, as
   for `install -d` (the fixes review's round 3, M2).
@@ -28,73 +64,109 @@ What it blocks:
   repository's `.claude/worktrees/`. The path is refused when the directory directly below that work tree's
   root is named `.claude` or `.githooks`, in any case. Claude Code's own `~/.claude` is not refused, as no
   `.git` sits above it.
-  The directory a command runs in (`_linear`): when the text is only simple commands joined by `;`, `&&`,
-  `||`, newlines and pipes, with no `cd` in a pipe or a substitution and each `cd`, `pushd` or `chdir` to a
-  plain directory (no variable, substitution, glob, `-` or `~user`, and no `CDPATH` set), each command is
-  judged from the directories it can run in: a `cd` that succeeds moves there, one that fails stays, and
-  `&&` and `||` follow the status. Otherwise (a subshell, a group, a loop, `&`, `eval`, `source`, `popd`, a
-  `cd` this cannot read) every directory a `cd` reached is kept, each `cd` taken from each of them
+  Given `--write`, the guard judges the Write or Edit call's `file_path` instead: a secrets file by name
+  (the shell rule's names), or a path `protected` refuses.
+- The directories a command runs in (WHERE; `_linear`): when the text is only simple commands joined by
+  `;`, `&&`, `||`, newlines and pipes, with no `cd` in a pipe or a substitution and each `cd`, `pushd` or
+  `chdir` to a plain directory (no variable, substitution, glob, `-` or `~user`, and no `CDPATH` set), each
+  command is judged from the directories it can run in: a `cd` that succeeds moves there, one that fails
+  stays, and `&&` and `||` follow the status. Otherwise (a subshell, a group, a loop, `&`, `eval`, `source`,
+  `popd`, a `cd` this cannot read) every directory a `cd` reached is kept, each `cd` taken from each of them
   (`_follow`), and a path is refused if it is protected from any of them. Past MAX_DIRS directories, the
   command is not read.
 
-Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`; inside
-`$( )`, backticks (nested ones too), `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
+Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`;
+inside `$( )`, backticks, `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
 assignments, shell keywords and the wrappers in WRAPPERS (after one, every later word is tried as the
-program); inside `bash`, `sh`, `zsh`, `dash`, `ksh`, `csh`, `tcsh` or `fish` given `-c`, a script, a
-here-document or a here-string; and inside `eval`, `source`, `.`, `env -S` and `find -exec`. Text in single
-quotes and a quoted here-document's body are data; a `#` that starts a word starts a comment.
+program); inside `bash`, `sh`, `zsh`, `dash`, `ksh`, `csh`, `tcsh` or `fish` given `-c`, a script name, a
+here-document or a here-string; and inside `eval`, `source`, `.`, `env -S` and `find -exec`. Text in
+single quotes and a quoted here-document's body are data; a `#` that starts a word starts a comment. A
+program named through a variable assigned a literal earlier in the same text (`a=git; $a push`) is read
+as that program.
 
-It blocks what it cannot read, rather than reading it as data: an unclosed quote or substitution; a word
-with `(` written against it (zsh's glob qualifiers, `=( )`); a `${(flags)...}`; a brace expansion, or a
-pattern that could name a guarded program, as a program word; a shell or `source` reading its commands from
-a pipe, a file or stdin; a `-c` with no string; an input over MAX_INPUT characters; and any command it has
-not read within DEADLINE_S seconds, a timer thread that writes the BLOCKED line and exits 2 wherever the
-guard runs (the M21 closure security seat's S2). The thread runs only when Python lets it: a long call into C
-that holds the interpreter (a regex over a long word) runs to its end first, so that case is bounded only by
-the hook's own 30 s timeout and `onFailure: "block"`, from Claude Code 2.1.295 (the fixes review's M6).
+It refuses what it cannot read rather than reading it as data: an unclosed quote or substitution; a word
+with `(` written against it; a `${(flags)...}`; a shell or `source` reading its commands from a pipe, a
+file or stdin; a `-c` with no string; an input over MAX_INPUT characters; a payload that is not JSON; and
+any call it has not finished judging within DEADLINE_S seconds (a timer thread writes the line and exits
+2, where SIGALRM does not exist too; the M21 closure security seat's S2). A long call into C that holds the
+interpreter runs to its end first; the hook's own `timeout` and `"onFailure": "block"` bound that case,
+from Claude Code 2.1.295.
 
-Not held, by class (G-7):
-- a program named when the command runs: through a variable, a substitution, an alias, a function, `hash`,
-  or a `PATH` holding a script of a guarded name;
-- code another program runs: a script's contents, `python -c`, `perl -e`, `node -e`, `awk`'s `system()`,
-  `make` recipes, git hooks and aliases (`git -c alias.x=...`, `git config`), `ssh host cmd`;
+Not held, by class -- said here so nobody believes otherwise:
+- a program named when the command runs: a variable set outside this text, an alias, a function, `hash`,
+  a `PATH` holding a script of a guarded name; `xargs <deploy command>` whose subcommand comes on stdin;
+- code another program runs: a script's contents (`bash x.sh`), `python -c`, `perl -e`, `node -e`,
+  `awk`'s `system()`, `make` recipes, git hooks and aliases, `ssh host cmd`;
 - a wrapper not in WRAPPERS, whose program is then read as an argument;
-- a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an upstream,
-  `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; GitHub's branch protection
-  is the control of record there, the M21 closure security seat's S4);
-- a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, `tar`, an
-  editor), through a path built when the command runs (`$(...)`, a variable set earlier in it, a glob), a
-  hard link made before, or a directory reached by a `cd` this does not follow (one to a built path, through
-  `CDPATH`, `cd -`, or repeated by a loop more than once);
-- what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and braces in
-  arguments;
-- syntax this lexer does not model: it reads POSIX-like shell, and zsh's grammar beyond the forms above is
-  not held.
-Exit 2 blocks, with one line on stderr; exit 0 allows. The payload is the hook's JSON on stdin.
+- a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an
+  upstream, `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; branch
+  protection on the remote is the control there, the M21 closure security seat's S4);
+- a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, `tar`,
+  an editor), through a path built when the command runs (`$(...)`, a glob), a hard link made before, or a
+  directory reached by a `cd` this does not follow (one to a built path, through `CDPATH`, `cd -`, or
+  repeated by a loop more than once);
+- what the shell expands when the command runs, beyond the program word: `IFS`, history, globs and
+  braces in arguments; syntax beyond POSIX-like shell.
+Stdlib only, Python 3.11 or later.
 """
 
 from __future__ import annotations
 
 import codecs
-import fnmatch
 import json
 import os
 import re
+import subprocess
 import sys
+import tempfile
 import threading
 from dataclasses import dataclass, field
 
-#: The longest command this reads; a longer one is blocked (the session's longest was under 20 000).
+#: The longest command this reads; a longer one is refused.
 MAX_INPUT = 32768
-#: How long the guard may read; past it, it blocks.
-DEADLINE_S = 5.0
-#: The owner's hooks and settings: the directories of these names at a work tree's root (the M21 closure
-#: security seat's S3; `protected`).
-OWNED = (".claude", ".githooks")
-#: The directories the command may run in: the payload's `cwd`, then each a `cd` in it reaches (`_follow`).
+#: How long the guard may take; past it, it refuses.
+DEADLINE_S = 10.0
+#: The directories the command may run in: the payload's `cwd`, then each a `cd` in it reaches (`_follow`,
+#: `_linear`). Relative `rm` targets and written paths resolve from them.
 WHERE: dict[str, list[str]] = {"dirs": []}
 #: More directories than this, and the command is not read.
 MAX_DIRS = 64
+#: `name -> literal value` for assignments seen in this text, or SCRATCH for a `mktemp` result.
+SCOPE: dict[str, object] = {}
+SCRATCH = object()
+#: Every word list in program position, for the deploy gate: `[program, arg, ...]`.
+CANDIDATES: list[list[str]] = []
+
+#: Words that run the command after them; every later word is tried as that command.
+WRAPPERS = {"env", "command", "builtin", "time", "exec", "nohup", "nice", "sudo", "doas", "xargs", "timeout",
+            "gtimeout", "caffeinate", "coproc", "noglob", "nocorrect", "-", "repeat", "function", "stdbuf",
+            "setsid", "watch", "unbuffer", "script", "chronic", "ionice", "taskpolicy"}
+#: Shell words a command follows on its line: `then git push` runs `git push`.
+KEYWORDS = {"if", "then", "else", "elif", "do", "while", "until", "!", "fi", "done", "esac", "[", "[["}
+#: Builtins whose assignment-shaped arguments set variables.
+SETTERS = {"export", "declare", "local", "typeset", "readonly"}
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "csh", "tcsh", "fish"}
+#: A shell or `source` given one of these reads its commands from stdin.
+STDIN_PATHS = {"-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
+PROTECTED = {"main", "master", "trunk"}
+ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=")
+VARIABLE = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?")
+MKTEMP = re.compile(r"^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*g?mktemp\b")
+#: This project's hosted-engine deploy script (D-185).
+DEPLOY = "deploy_hosted_engine.sh"
+#: The programs this guard reads; a program word written as a pattern is refused outright.
+GUARDED = {"git", "rm", "gh", "eval", "source", ".", "find", "fly", "flyctl", DEPLOY, *SHELLS, *WRAPPERS, *SETTERS}
+#: `gh` flags that take a value, so the value is not read as a subcommand word.
+GH_VALUED = {"-R", "--repo", "--hostname", "-X", "--method", "-f", "--field", "-F", "--raw-field",
+             "--input", "-H", "--header", "-q", "--jq", "-t", "--template", "-p", "--preview", "-b",
+             "--body", "-B", "--body-file", "--title", "-m", "--subject", "-a", "--assignee", "-l",
+             "--label", "-r", "--reviewer", "-A", "--author", "--match", "-c", "--comment", "--cache",
+             "-e", "--editor", "-s", "--search", "-S", "--state", "-L", "--limit", "-M", "--milestone"}
+GH_MUTATING = {"PUT", "PATCH", "POST", "DELETE"}
+
+#: The owner's hooks and settings: the directories of these names at a work tree's root (the M21 closure
+#: security seat's S3; `protected`).
+OWNED = (".claude", ".githooks")
 #: The commands that change the shell's directory, and the words that make a list one `_linear` cannot follow:
 #: shell grammar, and builtins that run text or change the directory in ways this does not read.
 DIR_CHANGES = {"cd", "pushd", "chdir"}
@@ -108,28 +180,37 @@ CHANGES_LAST = {"cp", "ln", "install", "rsync", "dd", "ditto"}
 TARGET_OPTION = {"cp", "mv", "ln", "install"}
 #: Their short options that take a value (GNU's and BSD's): in a cluster, every letter after one is its value.
 VALUED = {"install": set("BDfghlmMNoST"), "cp": {"S"}, "mv": {"S"}, "ln": {"S"}}
-#: `fly` subcommands an agent may run: each reads, none changes the hosted engine.
+#: `fly` subcommands an agent may run: each reads, none changes the hosted engine (D-185).
 READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoami"), ("apps", "list"),
                  ("releases",), ("machine", "list"), ("machine", "status"), ("machines", "list"),
                  ("scale", "show"), ("secrets", "list"), ("config", "show"), ("ips", "list"),
                  ("checks", "list"), ("volumes", "list")}
-#: Words that run the command after them; every later word is tried as that command.
-WRAPPERS = {"env", "command", "builtin", "time", "exec", "nohup", "nice", "sudo", "doas", "xargs", "timeout",
-            "gtimeout", "caffeinate", "coproc", "noglob", "nocorrect", "-", "repeat", "function", "stdbuf",
-            "setsid", "watch", "unbuffer", "script", "chronic", "ionice", "taskpolicy"}
-#: Shell words a command follows on its line: `then fly deploy` runs `fly deploy`.
-KEYWORDS = {"if", "then", "else", "elif", "do", "while", "until", "!", "fi", "done", "esac", "[", "[["}
-SHELLS = {"bash", "sh", "zsh", "dash", "ksh", "csh", "tcsh", "fish"}
-#: A shell or `source` given one of these reads its commands from stdin.
-STDIN_PATHS = {"-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
-PROTECTED = {"main", "master", "trunk"}
-ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=")
-DEPLOY = "deploy_hosted_engine.sh"
-#: The programs this guard reads; a program word written as a pattern that could match one is blocked.
-GUARDED = {"fly", "flyctl", DEPLOY, "git", "rm", "eval", "source", ".", "find", *SHELLS, *WRAPPERS}
+
 DESTRUCTIVE = "BLOCKED: destructive command (C.9, permission-matrix.md S5). Escalate to the owner instead."
+RESTORE = ("BLOCKED: `git restore` without --staged, or with --worktree, discards uncommitted work "
+           "(permission-matrix.md S5). Revert in place, or use --staged to unstage only.")
 PROTECTED_PUSH = ("BLOCKED: the agent never pushes the protected branch (AGENTS.md S3). Push YOUR branch and open a "
                   "draft PR; a human marks it ready and merges.")
+NO_VERIFY = ("BLOCKED: `--no-verify` and a redirected `core.hooksPath` skip the gate a hook runs (AGENTS.md S3): "
+             "a hook you skipped is a gate you removed. Fix what is red, or ask the owner.")
+ENV_WRITE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (default-deny secrets)."
+PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch's ref (AGENTS.md S3): "
+                 "the default branch is the human's.")
+ENV_EXEMPT = {".env.example", ".env.sample", ".env.template"}
+GH_MERGE = ("BLOCKED: a human marks a pull request ready and merges it, never the agent (AGENTS.md S3). "
+            "Leave the draft for the owner.")
+GH_PROTECTION = "BLOCKED: branch protection and rulesets are the owner settings (AGENTS.md S3). Propose the change and stop."
+NOT_JSON = "BLOCKED: this guard cannot read the tool call -- the payload is not a JSON object."
+GATE_MISSING = ("BLOCKED: deploy gate -- {root} declares deploy commands in docs/project-brief.md and has no "
+                "scripts/deploy_gate.py, so no command can be told from a deploy. Restore the script "
+                "(INSTALL-MANIFEST.md); the guard never skips this check.")
+OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings; an agent does not write them "
+          "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
+FLY = ("BLOCKED: `{shown}` may change the hosted engine, and only the owner runs that, in their own terminal "
+       "(D-185, permission-matrix.md S3); an agent may run only the read-only subcommands.")
+DEPLOY_SCRIPT = ("BLOCKED: the hosted engine is deployed by the owner, in their own terminal (D-185); an agent "
+                 "may run the script with --dry-run only.")
+
 #: Each git subcommand's long options, so a unique prefix is read as the option git reads it as.
 GIT_LONG = {
     "push": ["--all", "--branches", "--mirror", "--tags", "--follow-tags", "--force", "--force-with-lease",
@@ -158,7 +239,7 @@ GIT_LONG = {
 
 
 class Unreadable(Exception):
-    """A command this cannot read; it is blocked, never allowed."""
+    """A command this cannot read; it is refused, never allowed."""
 
 
 @dataclass
@@ -167,6 +248,7 @@ class Word:
     glob: bool = False      # an unquoted * ? [ or { in it
     equals: bool = False    # it starts with an unquoted = (zsh's path expansion)
     quoted: bool = False    # some part of it was quoted
+    subs: list[str] = field(default_factory=list)   # the text of each `$( )` or backtick in it
 
 
 @dataclass
@@ -175,14 +257,15 @@ class Command:
     fed: list[str] = field(default_factory=list)   # here-document bodies and here-strings it reads
     piped: bool = False                             # its stdin is a pipe
     from_file: bool = False                         # its stdin is a file
-    writes: list[str] = field(default_factory=list)  # the paths its redirections write
-    joined: str = ""                                # what joins it to the command before: `;`, `&&`, `||`, `|`
+    writes: list[Word] = field(default_factory=list)   # the targets of its `>`, `>>`, `>|`, `&>`, `<>`, `>&`
+    joined: str = ""                                # what joins it to the command before
     inner: int = 0                                  # inside a substitution or a here-document's expansion
 
 
 class _Builder:
     def __init__(self) -> None:
         self.parts: list[str] = []
+        self.subs: list[str] = []
         self.glob = self.equals = self.quoted = False
 
     def add(self, text: str, quoted: bool) -> None:
@@ -195,7 +278,7 @@ class _Builder:
         self.parts.append(text)
 
     def word(self) -> Word:
-        return Word("".join(self.parts), self.glob, self.equals, self.quoted)
+        return Word("".join(self.parts), self.glob, self.equals, self.quoted, list(self.subs))
 
 
 class Lexer:
@@ -300,7 +383,7 @@ class Lexer:
 
     def _bodies(self) -> None:
         """At a newline: each here-document opened on the line just ended takes the lines up to its delimiter
-        (to the end, if none). An unquoted delimiter's body is expanded as the shell expands it."""
+        (to the end, if none). The body is data; an unquoted delimiter's body has its substitutions judged."""
         for delimiter, tabs, quoted, owner in self.pending:
             lines: list[str] = []
             while self.i < len(self.s):
@@ -336,10 +419,16 @@ class Lexer:
             self.pending.append((target.text, op == "<<-", target.quoted, cmd))
         elif op == "<<<":
             cmd.fed.append(target.text)
-        elif op in ("<", "<>", "<&"):
+        elif op in ("<", "<&"):
             cmd.from_file = True
-        if op in ("&>>", "&>", ">>", ">|", ">", "<>"):
-            cmd.writes.append(target.text)
+        elif op == "<>":  # opened for reading and writing
+            cmd.from_file = True
+            cmd.writes.append(target)
+        elif op == ">&":  # `>&2`, `>&-` move a descriptor; `>& file` writes the file (bash, zsh)
+            if not target.text.isdigit() and target.text != "-":
+                cmd.writes.append(target)
+        elif op in (">", ">>", ">|", "&>", "&>>"):
+            cmd.writes.append(target)
 
     # --- the word level ------------------------------------------------------------------------------
     def _word(self) -> Word:
@@ -428,7 +517,9 @@ class Lexer:
             self.i = end
         elif s.startswith("$(", self.i):  # `$((cmd) )` too: a substitution holding a subshell
             self.i += 2
+            start = self.i
             self._substitution(")")
+            b.subs.append(s[start:self.i - 1])
             b.add("$(...)", True)
         elif s.startswith("${", self.i):
             end = self._brace_end(self.i + 2)
@@ -436,7 +527,7 @@ class Lexer:
             if inner.startswith("("):
                 raise Unreadable("a `${(flags)...}`, which zsh may evaluate")
             self._expansions(inner)
-            b.add("${...}", True)
+            b.add("${" + inner + "}", True)
             self.i = end + 1
         else:
             name = re.match(r"\$([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-])", s[self.i:])
@@ -509,6 +600,7 @@ class Lexer:
         sub.parse()
         sub._bodies()
         self._nested(sub.commands)
+        b.subs.append(inner)
         b.add("$(...)", True)
         self.i = j + 1
 
@@ -524,7 +616,8 @@ class Lexer:
 # --- judging ------------------------------------------------------------------------------------------
 
 def judge_text(text: str, depth: int = 0) -> str | None:
-    """Why the command must be blocked, or None."""
+    """Why the command must be refused, or None. Every simple command in it is judged in order, each from
+    the directories it may run in (`_linear`, else `_follow`)."""
     if len(text) > MAX_INPUT:
         raise Unreadable(f"the command is over {MAX_INPUT} characters")
     text = text.replace("\r\n", "\n").replace("\r", "\n")
@@ -547,17 +640,61 @@ def judge_text(text: str, depth: int = 0) -> str | None:
     return None
 
 
+def _assign(word: Word) -> None:
+    """Record `name=value` for the rest of this text: a literal, a `mktemp` result, or unknown."""
+    name, _, value = word.text.partition("=")
+    if name.endswith("+") or "[" in name:
+        SCOPE.pop(name.rstrip("+"), None)
+        return
+    if any(MKTEMP.match(sub) for sub in word.subs):
+        SCOPE[name] = SCRATCH
+    elif "$" not in value and not word.glob:
+        SCOPE[name] = value
+    else:
+        SCOPE.pop(name, None)
+
+
+def _expand(text: str) -> str:
+    """A word with each `$name` or `${name}` replaced by the literal assigned to it earlier in this text.
+    A variable this text did not assign a literal to stays as written."""
+    def one(m: re.Match) -> str:
+        value = SCOPE.get(m.group(1))
+        return value if isinstance(value, str) else m.group(0)
+    return VARIABLE.sub(one, text)
+
+
+def _env_file(text: str) -> bool:
+    """A secrets file by name: `.env`, `.env.<anything>` but the documented examples, `<x>.env`, or `.envrc`
+    -- the Write/Edit guard's rule, so a shell cannot write what the editor may not."""
+    name = text.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+    if name in ENV_EXEMPT:
+        return False
+    return name in (".env", ".envrc") or name.startswith(".env.") or name.endswith(".env")
+
+
 def judge_command(cmd: Command, depth: int) -> str | None:
     """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
-    if any(_owners(path) for path in cmd.writes):
-        return OWNERS
     words = cmd.words
+    written = [_expand(w.text) for w in cmd.writes]
+    # The Write/Edit guard refuses a `.env` file and the owner's directories; a shell redirection is the same write.
+    if any(_env_file(t) for t in written):
+        return ENV_WRITE
+    if any(_owners(t) for t in written):
+        return OWNERS
     start = 0
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
+        if ASSIGNMENT.match(words[start].text):
+            _assign(words[start])
         start += 1
     if start >= len(words):
         return None
-    if _program(words[start]) not in WRAPPERS:
+    first = _program(words[start])
+    if first in SETTERS:
+        for w in words[start + 1:]:
+            if ASSIGNMENT.match(w.text):
+                _assign(w)
+        return None
+    if first not in WRAPPERS:
         return judge_words(words[start:], cmd, depth)
     xargs_at, tried = len(words), 0
     for k in range(start, len(words)):
@@ -577,27 +714,20 @@ def judge_command(cmd: Command, depth: int) -> str | None:
                 j += 1
         if k > start and word.text.startswith("-") and word.text != "-":
             continue
+        if ASSIGNMENT.match(word.text):
+            continue
         if program in WRAPPERS and k != len(words) - 1:
             continue
-        if program in GUARDED or word.glob or word.equals:
-            tried += 1
-            if tried > 64:
-                raise Unreadable("more than 64 guarded programs behind wrappers")
-            if (why := judge_words(words[k:], cmd, depth, behind_xargs=xargs_at < k)):
-                return why
+        tried += 1
+        if tried > 64:
+            raise Unreadable("more than 64 words behind wrappers")
+        if (why := judge_words(words[k:], cmd, depth, behind_xargs=xargs_at < k)):
+            return why
     return None
 
 
 def _program(word: Word) -> str:
-    return os.path.basename(word.text[1:] if word.equals else word.text)
-
-
-def _could_name_guarded(pattern: str) -> bool:
-    """Whether a pattern in a program word could be a guarded program. A brace expansion is not enumerated:
-    it is taken as one that could."""
-    if re.search(r"\{[^{}]*(,|\.\.)[^{}]*\}", pattern):
-        return True
-    return any(fnmatch.fnmatchcase(guarded, os.path.basename(pattern)) for guarded in GUARDED)
+    return os.path.basename(_expand(word.text[1:] if word.equals else word.text))
 
 
 def _unique(option: str, wanted: str, known: list[str]) -> bool:
@@ -610,24 +740,25 @@ def _unique(option: str, wanted: str, known: list[str]) -> bool:
 
 def _stdin(cmd: Command, depth: int, who: str) -> str | None:
     """A shell or `source` reading its commands from stdin: its here-documents and here-strings are read;
-    a pipe or a file is not, so it is blocked."""
+    a pipe or a file is not, so it is refused."""
     if cmd.fed and not cmd.piped and not cmd.from_file:
         for text in cmd.fed:
             if (why := judge_text(text, depth + 1)):
                 return why
         return None
-    return (f"BLOCKED: {who} reading its commands from a pipe, a file or stdin, which this guard cannot read "
-            "(#189); run the commands themselves, or the script by its name.")
+    return (f"BLOCKED: {who} reading its commands from a pipe, a file or stdin, which this guard cannot read; "
+            "run the commands themselves, or the script by its name.")
 
 
-def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool = False) -> str | None:
+def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool = False) -> str | None:  # noqa: C901
     first = words[0]
-    if first.glob and _could_name_guarded(first.text):
-        return (f"BLOCKED: `{first.text}` names its program by a pattern that could be a guarded program, "
-                "which this guard cannot read (#189); write the program's name.")
+    if first.glob:
+        return (f"BLOCKED: `{first.text}` names its program by a pattern, which this guard cannot read; "
+                "write the program's name.")
     program = _program(first)
     args = [w.text for w in words[1:]]
-    if (why := _writes_protected(program, args)):
+    CANDIDATES.append([_expand(first.text[1:] if first.equals else first.text)] + args)
+    if (why := _writes_protected(program, [_expand(a) for a in args])):
         return why
     if program == "eval":
         return judge_text(" ".join(args), depth + 1)
@@ -636,6 +767,18 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
     if program in ("source", ".") and args:
         return _stdin(cmd, depth, f"`{program}`") if args[0] in STDIN_PATHS else judge_words(words[1:], cmd, depth)
     if program == "find":
+        if "-delete" in args:
+            # The starting points are the words before the first expression token; `-delete` under
+            # anything but scratch removes files this guard would refuse `rm -rf` on.
+            starts: list[Word] = []
+            for w in words[1:]:
+                if w.text.startswith("-") or w.text in ("(", ")", "!"):
+                    break
+                starts.append(w)
+            if any(_owners(_expand(w.text), worktrees=True) for w in starts):
+                return OWNERS
+            if not starts or not all(_scratch(w) for w in starts):
+                return DESTRUCTIVE
         for i, arg in enumerate(args):
             if arg in ("-exec", "-execdir", "-ok", "-okdir"):
                 rest = words[i + 2:]
@@ -643,31 +786,43 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
                 if rest[:end] and (why := judge_words(rest[:end], cmd, depth)):
                     return why
         return None
+    if program in ("tee", "cp", "mv", "install", "ln"):
+        targets = [a for a in args if not a.startswith("-")]
+        option, doubt = _target_option(program, args) if program in TARGET_OPTION else ([], False)
+        # With `-t DIR` every source lands under its own name, so each source's name is a destination too.
+        checked = targets if program == "tee" or option or doubt else targets[-1:]
+        if any(_env_file(_expand(a)) for a in checked + option):
+            return ENV_WRITE
     if program in ("fly", "flyctl"):
         sub = tuple(a for a in args if not a.startswith("-"))
         if behind_xargs or (sub and not any(sub[:len(allowed)] == allowed for allowed in READ_ONLY_FLY)):
-            shown = " ".join(sub[:2]) if sub else "(its arguments from stdin)"
-            return (f"BLOCKED: `{program} {shown}` may change the hosted engine, and only the owner runs that, in "
-                    "their own terminal (D-185); an agent may run only the read-only subcommands.")
+            return FLY.format(shown=f"{program} {' '.join(sub[:2]) if sub else '(its arguments from stdin)'}")
         return None
     if program == DEPLOY and (args != ["--dry-run"] or behind_xargs):
-        return ("BLOCKED: the hosted engine is deployed by the owner, in their own terminal (D-185); an agent "
-                "may run the script with --dry-run only.")
+        return DEPLOY_SCRIPT
     if program == "git":
         return _judge_git(args, behind_xargs)
     if program == "rm":
-        letters = "".join(a[1:] for a in args if a.startswith("-") and not a.startswith("--"))
-        longs = [a for a in args if a.startswith("--")]
-        recursive = "r" in letters or "R" in letters or any(_unique(a, "--recursive", GIT_LONG["rm"]) for a in longs)
-        forced = "f" in letters or any(_unique(a, "--force", GIT_LONG["rm"]) for a in longs)
-        if recursive and forced:
-            return DESTRUCTIVE
+        return _judge_rm(words[1:])
+    if program == "gh":
+        return _judge_gh(args)
     return None
 
 
-OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings; an agent does not write them "
-          "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
-ENV_FILE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (default-deny secrets)."
+# --- the owner's directories: .claude/ and .githooks/ of any work tree --------------------------------
+
+def _owned(path: str, base: str) -> list[str] | None:
+    """The parts of `path`, resolved from `base`, below its work tree's root when the first of them is an
+    owned directory; None when the path is not protected."""
+    target = os.path.realpath(os.path.join(base or os.getcwd(), os.path.expandvars(os.path.expanduser(path))))
+    below, root = target, os.path.dirname(target)
+    while not os.path.lexists(os.path.join(root, ".git")):
+        if os.path.dirname(root) == root:
+            return None
+        below, root = root, os.path.dirname(root)
+    if os.path.basename(below).casefold() not in OWNED:
+        return None
+    return os.path.relpath(target, root).split(os.sep)
 
 
 def protected(path: str, base: str) -> bool:
@@ -676,18 +831,23 @@ def protected(path: str, base: str) -> bool:
     in the work tree whose root is the nearest directory above it holding a `.git` entry, and the directory
     directly below that root is named `.claude` or `.githooks`, in any case. The Bash guard and the Write and
     Edit hook both ask this (round 2's B1; round 3's M1: a worktree inside `.claude/worktrees/` is its own)."""
-    below = os.path.realpath(os.path.join(base or os.getcwd(), os.path.expandvars(os.path.expanduser(path))))
-    root = os.path.dirname(below)
-    while not os.path.lexists(os.path.join(root, ".git")):
-        if os.path.dirname(root) == root:
-            return False
-        below, root = root, os.path.dirname(root)
-    return os.path.basename(below).casefold() in OWNED
+    return _owned(path, base) is not None
 
 
-def _owners(path: str, bases: list[str] | None = None) -> bool:
-    """Whether a path a command writes is protected from any directory the command may run in."""
-    return any(protected(path, base) for base in (bases if bases is not None else WHERE["dirs"]))
+def _in_worktrees(parts: list[str]) -> bool:
+    """`.claude/worktrees/<name>` or below it: v7.1's scratch, which `rm` may remove."""
+    return (len(parts) >= 3 and parts[0].casefold() == ".claude" and parts[1] == "worktrees"
+            and parts[2] not in ("", ".", ".."))
+
+
+def _owners(path: str, bases: list[str] | None = None, worktrees: bool = False) -> bool:
+    """Whether a path a command writes is protected from any directory the command may run in; with
+    `worktrees`, a path under `.claude/worktrees/<name>` is not."""
+    for base in (bases if bases is not None else WHERE["dirs"]) or [os.getcwd()]:
+        parts = _owned(path, base)
+        if parts is not None and not (worktrees and _in_worktrees(parts)):
+            return True
+    return False
 
 
 def _resolved(base: str, path: str) -> str:
@@ -718,7 +878,7 @@ def _changes_into(cmd: Command) -> str | None:
     forms that name no directory (`cd -`, `pushd +1`)."""
     words = [w.text for w in cmd.words]
     i = _in_shell(words, keywords=True)
-    if i >= len(words) or words[i] not in ("cd", "pushd", "chdir"):
+    if i >= len(words) or words[i] not in DIR_CHANGES:
         return None
     rest = words[i + 1:]
     while rest and rest[0].startswith("-") and rest[0] != "-":
@@ -803,8 +963,10 @@ def _linear(lexer: Lexer) -> tuple[list[tuple[Command, list[str]]], list[str]] |
         reached = list(dict.fromkeys(reached + [d for d, _ in states]))
         if len(reached) > MAX_DIRS:
             raise Unreadable(f"the command changes into more than {MAX_DIRS} directories")
-    judged += [(cmd, reached) for cmd in lexer.commands if cmd.inner]
-    return judged, reached
+    # In the lexer's order, so an assignment is known where its variable is used; a substitution's commands
+    # are judged from every directory reached.
+    where = {id(cmd): dirs for cmd, dirs in judged}
+    return [(cmd, where.get(id(cmd), reached)) for cmd in lexer.commands], reached
 
 
 def _follow(commands: list[Command]) -> None:
@@ -865,7 +1027,8 @@ def _install_dirs(args: list[str]) -> bool:
 
 
 def _writes_protected(program: str, args: list[str]) -> str | None:
-    """A write into a work tree's `.claude/` or `.githooks/` by a program this lists (S3; round 2, B1 and M6)."""
+    """A write into a work tree's `.claude/` or `.githooks/` by a program this lists (S3; round 2, B1 and M6).
+    `rm` may remove a directory under `.claude/worktrees/<name>`, v7.1's scratch."""
     paths = [a for a in args if not a.startswith("-")]
     option, doubt = _target_option(program, args) if program in TARGET_OPTION else ([], False)
     if program == "dd":
@@ -876,7 +1039,7 @@ def _writes_protected(program: str, args: list[str]) -> str | None:
         written = option or paths[-1:]   # with `-t`, the last word is a source
     else:
         written = []
-    if any(_owners(a) for a in written):
+    if any(_owners(a, worktrees=program == "rm") for a in written):
         return OWNERS
     in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
                                          for a in args)) or (
@@ -888,7 +1051,7 @@ def _writes_protected(program: str, args: list[str]) -> str | None:
 
 def _git_writes(args: list[str]) -> bool:
     """`git rm`, `git mv`, `git checkout` or `git restore` naming a protected path, from each `-C` directory."""
-    bases, i = list(WHERE["dirs"]), 0
+    bases, i = list(WHERE["dirs"]) or [os.getcwd()], 0
     while i < len(args) and args[i].startswith("-"):
         if args[i] == "-C" and i + 1 < len(args):
             bases = [_resolved(base, args[i + 1]) for base in bases]
@@ -898,13 +1061,125 @@ def _git_writes(args: list[str]) -> bool:
 
 
 def judge_write(path: str, base: str) -> str | None:
-    """The Write and Edit hook (`--write`): a `.env` file, or a path `protected` refuses."""
-    if path.endswith(".env") or ".env." in path:
-        return ENV_FILE
+    """The Write and Edit hook (`--write`): a secrets file by name, or a path `protected` refuses."""
+    if path and _env_file(path):
+        return ENV_WRITE
     if path and protected(path, base):
         return OWNERS
     return None
 
+
+# --- the scratch exemption for rm ---------------------------------------------------------------------
+
+def _temp_bases() -> list[str]:
+    """Where scratch lives: `$TMPDIR`, the interpreter's temp directory, and the usual system ones."""
+    raw = [os.environ.get("TMPDIR"), os.environ.get("TEMP"), os.environ.get("TMP"), tempfile.gettempdir(),
+           "/tmp", "/var/tmp", "/private/tmp", "/private/var/tmp", "/var/folders", "/private/var/folders"]
+    out: list[str] = []
+    for d in raw:
+        if d:
+            real = os.path.realpath(d)
+            if real != os.path.sep and real not in out:
+                out.append(real)
+    return out
+
+
+def _scratch_path(resolved: str) -> bool:
+    parts = resolved.replace("\\", "/").split("/")
+    for i, part in enumerate(parts):
+        if part == ".claude" and i + 2 < len(parts) and parts[i + 1] == "worktrees" and parts[i + 2]:
+            return True
+    for base in _temp_bases():
+        if resolved != base and resolved.startswith(base + os.sep):
+            return True
+    return False
+
+
+def _scratch(word: Word) -> bool:
+    """Whether an `rm` target is scratch: under a temp directory, a `mktemp` result of this text, or a
+    worktree under `.claude/worktrees/` -- from every directory the command may run in. Anything this cannot
+    resolve is not scratch."""
+    text = word.text
+    m = VARIABLE.match(text)
+    if m:
+        if m.group(1) == "TMPDIR":
+            return True
+        value = SCOPE.get(m.group(1))
+        if value is SCRATCH:
+            return True
+        if not isinstance(value, str):
+            return False
+        text = value + text[m.end():]
+    if "$" in text or word.glob or not text:
+        return False
+    if text.startswith("~") and not text.startswith(("~/", "~")):
+        return False
+    path = os.path.expanduser(text) if text == "~" or text.startswith("~/") else text
+    if path.startswith("~"):
+        return False  # `~user`: another account's tree
+    bases = WHERE["dirs"] or [os.getcwd()]
+    return all(_scratch_path(os.path.realpath(os.path.join(base, path))) for base in bases)
+
+
+def _judge_rm(words: list[Word]) -> str | None:
+    opts: list[str] = []
+    targets: list[Word] = []
+    for k, w in enumerate(words):
+        if w.text == "--":
+            targets += words[k + 1:]
+            break
+        if w.text.startswith("-") and len(w.text) > 1:
+            opts.append(w.text)
+        else:
+            targets.append(w)
+    letters = "".join(a[1:] for a in opts if not a.startswith("--"))
+    longs = [a for a in opts if a.startswith("--")]
+    recursive = "r" in letters or "R" in letters or any(_unique(a, "--recursive", GIT_LONG["rm"]) for a in longs)
+    forced = "f" in letters or any(_unique(a, "--force", GIT_LONG["rm"]) for a in longs)
+    if not (recursive and forced):
+        return None
+    if targets and all(_scratch(w) for w in targets):
+        return None
+    return DESTRUCTIVE
+
+
+# --- gh -----------------------------------------------------------------------------------------------
+
+def _judge_gh(args: list[str]) -> str | None:
+    """Refused: `gh pr merge` and `gh pr ready` wherever their flags sit; `gh api` on a pull request's `/merge`,
+    and on `/protection` or `/rulesets` with a mutating method or a field."""
+    words: list[str] = []
+    method = ""
+    fields = False
+    i = 0
+    while i < len(args):
+        a = args[i]
+        name, eq, value = a.partition("=")
+        if a.startswith("-") and len(a) > 1:
+            if name in ("-X", "--method"):
+                method = (value if eq else (args[i + 1] if i + 1 < len(args) else "")).upper()
+            if name in ("-f", "--field", "-F", "--raw-field", "--input"):
+                fields = True
+            if not eq and name in GH_VALUED:
+                i += 2
+                continue
+            i += 1
+            continue
+        words.append(a)
+        i += 1
+    if words[:2] in (["pr", "merge"], ["pr", "ready"]):
+        return GH_MERGE
+    if words[:1] == ["api"]:
+        endpoints = words[1:]
+        if any(re.search(r"/pulls/[^/\s]+/merge(?:$|[/?])", e) for e in endpoints):
+            return GH_MERGE
+        mutating = method in GH_MUTATING or fields
+        if mutating and any(re.search(r"/protection(?:$|[/?])|/rulesets(?:$|[/?])", e) for e in endpoints):
+            return GH_PROTECTION
+    return None
+
+
+# --- shells and git -----------------------------------------------------------------------------------
 
 def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str | None:
     """A shell runs `-c`'s string, a script file, or what it reads on stdin."""
@@ -946,10 +1221,21 @@ def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str |
     return _stdin(cmd, depth, f"a shell (`{shell}`)")
 
 
+def _skips_hooks(option: str) -> bool:
+    """Refused: `--no-verify`, or a prefix of it long enough that git reads no other option (`--no-veri`)."""
+    name = option.split("=", 1)[0]
+    return len(name) >= 8 and "--no-verify".startswith(name)  # refused by the caller
+
+
 def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901 -- one branch per subcommand
     i = 0
     while i < len(args) and args[i].startswith("-"):
-        i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
+        if args[i] in ("-c", "--config-env") and i + 1 < len(args) and "hookspath" in args[i + 1].lower():
+            return NO_VERIFY
+        if args[i].startswith(("-c", "--config-env")) and "hookspath" in args[i].lower():
+            return NO_VERIFY
+        i += 2 if args[i] in ("-C", "-c", "--config-env", "--git-dir", "--work-tree", "--namespace",
+                              "--exec-path") else 1
     if i >= len(args):
         return None
     sub, rest = args[i], args[i + 1:]
@@ -957,6 +1243,12 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901
     longs = [a for a in options if a.startswith("--")]
     letters = "".join(a[1:] for a in options if not a.startswith("--"))
     known = GIT_LONG.get(sub, [])
+    if any(_skips_hooks(a) for a in longs) or (sub == "commit" and "n" in letters):  # refused: a skipped hook
+        return NO_VERIFY
+    if sub == "update-ref":
+        refs = [a for a in rest if not a.startswith("-")]
+        if any(r.removeprefix("refs/").removeprefix("heads/") in PROTECTED for r in refs):
+            return PROTECTED_REF
 
     def given(*wanted: str) -> bool:
         return any(_unique(a, w, known) for a in longs for w in wanted)
@@ -989,17 +1281,95 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901
         staged = "S" in letters or given("--staged")
         worktree = "W" in letters or given("--worktree")
         if not staged or worktree:
-            return ("BLOCKED: `git restore` without --staged, or with --worktree, discards uncommitted work "
-                    "(permission-matrix.md S5). Revert in place, or use --staged to unstage only.")
+            return RESTORE
     return None
 
+
+# --- the deploy gate ----------------------------------------------------------------------------------
+
+def _toplevel(cwd: str) -> str | None:
+    """The git work tree `cwd` lies in, or None."""
+    try:
+        r = subprocess.run(["git", "-C", cwd, "rev-parse", "--show-toplevel"], capture_output=True,
+                           timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    top = r.stdout.decode("utf-8", "replace").strip() if r.returncode == 0 else ""
+    return top or None
+
+
+def project_root(cwd: str) -> str | None:
+    """The repository whose brief governs this call: the work tree of `cwd` when it carries
+    `docs/project-brief.md`, else `$CLAUDE_PROJECT_DIR` when that does; None when neither has a brief, so
+    nothing is declared."""
+    for cand in (_toplevel(cwd), os.environ.get("CLAUDE_PROJECT_DIR", "")):
+        if cand and os.path.isfile(os.path.join(cand, "docs", "project-brief.md")):
+            return cand
+    return None
+
+
+def judge_deploy(candidates: list[list[str]], cwd: str) -> str | None:
+    """Hand every program-position word list to `scripts/deploy_gate.py --judge` in the governing
+    repository; its refusal is this guard's. A brief with no gate script beside it refuses the call."""
+    if not candidates:
+        return None
+    root = project_root(cwd)
+    if root is None:
+        return None
+    gate = os.path.join(root, "scripts", "deploy_gate.py")
+    if not os.path.isfile(gate):
+        return GATE_MISSING.format(root=root)
+    payload = json.dumps({"cwd": cwd, "commands": candidates}).encode("utf-8")
+    try:
+        r = subprocess.run([sys.executable, "-I", "-B", gate, "--judge"], input=payload, capture_output=True,
+                           cwd=root, timeout=20)
+    except (OSError, subprocess.SubprocessError) as error:
+        return f"BLOCKED: deploy gate -- scripts/deploy_gate.py could not run ({type(error).__name__}: {error})."
+    if r.returncode == 0:
+        return None
+    message = r.stderr.decode("utf-8", "replace").strip()
+    return message or f"BLOCKED: deploy gate -- scripts/deploy_gate.py exited {r.returncode} and gave no reason."
+
+
+# --- the hook -----------------------------------------------------------------------------------------
 
 def _expired() -> None:
     """The guard's own bound (S2): a thread, so it holds where SIGALRM does not exist. It cannot stop a long call
     into C that holds the interpreter; the hook's timeout bounds that."""
-    sys.stderr.buffer.write(f"BLOCKED: the command was not read within {DEADLINE_S:g} s (#189).\n".encode())
+    sys.stderr.buffer.write(f"BLOCKED: the command was not judged within {DEADLINE_S:g} s.\n".encode())
     sys.stderr.flush()
     os._exit(2)
+
+
+def _call(payload: object) -> tuple[dict, str]:
+    """The tool call's input and the directory it runs in: the payload's `cwd`, which Claude Code sends."""
+    if not isinstance(payload, dict):
+        raise Unreadable(NOT_JSON)
+    call = payload.get("tool_input")
+    call = call if isinstance(call, dict) else {}
+    cwd = str(payload.get("cwd") or "") or os.environ.get("CLAUDE_PROJECT_DIR", "") or os.getcwd()
+    return call, cwd
+
+
+def judge_call(payload: object) -> str | None:
+    """The Bash hook's payload, judged: the command's rules, then the deploy gate over its program words."""
+    call, cwd = _call(payload)
+    command = call.get("command", "")
+    command = command if isinstance(command, str) else str(command)
+    if not command.strip():
+        return None
+    WHERE["dirs"] = list(dict.fromkeys([os.path.normpath(os.path.abspath(cwd)), os.path.realpath(cwd)]))
+    SCOPE.clear()
+    CANDIDATES.clear()
+    return judge_text(command) or judge_deploy(list(CANDIDATES), cwd)
+
+
+def judge_file(payload: object) -> str | None:
+    """The Write and Edit hook's payload (`--write`), judged by `judge_write`."""
+    call, cwd = _call(payload)
+    path = call.get("file_path") or call.get("notebook_path") or ""
+    path = path if isinstance(path, str) else str(path)
+    return judge_write(path, cwd) if path else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1008,23 +1378,19 @@ def main(argv: list[str] | None = None) -> int:
     timer.daemon = True
     timer.start()
     try:  # bytes, so a console's encoding (cp1254) cannot change what is read
-        payload = json.loads(sys.stdin.buffer.read().decode("utf-8"))
-        if write and not isinstance(payload, dict):
-            raise ValueError("the payload is not a JSON object")
-        call = payload.get("tool_input", {}) if isinstance(payload, dict) else {}
-        # The directory the call runs in: the payload's `cwd`, which Claude Code always sends.
-        base = (str(payload.get("cwd") or "") if isinstance(payload, dict) else "") or \
-            os.environ.get("CLAUDE_PROJECT_DIR", "") or os.getcwd()
-        if write:
-            why = judge_write(str(call.get("file_path", "") or ""), base)
-        else:
-            WHERE["dirs"] = list(dict.fromkeys([os.path.normpath(os.path.abspath(base)), os.path.realpath(base)]))
-            command = str(call.get("command", ""))
-            why = judge_text(command) if command.strip() else None
+        raw = sys.stdin.buffer.read()
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            raise Unreadable(NOT_JSON) from None
+        why = judge_file(payload) if write else judge_call(payload)
         timer.cancel()
-    except BaseException as error:  # any doubt blocks: a guard that cannot read the call never allows it
-        why = (f"BLOCKED: this guard cannot read the tool call ({type(error).__name__}: {error}) (#189)." if write else
-               f"BLOCKED: this guard cannot read the command ({type(error).__name__}: {error}) (#189).")
+    except Unreadable as error:
+        text = str(error)
+        why = text if text.startswith("BLOCKED:") else f"BLOCKED: this guard cannot read the command ({text})."
+    except BaseException as error:  # any doubt refuses: a guard that cannot read the call never allows it
+        what = "tool call" if write else "command"
+        why = f"BLOCKED: this guard cannot read the {what} ({type(error).__name__}: {error})."
     if why:
         sys.stderr.buffer.write(why.encode("utf-8", "replace") + b"\n")
         return 2

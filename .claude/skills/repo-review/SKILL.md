@@ -1,6 +1,6 @@
 ---
 name: repo-review
-description: Use at every milestone close, across the whole milestone's diff (docs/closure-checklist.md §B.0); after each phase of /work-enhancement; and whenever asked to review, check over, or sanity-check a change. Grades the diff against THIS repository's documented practices, not generic advice. A review from memory is an opinion.
+description: Use in HEAVY mode at every milestone close, across the whole milestone's diff (docs/closure-checklist.md §B.0) — the one review that sees across waves — and whenever asked to review, check over, or sanity-check a change. Grades the diff against THIS repository's documented practices, not generic advice. A review from memory is an opinion.
 ---
 
 1. **Load `.agents/rules/practices.md` and `.agents/rules/issues.md` first**, and any seed in
@@ -8,7 +8,8 @@ description: Use at every milestone close, across the whole milestone's diff (do
    grounded in best practices in general, and those are different reviews.
 2. `git diff <base>...HEAD` for the full set of changes on this branch. Read the PR's real base
    rather than assuming the default branch. **At milestone close** the range is the whole
-   milestone: from the base of its first wave to the default branch after its last merge. That
+   milestone: from the base of its first wave to the default branch after its last merge — in a
+   run, to `integration/run-<name>`, from the milestone's `Base` sha in its run file. That
    is the one review that sees across waves — each wave was already reviewed on its own.
 3. Review that diff with the rules as context.
 

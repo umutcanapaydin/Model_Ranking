@@ -1,6 +1,6 @@
 # Codex Audit (only if pre-existing code IP)
 
-> Seed D.1: separate design IP from code IP. If predecessor handed you a code base, don't patch forward — audit, extract design decisions, discard the rest, regenerate fresh.
+> Seed D.1: separate design IP from code IP. An adopted codebase is audited before any issue is filed against it: what exists, what its tests prove, which design decisions it embodies, and what stays — `INSTALL.md` keeps your code where it is; this file records what it is. Written by `/setup-project` (question 1c).
 >
 > Skip this file if project is greenfield.
 

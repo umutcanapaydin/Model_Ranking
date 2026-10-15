@@ -110,13 +110,16 @@
 <header>
   <span class="eyebrow">DevFlow · the pipeline, one page</span>
   <h1>From a design to a merged change, and every gate on the way</h1>
-  <p>Seven stops. The agent plans, builds, reviews and opens drafts; a human approves plans and merges
-  pull requests. A red signal is a stop that refuses — a check that blocks, or a person who has to
-  approve. An amber one reports straight back to the agent.</p>
+  <p>Two working modes, chosen by the owner. <strong>Light</strong>: issues only — file, triage,
+  fix; a red test, the change, the gate, one draft PR; no Code-Reviewer; the milestone Tester before a release. <strong>Heavy</strong>:
+  the seven stops below, where a wave is one container issue plus its children. In both, the
+  Security-Reviewer runs when a change needs it and before every deploy. A red signal is a stop that
+  refuses — a check that blocks, or a person who has to approve. An amber one reports straight back
+  to the agent.</p>
   <div class="rule-strip">
     <span class="chip block">the agent opens drafts · a human merges</span>
-    <span class="chip">one issue per unit of work</span>
-    <span class="chip">two separate reviewers every wave</span>
+    <span class="chip">a wave is one container issue</span>
+    <span class="chip">reviews computed from the change</span>
     <span class="chip">no AI attribution anywhere</span>
   </div>
 </header>
@@ -129,7 +132,7 @@
       <div class="cols">
         <ul>
           <li>The tools for your OS — Windows, or macOS / Linux — then the common steps: <code>INSTALL.md</code>. An existing repository takes DevFlow's files by its rules, which overwrite nothing of yours.</li>
-          <li><code>/setup-project</code> asks the owner nine setup questions — new, upgrade or adopted; Quality Gate on or off; retrospective; HIGH-risk areas and their reviewer; deploy; what the repo can enforce; the CI issue agent; the product's stack and language — and writes <code>docs/project-brief.md</code>, <code>.devflow-stack</code> and <code>.language-allow</code>.</li>
+          <li><code>/setup-project</code> asks the owner eleven setup questions — the working mode among them — new, upgrade or adopted; Quality Gate on or off; retrospective; HIGH-risk areas and their reviewer; deploy; what the repo can enforce; the CI issue agent; the product's stack and language — and writes <code>docs/project-brief.md</code>, <code>.devflow-stack</code> and <code>.language-allow</code>.</li>
           <li>Name the project in <code>pyproject.toml</code>.</li>
           <li><code>make install</code> — records the installed version in <code>.gp/installed</code>.</li>
           <li><code>make hooks</code> — once per clone: <code>make gate</code> runs before every push.</li>
@@ -168,10 +171,11 @@
         <ul>
           <li>Each agent runs a dev-test loop on its slice: implement → test → self-review → fix.</li>
           <li>A reported symptom is reproduced as a failing test before it is fixed.</li>
+          <li><strong>Three attempts, then stop:</strong> a failure still red after the third try goes back, is filed as a <code>bug</code> listing the attempts, and the work moves on.</li>
           <li>Big exploration goes to the read-only Explorer (<code>.claude/agents/Explorer.md</code>).</li>
         </ul>
         <div class="signals">
-          <div class="sig block"><i></i><span>Guards refuse: writes to <code>.env</code>, <code>git reset --hard</code>, force-push, <code>rm -rf</code>, <code>git checkout --</code> or <code>git restore</code> over uncommitted work, a push to the default branch — and every call they cannot read, when no working Python is on PATH</span></div>
+          <div class="sig block"><i></i><span>Guards refuse: writes to <code>.env</code>, <code>git reset --hard</code>, force-push, <code>rm -rf</code>, <code>git checkout --</code> or <code>git restore</code> over uncommitted work, a push to the default branch, <code>gh pr merge</code> or <code>gh pr ready</code>, a write to branch protection — and every call they cannot read, when no working Python is on PATH</span></div>
           <div class="sig warn"><i></i><span>After every edit: <code>make check-fast</code> — the legs of <code>make check</code>, side by side, offline; red goes straight back to the agent</span></div>
         </div>
       </div>
@@ -180,19 +184,19 @@
 
   <div class="stop loop"><div class="rail"><div class="dot">3</div></div>
     <div class="station">
-      <div class="station-head"><h2>Close the wave</h2><span class="who"><code>/close-wave</code> · every wave, every risk tier</span></div>
+      <div class="station-head"><h2>Close the wave</h2><span class="who"><code>/close-wave</code> · heavy mode · the reviews <code>make review-need</code> computes</span></div>
       <div class="pair">
-        <div class="agent"><strong>1 · code-reviewer</strong>its own subagent, fresh eyes · <code>.claude/agents/Code-Reviewer.md</code> · writes <code>docs/reviews/m{N}-wave-{W}-review.md</code></div>
-        <div class="agent"><strong>2 · tester</strong>a second, separate subagent · <code>.claude/agents/Tester.md</code> · citing tests, fault injection · writes <code>docs/reviews/m{N}-wave-{W}-tester.md</code></div>
+        <div class="agent"><strong>1 · code-reviewer</strong>every wave, fresh eyes · <code>.claude/agents/Code-Reviewer.md</code> · writes <code>docs/reviews/m{N}-wave-{W}-review.md</code></div>
+        <div class="agent"><strong>2 · security · tester</strong>security when the range touches HIGH paths or parses untrusted input · the Tester once per milestone — heavy on the last wave, light before a release · <code>-security.md</code> · <code>m{N}-tester.md</code> / <code>docs/reviews/release-tester.md</code></div>
       </div>
       <div class="cols">
         <ul>
-          <li>BLOCKING → fix on the branch, then a <em>new</em> reviewer. The author never reviews its own wave.</li>
-          <li>HIGH-risk wave: a security pass on the slice as well.</li>
+          <li>BLOCKING → fix on the branch; the same reviewer re-verifies its own items. The author never reviews its own wave. A third BLOCKING verdict on one finding ends the loop: that slice leaves the wave as a <code>bug</code>.</li>
+          <li><strong>Every finding the wave does not fix becomes an issue</strong> — <code>bug</code> with a severity, or <code>enhancement</code> — and is triaged before the PR opens. What the wave fixes is not filed.</li>
           <li>Fill the wave checklist (<code>docs/wave-checklist.template.md</code>), open the wave's draft PR, run <code>/pre-merge</code>.</li>
         </ul>
         <div class="signals">
-          <div class="sig block"><i></i><span><code>make wave-check</code> — refuses unless both verdicts exist, neither is BLOCKING, and each declares <code>**Independent:** yes</code></span></div>
+          <div class="sig block"><i></i><span><code>make wave-check</code> — refuses unless the verdicts the range needs exist (it recomputes the need), none is BLOCKING, each declares <code>**Independent:** yes</code>, and every finding is fixed, filed or refused</span></div>
           <div class="sig block"><i></i><span><code>/pre-merge</code> runs <code>make gate</code> — the full gate, network legs included</span></div>
           <div class="sig block"><i></i><span>A human merges, then <code>/post-merge</code></span></div>
         </div>
@@ -207,6 +211,7 @@
       <div class="cols">
         <ul>
           <li><strong>Capture:</strong> process log, decisions via <code>/log-decision</code>, seeds, the EXPERIENCE entry, the AGENTS.md diet.</li>
+          <li><code>/repo-review</code> across the whole milestone — what no single wave could see; each finding fixed or filed.</li>
           <li>No retrospective and no handover during the work.</li>
           <li><strong>Quality Gate — optional, off by default.</strong> The owner turns it on in the brief; then the closure report <code>docs/closure-report-m{N}.md</code> is written.</li>
         </ul>
@@ -263,11 +268,11 @@
       <li><code>/close-wave</code> — every review finding the wave does not fix becomes an issue: <code>bug</code> or <code>enhancement</code></li>
       <li>three failed attempts at one failure → stop, file it as a <code>bug</code>, move on</li>
       <li><code>/file-issue</code> — search first; comment on a duplicate, never edit it; then hand it to triage</li>
-      <li><code>/triage-issue</code> ends with one line: <code>Triage verdict: fix-issue</code>, <code>work-issue</code> or <code>work-enhancement</code></li></ul></div>
+      <li><code>/triage-issue</code> ends with one line: <code>Triage verdict: fix-issue</code>, <code>work-issue</code>, <code>work-enhancement</code> (light) or <code>wave</code> (heavy)</li></ul></div>
     <div class="lane"><h3>Worked</h3><ul>
-      <li><code>/fix-issue</code> — red test, fix, the Tester alone (fresh eyes), draft PR; alone on <code>fix-issue</code>, with a human in the loop on <code>work-issue</code></li>
+      <li><code>/fix-issue</code> — red test, fix, the reviews <code>make review-need</code> computes (none for a small fix), draft PR; alone on <code>fix-issue</code>, with a human in the loop on <code>work-issue</code></li>
       <li><code>/work-enhancement</code> — several phases, one PR</li>
-      <li>after merge: <code>/post-merge</code> — a bug stays open with <code>dev:done</code> until QA</li></ul></div>
+      <li>after merge: <code>/post-merge</code> — the issue closes with the merge; with <code>QA verification: on</code> a bug stays open with <code>dev:done</code> until QA</li></ul></div>
   </div>
 </section>
 
@@ -277,9 +282,11 @@
   <div class="table-wrap"><table>
     <thead><tr><th>When</th><th>What runs</th><th>What it refuses</th></tr></thead>
     <tbody>
-      <tr><td class="when">every tool call</td><td>guards in <code>.claude/settings.json</code></td><td><span class="pill b">blocks</span> <code>.env</code> writes, destructive git, <code>rm -rf</code>, discarding uncommitted work, pushing the default branch. They fail closed: with no working <code>python3</code> or <code>python</code>, every call they guard is refused, and without <code>grep</code> every command</td></tr>
-      <tr><td class="when">every edit</td><td><code>make check-fast</code></td><td><span class="pill w">reports to the agent</span> the legs of <code>make check</code> side by side — lint, types, tests, records, install, shell dialect, close records — every failing leg named; without <code>make</code> it says so</td></tr>
-      <tr><td class="when">wave close</td><td><code>make wave-check</code></td><td><span class="pill b">blocks</span> a close without both reviewer verdicts, with a BLOCKING one, or with one not declaring <code>**Independent:** yes</code></td></tr>
+      <tr><td class="when">every tool call</td><td>guards in <code>.claude/settings.json</code></td><td><span class="pill b">blocks</span> <code>.env</code> writes, destructive git, <code>rm -rf</code>, discarding uncommitted work, pushing the default branch, merging or readying a pull request, and writing branch protection or rulesets. They fail closed: with no working <code>python3</code> or <code>python</code>, every call they guard is refused, and without <code>grep</code> every command</td></tr>
+      <tr><td class="when">session start</td><td>the SessionStart hook in <code>.claude/settings.json</code> · <code>make session-check</code>, a leg of <code>make check</code></td><td><span class="pill b">blocks</span> a Claude Code session that was started outside the repository root, where none of the guards loaded, and a clone with no pre-push hook. Outside Claude Code it checks nothing</td></tr>
+      <tr><td class="when">every edit</td><td><code>make check-fast</code></td><td><span class="pill w">reports to the agent</span> the legs of <code>make check</code> side by side — session check, lint, types, tests, records, install, shell dialect, close records — every failing leg named; without <code>make</code> it says so</td></tr>
+      <tr><td class="when">wave close</td><td><code>make wave-check</code></td><td><span class="pill b">blocks</span> a close without the verdicts its change needs (recomputed from its range), with a BLOCKING one, with one not declaring <code>**Independent:** yes</code>, or with a review finding nobody fixed, filed or refused</td></tr>
+      <tr><td class="when">every deploy</td><td>the deploy gate — <code>scripts/deploy_gate.py</code>, run by the Bash guard on the brief's <code>Deploy commands:</code></td><td><span class="pill b">blocks</span> the deploy while any code changed after the security review's reviewed head or the milestone Tester's, in light and heavy mode alike (<code>make deploy-check</code> asks the same with no command)</td></tr>
       <tr><td class="when">every push</td><td><code>.githooks/pre-push</code> → <code>make gate</code>, which runs <code>make check</code> in order (once per clone: <code>make hooks</code>)</td><td><span class="pill b">blocks</span> the push while the gate is red — the enforcement where CI does not run</td></tr>
       <tr><td class="when">before a PR is handed over</td><td><code>/pre-merge</code> → <code>make gate</code></td><td><span class="pill b">blocks</span> + secret scan, dependency CVEs, slopsquat, a PR that could close a bug</td></tr>
       <tr><td class="when">every pull request</td><td>CI — <code>.github/workflows/ci.yml</code></td><td><span class="pill b">blocks the merge</span> the jobs <code>docs/branch-protection.md</code> lists, when branch protection requires them</td></tr>

@@ -9,9 +9,35 @@ and the skills follow, never the other way round.
 one-line fix, not for an interactive session with the human watching.
 
 Branch protection on the default branch is what makes this real rather than an honour system.
+The integration lane (AGENTS.md §3, when the owner says not to wait for merges) does not bend it:
+the `integration/<name>` PR is a draft the human merges, and the stacked drafts are its record.
 Everything below is downstream of it: the skills stop where they stop because of it, the label
 pipeline exists because a merge is not a verification, and the gates exist because the human
 doing the merging cannot read every line.
+
+## Two working modes — the brief's `Working mode:`
+
+**Light** (a small product, one person merging): the issue skills run the work — `/file-issue` →
+`/triage-issue` → `/fix-issue` or `/work-enhancement` — each a red test, the change, `make gate`,
+one draft PR. No Code-Reviewer; the Security-Reviewer when `make review-need` says so, and before
+every deploy (the deploy gate); the milestone Tester once per milestone — in light mode the
+milestone closes before a release, on everything merged since the Tester's last verdict
+(`docs/closure-checklist.md` §B.0 and §E.1).
+
+**Heavy** (the default): the same issue skills, and waves on top. **A wave is one container issue
+plus its children** — `/plan-milestone` opens it, `/close-wave` closes it with a Code-Reviewer, the
+Security-Reviewer when needed, and on the plan's last wave the milestone Tester. `/fix-issue` is a
+one-issue wave whose reviews `make review-need` computes. Several slices route to `wave`, never to
+`/work-enhancement`.
+
+`make mode` prints which. The owner chooses it in `/setup-project`; nothing switches it by itself.
+
+**A run (`/plan-run`), in either mode,** is the owner's unattended lane: heavy, two to five planned
+milestones; light, the triaged queue. Every open question is asked once, up front, with its default;
+the answers become ADRs; then the work goes on one `integration/run-<name>` branch without waiting
+for a merge, and stops only for an Escalate-NOW event, a decision the owner reserved, or a gate that cannot run
+here. Its record is `docs/plans/run-<name>.md` (`make run-check`). Opened only by the owner; outside
+it nothing changes.
 
 ## Where a finding goes — one queue, the issue list
 
@@ -21,9 +47,10 @@ them is a queue, because no lane reads them.
 | Found | Goes | Skill |
 |---|---|---|
 | in the wave's own code, fixed before the wave closes | nowhere else — the wave fixes it | `/close-wave` |
-| in a review, not fixed in the wave (MINOR, K.9, a queued risk) | an issue: `bug` + severity, or `enhancement` | `/close-wave` step 6 → `/file-issue` |
+| in a review, not fixed in the wave or the fix (MINOR, K.9, a queued risk) | an issue: `bug` + severity, or `enhancement` | `/close-wave` or `/fix-issue`, step 6 → `/file-issue` |
 | outside what you are doing, any time | an issue | `/file-issue` |
 | a failure still red after three attempts | a `bug` listing the three attempts | `.agents/rules/practices.md` → `/file-issue` |
+| a finding still BLOCKING after the reviewer's third round | a `bug` for the reverted slice (wave), or the issue back to triage as `work-issue` (fix); the owner answers with an ADR or a `docs/refusals.md` row | `/close-wave` step 3 · `/fix-issue` step 6 |
 | across the whole milestone, at its close | an issue, or a fix PR | `/repo-review` |
 
 **Every filed issue is triaged** before anyone works it: `/file-issue` hands it to
@@ -60,10 +87,15 @@ a `dev:`/`qa:` label.
 **Area labels are deliberately absent.** The question triage actually has to answer — *which
 component?* — belongs in the diagnosis comment, not in a label nobody maintains.
 
-## The verification pipeline
+## The verification pipeline — only when `QA verification: on`
 
-**A `bug` is not closed by merging its fix.** Merging proves the code changed. It does not prove
-the bug is gone — and where the suite runs against a stub, a green run proves only that the code
+**Off, the default: a bug closes when its fix merges**, and the test that went red before the fix
+and green after is its verification — the PR says `Closes #<n>`. In both field projects no one but
+the agent ever set a `qa:` label, so a separate verification step was a step nobody ran.
+
+**On** — a person verifies on a deployed build — the rest of this section and the next hold. **A
+`bug` is not closed by merging its fix.** Merging proves the code changed. It does not prove the
+bug is gone — and where the suite runs against a stub, a green run proves only that the code
 behaves as the stub was *told* to answer.
 
 | Label | Meaning | Who sets it |
@@ -87,7 +119,7 @@ behaves as the stub was *told* to answer.
   closed with `dev:done` and a comment that it is merged and not verified. The verifier's labels and
   a reopen on `qa:failed` stand.
 
-## A bug's PR carries no closing keyword
+## With QA on, a bug's PR carries no closing keyword
 
 This is what makes the rule above hold instead of being undone one step later. No
 `Closes`/`Fixes`/`Resolves #<n>` in a bug's PR body or in any of its commit messages. Write
@@ -101,7 +133,7 @@ followed by an issue reference, **whatever the surrounding sentence says** — s
 Then check rather than assume:
 
 ```bash
-gh pr view <pr> --json closingIssuesReferences   # must be an empty list
+gh pr view <pr> --json closingIssuesReferences   # must name no bug
 ```
 
 A grep over the body first is fine — `(?i)\b(clos|fix|resolv)[a-z]*\s*:?\s*#[0-9]+` — but

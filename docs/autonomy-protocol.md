@@ -2,8 +2,9 @@
 
 > ## ⛔ STATUS — A0.5 is the only active mode
 > **The agent works and commits on its own branch and opens draft pull requests; a human reviews and
-> merges every PR — plan, wave and fix.** Waves close agent-side: two fresh-eyes reviews
-> (`/close-wave`), green checks pinned to the closing tree, a committed checklist. There are no
+> merges every PR — plan, wave and fix.** In heavy mode waves close agent-side: the
+> fresh-eyes reviews `make review-need` computes (`/close-wave`), green checks pinned to the closing
+> tree, a committed checklist. In light mode a fix or enhancement closes on its draft PR. There are no
 > checkpoint commits. The owner's milestone test session exists only when the milestone Quality Gate
 > is on (`docs/closure-checklist.md` §B.1).
 >
@@ -19,13 +20,20 @@
 | **A1** (not active) | each milestone plan, with a scope grant (§3) | zero owner touches — agents run waves, reviews, checklists, capture | the owner reads the closure report + git |
 | **A2** (not active) | the PRD, once | zero owner touches | milestone plans proceed with async notification; the owner reads closure reports + git at his own pace |
 
+**A run (`/plan-run`) is A0.5, not A1.** The owner signs two to five plans at once by answering the
+run's one decisions message before the run; the plan PR's merge, in the morning, is that signature on
+record. Every wave closes agent-side on `integration/run-<name>` and the milestone closes there on
+its last wave; a human still merges every PR and no agent commit reaches the default branch. The run
+stops for the halts in §2, for a decision the owner reserved that its message did not cover, and for a gate that cannot run here; it continues on independent work, and
+records every stop in `docs/plans/run-<name>.md`. Nothing deploys in a run.
+
 Moving above A0.5 is an owner decision recorded as an ADR in `docs/decisions.md`, and only on the
 evidence in §4. At A2, per-milestone plan approval is **DEFERRED, never deleted** — the owner may
 reassert it at any time without cause.
 
 ## 2. ⛔ zones and halts (every level)
 
-- **⛔ zones** (auth, payments, crypto, personal data, prod infra, migrations) are detected by
+- **⛔ zones** (the brief's HIGH-risk areas: authentication, payments, personal data, cryptography, irreversible migrations, regulated compliance, production deploy automation) are detected by
   **path/glob patterns declared in the plan** (`security-globs`), never by agent self-classification.
   A diff touching a ⛔ glob forces the wave to HIGH (a security pass on its slice) and the slice
   receives **owner/senior line-by-line review before the release deploys**. The BLOCKING release

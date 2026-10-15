@@ -887,3 +887,15 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   32 of them, and the other 7 are equivalent, a belt, or a deleted assertion. The two Swift plants each
   failed only their store's new on-device test.
 
+## 2026-10-15 — DevFlow v6.6 to v7.1 (D-199)
+
+- The owner merged the hardening wave (#280), and five issues were closed. The owner then asked for the
+  DevFlow v7.1 upgrade and chose a merged guard, heavy mode, and both deploy commands gated.
+- `git diff v6.6 v7.1` was applied three-way, with workflows left out; 17 files conflicted. Two subagents
+  merged the guard and the two record checkers; every project rule was kept or replaced by a stricter one.
+- The ledger's `ruling` and `within-scope` rows and its milestone-wide waves were rewritten to v7.1's
+  kinds and shapes, each marked in place.
+- `make session-check` is red in this session by design. The owner commits and pushes from a terminal.
+- Lesson: an upgrade over a project that grew its own copies of a version's features is a merge of two
+  designs, not a patch. The conflicts were where the project had got there first.
+

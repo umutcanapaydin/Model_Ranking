@@ -17,19 +17,25 @@ Read `.agents/rules/issues.md` first — the vocabulary and the pipeline live th
    - yes → `/fix-issue`
    - no, because it needs design judgment, touches a sensitive area, or its scope is not pinned
      down → `/fix-issue` with a human in the loop (verdict `work-issue`)
-   - larger than one fix → `/work-enhancement`
+   - larger than one fix → **light mode** `/work-enhancement`; **heavy mode** `wave`: it joins a
+     wave as a child of the wave's container issue, at the next `/plan-milestone` or by a plan
+     amendment. (`make mode` says which.) In the field every wave issue that triage routed got an
+     issue-lane verdict, because the vocabulary had no word for a wave.
 
    Write it as the diagnosis comment's **last line, exactly**:
-   `Triage verdict: fix-issue` · `Triage verdict: work-issue` · `Triage verdict: work-enhancement`.
-   That line is what `/fix-issue` checks; a verdict in prose is one nobody can find.
+   `Triage verdict: fix-issue` · `Triage verdict: work-issue` · `Triage verdict: work-enhancement`
+   (light) · `Triage verdict: wave` (heavy).
+   That line is what `/fix-issue` checks; a verdict in prose is one nobody can find. When you
+   triage an issue in the same step as filing it, the line may end its body instead: the readers
+   take the latest line, body or comment.
    The verdict is a default, not a lock: a human may take the interactive lane anyway.
 
 ## When the issue is an `enhancement`
 
 There is nothing to reproduce. Step 1 becomes **pin the scope**: what changes, what stays as it
 is, and how anyone would know it is done — in the diagnosis comment, three lines. Then the same
-routing: one small change → `fix-issue`; several slices → `work-enhancement`; an owner decision
-first → `work-issue`. An enhancement nobody takes up now stays open: `/plan-milestone` reads the
+routing: one small change → `fix-issue`; several slices → `work-enhancement` (light) or `wave` (heavy);
+an owner decision first → `work-issue`. An enhancement nobody takes up now stays open: `/plan-milestone` reads the
 open queue and either plans it or names it as left out.
 
 ## When the issue records three failed attempts

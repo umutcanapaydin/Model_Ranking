@@ -37,7 +37,7 @@ projects.
 
 - **Every acceptance criterion has a citing test; red-test the reported symptom first (gate).** No "done" without a test that cites the criterion; when fixing a reported bug, reproduce
   it with a FAILING test before diagnosing, then make it green (red→green). Enforced at the Quality
-  Gate and the per-wave Tester. *(4 projects)*
+  Gate and the milestone Tester. *(4 projects)*
 - **Run the tests; don't trust markdown that says "tests pass"** (seed E.1). *(3)*
 - **Tests cite REQ-IDs and D-IDs** in comments — e.g. `# covers REQ-CC-001, D-026` (seed E.2). PASS
   verdicts WITHOUT `file:line` evidence are BLOCKING per `permission-matrix.md` §11. *(3)*
@@ -77,8 +77,12 @@ projects.
   footprint's `Stopped at three attempts:` names the issue; a reviewer's third BLOCKING verdict on
   the same finding counts the same way (`/close-wave` step 3). On a `/fix-issue` branch the three
   attempts go on the issue as a comment, and the issue goes back to `/triage-issue`. A fourth try
-  at the same idea is how an afternoon disappears into one test. *(owner ruling — below the
-  bar; `make wave-check` requires the footprint line)*
+  at the same idea is how an afternoon disappears into one test. The reviewer's third BLOCKING
+  ends the review loop the same way: no fourth round, no new reviewer; the slice is reverted in
+  place and filed, and a finding the author still disputes goes to the owner as `work-issue`,
+  answered by an ADR or a `docs/refusals.md` row — never by a fourth attempt. In the field the
+  loop ran to five and six rounds because nothing said what the third one ends with. *(owner
+  ruling — below the bar; `make wave-check` requires the footprint line)*
 
 ## Security
 
@@ -179,7 +183,8 @@ present is not working.* Six occurrences in one project alone.
 
 - **Open the capture file BEFORE the work starts**, not after (G.1). *(3)*
 - **process-log per session** — three to ten lines, ending with a `Lesson:` tag. In one project two
-  days of demo-building produced zero entries. *(3)*
+  days of demo-building produced zero entries. One sequence of ids, across every agent tool that
+  writes here: claim the next `S<n>` before writing (AGENTS.md §2a). *(3)*
 - **Capture every assumption as an ADR** (seed B.1) — use the `log-decision` skill. *(2)*
 - **Supersede, never edit** (seed B.2) — the old ADR keeps its body and is marked
   `superseded by D-NNN`. *Below the bar (0 projects); kept because it is the invariant every

@@ -45,7 +45,7 @@ def main() -> int:
     expect("wave_check(README.md) must REJECT", run([py, str(wave), "README.md"]), False)
     expect("wave_check(closure-checklist) must REJECT",
            run([py, str(wave), "docs/closure-checklist.md"]), False)
-    rc, out = output([py, str(wave), "conformance/wave/m1-wave-3-close.md"])
+    rc, out = output([py, str(wave), "conformance/wave/m901-wave-3-close.md"])
     expect("wave_check(negative fixture) must REJECT", rc, False)
     # ...for the two reasons the fixture declares, not only for being thin.
     for why, said in (("an undeclared SKIPPED", "SKIPPED without PRESSURE or NO-ENVIRONMENT"),
@@ -55,7 +55,7 @@ def main() -> int:
                        f"`{said}` -- a refusal for another reason proves nothing about this rule")
     # ...and accepts a correctly filled one, or nobody will keep using it
     expect("wave_check(positive fixture) must ACCEPT",
-           run([py, str(wave), "conformance/wave/m1-wave-2-close.md"]), True)
+           run([py, str(wave), "conformance/wave/m901-wave-2-close.md"]), True)
 
     # closure-check: the milestone half of the same rule. A pack missing §1b hides the judgment
     # calls; a pack whose §6 is a heading has skipped the one section a human must write.
@@ -63,9 +63,31 @@ def main() -> int:
     expect("closure_check(template) must REJECT",
            run([py, str(closure), "docs/closure-report.template.md"]), False)
     expect("closure_check(hollow fixture) must REJECT",
-           run([py, str(closure), "conformance/closure/closure-report-m8.md"]), False)
+           run([py, str(closure), "conformance/closure/closure-report-m908.md"]), False)
     expect("closure_check(filled fixture) must ACCEPT",
-           run([py, str(closure), "conformance/closure/closure-report-m7.md"]), True)
+           run([py, str(closure), "conformance/closure/closure-report-m907.md"]), True)
+    # v7.1: a filled report carrying the milestone Tester's verdict beside it (`closure/reviews/`).
+    # `test-milestone-tester.py` proves the refusals; this proves the fixture a project copies passes.
+    # In a throwaway tree with a HEAVY brief: the check reads the project's working mode, and in a
+    # light project the fixture would be graded against `release-tester.md`, which it does not ship
+    # -- a suite that fails in every light installation on its own fixture grades nothing.
+    import re as _re
+    import shutil as _shutil
+    with tempfile.TemporaryDirectory() as d:
+        tree = pathlib.Path(d)
+        (tree / "docs" / "reviews").mkdir(parents=True)
+        (tree / "docs" / "project-brief.md").write_text(
+            "---\nrecord_type: brief\nid: project-brief\nstatus: draft\n---\n- **Working mode:** `heavy`\n",
+            encoding="utf-8")
+        report = ROOT / "conformance" / "closure" / "closure-report-m909.md"
+        _shutil.copy(report, tree / "docs" / "closure-report-m909.md")
+        _shutil.copy(ROOT / "conformance" / "closure" / "reviews" / "m909-tester.md", tree / "docs" / "reviews" / "m909-tester.md")
+        for path, _ in _re.findall(r"`([\w./-]+\.\w+):(\d+)`", report.read_text(encoding="utf-8")):
+            f = tree / path
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text("x\n" * 200, encoding="utf-8")
+        expect("closure_check(v7.1 filled fixture with its Tester verdict, heavy brief) must ACCEPT",
+               run([py, str(closure), "docs/closure-report-m909.md"], cwd=tree), True)
 
     # install-check behaves OPPOSITELY in the two trees: the distribution must refuse (it
     # legitimately holds every GP-INTERNAL file), an installation must pass. This suite ships to

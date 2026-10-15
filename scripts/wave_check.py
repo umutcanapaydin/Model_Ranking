@@ -14,23 +14,45 @@ Refuses:
   * a footprint field (`Touched:`, `Mutant set author:`, `Observed RED:`, `Owner instruction:`,
     `K.8 contracts:`) missing or still a placeholder
   * a placeholder left in a cell the filler owns
-  * a control with three skip/bypass rows in `docs/control-events.csv`, or SKIPPED/WAIVED rows
-    with no such ledger
-  * the Code-Reviewer or Tester verdict file missing beside it, or either one BLOCKING
+  * a control with three skip/bypass rows in `docs/control-events.csv` since its last `review`
+    row, or SKIPPED/WAIVED rows with no such ledger. From `v7.1` the `Review need:` recomputation
+    applies to closes declaring `v7.1` or later -- a `v7.0` close is graded by the line it recorded,
+    since today's signals (the Go decoders) were not v7.0's. From `v7.1` (DevFlow #16, D4, the owner's
+    ruling): a row of kind `review` records the review the threshold demands and restarts that
+    control's count -- the rows before it stay in the file -- and its reason MUST cite the
+    decision, an ADR (`D-<n>`, `P-<n>`) or a `docs/refusals.md` row (`R-<n>`); a review row that
+    cites nothing counts nothing and fails the close. Every row's `kind` is validated against the
+    legend table in `docs/warnings.ledger.template.md` (the single source: `skip`, `bypass`,
+    `review`) and its `wave` column against the shapes the legend lists; a legend that cannot be
+    read fails the close (closed, not open). Three field projects wrote `rejected`, `ruling` and
+    `within-scope` rows and free-form waves, and nothing counted them
+  * a review verdict the close requires (below) missing beside it, BLOCKING, or unfilled
   * from `v6.5`, either verdict file not declaring `**Independent:** yes`, unless the checklist's
     Code-Reviewer row is WAIVED and `docs/control-events.csv` has a row for this wave
   * from `v6.6`, a finding in either verdict's MINOR, K.9 or queued-risk section with no id, or
     with no row in the checklist's findings table saying what happened to it: fixed in this
     wave (a commit), filed (an issue number), or refused with a reason
   * from `v6.6`, no `Stopped at three attempts:` footprint line
-The footprint fields and the review files are graded by the `process_version` the record declares
-(see below). Exit 0 pass · 1 fail · 2 usage.
+  * from `v7.0`, the reviews follow the change, not a fixed pair: a Code-Reviewer verdict always; a
+    security verdict when `Review need:` says security -- recomputed by `scripts/review_need.py`
+    from the wave's commit range whenever git can read it, so the line cannot under-state the
+    need; and on the plan's last wave (`Last wave of the plan: yes`) the milestone Tester's verdict
+    `m{N}-tester.md`. No per-wave Tester: it was the costliest review per real defect in the field.
+    The milestone Tester is required on the last wave in light mode too (the owner's ruling of
+    2026-10-13 on DevFlow #16); the output names the mode it read from the brief.
+The footprint fields and the review files are graded by the `process_version` the record declares;
+a record that declares none is history (see below). Exit 0 pass · 1 fail · 2 usage.
 """
+import csv
 import fnmatch
+import io
 import pathlib
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import brief_fields
 
 NAME_RE = re.compile(r"^m\d+-wave-\d+-close\.md$")          # anchored: `x-m1-wave-1-close.md` is not one
 # The template's verdicts are `✅` and `WAIVED`. A FAILED gate is not a close: a wave-close gate that
@@ -40,6 +62,11 @@ FAIL_STATUSES = {"FAIL", "BLOCKED", "❌"}
 HEADER_CELLS = {"check", "gate", "item", "#", "no", "step"}
 PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
 LEDGER = pathlib.Path("docs/control-events.csv")
+LEGEND = pathlib.Path("docs/warnings.ledger.template.md")   # the row-kind legend, one table, one source
+WAVE_SHAPE = re.compile(r"^(m\d+-w\d+|issue-\d+|release|upgrade-v\d+(?:\.\d+)*|setup)$")
+WAVE_SHAPES = "m<N>-w<W>, issue-<n>, release, upgrade-v<X.Y> or setup"
+DECISION_REF = re.compile(r"\b(?:D|P|R)-\d+\b")
+SKIP_THRESHOLD = 3
 # The verdict sections whose findings the wave may leave unfixed. BLOCKING is not one: a BLOCKING
 # verdict cannot close a wave at all.
 DEFERRABLE = re.compile(r"MINOR|K\.9|Risks queued", re.I)
@@ -65,8 +92,10 @@ def deferrable_findings(body: str) -> tuple[list[str], int]:
             continue
         if not in_section or not re.match(r"^\s*[-*]\s+\S", line):
             continue
-        # An indented bullet belongs to the finding above it (the W3 Tester's M9); one with no finding
-        # above it is still counted, so a verdict indented throughout fails closed.
+        # An indented bullet -- `  - Evidence: ...` -- belongs to the finding above it (the W3 Tester's
+        # M9; DevFlow v6.7 says the same: counting it as a second, unnamed finding refused correct
+        # closes in the field). One with no finding above it is still counted, so a verdict indented
+        # throughout fails closed: stricter than DevFlow's top-level-only reading, so this one is kept.
         if re.match(r"^\s+[-*]\s", line) and finding_above:
             continue
         finding_above = True
@@ -614,49 +643,26 @@ def _outside_parentheses(listed: str) -> list[str]:
 def _ledger_rows(text: str) -> list[list[str]]:
     """The ledger's rows, read as CSV (a reason may hold commas inside its quotes), without the header and
     the comment lines."""
-    import csv
-
     lines = [ln for ln in text.splitlines() if ln.strip() and not ln.startswith("#")
              and not ln.lower().startswith("control,")]
     return [[c.strip() for c in row] for row in csv.reader(lines) if row]
 
 
-#: The ledger's kinds (its header names each).
-KINDS = ("skip", "bypass", "ruling", "review", "within-scope")
-#: How the owner's ruling begins: both real rulings do (the fixes review's round 2, M3).
-OWNER_RULING = re.compile(r"the owner, \d{4}-\d{2}-\d{2}\b", re.IGNORECASE)
-
-
-def _owners_ruling(row: list[str]) -> bool:
-    return len(row) >= 5 and row[2].lower() == "ruling" and OWNER_RULING.match(row[3]) is not None
-
-
-def ledger_strikes(rows: list[list[str]]) -> list[str]:
-    """The controls with three or more `skip` or `bypass` rows after their last `ruling` by the owner (the owner's
-    ruling of 2026-10-10, as the M21 closure fixes review's round 2, M3 left it): a row counts by its place in
-    the file, after that ruling, whatever its date. A `review` or `within-scope` row is recorded and counts
-    nothing: it neither strikes nor resets. A new bypass after a ruling still counts."""
-    ruled: dict[str, int] = {row[0]: n for n, row in enumerate(rows) if _owners_ruling(row)}
-    counts: dict[str, int] = {}
-    for n, row in enumerate(rows):
-        if len(row) >= 3 and row[2].lower() in ("skip", "bypass") and n > ruled.get(row[0], -1):
-            counts[row[0]] = counts.get(row[0], 0) + 1
-    return sorted(control for control, n in counts.items() if n >= 3)
-
-
 def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str]:
-    """The fixes review's M3, as round 2 left it: every row's kind is one of KINDS; its date is ISO (YYYY-MM-DD)
-    and at most a day after today's UTC date, so a row the owner dates in UTC+3 passes CI while a future date
-    cannot hold later rows back; and a `ruling`'s reason starts `the owner, YYYY-MM-DD`, since only the owner's
-    ruling resets a count."""
+    """The fixes review's M3, as round 2 left it: every row's date is ISO (YYYY-MM-DD) and at most a day after
+    today's UTC date, so a row the owner dates in UTC+3 passes CI while a future date cannot hold later rows
+    back.
+
+    DevFlow v7.1 took over the rest of what this function checked: a row's kind is validated against the legend
+    in `docs/warnings.ledger.template.md` (`ledger_kinds`), and the three-row count restarts at a `review` row
+    citing a decision (`ledger_findings`). The project's `ruling` and `within-scope` kinds, and its own count
+    (`ledger_strikes`), were retired with that upgrade: a kind outside the legend is now a finding."""
     import datetime as dt
 
     latest = (dt.date.fromisoformat(today) if today else dt.datetime.now(dt.UTC).date()) + dt.timedelta(days=1)
     found: list[str] = []
     for row in rows:
         where = f"the ledger row `{','.join(row[:3])}`"
-        if len(row) < 3 or row[2].lower() not in KINDS:
-            found.append(f"{where} has the kind `{row[2] if len(row) >= 3 else ''}`, not one of {', '.join(KINDS)}")
         date = row[-1] if row else ""
         try:
             iso = re.fullmatch(r"\d{4}-\d{2}-\d{2}", date) is not None and dt.date.fromisoformat(date).isoformat() == date
@@ -666,9 +672,6 @@ def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str
             found.append(f"{where} is dated `{date}`, not YYYY-MM-DD")
         elif dt.date.fromisoformat(date) > latest:
             found.append(f"{where} is dated {date}, more than a day after today ({latest - dt.timedelta(days=1)}, UTC)")
-        if len(row) >= 4 and row[2].lower() == "ruling" and not _owners_ruling(row):
-            found.append(f"{where} is a ruling whose reason does not start `the owner, YYYY-MM-DD`; only the owner's "
-                         "ruling resets a control's count")
     return found
 
 
@@ -697,9 +700,11 @@ def _gate_target(root: pathlib.Path, sha: str) -> str | None:
 def _bypassed_commits(said: str, wave_id: str, rows: list[list[str]], root: pathlib.Path | None,
                       notes: list[str] | None) -> list[str]:
     """The fixes review's M4: each commit row 9's Bypass names has a ledger row of the wave or its milestone whose
-    reason names it -- a `bypass`, or a `within-scope` only where the commit is docs-only or a declared red test
-    commit by commit_gate's own rule. On a full history a SHA no commit holds is a problem (round 2); where
-    there is none, or a shallow one, the within-scope row is taken as written, and the note says SKIPPED."""
+    reason names it -- a `bypass`, or a row of another kind only where the commit is docs-only or a declared red
+    test commit by commit_gate's own rule (the owner's re-scope of 2026-10-10). On a full history a SHA no commit
+    holds is a problem (round 2); where there is none, or a shallow one, that row is taken as written, and the
+    note says SKIPPED. Until DevFlow v7.1 the other kind was the project's `within-scope`; the legend
+    (`ledger_kinds`) now decides which kinds exist, and `ledger_findings` refuses any other."""
     found: list[str] = []
     full = root is not None and _history_absent(root) is None
     for sha in dict.fromkeys(SHA.findall(said)):
@@ -710,16 +715,17 @@ def _bypassed_commits(said: str, wave_id: str, rows: list[list[str]], root: path
                  and any(tok.startswith(sha[:7]) or sha.startswith(tok) for tok in SHA.findall(row[3]))]
         if any(row[2].lower() == "bypass" for row in named):
             continue
-        if any(row[2].lower() == "within-scope" for row in named):
+        if named:
+            kind = named[0][2].lower()
             gated = _gate_target(root, sha) if full and root is not None else None
             if gated is None:
                 if notes is not None:
-                    notes.append(f"row 9's Bypass names {sha}, whose within-scope row this history cannot confirm")
+                    notes.append(f"row 9's Bypass names {sha}, whose `{kind}` row this history cannot confirm")
                 continue
             if gated in ("check-docs", "check-red"):
                 continue
             found.append(f"row 9's Bypass names {sha}, a commit commit_gate gates with {gated}: its row cannot be "
-                         "within-scope; it is a bypass (the fixes review's M4)")
+                         f"`{kind}`; it is a bypass (the fixes review's M4)")
             continue
         found.append(f"row 9's Bypass names {sha}, and `docs/control-events.csv` has no row for {wave_id} or its "
                      "milestone whose reason names it (the fixes review's M4)")
@@ -736,8 +742,11 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
     date = _close_date(text)
     if date is not None and date < HISTORY_RULES_FROM:
         return []
-    owners = {wave_id, wave_id.split("-")[0]}
-    rows = [row for row in ledger if len(row) >= 2 and row[1].strip() in owners]
+    # "Its milestone": DevFlow v7.1's wave shapes have no milestone-only form (`m21`), so a milestone-wide row
+    # is written under one of the milestone's waves (D-199), and a row for any wave of the milestone counts.
+    milestone = wave_id.split("-")[0]
+    rows = [row for row in ledger if len(row) >= 2 and (row[1].strip() in (wave_id, milestone)
+                                                        or re.fullmatch(re.escape(milestone) + r"-w\d+", row[1].strip()))]
 
     def ledgered(control: str) -> bool:
         return any(row[0].strip().lower() == control for row in rows)
@@ -800,6 +809,102 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
     return problems
 
 
+def review_need_of(text: str, p: pathlib.Path, recompute: bool = True) -> str:
+    """This wave's review need: recomputed from its commit range when git can read it, else the
+    `Review need:` line the checklist recorded. A recomputed need the line under-states fails.
+    `recompute` is False for a record written under earlier signals (a `v7.0` close): today's
+    `review_need.py` knows parsers v7.0 did not, and a close is graded by the rules it declares."""
+    rec = re.search(r"^\s*Review need:\s*`?(?:review-need:\s*)?([a-z+-]+)", text, re.M | re.I)
+    recorded = rec.group(1).lower() if rec else ""
+    rng = re.search(r"commit range:\s*`?([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})", text, re.I)
+    if rng and recompute:
+        import subprocess
+        root = p.resolve().parent.parent.parent
+        script = pathlib.Path(__file__).resolve().parent / "review_need.py"
+        mplan = re.match(r"(m\d+)-wave-", p.name)
+        plan = f"docs/plans/{mplan.group(1)}-plan.md" if mplan else None
+        cmd = [sys.executable, str(script), "--range", f"{rng.group(1)}..{rng.group(2)}", "--at", rng.group(2)]
+        r = subprocess.run(cmd + (["--plan", plan] if plan else []), capture_output=True, text=True, cwd=root)  # noqa: S603
+        if r.returncode == 0:
+            got = r.stdout.strip().splitlines()[-1].split(":", 1)[1].strip()
+            if "security" in got and "security" not in recorded:
+                return (f"FAIL:the wave's range needs `{got}` (make review-need), and `Review need:` "
+                        f"records `{recorded or 'nothing'}` -- the need is computed, not declared")
+            return got
+    return recorded
+
+
+def ledger_kinds(legend: pathlib.Path = LEGEND) -> dict[str, str] | None:
+    """The row kinds the ledger may carry, read from the legend table (`| kind | means | ... |`) in
+    `docs/warnings.ledger.template.md`. None when the file or the table is missing: the caller
+    fails closed, because a check that cannot read its vocabulary cannot validate a row."""
+    if not legend.is_file():
+        return None
+    kinds: dict[str, str] = {}
+    in_table = False
+    for line in legend.read_text(encoding="utf-8", errors="replace").splitlines():
+        st = line.strip()
+        if not st.startswith("|"):
+            in_table = False
+            continue
+        cells = [c.strip() for c in st.strip("|").split("|")]
+        if cells and cells[0].lower() == "kind":
+            in_table = True
+            continue
+        if in_table and len(cells) >= 2 and not set("".join(cells)) <= set("-: "):
+            kinds[cells[0].strip("`").lower()] = cells[1]
+    return kinds or None
+
+
+def ledger_findings(text: str, legend: pathlib.Path = LEGEND) -> list[str]:
+    """What is wrong with a control-events ledger: a control past the three-skips threshold since
+    its last review, a review row that cites no decision, a kind outside the legend, a wave outside
+    its shapes. Rows are read in file order, so only skips after a control's last review count."""
+    kinds = ledger_kinds(legend)
+    if kinds is None:
+        return [f"cannot read the row-kind legend (the `| kind |` table in {legend}) -- the ledger's "
+                "rows cannot be validated, and a ledger nobody can validate counts nothing (fail closed)"]
+    bad: list[str] = []
+    from collections import Counter
+    counts: Counter = Counter()
+    for n, ln in enumerate(text.splitlines(), 1):
+        if ln.startswith("#") or ln.lower().startswith("control,") or not ln.strip():
+            continue
+        row = next(csv.reader(io.StringIO(ln)), [])
+        cells = [c.strip() for c in row]
+        if len(cells) < 3:
+            bad.append(f"{LEDGER} line {n}: not a `control,wave,kind,reason,date` row")
+            continue
+        control, wave, kind = cells[0], cells[1], cells[2].lower()
+        reason = cells[3] if len(cells) > 3 else ""
+        if kind not in kinds:
+            bad.append(f"{LEDGER} line {n}: kind `{cells[2]}` is not in the legend "
+                       f"({', '.join(sorted(kinds))}; {legend}) -- a row nobody can count is a "
+                       "finding, not a new category")
+            continue
+        if not WAVE_SHAPE.match(wave):
+            bad.append(f"{LEDGER} line {n}: wave `{wave}` is not one of {WAVE_SHAPES} -- a free-form "
+                       "wave cannot be counted by wave")
+        if kind == "review":
+            if DECISION_REF.search(reason):
+                counts[control] = 0
+            else:
+                bad.append(f"{LEDGER} line {n}: the `review` row for `{control}` cites no decision -- "
+                           "the clearing act is a decision, not a row: name the ADR (`D-<n>`, "
+                           "`P-<n>`) or the docs/refusals.md row (`R-<n>`) that fixed, re-scoped or "
+                           "refused the control. Until then the row counts nothing")
+        elif kind in ("skip", "bypass"):
+            counts[control] += 1
+    for control, n in sorted(counts.items()):
+        if n >= SKIP_THRESHOLD:
+            bad.append(f"`{control}` has {n} recorded skip/bypass events in {LEDGER} since its last "
+                       f"review -- {SKIP_THRESHOLD} is the review threshold. The CONTROL goes under "
+                       "review before this wave closes: fix it, re-scope it, or refuse it in "
+                       "docs/refusals.md, and record that as a `review` row citing the ADR or the "
+                       "refusal. Do not record a fourth")
+    return bad
+
+
 def main(argv: list[str]) -> int:
     for stream in (sys.stdout, sys.stderr):    # a console that cannot encode a character prints `?`
         reconfigure = getattr(stream, "reconfigure", None)
@@ -838,9 +943,14 @@ def main(argv: list[str]) -> int:
     #
     # Graded by the version the RECORD declares, never by today's template: a wave close is
     # append-only evidence, and grading an earlier close by rules written later turns every one of
-    # them red after an upgrade (UPGRADING.md). A record that declares no version gets today's
-    # rules. What this gives up: a NEW record could declare an old version to skip a rule; the
+    # them red after an upgrade (UPGRADING.md). What this gives up: a NEW record could declare an old version to skip a rule; the
     # template and `/close-wave` write the current version, and a backdated one shows in the diff.
+    #
+    # A record that declares NO version is history, graded only by the rules that predate versions.
+    # Until v6.7 it got today's rules, which turned every pre-version close in a field project red
+    # after its upgrade -- and that project took `closes` out of `make check` to get green again.
+    # The template has always written the version, so a missing one is an old record; the note
+    # below says so on every run rather than letting it pass unremarked.
     vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
     version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None
     # model_ranking (D-155 adoption review MINOR-1, D-161; v6.6 upgrade review MAJOR-1/2): the
@@ -855,9 +965,21 @@ def main(argv: list[str]) -> int:
                    f"{'undated' if dated is None else 'dated ' + dated.group(1)}: a close written "
                    f"after {DEVFLOW_ADOPTED} declares v{'.'.join(map(str, CURRENT_AT_ADOPTION))} or "
                    "later -- an older stamp would skip the rules written since (D-161)")
+    if version is None:
+        print(f"NOTE [wave-check]: {p.name} declares no process_version -- graded as history: "
+              "frontmatter, table, statuses and sign-off only")
+        # model_ranking (D-161), on DevFlow v7.1's history grading: a close with no version that is
+        # undated, or dated after the adoption, would skip every versioned rule by leaving the line
+        # out. The hole D-161 closed for an old stamp is closed for a missing one the same way, by
+        # refusing it (`wave_check_all` already refuses such a record as "without the stamp").
+        if dated is None or dated.group(1) > DEVFLOW_ADOPTED:
+            bad.append(f"declares no process_version and is "
+                       f"{'undated' if dated is None else 'dated ' + dated.group(1)}: a close written "
+                       f"after {DEVFLOW_ADOPTED} declares v{'.'.join(map(str, CURRENT_AT_ADOPTION))} or "
+                       "later -- a missing stamp would skip the rules written since (D-161)")
 
     def since(*v: int) -> bool:
-        return version is None or version >= v
+        return version is not None and version >= v
 
     for field, why, introduced in (
             ("Touched", "which paths this wave actually changed", (5, 0)),
@@ -866,7 +988,10 @@ def main(argv: list[str]) -> int:
             ("Owner instruction", "the owner's words, verbatim, that this wave implements", (5, 1)),
             ("K.8 contracts", "which shared interfaces it changed, or NONE", (5, 0)),
             ("Stopped at three attempts", "each problem this wave stopped on after three failed "
-             "attempts, with the bug issue that now carries it, or NONE", (6, 6))):
+             "attempts, with the bug issue that now carries it, or NONE", (6, 6)),
+            ("Review need", "the last line of `make review-need` for this wave's range", (7, 0)),
+            ("Last wave of the plan", "yes on the plan's final wave (it carries the milestone Tester), "
+             "otherwise no", (7, 0))):
         if not since(*introduced):
             continue
         m = re.search(rf"^\s*{re.escape(field)}:\s*(.*)$", text, re.M)
@@ -1003,23 +1128,24 @@ def main(argv: list[str]) -> int:
     # gate red: the CONTROL goes under review, not the people. A counter nobody counts is prose.
     ledger_waves: set = set()        # the waves the ledger has a row for
     if LEDGER.is_file():
-        ledger_list = _ledger_rows(LEDGER.read_text(encoding="utf-8", errors="replace"))
+        ledger = LEDGER.read_text(encoding="utf-8", errors="replace")
+        ledger_list = _ledger_rows(ledger)
         ledger_waves = {row[1] for row in ledger_list if len(row) >= 2}
+        # DevFlow v7.1 (`ledger_findings`): every row's kind against the legend, its wave against the shapes,
+        # and the three-row count since a control's last `review` row citing a decision. The project's own
+        # (`ledger_problems`): every row's date.
+        bad.extend(ledger_findings(ledger))
         bad.extend(ledger_problems(ledger_list))
-        for control in ledger_strikes(ledger_list):
-            bad.append(f"`{control}` has three or more skip/bypass events in {LEDGER} since its last ruling "
-                       "or review -- three is the review threshold. The CONTROL goes under review before this "
-                       "wave closes: fix it, re-scope it, or refuse it in docs/refusals.md, and record the "
-                       "ruling as a `ruling` row. Do not record a fourth")
     elif re.search(r"\|\s*(SKIPPED|WAIVED)\b", text):
         bad.append(f"this checklist carries SKIPPED/WAIVED rows but {LEDGER} does not exist -- a skip "
                    "that is not counted is a skip that becomes permanent. Create the ledger "
                    "(header: control,wave,kind,reason,date) and record each one")
 
-    # Every wave closes on TWO fresh-eyes reviews, as separate subagents -- Code-Reviewer, then
-    # Tester (`/close-wave`). Both verdict files must exist beside the checklist
-    # (`<dir>/../reviews/`), each with a `## Verdict`, and neither may be BLOCKING. Required from
-    # process_version v6.0.1, the first template that asked for them.
+    # Every wave closes on fresh-eyes reviews, as separate subagents (`/close-wave`). Their verdict
+    # files must exist beside the checklist (`<dir>/../reviews/`), each with a `## Verdict`, and
+    # none may be BLOCKING. From process_version v6.0.1 a Code-Reviewer and a Tester per wave; from
+    # v7.0 the Code-Reviewer, the Security-Reviewer when the recomputed need says security, and the
+    # milestone Tester on the plan's last wave.
     m = NAME_RE.match(p.name)
     ids = re.match(r"m(\d+)-wave-(\d+)", p.name)
     wave_id = f"m{ids.group(1)}-w{ids.group(2)}" if ids else ""
@@ -1027,15 +1153,32 @@ def main(argv: list[str]) -> int:
     if m and since(6, 0, 1):
         reviews = p.resolve().parent.parent / "reviews"
         stem = p.name[: -len("-close.md")]
-        for kind, who in (("review", "Code-Reviewer"), ("tester", "Tester")):
-            f = reviews / f"{stem}-{kind}.md"
+        required = [("review", "Code-Reviewer", reviews / f"{stem}-review.md")]
+        if since(7, 0):
+            need = review_need_of(text, p, recompute=since(7, 1))
+            if need.startswith("FAIL:"):
+                bad.append(need[5:])
+            elif "security" in need:
+                required.append(("security", "Security-Reviewer", reviews / f"{stem}-security.md"))
+            last = re.search(r"^\s*Last wave of the plan:\s*(\S+)", text, re.M | re.I)
+            if last and last.group(1).strip("`*").lower().startswith("y") and ids:
+                required.append(("tester", "milestone Tester", reviews / f"m{ids.group(1)}-tester.md"))
+                # The mode is read, and does not exempt: in light mode too (owner ruling 2026-10-13).
+                mode = brief_fields.mode()
+                print(f"NOTE [wave-check]: working mode: {mode} -- the plan's last wave carries the "
+                      f"milestone Tester's verdict (`reviews/m{ids.group(1)}-tester.md`) in light "
+                      "mode too")
+        else:
+            required.append(("tester", "Tester", reviews / f"{stem}-tester.md"))
+        for kind, who, f in required:
             if not f.is_file():
-                bad.append(f"no {who} verdict at `{f.parent.name}/{f.name}` -- a wave closes on two "
-                           "separate fresh-eyes reviews; run `/close-wave`")
+                bad.append(f"no {who} verdict at `{f.parent.name}/{f.name}` -- `/close-wave` names "
+                           "the reviews this wave needs; run it")
                 continue
             body = f.read_text(encoding="utf-8", errors="replace")
-            v = re.search(r"^##\s*Verdict\s*\n+\s*(PASS|MINOR|BLOCKING)\b", body, re.M)
-            if not v:
+            # `**BLOCKING**` and the template's unfilled `PASS | MINOR | BLOCKING` are no pass.
+            v = re.search(r"^##\s*Verdict\s*\n+\s*\W*(PASS|MINOR|BLOCKING)\b(.*)$", body, re.M)
+            if not v or "|" in v.group(2):
                 bad.append(f"`{f.name}` carries no `## Verdict` of PASS / MINOR / BLOCKING")
             elif v.group(1) == "BLOCKING":
                 bad.append(f"`{f.name}` is BLOCKING -- flush the fixes and re-review before the wave closes")

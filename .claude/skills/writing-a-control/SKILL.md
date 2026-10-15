@@ -25,6 +25,13 @@ Then ask the other half, which is the one that gets skipped: **does it stay quie
 should?** A control that fires on correct input is not a strict control, it is a control someone
 disables. Write both cases.
 
+**A guard wider than the thing it guards refuses correct input.** The deploy gate matched a deploy
+command as a substring of the whole command line, so a commit message that mentioned the command,
+an issue comment and a heredoc were all refused — eleven refusals in the field, every one wrong,
+and the two evasions it provoked were both answers to a wrong refusal. Match the shape where it
+acts (a command word at a command position, after quoted strings and heredoc bodies are stripped),
+and write the correct-input case — the mention that is not a command — as a test.
+
 ## 3 · Is its subject the tree you think it is?
 
 Three defects in one release, all this shape: a gate whose docstring said `main` and whose code read
@@ -56,6 +63,10 @@ these must be a FAILURE, never a vacuous pass. Know what your runner does with e
   `python3` that is only a stub yields an empty string, no pattern matches, and every guard exits 0 —
   measured on Windows, where every guard in a project fell silent at once. "Could not read the call"
   blocks; "read it, and the field is empty" allows. Test the first with the interpreter broken.
+- **Never pass text through awk `-v`.** BSD awk refuses a `-v` value that holds a newline, the
+  program does not run, and a check written that way grades nothing. Put the text in the
+  environment and read `ENVIRON["NAME"]`; run the test on BSD awk as well as GNU, because the
+  shipped checks run on both.
 - **The conformance runner** (`conformance/run-all.py`) reads exit 2 as NOT-EVALUABLE: printed
   loudly, and not a failure of the suite. Use it only when something else guards what this check
   cannot see — and say what that is. A "could not evaluate" that nothing else covers is a pass

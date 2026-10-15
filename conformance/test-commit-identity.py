@@ -195,10 +195,14 @@ def main() -> int:
     rng = argv[argv.index("--range") + 1] if "--range" in argv else "HEAD"
     # Ask git, do not look for a `.git` directory beside this file: a tree that sits inside a
     # repository (a package in a subdirectory) is still inside it.
-    rc, _ = sh(["git", "rev-parse", "--git-dir"])
-    if rc != 0:
-        print("test-commit-identity CANNOT RUN: not inside a git repository. A history that cannot "
-              "be read cannot be attested -- this is not a pass."); return 2
+    r = subprocess.run(["git", "rev-parse", "--git-dir"], capture_output=True, encoding="utf-8",
+                       errors="replace")
+    if r.returncode != 0:
+        # Say what git said: on a CI runner the repository was there and git refused it (a
+        # container user who does not own the checkout), which "not inside a repository" hid.
+        why = (r.stderr.strip().splitlines() or ["no reason given"])[-1][:160]
+        print("test-commit-identity CANNOT RUN: git cannot read a repository here -- "
+              f"`{why}`. A history that cannot be read cannot be attested -- this is not a pass."); return 2
     rc, _ = sh(["git", "rev-parse", "HEAD"])
     if rc != 0:
         print("test-commit-identity CANNOT RUN: no commits yet."); return 2

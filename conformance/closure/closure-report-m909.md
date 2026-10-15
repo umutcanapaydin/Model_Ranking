@@ -1,18 +1,21 @@
 ---
 record_type: closure
-id: closure-report-m7
+id: closure-report-m909
 status: ratified
-process_version: v6.3
+process_version: v7.1
 date: 2026-09-23
 ---
-# Closure Report — M7 (the owner's milestone review pack)
+# Closure Report — M909 (the owner's milestone review pack)
+<!-- `v7.1` fixture: a filled report that also carries the milestone Tester's verdict beside it
+     (`reviews/m909-tester.md`), which closure_check requires from `v7.1` in both modes. Its §1
+     citations name files this package ships, so the `v6.7` citation rule can read them. -->
 
 ## 1. What shipped (from the approved plan — criteria hash-checked)
 
 | Acceptance criterion (hash-frozen when the plan was approved) | Citing test | CI run | Status |
 |---|---|---|---|
-| Tenant isolation holds across the gateway | `tests/contracts/test_tenancy.py:41` | 1188342 | ✅ |
-| Callback retries are idempotent | `tests/integration/test_callback.py:88` | 1188342 | ✅ |
+| Tenant isolation holds across the gateway | `conformance/test-make-targets.py:41` | 1188342 | ✅ |
+| Callback retries are idempotent | `scripts/closure_check.py:60` | 1188342 | ✅ |
 
 **Criteria diffs since plan approval:** NONE
 
@@ -20,12 +23,12 @@ date: 2026-09-23
 
 | Wave | Risk tier | Reviews (Code-Reviewer + Tester, + security if HIGH) | Findings opened/closed | Test Δ | Escalations | PR |
 |---|---|---|---|---|---|---|
-| W1 | HIGH | `docs/reviews/m7-wave-1-review.md` + `docs/reviews/m7-wave-1-tester.md` + slice security pass | 3/3 | +14 | none | #41 |
-| W2 | MED | `docs/reviews/m7-wave-2-review.md` + `docs/reviews/m7-wave-2-tester.md` | 1/1 | +6 | none | #44 |
+| W1 | HIGH | `docs/reviews/m909-wave-1-review.md` + `docs/reviews/m909-wave-1-tester.md` + slice security pass | 3/3 | +14 | none | #41 |
+| W2 | MED | `docs/reviews/m909-wave-2-review.md` + `docs/reviews/m909-wave-2-tester.md` | 1/1 | +6 | none | #44 |
 
 ## 1b. Decisions made on your behalf (assumption ledger + agent judgment calls)
 
-- Retry budget set to 3: the provider's own documentation caps retries at 3; reversible, one constant (`docs/plans/m7-assumptions.md`, row 2).
+- Retry budget set to 3: the provider's own documentation caps retries at 3; reversible, one constant (`docs/plans/m909-assumptions.md`, row 2).
 
 ## 2. Git record (annotated)
 
@@ -44,16 +47,16 @@ no reverts and no post-closure fixes.
 
 ## 4. Security & invariants
 
-- HIGH waves' security passes on their slices: `docs/reviews/m7-wave-1-review.md` (W1, gateway auth). The release security review runs once, at Stage 5.1; nothing deploys at this close.
-- Invariants table current: every row cites its NEGATIVE test — `tests/contracts/test_tenancy.py:41`
+- HIGH waves' security passes on their slices: `docs/reviews/m909-wave-1-review.md` (W1, gateway auth). The release security review runs once, at Stage 5.1; nothing deploys at this close.
+- Invariants table current: every row cites its NEGATIVE test — `conformance/test-make-targets.py:41`
 - ⛔-glob touches this milestone: none
 
 ## 5. Ledgers (nothing silent)
 
-- **Skipped/waived checks:** none — `docs/control-events.csv` has no row for M7
-- **Assumption ledger:** the retry budget (`docs/plans/m7-assumptions.md`, row 2)
+- **Skipped/waived checks:** none — `docs/control-events.csv` has no row for M909
+- **Assumption ledger:** the retry budget (`docs/plans/m909-assumptions.md`, row 2)
 - **Seed candidates queued:** none
-- **Risks queued to M8:** callback token expiry is not load-tested yet (MINOR, W2 review)
+- **Risks queued to M908:** callback token expiry is not load-tested yet (MINOR, W2 review)
 
 ## 6. Architecture delta — PROSE (the comprehension-debt countermeasure)
 

@@ -2,7 +2,7 @@
 record_type: fixpack
 id: fixpack-template
 status: draft
-process_version: v6.6
+process_version: v7.1
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -10,8 +10,9 @@ date: 2026-08-12
 # Fixpack — {X.Y.Z+1} (Stage 6 Maintenance Loop; THE DEPLOY GATE)
 
 > **Copy to `docs/fixpack-{N}.md`. Deploy is BLOCKED until every row is complete.** One page.
-> A fix wave is a WAVE — `/close-wave`, the normal wave checklist and both fresh-eyes reviews apply
-> (reference, not restated here). This doc adds only the fix-specific evidence and the owner's out-of-sandbox gate.
+> Heavy: a fix wave is a WAVE — `/close-wave`, the normal wave checklist and the reviews `make
+> review-need` computes apply (reference, not restated here). Light: each fix is a `/fix-issue`, and
+> the milestone Tester runs once on the pack before it ships. This doc adds only the fix-specific evidence and the owner's out-of-sandbox gate.
 > **Caps:** ≤5 fixes OR ~400 net changed lines; a HIGH/⛔ fix ships in a pack of ONE.
 > **Scope rule:** a fix wave only turns a red test green — never new behavior.
 
@@ -26,9 +27,9 @@ date: 2026-08-12
 
 ## Fixes (one row each — every cell is a referent, not a claim)
 
-| # | Bug ref | Exploitable? | Red test (permanent, tagged) | Fix commit | Tier | CR | Tester | Gate that should have caught it + lesson (1 line → EXPERIENCE) |
-|---|---|---|---|---|---|---|---|---|
-| 1 | `<link>` | `<no/YES→escalated>` | `<test file:name>` | `<sha>` | `<L/M/H>` | `<PASS ref>` | `<PASS ref>` | `<gate: ... / lesson: ...>` |
+| # | Bug ref | Exploitable? | Red test (permanent, tagged) | Fix commit | Tier | Reviews (`make review-need`) | Gate that should have caught it + lesson (1 line → EXPERIENCE) |
+|---|---|---|---|---|---|---|---|
+| 1 | `<link>` | `<no/YES→escalated>` | `<test file:name>` | `<sha>` | `<L/M/H>` | `<none, or each verdict's PASS ref>` | `<gate: ... / lesson: ...>` |
 
 ## Security floor (unconditional)
 
@@ -41,7 +42,7 @@ date: 2026-08-12
 ## Test bar
 
 - [ ] Every red test added to the PERMANENT regression suite (bug-ID tagged)
-- [ ] Affected-flow E2E per fix (Tester-defined scope)
+- [ ] Affected-flow E2E per fix (scope named in the fix's issue)
 - [ ] **Full regression GREEN once on the exact final bundled build** — `<run ref>`
 
 ## Owner out-of-sandbox verification (BLOCKING — no signature, no deploy)

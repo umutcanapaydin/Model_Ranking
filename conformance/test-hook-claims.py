@@ -21,9 +21,23 @@ What this compares, exactly:
      (exit 2) and allow the rest (exit 0) -- with a real interpreter, and with a `python3` that
      fails in front of a real `python` (the Windows Store alias). With NO working interpreter, or a
      payload that does not parse, they must block, never allow: a guard that cannot read the call
-     once exited 0 on everything, silently. The Bash guard matches with `grep`, so with no `grep`
-     on PATH it must block too. The PostToolUse hook must run `make check-fast`, fail with exit 2,
-     and say so plainly when `make` is not installed.
+     once exited 0 on everything, silently. The Bash guard needs nothing but an interpreter: with
+     only `python3` on PATH it still refuses. The PostToolUse hook must run `make check-fast`, fail
+     with exit 2, and say so plainly when `make` is not installed.
+  5. The Bash hook runs `.claude/hooks/bash_guard.py` and PINS it: its command carries the file's
+     sha256, refuses every call when the file is altered (`not the guard the settings pin`) or
+     missing, and the pin written there is the file's current sha256. Every hook entry carries
+     `timeout` and `"onFailure": "block"`: a hook that hangs, or cannot start, does not block on its
+     own (Claude Code 2.1.295 and later read `onFailure`), so a guard without them is a guard that
+     switches itself off under load. And `permissions.allow` grants no `Bash(make <target>:*)`: that
+     wildcard let `make lint PY='<anything>'` run with no prompt (a field finding).
+  6. model_ranking (the M21 closure, carried into the v7.1 guard): the Write and Edit hook runs the same
+     pinned guard with `--write`, so one changed byte blocks every write too; every interpreter the two
+     hooks start runs as `python3 -I -S`, so neither a `json.py` where they run nor a `.pth` in the
+     site-packages of the `python3` first on PATH changes a verdict; and both refuse a write into any work
+     tree's `.claude/` or `.githooks/`, resolved from the payload's `cwd` and each `cd`, `pushd` or `git -C`,
+     links followed, case-folded. The project's rules on `fly`/`flyctl` and the hosted engine's deploy
+     script (D-185) are cases of the Bash hook's lists below.
 
 FAILS CLOSED: finding zero `enforced-by:` declarations is a FAILURE, not a pass. A parser that
 silently matches nothing is the defect this rule exists to name, one level up.
@@ -38,7 +52,7 @@ where `grep mypy` returns nothing.
 
 Exit 0 clean, 1 findings, 2 not evaluable here.
 """
-import contextlib, sys, re, json, os, pathlib, signal, subprocess, shutil, tempfile, time
+import contextlib, sys, re, json, os, pathlib, signal, subprocess, shutil, tempfile, time, hashlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib_record import missing_tool, runnable_bash                     # noqa: E402
@@ -46,12 +60,10 @@ from lib_record import missing_tool, runnable_bash                     # noqa: E
 # The first stderr line of a PreToolUse guard that has no interpreter to read the call with.
 NO_INTERPRETER = ("BLOCKED: this guard cannot read the tool call -- no working python3 or python "
                   "on PATH (see INSTALL.md).")
-# The first stderr line of the Bash guard when it has an interpreter and no `grep` to match with.
-NO_GREP = "BLOCKED: this guard cannot run -- grep is not on PATH (see INSTALL.md)."
+# What the Bash hook says when the guard file is not the one the settings pin, or is gone.
+PIN_ALTERED = "is not the guard the settings pin"
+PIN_MISSING = "is missing"
 UNREADABLE = "BLOCKED: this guard cannot read the tool call"
-#: The first stderr words of the Bash hook when the guard file is not the one it pins (the M21 closure
-#: security seat's S3).
-PINNED = "is not the guard the settings pin"
 POST_GREEN = "POST-EDIT CHECK: make check-fast GREEN"
 POST_FAILED = "POST-EDIT CHECK: make check-fast FAILED (exit 7) -- fix before the next edit"
 POST_NO_MAKE = "POST-EDIT CHECK CANNOT RUN: make is not installed (see INSTALL.md)"
@@ -107,7 +119,7 @@ def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
       broken-python3   a `python3` that fails, then a real `python` -- the guard must still work
       no-interpreter   `python3` and `python` both failing -- the guard must block everything
       no-python        neither on PATH at all -- the same
-      no-grep          a real `python3` and nothing else -- the Bash guard must block everything
+      python-only      a real `python3` and nothing else -- the Bash guard must still judge
       make-0, make-7   a `make` that exits 0 / 7 and prints its arguments
       no-make          the tools alone
     """
@@ -125,10 +137,10 @@ def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
         _script(d / "python3", py3)
         _script(d / "python", py)
         out[name] = os.pathsep.join((str(d), str(tools)))
-    d = tmp / "no-grep"
+    d = tmp / "python-only"
     d.mkdir()
     _script(d / "python3", f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
-    out["no-grep"] = str(d)
+    out["python-only"] = str(d)
     for rc in (0, 7):
         d = tmp / f"make-{rc}"
         d.mkdir()
@@ -138,14 +150,14 @@ def hook_paths(tmp: pathlib.Path) -> dict[str, str]:
 
 
 def run_hook(bash: str, command: str, payload: str, path: str | None = None,
-             extra: dict | None = None, timeout: float = 60,
-             cwd: pathlib.Path | None = None) -> subprocess.CompletedProcess:
+             extra: dict | None = None, cwd: pathlib.Path | None = None,
+             timeout: float = 120) -> subprocess.CompletedProcess:
+    # The guard resolves the repository from the call's directory and `CLAUDE_PROJECT_DIR`: both name
+    # THIS package unless a case says otherwise, so a session's own project cannot leak in.
     env = dict(os.environ)
+    env["CLAUDE_PROJECT_DIR"] = str(pathlib.Path(__file__).resolve().parent.parent)
     if path is not None:
         env["PATH"] = path
-    # #189: as Claude Code runs a hook, with the project's directory, where the Bash guard's second
-    # reading lives; a case that names another directory says so in `extra`.
-    env["CLAUDE_PROJECT_DIR"] = str(pathlib.Path(__file__).resolve().parent.parent)
     env.update(extra or {})
     # The M21-W4 Tester's M5: the hook runs in a session of its own; one that does not answer within its limit
     # has its whole group killed (the guard's interpreter included) and comes back as a failure, exit -9.
@@ -303,6 +315,13 @@ def main() -> int:
                   "git push origin main", "git push origin master", "git push origin HEAD:main",
                   "git reset --hard HEAD~1", "rm -rf .", "rm -rf ~/work", "rm -fr /home/u",
                   "git clean -fd",
+                  # v6.7: merging, readying and branch protection are the human's. In the field the
+                  # rule held only because the agent obeyed it; nothing refused `gh pr merge`.
+                  "gh pr merge 12 --squash", "gh pr ready 12", "cd x && gh pr merge 3",
+                  "gh api -X PATCH repos/o/r/branches/main/protection/required_status_checks -F strict=false",
+                  "gh api repos/o/r/rulesets -f name=x", "gh api --method DELETE repos/o/r/branches/main/protection",
+                  # the flags-anywhere forms the field probes walked through
+                  "gh -R a/b pr merge 5", "gh pr -R a/b merge 5", "gh api repos/a/b/pulls/5/merge -X PUT",
                   # #142 (the M18 closure's S6): a short-option cluster holding `f`, and a mirror push.
                   "git push -uf origin x", "git push -fu origin x", "git push --mirror origin",
                   # The M19-W5 review's M1 and K1, the M19 security review's S5 and S6: a cluster with a
@@ -380,36 +399,28 @@ def main() -> int:
                   # options, `rm` behind a wrapper, and a shell given `-s` (each plant stayed green without them).
                   'rm -r -f build', 'rm --recursive --force build', 'sudo rm -r -f build',
                   'cat setup.sh | bash -s -- --quiet',
-                  # The M21 closure security seat's S3: the guard and the hooks are the owner's, so a write to
-                  # `.claude/` or `.githooks/` through Bash is blocked; reading them is not.
-                  'echo x > .claude/hooks/bash_guard.py', "sed -i '' 's/a/b/' .claude/settings.json",
-                  'cp /tmp/x .githooks/pre-commit', 'rm .claude/hooks/bash_guard.py',
-                  'printf x | tee .claude/settings.json', 'mv /tmp/g "$CLAUDE_PROJECT_DIR/.claude/hooks/bash_guard.py"',
-                  'echo x >> .githooks/pre-push', "perl -pi -e 's/a/b/' .claude/hooks/bash_guard.py",
-                  # The M21 closure fixes review's M6: a destination given as an option, and another case.
-                  'cp -t .claude/hooks x.py', 'cp --target-directory=.githooks x', 'install -t .githooks x',
-                  'dd if=x of=.claude/settings.json', 'cp x .CLAUDE/settings.json',
-                  # Round 3, M2 and M7: `-t` ending a cluster, a value holding a `t`, and `install -d`'s every path.
-                  'install -vt .githooks x', 'install -ostaff x .githooks/commit-msg', 'install -d .githooks/x build',
                   # It blocks what it cannot read: an unclosed quote, substitution or backtick (no case held these).
                   "echo 'not closed", 'echo "not closed', 'echo $(date', 'echo `date', 'echo ${HOME']
     MUST_ALLOW = ["git push -u origin fix/issue-3", "git push origin enhancement/x", "git push",
                   "git push --follow-tags origin x", "git push -4 origin x", "fly status", "fly logs",
-                  "scripts/deploy_hosted_engine.sh --dry-run",
                   # Named, not run: a message or a search that mentions them is no deploy.
                   "git commit -m 'fly deploy docs'", "grep -n deploy_hosted_engine.sh docs/release-testflight.md",
                   # The second W5 review's M2: an option or a branch that only starts like --mirror.
                   "git log --grep push --min-parents=2", "git push origin wave/m19--minor", "git push origin fix--mi",
                   "git status", "rm file.txt", "rm -r build",
                   "git reset HEAD~1", "npm run format",
+                  "gh pr create --draft --title t", "gh pr view 12", "gh pr list --state open",
+                  "gh api repos/o/r/branches/main/protection",
+                  # the field's false positives: a commit message and a heredoc are data
+                  "git commit -m 'fix: clean-module and go-fmt on main (#90)'",
+                  "cat > t.sh <<'EOF'\ngit checkout -- .\nEOF", "rm -rf \"$TMPDIR\"/scratch",
                   # #189: the read-only fly subcommands, and a here-document whose body is data.
                   "fly auth whoami", "fly apps list", "fly version", "fly logs -a model-ranking",
                   "python3 - <<'EOF'\nprint(\"don't\")\nEOF", "git commit -m \"$(cat <<'EOF'\nIt's done\nEOF\n)\"",
                   # The review's M2: text inside quotes is not a command, and the commands this session runs.
                   "gh issue comment 189 --body 'the guard reads `fly deploy` and git push --all'",
                   'gh pr create --draft --title \'x\' --body "$(cat <<\'EOF\'\n- blocks `git push --all`\nEOF\n)"',
-                  "cat <<< 'hello'", 'echo $((1<<2))', 'bash scripts/deploy_hosted_engine.sh --dry-run',
-                  'sh scripts/deploy_hosted_engine.sh --dry-run',
+                  "cat <<< 'hello'", 'echo $((1<<2))',
                   'git commit -q -m "$(cat <<\'EOF\'\nfix: the guard\'s second reading -- #189 (M21-W4)\n\n- it blocks `fly deploy` and `git push --all`\nEOF\n)"',
                   "gh issue create --title 'a title' --body-file ../w4-122.md",
                   "gh pr create --draft --base main --title 'M21-W4' --body-file ../body.md",
@@ -423,6 +434,27 @@ def main() -> int:
                   'x=(a b c); echo ${x[0]}', 'f() { echo hi; }; f', 'echo ${HOME:-/tmp}', 'echo $(( 2 + 3 ))',
                   # The M21-W4 Tester: a shell's `-c` string and here-document that read as harmless, and a `case`.
                   "bash -c 'echo hi'", "bash <<'EOF'\necho hi\nEOF", 'case $1 in a) echo a;; *) echo other;; esac',
+                  ]
+    # Run from the project itself (its `.claude/` and `.githooks/` are the owner's): the lists above run from
+    # the home directory, where `rm -rf` of the temp directory's tree is scratch by design and no `.git` sits.
+    MUST_BLOCK_HERE = [
+                  # The M21 closure security seat's S3: the guard and the hooks are the owner's, so a write to
+                  # `.claude/` or `.githooks/` through Bash is blocked; reading them is not.
+                  'echo x > .claude/hooks/bash_guard.py', "sed -i '' 's/a/b/' .claude/settings.json",
+                  'cp /tmp/x .githooks/pre-commit', 'rm .claude/hooks/bash_guard.py',
+                  'printf x | tee .claude/settings.json', 'mv /tmp/g "$CLAUDE_PROJECT_DIR/.claude/hooks/bash_guard.py"',
+                  'echo x >> .githooks/pre-push', "perl -pi -e 's/a/b/' .claude/hooks/bash_guard.py",
+                  # The M21 closure fixes review's M6: a destination given as an option, and another case.
+                  'cp -t .claude/hooks x.py', 'cp --target-directory=.githooks x', 'install -t .githooks x',
+                  'dd if=x of=.claude/settings.json', 'cp x .CLAUDE/settings.json',
+                  # Round 3, M2 and M7: `-t` ending a cluster, a value holding a `t`, and `install -d`'s every path.
+                  'install -vt .githooks x', 'install -ostaff x .githooks/commit-msg', 'install -d .githooks/x build']
+    # D-185 lets an agent run the deploy script's dry run. The brief may also declare the script a deploy
+    # (`Deploy commands:`), and then the deploy gate refuses even the dry run until the release verdicts are
+    # current: these run where no brief governs, so they grade the guard's own rule, not today's verdicts.
+    MUST_ALLOW_NO_GATE = ["scripts/deploy_hosted_engine.sh --dry-run", "bash scripts/deploy_hosted_engine.sh --dry-run",
+                          "sh scripts/deploy_hosted_engine.sh --dry-run", "fly status"]
+    MUST_ALLOW_HERE = [
                   # S3: reading the guard, staging it and hashing it stay allowed.
                   'cat .claude/settings.json', 'git add .claude/hooks/bash_guard.py',
                   'shasum -a 256 .claude/hooks/bash_guard.py', 'grep -n onFailure .claude/settings.json',
@@ -433,6 +465,38 @@ def main() -> int:
                   'install -o root .claude/settings.json /tmp/out']
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
+    # Every hook entry carries `timeout` and `"onFailure": "block"`: without them a hook that
+    # hangs or cannot start does not block, and the guard is off exactly when it is slow.
+    for event, entries in hooks.items():
+        for entry in entries:
+            for h in entry.get("hooks", []):
+                where = f"{event} hook `{entry.get('matcher', '*')}`"
+                if not isinstance(h.get("timeout"), int) or h["timeout"] <= 0:
+                    bad.append(f"{where} carries no positive `timeout` -- a hook that hangs never blocks")
+                if h.get("onFailure") != "block":
+                    bad.append(f"{where} does not set `\"onFailure\": \"block\"` -- a hook that cannot start "
+                               "lets the call through (Claude Code 2.1.295 and later read this field)")
+    # The Bash hook pins the guard file by its sha256: the pin must be the file's current digest.
+    guard = root / ".claude" / "hooks" / "bash_guard.py"
+    if bash_hook is not None:
+        pins = set(re.findall(r'\[ "\$h" = "([0-9a-f]{64})" \]', bash_hook))
+        if "bash_guard.py" not in bash_hook or not pins:
+            bad.append("the PreToolUse Bash hook does not run `.claude/hooks/bash_guard.py` under a sha256 pin -- "
+                       "an agent could edit the guard that judges its own commands")
+        elif not guard.is_file():
+            bad.append("the PreToolUse Bash hook pins `.claude/hooks/bash_guard.py` and the file does not exist")
+        else:
+            have = hashlib.sha256(guard.read_bytes()).hexdigest()
+            if pins != {have}:
+                bad.append(f"the sha256 pin in .claude/settings.json ({', '.join(p[:12] for p in sorted(pins))}) is "
+                           f"not .claude/hooks/bash_guard.py's ({have[:12]}) -- every Bash call is refused until "
+                           "`make guard-pin` rewrites it")
+    # `permissions.allow`: a `make <target>:*` wildcard lets an argument run anything.
+    allow = json.loads(st.read_text(encoding="utf-8")).get("permissions", {}).get("allow", [])
+    for rule in allow:
+        if re.match(r"^(Bash|PowerShell)\(make\s+\S+:\*\)$", rule):
+            bad.append(f"permissions.allow carries `{rule}` -- `make <target> VAR='<anything>'` then runs with no "
+                       "prompt; allow the exact target instead")
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                      if h.get("matcher", "").startswith("Write")), None)
     post = [h["hooks"][0]["command"] for h in hooks.get("PostToolUse", [])]
@@ -449,9 +513,13 @@ def main() -> int:
     if not bash:
         unevaluable.append(why)
     else:
-        # Claude Code sends the session's working directory as `cwd`; a case without one leaves it out.
-        def cmd(c: str, cwd: pathlib.Path | None = None) -> str:
-            return json.dumps({"tool_input": {"command": c}, **({"cwd": str(cwd)} if cwd else {})}, ensure_ascii=False)
+        # The payload's `cwd` is the home directory: relative `rm -rf` targets resolve from it, and a
+        # target under the temp directory would be scratch by design.
+        home = str(pathlib.Path.home())
+
+        # A case that names its own directory sends it as `cwd`, as Claude Code sends the session's.
+        def cmd(c: str, cwd: pathlib.Path | str | None = None) -> str:
+            return json.dumps({"tool_input": {"command": c}, "cwd": str(cwd or home)}, ensure_ascii=False)
 
         def fpath(f: str, cwd: pathlib.Path | None = None) -> str:
             return json.dumps({"tool_input": {"file_path": f}, **({"cwd": str(cwd)} if cwd else {})}, ensure_ascii=False)
@@ -463,30 +531,19 @@ def main() -> int:
             if bash_hook is not None:
                 cases += [("Bash", f"`{c}`", cmd(c), True, None, {}) for c in MUST_BLOCK]
                 cases += [("Bash", f"`{c}`", cmd(c), False, None, {}) for c in MUST_ALLOW]
-                # #189: the guard's second reading is a file in the project; without it the guard blocks.
-                cases.append(("Bash", "`git status` with the second reading missing", cmd("git status"), True,
-                              None, {"CLAUDE_PROJECT_DIR": tmp}))
-                # The M21-W4 Tester: the text reading runs first and is held on its own. With a second reading
-                # that allows everything, each case from before #189 still blocks; without these, the text
-                # reading could be deleted and every case above would pass on the second reading alone.
-                stub = pathlib.Path(tmp) / "allow-all"
-                (stub / ".claude" / "hooks").mkdir(parents=True)
-                (stub / ".claude" / "hooks" / "bash_guard.py").write_text("import sys\nsys.exit(0)\n",
-                                                                         encoding="utf-8")
-                # S3 pins the guard's sha256, so the stub is refused by the pin before it runs; a case held by
-                # the text reading must be refused by the text reading's own message, never by the pin's.
-                for c in MUST_BLOCK[:MUST_BLOCK.index("FLY_API_TOKEN=x fly deploy")]:
-                    r = run_hook(bash, bash_hook, cmd(c), None, {"CLAUDE_PROJECT_DIR": str(stub)})
-                    if r.returncode != 2 or PINNED in _err(r):
-                        bad.append(f"the text reading alone did not block `{c}` (exit {r.returncode}; "
-                                   f"{_err(r)[:90] or 'no message'})")
-                # The M21 closure security seat's S2: a second reading that dies with exit 1 still blocks
-                # (the hook's `|| exit 2`; only exit 2 blocks).
-                dies = pathlib.Path(tmp) / "exit-1"
-                (dies / ".claude" / "hooks").mkdir(parents=True)
-                (dies / ".claude" / "hooks" / "bash_guard.py").write_text("import sys\nsys.exit(1)\n", encoding="utf-8")
-                cases.append(("Bash", "`git status` with a second reading that exits 1", cmd("git status"), True, None,
-                              {"CLAUDE_PROJECT_DIR": str(dies)}))
+                cases += [("Bash", f"`{c}` from the project", cmd(c, root), True, None, {}) for c in MUST_BLOCK_HERE]
+                ungated = pathlib.Path(tmp) / "ungated"
+                (ungated / ".claude" / "hooks").mkdir(parents=True)
+                shutil.copy(root / ".claude" / "hooks" / "bash_guard.py", ungated / ".claude" / "hooks")
+                cases += [("Bash", f"`{c}` where no brief declares a deploy", cmd(c), False, None,
+                           {"CLAUDE_PROJECT_DIR": str(ungated)}) for c in MUST_ALLOW_NO_GATE]
+                cases += [("Bash", f"`{c}` from the project", cmd(c, root), False, None, {}) for c in MUST_ALLOW_HERE]
+                # v7.1's scratch and the owner's directories together: `rm -rf` of a worktree under
+                # `.claude/worktrees/` passes, of anything else in `.claude/` it does not.
+                cases += [("Bash", f"`{c}` from the project", cmd(c, root), want, None, {})
+                          for c, want in (("rm -rf .claude/worktrees/agent-x", False), ("rm -rf .claude/hooks", True),
+                                          ("rm -rf .claude", True), ("rm -rf .claude/worktrees", True),
+                                          ("find .claude -delete", True))]
                 # S3: the hook pins the guard's sha256; one changed byte blocks every command.
                 changed = pathlib.Path(tmp) / "changed"
                 (changed / ".claude" / "hooks").mkdir(parents=True)
@@ -497,7 +554,7 @@ def main() -> int:
                 # The fixes review, round 2, M8: after a pull the pin is already right and only a new session helps,
                 # so the line says to restart one, and where the owner's re-pin is written.
                 said = _err(run_hook(bash, bash_hook, cmd("git status"), None, {"CLAUDE_PROJECT_DIR": str(changed)}))
-                if PINNED not in said or "restart" not in said or "INSTALL.md" not in said:
+                if PIN_ALTERED not in said or "restart" not in said or "INSTALL.md" not in said:
                     bad.append(f"the pin's BLOCKED line names neither the restart nor INSTALL.md: `{said[:120]}`")
                 # M6: the pin holds the guard's bytes, and `python3 -I` keeps a module beside it from changing
                 # what it imports: a `json.py` there that allows everything changes nothing.
@@ -513,6 +570,8 @@ def main() -> int:
                 cases += [("Write", f"a write to `{f}`", fpath(f), want, None, {})
                           for f, want in ((".env", True), ("cfg/.env.prod", True), ("prod.env", True),
                                           ("src/app.py", False), ("README.md", False),
+                                          # v7.1: a secrets file by its name, and only by its name.
+                                          (".envrc", True), (".env.example", False), ("src/config.env.py", False),
                                           # S3: the hooks and settings are the owner's, by the Edit tool too.
                                           (".claude/settings.json", True), (".githooks/pre-commit", True),
                                           (str(root / ".claude" / "hooks" / "bash_guard.py"), True),
@@ -525,13 +584,13 @@ def main() -> int:
             # through a link, and case-folded. A `.claude/` whose parent holds no `.git` (Claude Code's own
             # `~/.claude`) is not; neither is a read, nor a `-t` that is not a destination.
             trees = pathlib.Path(tmp) / "trees"
-            worktree, clone, plain, home = (trees / name for name in ("worktree", "clone", "plain", "home"))
+            worktree, clone, plain, fake_home = (trees / name for name in ("worktree", "clone", "plain", "home"))
             for d in (worktree / ".githooks", worktree / ".claude", worktree / "ios", clone / ".git", clone / ".githooks",
-                      plain / ".claude", plain / ".githooks", home / ".claude" / "projects"):
+                      plain / ".claude", plain / ".githooks", fake_home / ".claude" / "projects"):
                 d.mkdir(parents=True)
             (worktree / ".git").write_text("gitdir: /nowhere/.git/worktrees/worktree\n", encoding="utf-8")
             (trees / "worktree-hooks").symlink_to(worktree / ".githooks")
-            at_home = {"HOME": str(home)}
+            at_home = {"HOME": str(fake_home)}
             # Round 3, M1: Claude Code makes worktrees inside a repository's `.claude/` (`claude --worktree`, a
             # subagent's `isolation: "worktree"`). Such a worktree is its own work tree: its files are writable,
             # its own `.claude/` and `.githooks/` are not.
@@ -594,7 +653,7 @@ def main() -> int:
                               (str(trees / "worktree-hooks" / "pre-push"), None, True, {}),
                               (str(plain / ".claude" / "settings.json"), None, False, {}),
                               (".claude/x", plain, False, {}),
-                              (str(home / ".claude" / "projects" / "x" / "MEMORY.md"), None, False, at_home),
+                              (str(fake_home / ".claude" / "projects" / "x" / "MEMORY.md"), None, False, at_home),
                               # Round 3, M1: a worktree inside the clone's `.claude/`.
                               (str(inner / "src" / "f.py"), None, False, {}),
                               ("src/f.py", inner, False, {}),
@@ -604,8 +663,8 @@ def main() -> int:
                 cases.append(("Write", "a write with the guard changed by one byte", fpath("README.md"), True, None,
                               {"CLAUDE_PROJECT_DIR": str(changed)}))
             # M6: every interpreter the hooks start runs with -I, so a module in the directory a hook runs in (the
-            # project, which an agent writes) changes nothing. With a json.py there that exits 0, the text reading
-            # still blocks with its own message, and the Write hook still refuses.
+            # project, which an agent writes) changes nothing. With a json.py there that exits 0, the guard still
+            # refuses with its own message, and the Write hook still refuses.
             for kind, entry in (("Bash", bash_hook), ("Write", env_hook)):
                 for unisolated in re.findall(r'"\$py"\s+(?!-I -S\b|\])[^;|]{0,40}', entry or ""):
                     bad.append(f"the PreToolUse {kind} hook starts an interpreter without -I -S: `{unisolated}`")
@@ -621,7 +680,7 @@ def main() -> int:
                 (site / "zz_guard.pth").write_text('import os, sys; sys.argv[:1] and sys.argv[0].endswith("bash_guard.py")'
                                                    ' and os._exit(0)\n', encoding="utf-8")
                 first = os.pathsep.join((str(venv / "bin"), os.environ.get("PATH", "")))
-                for kind, entry, payload in (("Bash", bash_hook, cmd("echo x > .githooks/commit-msg")),
+                for kind, entry, payload in (("Bash", bash_hook, cmd("echo x > .githooks/commit-msg", root)),
                                              ("Write", env_hook, fpath(".githooks/commit-msg"))):
                     if entry and run_hook(bash, entry, payload, first).returncode != 2:
                         bad.append(f"the PreToolUse {kind} hook let a write into .githooks/ through with a .pth in the "
@@ -630,10 +689,9 @@ def main() -> int:
             planted.mkdir()
             (planted / "json.py").write_text("import sys\nsys.exit(0)\n", encoding="utf-8")
             if bash_hook is not None:
-                r = run_hook(bash, bash_hook, cmd("git push origin main"), None, {"CLAUDE_PROJECT_DIR": str(stub)},
-                             cwd=planted)
-                if r.returncode != 2 or PINNED in _err(r):
-                    bad.append(f"the text reading did not block `git push origin main` with a json.py where the hook runs "
+                r = run_hook(bash, bash_hook, cmd("git push origin main"), None, {}, cwd=planted)
+                if r.returncode != 2 or "never pushes the protected branch" not in _err(r):
+                    bad.append(f"the guard did not refuse `git push origin main` for its reason with a json.py where the hook runs "
                                f"(exit {r.returncode}; {_err(r)[:90] or 'no message'})")
             if env_hook:
                 r = run_hook(bash, env_hook, fpath("cfg/.env"), None, {}, cwd=planted)
@@ -682,10 +740,34 @@ def main() -> int:
                                    f"exit {r.returncode}, first stderr line `{_err(r)[:90]}` -- it "
                                    f"must exit 2 with `{NO_INTERPRETER}`. A guard that cannot read "
                                    "the call and allows it has switched itself off")
-            # The Bash guard reads the call and then matches it with `grep`. Without one, every
-            # pattern test fails, nothing matches, and the guard allowed everything -- so it must
-            # refuse, even `git status`, with the line INSTALL.md points at.
+            # The Bash guard needs nothing but an interpreter: with only `python3` on PATH (no git,
+            # no grep) it still refuses the push to the protected branch for ITS reason, and allows
+            # `git status`.
             if bash_hook is not None:
+                r = run_hook(bash, bash_hook, cmd("git push origin main"), paths["python-only"])
+                if r.returncode != 2 or "never pushes the protected branch" not in _err(r):
+                    bad.append(f"PreToolUse Bash guard with only python3 on PATH: exit {r.returncode}, "
+                               f"first stderr line `{_err(r)[:90]}` -- it must refuse the push to the "
+                               "protected branch with its own reason, needing no other tool")
+                r = run_hook(bash, bash_hook, cmd("git status"), paths["python-only"])
+                if r.returncode != 0:
+                    bad.append(f"PreToolUse Bash guard with only python3 on PATH wrongly refused `git status` "
+                               f"(exit {r.returncode}; {_err(r)[:90]})")
+                # The pin: an altered guard, and a missing one, refuse every call -- even `git status`.
+                scratch = pathlib.Path(tmp) / "pinned"
+                (scratch / ".claude" / "hooks").mkdir(parents=True)
+                guard_src = root / ".claude" / "hooks" / "bash_guard.py"
+                (scratch / ".claude" / "hooks" / "bash_guard.py").write_text(
+                    guard_src.read_text(encoding="utf-8") + "\n# altered\n", encoding="utf-8")
+                r = run_hook(bash, bash_hook, cmd("git status"), None, {"CLAUDE_PROJECT_DIR": str(scratch)})
+                if r.returncode != 2 or PIN_ALTERED not in _err(r):
+                    bad.append(f"PreToolUse Bash guard ran an ALTERED .claude/hooks/bash_guard.py (exit "
+                               f"{r.returncode}; `{_err(r)[:90]}`) -- the pin in .claude/settings.json does not hold")
+                (scratch / ".claude" / "hooks" / "bash_guard.py").unlink()
+                r = run_hook(bash, bash_hook, cmd("git status"), None, {"CLAUDE_PROJECT_DIR": str(scratch)})
+                if r.returncode != 2 or PIN_MISSING not in _err(r):
+                    bad.append(f"PreToolUse Bash guard with .claude/hooks/bash_guard.py MISSING: exit "
+                               f"{r.returncode}, `{_err(r)[:90]}` -- it must refuse every call, never skip")
                 # The M21-W4 Tester's M5: a hook that does not answer is a failure with its label, never a
                 # traceback that hides the run's other findings, and nothing it started outlives it.
                 r = run_hook(bash, "sleep 30", "{}", None, timeout=1)
@@ -699,14 +781,6 @@ def main() -> int:
                     bad.append(f"PreToolUse Bash guard took {time.monotonic() - started:.1f} s (exit {r.returncode}) on a "
                                "brace word it would have to enumerate -- it must block within its own bound")
                 entry = next(h for h in hooks.get("PreToolUse", []) if h.get("matcher") == "Bash")["hooks"][0]
-                if entry.get("onFailure") != "block" or not isinstance(entry.get("timeout"), int):
-                    bad.append("the PreToolUse Bash hook sets no `timeout` and no `onFailure: \"block\"` -- a hook that "
-                               "times out lets the call through (code.claude.com/docs/en/hooks)")
-                r = run_hook(bash, bash_hook, cmd("git status"), paths["no-grep"])
-                if r.returncode != 2 or _err(r) != NO_GREP:
-                    bad.append(f"PreToolUse Bash guard with no grep on PATH: exit {r.returncode}, "
-                               f"first stderr line `{_err(r)[:90]}` -- it must exit 2 with "
-                               f"`{NO_GREP}`. A guard that cannot match allows every command")
 
             # Per edit: `make check-fast` -- the offline `make check` legs side by side, seconds.
             # The full `make gate` (network: pip-audit, slopsquat) runs at pre-push and `/pre-merge`.

@@ -1,3 +1,10 @@
+---
+record_type: brief
+id: project-brief
+status: ratified
+process_version: v7.1
+date: 2026-08-06
+---
 # Project Brief — model_ranking
 
 > Filled 2026-08-06 by the lead agent from the owner's research corpus and kickoff decisions; owner reviews and signs at the bottom. (Template: docs/project-brief.template.md.)
@@ -89,6 +96,18 @@ N/A — no HIGH-risk paths in this project (M1). Owner is the sole reviewer per 
 ## 10. What the agent MUST deliver before any wave dispatches
 
 Delivered with this brief (2026-08-06): filled AGENTS.md §1-2 · filled pyproject.toml · docs/prd.md with REQ-IDs · docs/architecture.md with §5 conflict table · docs/decisions.md D-100..D-104 · docs/plans/m1-plan.md (writing-plans format, token estimate, risk tier, dispatch checklist) · bootstrap-check status report · host-side admin TODO list. `make check` day-1 green to be confirmed on the owner's machine (venv lives host-side).
+
+---
+
+## 11. DevFlow v7.1 setup answers (the owner, 2026-10-15; D-199)
+
+The questions DevFlow v7.0 and v7.1 added, answered at the upgrade from v6.6.
+
+- **Working mode:** `heavy` *(waves, a Code-Reviewer per wave, the milestone Tester once per milestone on the plan's last wave)*
+- **Deploy commands:** `fly deploy`, `scripts/deploy_hosted_engine.sh` *(the deploy gate refuses each until the release security review and the milestone Tester have seen every code change since their reviewed heads)*
+- **Runtime config files:** `none` *(the engine's secrets live in Fly, set by the owner)*
+- **Paths that make a change HIGH:** `none` *(as section 4 says; the security seat runs at each milestone's closure and on the whole release, D-172)*
+- **QA verification:** `off` *(a bug closes when its fix merges)*
 
 ---
 

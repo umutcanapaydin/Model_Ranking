@@ -2,7 +2,7 @@
 record_type: warnings
 id: warnings-ledger
 status: draft
-process_version: v6.6
+process_version: v7.1
 date: 2026-09-23
 ---
 # Warning ledger (V4C-77)
@@ -12,7 +12,8 @@ date: 2026-09-23
 
 **The rule in one line: a warning may not survive the close it was raised in.** It is FIXED, ACCEPTED
 with a reason AND an owning milestone, or ESCALATED (this project keeps its own validator, D-161: an issue as the owner is not read here). `check_records.py` rules `C2a`/`C2b`/`C2c` enforce it.
-A skipped or bypassed control is not a warning: it is a row in `docs/control-events.csv`.
+A skipped or bypassed control is not a warning: it is a row in `docs/control-events.csv`, of a kind
+the template's legend names (`skip`, `bypass`, `review`) -- `make wave-check` reads that legend.
 
 | id | rule that warned | first seen | path | status | reason + owning milestone |
 |---|---|---|---|---|---|

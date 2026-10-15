@@ -1,7 +1,7 @@
 ---
 name: explorer
 description: "Read-only codebase exploration that would touch more than three files; returns a capped summary so the main context stays clean. Never edits."
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob
 ---
 
 # Subagent Profile — Explorer

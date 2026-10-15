@@ -22,6 +22,9 @@ description: Use the moment a non-trivial choice is made under uncertainty — a
    **Mitigation if violated:** <what would go wrong>
    **Revisit when:** <trigger to reopen>
    ```
+   An answer the owner gave to a run's decisions message (`/plan-run` §2) adds one line after
+   **Status:** — `**Owner ruling:** <date>, in chat, for run <name>` — and its id goes on the run
+   file's `Rulings:` line (`make run-check` refuses an id this file does not hold).
 5. Append to the end of `docs/decisions.md`, after the last project ADR (do NOT insert in the middle; chronological append-only).
 6. If this decision supersedes an earlier one (e.g., D-013 → D-NNN):
    - DO NOT edit D-013's body.

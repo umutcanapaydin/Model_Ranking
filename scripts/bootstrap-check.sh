@@ -51,25 +51,76 @@ project_adrs() {
   awk '/^## /{skip=0} /^## D-00[1-7][^0-9]/{skip=1} !skip{print}' "$1"
 }
 
+# Named exceptions (DevFlow #16, D6 -- two field projects carried the same patch): `.placeholder-allow`,
+# one entry per line, `<path>: <text> -- <reason>`. An append-only record can quote placeholder-shaped
+# notation it may not reword (a device named `box-<checkout>-<model>` in an ADR's status note).
+# Skipping inline code would not do: the shipped templates put their own unfilled fields in backticks.
+# So an exception names one file and one exact text, with a reason; an entry for a file this check does
+# not read, without a reason, or matching nothing any more is itself a failure, so the list cannot
+# quietly outlive what it exempts. An entry hides EVERY occurrence of its text in its file, a real
+# unfilled field with that text included: name texts that are notation, never a template's field names.
+ALLOW=.placeholder-allow
+# The files C1 and C3 grade. ALLOW_FILES is derived from them, so an entry is accepted for exactly
+# the files a check reads.
+MUST_FILL=("README.md" "pyproject.toml" "src/app/adapter/main.py" \
+           "docs/prd.md" "docs/architecture.md" ".github/CODEOWNERS")
+CORE_DOCS=("docs/prd.md" "docs/architecture.md" "docs/decisions.md")
+ALLOW_FILES=" ${MUST_FILL[*]} ${CORE_DOCS[*]} "
+# Usage: allow_entries -> `ok<TAB>path<TAB>text` per good entry, `bad<TAB>line N: why` per bad one.
+allow_entries() {
+  [ -e "$ALLOW" ] || [ -L "$ALLOW" ] || return 0
+  if [ ! -f "$ALLOW" ]; then printf 'bad\tis not a regular file\n'; return 0; fi
+  awk -v files="$ALLOW_FILES" '
+    /^[[:space:]]*(#|$)/ { next }
+    {
+      line = $0; sub(/\r$/, "", line)
+      c = index(line, ": ")
+      if (c == 0) { printf "bad\tline %d: not `<path>: <text> -- <reason>`\n", NR; next }
+      path = substr(line, 1, c - 1); rest = substr(line, c + 2)
+      d = index(rest, " -- ")
+      text = d ? substr(rest, 1, d - 1) : rest
+      why = d ? substr(rest, d + 4) : ""
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", text); gsub(/^[[:space:]]+|[[:space:]]+$/, "", why)
+      if (index(files, " " path " ") == 0) { printf "bad\tline %d: %s is not a file this check reads\n", NR, path; next }
+      if (text !~ /^<[A-Za-z][A-Za-z0-9 _\/|.-][A-Za-z0-9 _\/|.-]+>$/) { printf "bad\tline %d: `%s` is not one placeholder-shaped text\n", NR, text; next }
+      if (why == "") { printf "bad\tline %d: %s has no reason after ` -- `\n", NR, text; next }
+      printf "ok\t%s\t%s\n", path, text
+    }' "$ALLOW"
+}
+# Usage: drop_allowed FILE < lines -- the lines with that file's exempt texts removed (literal match).
+# The entries travel in the ENVIRONMENT, never in `awk -v`: BSD awk (macOS) refuses a `-v` value
+# holding a newline (`awk: newline in string`) and exits 2, and an awk that exits here prints
+# nothing, which reads as "no placeholder" -- so a failure prints a placeholder-shaped line instead,
+# and C1/C3 fail (fail closed). The `-v` values this script does pass carry no newline by construction.
+drop_allowed() {
+  PH_ALLOW_ENTRIES="$(allow_entries)" awk -v f="$1" '
+    BEGIN { n = split(ENVIRON["PH_ALLOW_ENTRIES"], e, "\n")
+            for (i = 1; i <= n; i++) { split(e[i], p, "\t"); if (p[1] == "ok" && p[2] == f) t[++k] = p[3] } }
+    { for (i = 1; i <= k; i++) while ((j = index($0, t[i])) > 0) $0 = substr($0, 1, j - 1) substr($0, j + length(t[i]))
+      print }' || echo "<the .placeholder-allow filter failed>"
+}
+# What each graded file contributes to C1 and C3 before exceptions.
+graded_lines() {
+  if [ "$1" = docs/decisions.md ]; then project_adrs "$1" | live_lines md; else live_lines "$(kind "$1")" < "$1"; fi
+}
+
 say "== Stage-0 bootstrap-check =="
 
 # --- C1: no unfilled <PLACEHOLDER> in the files a project must fill --------------------------
 # Template files (*.template.*) and reference docs that mention <PLACEHOLDER> as instructions are
 # not in this list by construction.
-say "[C1] placeholders in must-fill files"
+say "[C1] placeholders in must-fill files (exceptions: $ALLOW, named and reasoned)"
 ph_hits=0
-MUST_FILL=("README.md" "pyproject.toml" "src/app/adapter/main.py" \
-           "docs/prd.md" "docs/architecture.md" ".github/CODEOWNERS")
 for f in "${MUST_FILL[@]}"; do
   [ -f "$f" ] || { warn "missing file: $f"; continue; }
-  hits=$(live_lines "$(kind "$f")" < "$f" | grep -oE "$PH" | sort -u | tr '\n' ' ')
+  hits=$(graded_lines "$f" | drop_allowed "$f" | grep -oE "$PH" | sort -u | tr '\n' ' ')
   if [ -n "$hits" ]; then
     fail "placeholder(s) left in $f: $hits"
     ph_hits=$((ph_hits+1))
   fi
 done
 if [ -f docs/decisions.md ]; then
-  ph=$(project_adrs docs/decisions.md | live_lines md | grep -oE "$PH" | sort -u | tr '\n' ' ')
+  ph=$(graded_lines docs/decisions.md | drop_allowed docs/decisions.md | grep -oE "$PH" | sort -u | tr '\n' ' ')
   if [ -n "$ph" ]; then
     fail "placeholder(s) left in docs/decisions.md (project sections): $ph"
     ph_hits=$((ph_hits+1))
@@ -82,6 +133,23 @@ if [ -f AGENTS.md ]; then
     ph_hits=$((ph_hits+1))
   fi
 fi
+# The allowlist itself: unreadable, malformed, unreasoned or stale entries fail here, by line.
+if [ -f "$ALLOW" ] && [ ! -r "$ALLOW" ]; then
+  fail "$ALLOW exists but cannot be read"
+  ph_hits=$((ph_hits+1))
+fi
+while IFS="$(printf '\t')" read -r state a b; do
+  [ -n "$state" ] || continue
+  if [ "$state" = bad ]; then
+    fail "$ALLOW $a"
+    ph_hits=$((ph_hits+1))
+  elif [ ! -f "$a" ] || ! graded_lines "$a" | grep -qF -- "$b"; then
+    fail "$ALLOW: stale entry, $a no longer holds $b -- remove the entry"
+    ph_hits=$((ph_hits+1))
+  fi
+done <<ALLOW_EOF
+$(allow_entries)
+ALLOW_EOF
 [ "$ph_hits" -eq 0 ] && ok "no stray placeholders"
 
 # --- C2: /health is the L.7 contract, not a bare {status:ok} ----------------------------------
@@ -109,9 +177,9 @@ fi
 
 # --- C3: prd / architecture / decisions are filled, not templates ---------------------------
 say "[C3] core docs are filled (not still templates)"
-for f in docs/prd.md docs/architecture.md docs/decisions.md; do
+for f in "${CORE_DOCS[@]}"; do
   [ -f "$f" ] || { fail "missing $f"; continue; }
-  if project_adrs "$f" | live_lines md | grep -qE "$PH|TEMPLATE|fill this|TODO: replace|\bTBD\b"; then
+  if project_adrs "$f" | live_lines md | drop_allowed "$f" | grep -qE "$PH|TEMPLATE|fill this|TODO: replace|\bTBD\b"; then
     fail "$f still looks like a template (placeholder / TEMPLATE / 'fill this')"
   else
     ok "$f filled"
@@ -341,13 +409,20 @@ if ! command -v git >/dev/null 2>&1; then
   hooks="git not installed: cannot read core.hooksPath"
 elif ! git rev-parse --git-dir >/dev/null 2>&1; then
   hooks="not a git repository yet, so no pre-push hook"
-elif [ "$(git config core.hooksPath 2>/dev/null)" = ".githooks" ]; then
+elif hp=$(git config core.hooksPath 2>/dev/null) && top=$(git rev-parse --show-toplevel 2>/dev/null) \
+     && case "$hp" in /*|[A-Za-z]:*) :;; *) hp="$top/$hp";; esac \
+     && [ -d "$hp" ] && [ -d "$top/.githooks" ] \
+     && [ "$(cd "$hp" && pwd -P)" = "$(cd "$top/.githooks" && pwd -P)" ]; then
+  # Compared as resolved directories: `make hooks` writes `.githooks`, and a clone configured with
+  # the absolute path to the same directory is just as gated (a field clone failed C11 on that).
   hooks=""
 else
   hooks="core.hooksPath is not .githooks"
 fi
 if [ -z "$hooks" ]; then
-  ok "core.hooksPath = .githooks -- make gate runs before every push"
+  # Checked: the git setting. Not checked: what `.githooks/pre-push` does when git runs it -- a PASS
+  # line that said "make gate runs before every push" was read as proof in the field (DevFlow #16, K1).
+  ok "core.hooksPath = .githooks -- git runs .githooks/pre-push before a push (what that hook runs is not checked here)"
 elif [ "$ci" = yes ] && [ "$protected" = yes ]; then
   warn "$hooks -- run make hooks; meanwhile CI on the protected branch gates a push ($server)"
 else

@@ -2,7 +2,7 @@
 record_type: closure
 id: closure-report-template
 status: draft
-process_version: v6.6
+process_version: v7.1
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -31,9 +31,9 @@ date: 2026-09-23
 
 ## 1a. Per-wave table (one row per wave; each cell links to committed evidence)
 
-| Wave | Risk tier | Reviews (Code-Reviewer + Tester, + security if HIGH) | Findings opened/closed | Test Δ | Escalations | PR |
+| Wave | Risk tier | Reviews (Code-Reviewer; security when needed; the milestone Tester on the last wave) | Findings opened/closed | Test Δ | Escalations | PR |
 |---|---|---|---|---|---|---|
-| W{1} | `<tier>` | `<review file + tester file>` | `<n>/<n>` | `<+n>` | `<none|list>` | `<#PR>` |
+| W{1} | `<tier>` | `<review file (+ security file)>` | `<n>/<n>` | `<+n>` | `<none|list>` | `<#PR>` |
 
 ## 1b. Decisions made on your behalf (assumption ledger + agent judgment calls)
 

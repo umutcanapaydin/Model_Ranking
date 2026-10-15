@@ -290,6 +290,16 @@ def test_a_session_outside_the_repository_needs_its_ledger_row(tmp_path: Path) -
     assert check.skip_ledger_problems(text, "m30-w1", milestone_row) == []
 
 
+
+def test_a_row_for_another_wave_of_the_milestone_counts_and_one_of_another_milestone_does_not() -> None:
+    """D-199: DevFlow v7.1's wave shapes have no milestone-only form, so a milestone-wide row sits under one of
+    the milestone's waves; it still counts for every wave of that milestone, and for no other milestone."""
+    check = _module("wave_check")
+    skipped = _row9("make ui-test (no simulator)")
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m30-w4", "skip", "x", "2026-10-10"]]) == []
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m31-w1", "skip", "x", "2026-10-10"]])
+    assert check.skip_ledger_problems(skipped, "m30-w1", [["ui-test", "m300-w1", "skip", "x", "2026-10-10"]])
+
 def test_a_close_dated_before_the_rule_needs_no_ledger_row(tmp_path: Path) -> None:
     check = _module("wave_check")
     text = _row9("make ui-test").replace("date: 2026-10-10", "date: 2026-10-09")
@@ -736,24 +746,35 @@ def _ledger(*rows: str) -> list[list[str]]:
     return [row for row in csv.reader(io.StringIO("\n".join(rows))) if row]
 
 
-def test_three_rows_after_a_controls_last_ruling_strike_and_rows_before_it_do_not(tmp_path: Path) -> None:
-    """The owner's ruling of 2026-10-10 ("fix and narrow"): the three-row rule counts only the rows dated
-    after a control's latest ruling or review. A reviewed control stays green; a new bypass after the ruling
-    still counts."""
+def _findings(*rows: str) -> list[str]:
+    """`ledger_findings` (DevFlow v7.1) on a ledger of these rows, read against the repository's legend."""
     check = _module("wave_check")
+    text = "control,wave,kind,reason,date\n" + "".join(row + "\n" for row in rows)
+    return check.ledger_findings(text, ROOT / "docs" / "warnings.ledger.template.md")
+
+
+def _strikes(*rows: str) -> list[str]:
+    """The controls `ledger_findings` holds past the three-row threshold."""
+    return sorted({f.split("`")[1] for f in _findings(*rows) if "review threshold" in f})
+
+
+def test_three_rows_after_a_controls_last_review_strike_and_rows_before_it_do_not(tmp_path: Path) -> None:
+    """The owner's ruling of 2026-10-10 ("fix and narrow"), as DevFlow v7.1 (DevFlow #16, D4) carries it: the
+    three-row rule counts only the rows after a control's latest `review` row citing a decision. A reviewed
+    control stays green; a new bypass after the review still counts. Until v7.1 the resetting row was the
+    project's `ruling`; `within-scope` is no longer a kind (`ledger_strikes` was retired with them)."""
     three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
-    assert check.ledger_strikes(_ledger(*three)) == ["c"]
-    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04: re-scoped",2026-10-04')) == []
+    assert _strikes(*three) == ["c"]
+    assert _strikes(*three, 'c,m1-w4,review,"the owner, 2026-10-04: re-scoped (D-1)",2026-10-04') == []
     after = ("d,m2-w1,bypass,x,2026-10-05", "d,m2-w2,bypass,y,2026-10-06", "d,m2-w3,bypass,z,2026-10-07")
-    ruled = ('d,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04',)
-    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04', *ruled,
-                                        *after)) == ["d"]
-    assert check.ledger_strikes(_ledger(*ruled, *after[:2])) == []
-    same_day = ("e,m1-w1,bypass,a,2026-10-04", 'e,m1-closure,ruling,"the owner, 2026-10-04",2026-10-04',
+    reviewed = ('d,m1-w4,review,"the owner, 2026-10-04 (D-1)",2026-10-04',)
+    assert _strikes(*three, 'c,m1-w4,review,"the owner, 2026-10-04 (D-1)",2026-10-04', *reviewed, *after) == ["d"]
+    assert _strikes(*reviewed, *after[:2]) == []
+    same_day = ("e,m1-w1,bypass,a,2026-10-04", 'e,m1-w4,review,"the owner, 2026-10-04 (D-1)",2026-10-04',
                 "e,m2-w1,bypass,b,2026-10-04", "e,m2-w2,bypass,c,2026-10-04", "e,m2-w3,bypass,d,2026-10-05")
-    assert check.ledger_strikes(_ledger(*same_day)) == ["e"], "a row of the ruling's day after it counts"
-    assert check.ledger_strikes(_ledger("f,m1-w1,within-scope,a,2026-10-01", "f,m1-w2,within-scope,b,2026-10-02",
-                                        "f,m1-w3,within-scope,c,2026-10-03")) == []
+    assert _strikes(*same_day) == ["e"], "a row of the review's day after it counts"
+    retired = _findings("f,m1-w1,within-scope,a,2026-10-01")
+    assert any("not in the legend" in f for f in retired), retired
 
 
 def test_a_bypass_row_9_names_needs_its_ledger_row(tmp_path: Path) -> None:
@@ -852,72 +873,69 @@ def test_a_pointer_whose_adr_amends_others_or_names_it_outside_amends_is_refused
 # --- the M21 closure fixes review: M3 (the ledger's kinds and dates) ---------------------------------------
 
 
-def test_only_the_owners_ruling_resets_a_count(tmp_path: Path) -> None:
-    """The fixes review's M3: a `review` reset the count as a ruling does, with no owner; so did a
-    `within-scope` row (mutant X5). Only a `ruling` that names the owner resets; a review and a within-scope
-    row are recorded and count nothing."""
-    check = _module("wave_check")
+def test_only_a_review_citing_a_decision_resets_a_count(tmp_path: Path) -> None:
+    """The fixes review's M3: a `review` reset the count with no owner; so did a `within-scope` row (mutant X5).
+    DevFlow v7.1 (DevFlow #16, D4) settles it: a `review` row resets only when its reason cites the decision
+    (`D-<n>`, `P-<n>`, `R-<n>`); one that cites nothing is a finding and counts nothing, and `ruling` and
+    `within-scope` are no longer kinds."""
     three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
-    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,review,the closure,2026-10-04")) == ["c"]
-    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,within-scope,x,2026-10-04")) == ["c"]
-    assert check.ledger_strikes(_ledger(*three, "c,m1-closure,ruling,the closure decided,2026-10-04")) == ["c"]
-    assert check.ledger_strikes(_ledger(*three, 'c,m1-closure,ruling,"the owner, 2026-10-04: ruled",2026-10-04')) == []
+    assert _strikes(*three, "c,m1-w4,review,the closure,2026-10-04") == ["c"]
+    assert any("cites no decision" in f for f in _findings(*three, "c,m1-w4,review,the closure,2026-10-04"))
+    for kind in ("within-scope", "ruling"):
+        found = _findings(*three, f'c,m1-w4,{kind},"the owner, 2026-10-04: ruled (D-1)",2026-10-04')
+        assert any("not in the legend" in f for f in found) and _strikes(*three) == ["c"], (kind, found)
+    assert _strikes(*three, 'c,m1-w4,review,"the owner, 2026-10-04: ruled (D-1)",2026-10-04') == []
+    assert _strikes(*three, 'c,m1-w4,review,"refused (R-3)",2026-10-04') == []
 
 
 def test_a_ledger_date_must_be_iso_and_not_in_the_future(tmp_path: Path) -> None:
     """The fixes review's M3: a review dated 2099-01-01 kept ten later bypasses from counting."""
     check = _module("wave_check")
     rows = _ledger("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,10/02/2026",
-                   'c,m1-closure,ruling,"the owner, 2099-01-01",2099-01-01')
+                   'c,m1-w3,review,"the owner, 2099-01-01 (D-1)",2099-01-01')
     found = check.ledger_problems(rows, today="2026-10-10")
     assert any("10/02/2026" in p for p in found) and any("2099-01-01" in p for p in found), found
     assert check.ledger_problems(_ledger("c,m1-w1,bypass,a,2026-10-10"), today="2026-10-10") == []
 
 
-def test_a_ruling_that_names_no_owner_is_refused(tmp_path: Path) -> None:
-    check = _module("wave_check")
-    found = check.ledger_problems(_ledger("c,m1-closure,ruling,the closure decided,2026-10-04"), today="2026-10-10")
-    assert any("owner" in p for p in found), found
-
-
-def test_a_ruling_is_the_owners_only_when_its_reason_starts_so(tmp_path: Path) -> None:
+def test_a_review_that_cites_no_decision_is_refused(tmp_path: Path) -> None:
     """Round 2, M3: `"the owner" in reason` matched the phrase both review rows carry ("not the owner's ruling;
-    the owner may overrule it"), so a review mistyped as a ruling reset the count, and nothing said so. A
-    ruling's reason starts `the owner, YYYY-MM-DD`, as both real rulings do."""
-    check = _module("wave_check")
+    the owner may overrule it"), so a mistyped row reset the count, and nothing said so. Until DevFlow v7.1 a
+    `ruling` had to start `the owner, YYYY-MM-DD`; from v7.1 the resetting row is a `review` that cites the
+    decision, and a phrase about the owner cites none."""
     three = ("c,m1-w1,bypass,a,2026-10-01", "c,m1-w2,bypass,b,2026-10-02", "c,m1-w3,skip,c,2026-10-03")
-    mislabel = ('c,m1-closure,ruling,"the agent\'s application (not the owner\'s ruling; the owner may overrule '
+    mislabel = ('c,m1-w4,review,"the agent\'s application (not the owner\'s ruling; the owner may overrule '
                 'it)",2026-10-04')
-    assert check.ledger_strikes(_ledger(*three, mislabel)) == ["c"]
-    assert any("the owner, YYYY-MM-DD" in p for p in check.ledger_problems(_ledger(mislabel), today="2026-10-10"))
-    for reason in ("the owner ruled", "the owner: re-scoped", "per the owner, 2026-10-04"):
-        row = f'c,m1-closure,ruling,"{reason}",2026-10-04'
-        assert check.ledger_strikes(_ledger(*three, row)) == ["c"], reason
-        assert check.ledger_problems(_ledger(row), today="2026-10-10"), reason
-    owner = 'c,m1-closure,ruling,"The owner, 2026-10-04 (translated from Turkish): fix",2026-10-04'
-    assert check.ledger_strikes(_ledger(*three, owner)) == []
-    assert check.ledger_problems(_ledger(owner), today="2026-10-10") == []
+    assert _strikes(*three, mislabel) == ["c"]
+    assert any("cites no decision" in f for f in _findings(mislabel))
+    for reason in ("the owner ruled", "the owner: re-scoped", "per the owner, 2026-10-04", "D-x", "ADR-12"):
+        row = f'c,m1-w4,review,"{reason}",2026-10-04'
+        assert _strikes(*three, row) == ["c"], reason
+        assert _findings(row), reason
+    owner = 'c,m1-w4,review,"The owner, 2026-10-04 (translated from Turkish): fix -- D-192",2026-10-04'
+    assert _strikes(*three, owner) == []
+    assert _findings(owner) == []
 
 
-def test_rows_count_by_their_place_after_the_last_ruling_not_their_date(tmp_path: Path) -> None:
+def test_rows_count_by_their_place_after_the_last_review_not_their_date(tmp_path: Path) -> None:
     """Round 2, M3: three bypasses appended after a ruling dated 2026-10-10, each dated 2026-10-09, counted
-    nothing; order was by date first. A row counts when it stands after the control's last ruling in the file."""
-    check = _module("wave_check")
-    ruling = 'c,m1-closure,ruling,"the owner, 2026-10-10",2026-10-10'
+    nothing; order was by date first. A row counts when it stands after the control's last review in the file
+    (DevFlow v7.1 reads the rows in file order too)."""
+    review = 'c,m1-w4,review,"the owner, 2026-10-10 (D-1)",2026-10-10'
     early = ("c,m2-w1,bypass,a,2026-10-09", "c,m2-w2,bypass,b,2026-10-09", "c,m2-w3,skip,c,2026-10-09")
-    assert check.ledger_strikes(_ledger(ruling, *early)) == ["c"]
+    assert _strikes(review, *early) == ["c"]
     late = ("c,m0-w1,bypass,a,2026-10-11", "c,m0-w2,bypass,b,2026-10-11", "c,m0-w3,skip,c,2026-10-11")
-    assert check.ledger_strikes(_ledger(*late, ruling)) == []
+    assert _strikes(*late, review) == []
 
 
-def test_a_kind_outside_the_five_is_refused(tmp_path: Path) -> None:
-    """Round 2, M3: `bypassed` or `by-pass` counted nothing and raised nothing."""
-    check = _module("wave_check")
-    for kind in ("bypassed", "by-pass", "Ruling-ish", ""):
-        found = check.ledger_problems(_ledger(f"c,m1-w1,{kind},x,2026-10-01"), today="2026-10-10")
-        assert any("kind" in p for p in found), (kind, found)
-    for kind in ("skip", "bypass", "review", "within-scope", "BYPASS"):
-        assert check.ledger_problems(_ledger(f"c,m1-w1,{kind},x,2026-10-01"), today="2026-10-10") == [], kind
+def test_a_kind_outside_the_legend_is_refused(tmp_path: Path) -> None:
+    """Round 2, M3: `bypassed` or `by-pass` counted nothing and raised nothing. From DevFlow v7.1 the kinds are
+    the legend's (`docs/warnings.ledger.template.md`: skip, bypass, review), in any case."""
+    for kind in ("bypassed", "by-pass", "Ruling-ish", "", "ruling", "within-scope"):
+        found = _findings(f"c,m1-w1,{kind},x (D-1),2026-10-01")
+        assert any("not in the legend" in p for p in found), (kind, found)
+    for kind in ("skip", "bypass", "review", "BYPASS"):
+        assert _findings(f"c,m1-w1,{kind},x (D-1),2026-10-01") == [], kind
 
 
 def test_a_date_may_be_a_day_after_todays_utc_date(tmp_path: Path) -> None:
@@ -943,14 +961,15 @@ def _bypass(sha: str, control: str = "commit-after-check-fast") -> str:
 def test_each_commit_a_bypass_names_needs_a_row_naming_it(tmp_path: Path) -> None:
     """The fixes review's M4: a Bypass naming a code commit passed with only a `within-scope` row, or with a row
     for another control the field mentioned. Each SHA needs a row naming it: a `bypass`, or a `within-scope`
-    only where the commit is docs-only or a declared red test commit by commit_gate's own rule."""
+    only where the commit is docs-only or a declared red test commit by commit_gate's own rule. From DevFlow
+    v7.1 `within-scope` is no longer a kind: the row of another kind is a `review` (the legend's)."""
     check = _module("wave_check")
     root, _ = _wave_branch(tmp_path)
     code = _commit(root, "fix: code", "2026-10-10T13:00:00", {"src/app/other.py": "x = 3\n"})
     docs = _commit(root, "docs: notes", "2026-10-10T14:00:00", {"docs/notes.md": "notes\n"})
     red = _commit(root, "test: x, red", "2026-10-10T15:00:00", {"tests/unit/test_x.py": "x = 1\n"})
-    for sha, kind, ok in ((code, "within-scope", False), (code, "bypass", True), (docs, "within-scope", True),
-                          (red, "within-scope", True)):
+    for sha, kind, ok in ((code, "review", False), (code, "bypass", True), (docs, "review", True),
+                          (red, "review", True)):
         rows = [["commit-after-check-fast", "m30-w1", kind, f"{sha} was committed so", "2026-10-10"]]
         found = check.skip_ledger_problems(_bypass(sha), "m30-w1", rows, root=root)
         assert (found == []) == ok, (sha, kind, found)
@@ -959,7 +978,7 @@ def test_each_commit_a_bypass_names_needs_a_row_naming_it(tmp_path: Path) -> Non
 
 
 def _within(sha: str) -> list[list[str]]:
-    return [["commit-after-check-fast", "m30-w1", "within-scope", f"{sha}, a docs-only commit", "2026-10-10"]]
+    return [["commit-after-check-fast", "m30-w1", "review", f"{sha}, a docs-only commit (D-192)", "2026-10-10"]]
 
 
 def test_a_merge_named_in_the_bypass_is_never_docs_only(tmp_path: Path) -> None:
@@ -1122,9 +1141,10 @@ def test_the_ledger_records_each_closure_commit_made_without_its_own_green_tree(
     a024244, so its own tree failed six tests, as cd563f5's did; cd563f5 got a bypass row and 85f80e3 none."""
     check = _module("wave_check")
     rows = check._ledger_rows((ROOT / "docs" / "control-events.csv").read_text(encoding="utf-8"))
+    # DevFlow v7.1's wave shapes have no `m21-closure`: the closure's rows are the last wave's (`m21-w<N>`).
     for sha in ("cd563f5", "85f80e3"):
-        assert any(row[:3] == ["commit-after-check-fast", "m21-closure", "bypass"] and row[3].startswith(sha)
-                   for row in rows), sha
+        assert any(row[0] == "commit-after-check-fast" and re.fullmatch(r"m21-w\d+", row[1]) and row[2] == "bypass"
+                   and row[3].startswith(sha) for row in rows), sha
 
 
 def test_the_records_say_what_the_hooks_hold_after_round_2() -> None:
