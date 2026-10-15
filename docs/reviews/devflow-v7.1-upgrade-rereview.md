@@ -131,3 +131,13 @@ All 6 runs turned red: R1 to R4 once each, and R5 against both of its checks.
 
 BLOCKING-1 is closed by the owner's ruling (D-200), and MAJOR-1, M1 and M3 are closed by fixes, each with a
 test that kills its mutant. M2 stays with the Security-Reviewer.
+
+## Dispositions
+
+By the author, after the verdict.
+
+| Finding | Disposition | Where |
+|---|---|---|
+| NIT-A | **Fixed**: the marker counts for other waves only on a row dated on or before 2026-10-15 (`UPGRADED_TO_V71`) | red, then the fix, after `c87a4b1` (`scripts/wave_check.py`, `skip_ledger_problems`) |
+| NIT-B | **Accepted, recorded here**: D-200's cost also covers a docs-only `review` row restarting a running count before it reaches three, as its Context paragraph says; D-200 is not edited (B.2) | -- |
+| NIT-C | **Corrected here**: R1 is half fixed (MAJOR-1) and half accepted by the owner (D-200 clause 1), not closed | -- |
