@@ -60,7 +60,11 @@ let package = Package(
         .testTarget(
             name: "ModelRankingEngineTests",
             dependencies: ["ModelRankingEngine"],
-            path: "EngineTests"
+            path: "EngineTests",
+            // #289 (D-202 clause 2): the golden question set and the hosted engine's payloads it is
+            // derived from, pinned. A resource of the TEST target only: the app target bundles no
+            // fixture (REQ-APP-001), and the `.xcodeproj` never reads this manifest.
+            resources: [.copy("Golden")]
         ),
     ]
 )
