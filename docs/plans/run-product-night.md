@@ -4,7 +4,7 @@ Mode: light
 Started: 2026-10-16
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
+Plan PR: #290
 Rulings: D-201, D-202
 
 ## Milestones, in order
