@@ -111,7 +111,9 @@ def main() -> int:
 
     # (label, command, cwd, env extra, want_block, a fragment the refusal must carry or "")
     cases: list[tuple[str, str, pathlib.Path, dict, bool, str]] = []
-    env_pkg = {"CLAUDE_PROJECT_DIR": str(ROOT)}
+    # TMPDIR set explicitly: `$TMPDIR` is scratch only where the hook's environment has it, and a CI runner
+    # without one must grade the same cases (DevFlow v7.1.1).
+    env_pkg = {"CLAUDE_PROJECT_DIR": str(ROOT), "TMPDIR": TMP}
     for c in (
         # the human's steps, with flags anywhere
         "gh pr merge 5", "gh pr ready 5", "gh -R a/b pr merge 5", "gh pr -R a/b merge 5", "gh --repo a/b pr ready 5",

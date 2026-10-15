@@ -413,7 +413,7 @@ def main() -> int:
                   "gh api repos/o/r/branches/main/protection",
                   # the field's false positives: a commit message and a heredoc are data
                   "git commit -m 'fix: clean-module and go-fmt on main (#90)'",
-                  "cat > t.sh <<'EOF'\ngit checkout -- .\nEOF", "rm -rf \"$TMPDIR\"/scratch",
+                  "cat > t.sh <<'EOF'\ngit checkout -- .\nEOF",
                   # #189: the read-only fly subcommands, and a here-document whose body is data.
                   "fly auth whoami", "fly apps list", "fly version", "fly logs -a model-ranking",
                   "python3 - <<'EOF'\nprint(\"don't\")\nEOF", "git commit -m \"$(cat <<'EOF'\nIt's done\nEOF\n)\"",
@@ -463,6 +463,9 @@ def main() -> int:
                   'rsync -t .claude/settings.json /tmp/out', 'cp -t /tmp/out .claude/settings.json',
                   # Round 3, M2: an option that takes a value is no `-t`, though its value holds a `t`.
                   'install -o root .claude/settings.json /tmp/out']
+    # Scratch under `$TMPDIR` counts only where the hook's environment sets it, so the case sets it: a CI
+    # runner with no TMPDIR must grade the same rule, not a different one (DevFlow v7.1.1).
+    SCRATCH_ALLOW = "rm -rf \"$TMPDIR\"/scratch"
     bash_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                       if h.get("matcher") == "Bash"), None)
     # Every hook entry carries `timeout` and `"onFailure": "block"`: without them a hook that
@@ -531,6 +534,8 @@ def main() -> int:
             if bash_hook is not None:
                 cases += [("Bash", f"`{c}`", cmd(c), True, None, {}) for c in MUST_BLOCK]
                 cases += [("Bash", f"`{c}`", cmd(c), False, None, {}) for c in MUST_ALLOW]
+                cases.append(("Bash", f"`{SCRATCH_ALLOW}` with TMPDIR set", cmd(SCRATCH_ALLOW), False, None,
+                              {"TMPDIR": tempfile.gettempdir()}))
                 cases += [("Bash", f"`{c}` from the project", cmd(c, root), True, None, {}) for c in MUST_BLOCK_HERE]
                 ungated = pathlib.Path(tmp) / "ungated"
                 (ungated / ".claude" / "hooks").mkdir(parents=True)
