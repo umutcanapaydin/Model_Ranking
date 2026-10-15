@@ -393,6 +393,8 @@ def _glob_problems(p: pathlib.Path, touched: str, evidence: str) -> list[str]:
 #: D-192 (#183, #201, #202, #203): closes dated from this day on are read against their commit range's
 #: history and the ledger. A gate does not invalidate a record written before it (GPF-001).
 HISTORY_RULES_FROM = "2026-10-10"
+#: D-199: the day the DevFlow v7.1 upgrade rewrote the ledger; a row it moved is dated on or before it.
+UPGRADED_TO_V71 = "2026-10-15"
 #: A commit that changes one of these changes code (#201).
 CODE_DIRS = ("src/", "ios/", "scripts/", ".claude/", ".githooks/")
 
@@ -745,12 +747,14 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
     # "Its milestone": DevFlow v7.1's wave shapes have no milestone-only form (`m21`), so the upgrade moved each
     # milestone-wide row under one of the milestone's waves and marked it (D-199). Only such a row counts for
     # the milestone's other waves; any other row covers its own wave, or one row would answer for three skips
-    # and the three-row rule could never fire (the v7.1 upgrade review's MAJOR-1).
+    # and the three-row rule could never fire (the v7.1 upgrade review's MAJOR-1). The marker is free text, so
+    # a row dated after the upgrade that copies it is not one the upgrade moved (the rereview's NIT-A).
     milestone = wave_id.split("-")[0]
     moved = f"[rewritten at the DevFlow v7.1 upgrade, D-199: wave was `{milestone}`"
     rows = [row for row in ledger if len(row) >= 2 and (
         row[1].strip() in (wave_id, milestone)
-        or (re.fullmatch(re.escape(milestone) + r"-w\d+", row[1].strip()) and moved in ",".join(row[3:])))]
+        or (re.fullmatch(re.escape(milestone) + r"-w\d+", row[1].strip()) and moved in ",".join(row[3:-1])
+            and row[-1].strip() <= UPGRADED_TO_V71))]
 
     def ledgered(control: str) -> bool:
         return any(row[0].strip().lower() == control for row in rows)
