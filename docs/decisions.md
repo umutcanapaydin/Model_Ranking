@@ -80,19 +80,21 @@ date: 2026-08-11
 
 ---
 
-## D-005 — Mandatory subagent profiles: reviews computed from the change (UNIVERSAL)
+## D-005 — Mandatory subagent profiles: Code-Reviewer + Tester per wave, Security-Reviewer per release (UNIVERSAL)
 
 **Status:** accepted — **superseded in part by P-004 (v3, V3C-68):** the per-wave pair is now Code-Reviewer + Tester; Security-Reviewer moves to Stage-4 closure (BLOCKING before deploy). Decision body preserved below per B.2 (supersede, don't edit).
 
-**Decision:** Reviews are fresh-eyes subagents (`.claude/agents/`) and `make review-need` computes which a change gets. Heavy mode: every wave the **Code-Reviewer**; the **Tester** once per milestone, on the plan's last wave. Both modes: the **Security-Reviewer** on a slice the signals flag, before every deploy (the deploy gate), and on the whole release at Stage 5.1, writing `docs/reviews/release-security.md` with its reviewed head. The read-only Explorer is used for exploration. Other profiles are project-specific and graduate per `docs/subagents.md`.
+**Decision:** Every wave-end fires two subagent profiles in Stage 3: `subagent-profiles/Code-Reviewer.md` (3a) and `subagent-profiles/Security-Reviewer.md` (3b). These are MANDATORY. Other profiles (Architect, Docs, etc.) are project-specific and added per need. Profile content invoked via `/review` and `/security-review` skills.
 
-**Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Measured across two field projects: the per-wave Tester was the costliest review per real defect (41M–57M tokens against 1.9M–5.2M for the Code-Reviewer) and security the cheapest and highest-yield; three deploys in one project went out unreviewed while the rule was prose.
+**Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Testing is needed on every wave; security reads the whole release surface at once, which is more complete. Nothing deploys before the release, so the security review always precedes go-live.
 
-**Amended at `v7.1`** (the owner's ruling of 2026-10-13, DevFlow #16 D8; the body above is kept as written): the milestone **Tester** runs at every milestone close in both modes — in light mode once before each release, on everything merged since its last verdict, writing `docs/reviews/release-tester.md` with its reviewed head, which the deploy gate reads.
-
-**Mitigation:** `make wave-check` refuses a wave close without the verdicts its range needs (recomputed), or with a BLOCKING one. The deploy gate refuses a deploy command while code changed after the reviewed head.
+**Mitigation:** `make wave-check` refuses a wave close without both verdict files in `docs/reviews/`, or with a BLOCKING one. No deploy step in `docs/closure-checklist.md` §E.2 runs before §E.1 passes.
 
 **Revisit when:** A release is harmed by late security feedback — then move a security pass earlier for that risk class.
+
+**Amended at `v7.1`** (DevFlow v7.1's text for this record, mandatory subagent profiles: reviews computed from the change; kept as an amendment so the body above stays as written, B.2): **Decision:** Reviews are fresh-eyes subagents (`.claude/agents/`) and `make review-need` computes which a change gets. Heavy mode: every wave the **Code-Reviewer**; the **Tester** once per milestone, on the plan's last wave. Both modes: the **Security-Reviewer** on a slice the signals flag, before every deploy (the deploy gate), and on the whole release at Stage 5.1, writing `docs/reviews/release-security.md` with its reviewed head. The read-only Explorer is used for exploration. Other profiles are project-specific and graduate per `docs/subagents.md`. **Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Measured across two field projects: the per-wave Tester was the costliest review per real defect (41M–57M tokens against 1.9M–5.2M for the Code-Reviewer) and security the cheapest and highest-yield; three deploys in one project went out unreviewed while the rule was prose. **Mitigation:** `make wave-check` refuses a wave close without the verdicts its range needs (recomputed), or with a BLOCKING one. The deploy gate refuses a deploy command while code changed after the reviewed head.
+
+**Amended at `v7.1`** (the owner's ruling of 2026-10-13, DevFlow #16 D8; the body above is kept as written): the milestone **Tester** runs at every milestone close in both modes — in light mode once before each release, on everything merged since its last verdict, writing `docs/reviews/release-tester.md` with its reviewed head, which the deploy gate reads.
 
 ---
 
@@ -100,15 +102,21 @@ date: 2026-08-11
 
 **Status:** accepted
 
-**Decision:** Review verdicts (the Code-Reviewer, the milestone Tester, the Security-Reviewer), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories:
+**Decision:** Per-wave verdicts (Code-Reviewer, Tester), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories:
 
-- **The categories are `permission-matrix.md` §11** — BLOCKING, MINOR and Catastrophe-class, with their members. That list is the only one; this record fixes that it exists and who must use it, and does not repeat it. It once did, and the two copies had drifted to nine BLOCKING classes here against fourteen there.
+- **BLOCKING:** REQ unmet / test red / secret leak / contract-grep miss / coverage drop / PASS without `file:line` evidence / auth-PII-payment-migration without senior review / permission-matrix region touched without ADR / hook violation.
+- **MINOR:** style / doc drift / cross-wave K.9 candidate / AGENTS.md approaching cap (not over).
+- **Catastrophe-class (DENY always):** `git reset --hard` / `git push --force` / `rm -rf` / drop table / commit secret / log PII unredacted / self-merge agent's own PR / any `--force` on irreversible op without user confirmation.
+
+Full taxonomy in `permission-matrix.md` §11.
 
 **Rationale:** An undefined BLOCKING drifts from reviewer to reviewer. Writing it down once removes the reinterpretation.
 
 **Mitigation:** PASS verdicts WITHOUT `file:line` evidence are automatically demoted to BLOCKING (no false-pass surface). All BLOCKING findings need an attached evidence path.
 
 **Revisit when:** A milestone closes with a new BLOCKING class not covered.
+
+**Amended at `v7.1`** (DevFlow v7.1's text for this record's Decision, kept as an amendment so the body above stays as written, B.2): Review verdicts (the Code-Reviewer, the milestone Tester, the Security-Reviewer), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories: **The categories are `permission-matrix.md` §11** — BLOCKING, MINOR and Catastrophe-class, with their members. That list is the only one; this record fixes that it exists and who must use it, and does not repeat it. It once did, and the two copies had drifted to nine BLOCKING classes here against fourteen there.
 
 ---
 
@@ -5191,3 +5199,40 @@ control-events ledger (`ruling`, `within-scope`), and inline code spans read as 
 
 **Revisit when:** DevFlow ships the next version, the owner changes the working mode, or a release needs
 the milestone Tester that `make deploy-check` now asks for.
+
+**Amended by D-200 (2026-10-15)**: clause 4 -- a `review` row citing a decision resets the three-row count, by the owner's choice; a skip row covers its own wave only, and a row for another wave of the milestone counts only when the upgrade moved it there from a milestone-only id.
+
+## D-200 — The three-row count takes v7.1's reset, and one wave's skip row covers that wave only
+
+**Status:** accepted -- the owner's choices of 2026-10-15, in session, on the v7.1 upgrade review
+(`docs/reviews/devflow-v7.1-upgrade-review.md`), translated from Turkish: BLOCKING-1 *"accept the v7.1
+meaning"*, MAJOR-1 *"exact matching for new closes"* · **Date:** 2026-10-15 · **Amends:** D-199.
+
+**Context.** The upgrade's Code-Reviewer found that the ledger merge (D-199 clause 4) changed two rules
+the project had held since the M21 fixes review:
+- On `main`, only the owner's `ruling` reset a control's three-row count, and an in-scope event reset
+  nothing. In v7.1 a `review` row whose reason cites a `D-`, `P-` or `R-<n>` resets it
+  (`scripts/wave_check.py`, `ledger_findings`). The rows rewritten from `within-scope`, and the `review`
+  row a docs-only commit now needs, are such rows. Nothing checks that the cited decision exists.
+- A skip row for any wave of a milestone covered every other wave of it, so three skipped waves needed
+  one row and the three-row rule could not fire.
+
+**Decision.**
+1. **The reset is v7.1's.** A `review` row citing a decision resets its control's count, as v7.1 ships it;
+   the owner's ruling of 2026-10-10 that only the owner's ruling resets a count is replaced. The rewritten
+   rows stay as they are. The cost is accepted: one `review` row citing any id clears a struck control, and
+   only a reader of `docs/control-events.csv` sees it.
+2. **One wave's skip row covers that wave only.** A row for another wave of the same milestone counts only
+   when it carries the upgrade's marker for a milestone-only id (``[rewritten at the DevFlow v7.1 upgrade,
+   D-199: wave was `m<N>` ``), which is what such a row covered on `main`. Held by
+   `tests/unit/test_wave_check_m21_rules.py::test_a_row_for_another_wave_of_the_milestone_does_not_count`.
+
+**Rationale.** Keeping v7.1's reset unforked lets the next upgrade apply the ledger rules without a
+merge; the per-wave widening was the project's own reading, and it cost the three-row rule its signal.
+
+**Mitigation if violated.** A control bypassed again and again is never put under review: the ledger
+would show a run of bypasses, each followed by a `review` row that addresses something else.
+
+**Revisit when:** a struck control is cleared by a `review` row whose cited decision does not exist or
+does not address it, or DevFlow answers the field finding that a resetting `review` row should cite a
+decision that exists.

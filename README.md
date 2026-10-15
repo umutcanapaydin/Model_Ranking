@@ -1,4 +1,4 @@
-# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v6.6)
+# model_ranking — LLM Benchmark & Recommendation Engine (DevFlow v7.1)
 
 > model_ranking: aggregates free-and-legal LLM benchmark + pricing data and produces budget-aware, per-use-case model recommendations, served to its own iOS app. Process: [DevFlow v7.1](https://github.com/SADCAIVibe/DevFlow/tree/v7.1) since 2026-10-15 (D-199; v6.0 from 2026-09-23, D-155, D-161); General Pipeline v4.3.1 -> v5.0 before that. `make gate` is everything the pipeline claims to enforce; `make check` is its day-to-day subset.
 >
