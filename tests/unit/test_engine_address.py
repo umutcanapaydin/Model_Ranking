@@ -62,6 +62,20 @@ def test_the_client_asks_for_the_key_the_plist_carries() -> None:
     assert found.group(1) in info and info[found.group(1)] == "$(ENGINE_URL)"
 
 
+def test_the_hosted_engine_a_phone_falls_back_to_is_the_release_address() -> None:
+    """#288 (D-202 clause 4): the address a device build reaches with no override is one fact in two files,
+    the Release line of the xcconfig and `EngineClient.hosted`; a phone pointed at a host the Release
+    build does not use would show only the failure sentence."""
+    xcconfig = (IOS / "Config" / "Engine.xcconfig").read_text(encoding="utf-8")  # raw: not Swift
+    release = re.findall(r"^ENGINE_URL\[config=Release\] = (\S+)$", xcconfig, re.MULTILINE)
+    assert len(release) == 1, release
+    client = _code((IOS / "ModelRanking" / "Engine" / "EngineClient.swift").read_text(encoding="utf-8"))
+    hosted = re.findall(r'static let hosted = URL\(string: "([^"]+)"\)!', client)
+    assert len(hosted) == 1, hosted
+    assert release[0].replace("/$()/", "//") == hosted[0]
+    assert hosted[0].startswith("https://")
+
+
 def test_the_bundle_id_is_set_where_the_owner_can_override_it() -> None:
     """W1 review M3: Xcode's Signing screen writes into the tracked project; the owner's team and a
     bundle id his Apple ID accepts belong in the git-ignored override, which a project-level value

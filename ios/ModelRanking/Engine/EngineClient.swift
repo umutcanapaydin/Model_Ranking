@@ -201,8 +201,21 @@ struct EngineClient {
         }
     }
 
+    /// The hosted engine (#288 phase 1, red: not chosen yet).
+    static let hosted = URL(string: "https://model-ranking.fly.dev")!
+
+    /// #288 phase 1, red: the address is not chosen yet.
+    static func address(configured: URL, onDevice: Bool) -> URL {
+        configured
+    }
+
     /// The app's client: this build's engine address, and a session that keeps nothing (#144).
     init() {
+        self.init(baseURL: EngineClient.localDefault)
+    }
+
+    /// #288 phase 1, red: the flag is not read yet.
+    init(onDevice: Bool) {
         self.init(baseURL: EngineClient.localDefault)
     }
 
