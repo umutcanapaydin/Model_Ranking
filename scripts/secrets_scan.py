@@ -56,6 +56,12 @@ def main() -> int:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, dst)
             n += 1
+        if n == 0:
+            # An empty directory scans clean: a derived set that came out empty is a failure, never a pass
+            # (AGENTS.md section 3.5; the v7.1 upgrade security review's M3).
+            print("secrets: git tracks no file that could be read here -- nothing to scan, so this cannot pass",
+                  file=sys.stderr)
+            return 2
         print(f"secrets: scanning the {n} file(s) git tracks, as they stand in the working tree, redacted", flush=True)
         # Keep the project's own allowlist in force: it lives at the root and is tracked like any file.
         for cfg in (".gitleaks.toml", ".gitleaksignore"):
