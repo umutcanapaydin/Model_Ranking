@@ -742,11 +742,15 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
     date = _close_date(text)
     if date is not None and date < HISTORY_RULES_FROM:
         return []
-    # "Its milestone": DevFlow v7.1's wave shapes have no milestone-only form (`m21`), so a milestone-wide row
-    # is written under one of the milestone's waves (D-199), and a row for any wave of the milestone counts.
+    # "Its milestone": DevFlow v7.1's wave shapes have no milestone-only form (`m21`), so the upgrade moved each
+    # milestone-wide row under one of the milestone's waves and marked it (D-199). Only such a row counts for
+    # the milestone's other waves; any other row covers its own wave, or one row would answer for three skips
+    # and the three-row rule could never fire (the v7.1 upgrade review's MAJOR-1).
     milestone = wave_id.split("-")[0]
-    rows = [row for row in ledger if len(row) >= 2 and (row[1].strip() in (wave_id, milestone)
-                                                        or re.fullmatch(re.escape(milestone) + r"-w\d+", row[1].strip()))]
+    moved = f"[rewritten at the DevFlow v7.1 upgrade, D-199: wave was `{milestone}`"
+    rows = [row for row in ledger if len(row) >= 2 and (
+        row[1].strip() in (wave_id, milestone)
+        or (re.fullmatch(re.escape(milestone) + r"-w\d+", row[1].strip()) and moved in ",".join(row[3:])))]
 
     def ledgered(control: str) -> bool:
         return any(row[0].strip().lower() == control for row in rows)
