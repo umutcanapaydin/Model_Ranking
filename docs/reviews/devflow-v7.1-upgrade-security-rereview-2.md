@@ -111,3 +111,13 @@ None is new. R1 is #286, R2 is documented, and N2-N4 are unchanged from round 2.
 
 **Verdict: BLOCKING** -- B1-R closed; R3 closed. 1 BLOCKING (B1-S, the third on B1, so the owner rules
 between filing it under the loop rule and one structural fix), 0 MAJOR, 0 new MINOR, 0 new NIT.
+
+## Dispositions
+
+By the author, after the verdict.
+
+| Finding | Disposition | Where |
+|---|---|---|
+| B1-S | **Filed** #287 (`bug`, `severity:medium`), `work-issue`. This is the third BLOCKING on B1, so the loop ends (`/close-wave` step 3). It is not a regression: `main`'s guard allows the same spellings. The owner's plan of 2026-10-16 carries it into the follow-up guard PR with v7.1.1's guard fixes, after #281 merges | #287 |
+
+After this verdict, `ab8686f` took DevFlow v7.1.1's two conformance fixes (test-bash-guard and test-hook-claims set TMPDIR for their scratch cases). The change is test-only, and no guard or gate code changed.
