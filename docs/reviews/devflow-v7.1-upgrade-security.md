@@ -289,3 +289,22 @@ APPROVAL and `make guard-pin`. Escalate it now (AGENTS.md §3: a hook change).
   review. MAJOR-1's remedy narrows it under temp.
 - **R3** B1 is DevFlow v7.1's own defect, at `v7.1:.claude/hooks/bash_guard.py:713-720`. Hand it upstream
   with the cases above.
+
+## Dispositions
+
+By the author, after the verdict. The guard is the owner's file, so its fixes are a patch the owner applies (the owner's choice of 2026-10-15).
+
+| Finding | Disposition | Where |
+|---|---|---|
+| B1 | **Owner's patch, pending**: `_scratch` resolves where the path lands, and an unset or reassigned variable is unknown, not scratch | red `85cdc62` (`tests/unit/test_bash_guard_bounds.py`); the patch re-pins the guard at sha256 `fda573c6cba0` |
+| MAJOR-1 | **Owner's patch, pending**: what is inside, holds or sits above a git work tree is not scratch, except `.claude/worktrees/<name>`; a throwaway worktree is dropped with `git worktree remove` | red `85cdc62` |
+| MAJOR-2 | **Owner's patch, pending, partly**: only the project root's own `scripts/deploy_gate.py` ever runs, and a missing one refuses. Still open, and the owner's call: the tree a call runs in still picks the brief, and the gate runs `git` there, so a foreign repository's git config can run code. The patched guard names this under "Not held" | red `85cdc62` |
+| M1 | **Owner's patch, pending**: `git config alias.*` and `git -c alias.*=` are judged by their value, and `ssh <host> <words>` by its remote words | red `85cdc62` |
+| M2 | **Filed** #283, triaged `work-issue` (the owner left it out of #281) | #283 |
+| M3 | **Fixed**: `make secrets` fails when it hands gitleaks no file; four tests use a stand-in scanner | red `d5e37f7`, fix `d111950` |
+| M4 | **Fixed**: two tests reach the sensitive-path signal with no HIGH path declared | `d5e37f7` |
+| M5 | **Filed** #284, triaged `work-issue` (the owner left it out of #281) | #284 |
+| N1 | **Owner's patch, pending**: the dead line is deleted | -- |
+| (new) | `git config core.hooksPath <dir>` passes on both guards: **filed** #285, `severity:high`, `work-issue` | #285 |
+
+#282 (K1 of the Code-Reviewer's round 1) is held by the same red tests, and closes with the patch.

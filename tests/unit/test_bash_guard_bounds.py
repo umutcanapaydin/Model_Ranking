@@ -274,20 +274,22 @@ def temp_dir(ungoverned: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.mark.parametrize("command", [
-    "rm -rf $TMPDIR/../../../../../../../../Users/x/model_ranking",
-    'rm -rf "${TMPDIR}/../../../../../../../../Users/x"',
+    "rm -rf $TMPDIR/{up}Users/x/model_ranking",
+    'rm -rf "${TMPDIR}/{up}Users/x"',
     'rm -rf "$TMPDIR/$unset"', 'rm -rf "$TMPDIR"', 'rm -rf "$TMPDIR/"', "rm -rf ${TMPDIR:-/}x",
     'TMPDIR=/x; rm -rf "$TMPDIR"', 'TMPDIR=/x; rm -rf "$TMPDIR/sub"', "export TMPDIR=$HOME && rm -rf $TMPDIR",
     "export TMPDIR=$HOME && rm -rf $TMPDIR/sub", "unset TMPDIR; rm -rf $TMPDIR/x",
     'd=$(mktemp -d); rm -rf "$d/../.."', 'd=$(mktemp -d)/../../../../Users/x; rm -rf "$d"',
     "d=$(mktemp -d; echo /Users/x); rm -rf $d", 'd=$(mktemp -d); rm -rf "${d}x"', 'd=$(mktemp -d); rm -rf "/x/$d"',
-    "find $TMPDIR/../../../../../../../../Users/x -delete",
+    "find $TMPDIR/{up}Users/x -delete",
 ])
 def test_rm_rf_of_a_path_that_only_starts_with_a_temp_variable_is_refused(guard: ModuleType, temp_dir: Path,
                                                                           ungoverned: Path, command: str) -> None:
     """The v7.1 upgrade security review's B1: `$TMPDIR` or a `mktemp` variable at the start of a target made it
     scratch, wherever the rest led. The target is resolved where it lands now, and a variable this text
-    assigned something else, or one it never assigned, is not scratch."""
+    assigned something else, or one it never assigned, is not scratch. `{up}` climbs past the root from
+    wherever pytest put `$TMPDIR` (one level deeper under xdist), so the target always lands outside it."""
+    command = command.replace("{up}", "../" * (len(temp_dir.resolve().parts) + 1))
     why = _bash(guard, command, ungoverned)
     assert why and "destructive" in why, (command, why)
 

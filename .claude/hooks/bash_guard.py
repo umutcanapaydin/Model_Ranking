@@ -27,21 +27,33 @@ What it refuses, each in one simple command:
 - a shell write to a secrets file by name (`.env`, `.env.<x>` but `.env.example`, `.env.sample` and
   `.env.template`, `<x>.env`, `.envrc`): a redirection, `tee`, or the destination of `cp`, `mv`, `install`
   or `ln` (with `-t`, every source's name too);
-- `rm` both recursive and forced, and `find ... -delete`, unless every target is scratch: under `$TMPDIR` or
-  the system temp directory (the session scratchpad lives there), a `mktemp` result assigned earlier in the
-  same command (`d=$(mktemp -d) && rm -rf "$d"`), or a worktree under `.claude/worktrees/`. A relative target
-  is resolved from every directory the command may run in (WHERE, below) and must be scratch from each;
+- `rm` both recursive and forced, and `find ... -delete`, unless every target is scratch: a `mktemp` result
+  assigned earlier in the same command (`d=$(mktemp -d) && rm -rf "$d"`, or a path below it with no `..`), a
+  worktree under `.claude/worktrees/`, or a path below `$TMPDIR` or the system temp directory (the session
+  scratchpad lives there) that is no temp directory, lies in no git work tree, and holds or sits above none
+  (the v7.1 upgrade security review's MAJOR-1: this project's work trees and review seats live under the temp
+  directory). Each variable is replaced by what this text assigned it -- `$TMPDIR` unassigned by the guard's
+  own -- and the path resolved where it lands, `..` and links followed; a variable it cannot know is no
+  scratch (B1: `$TMPDIR/../..`, `"$TMPDIR/$unset"` and `TMPDIR=/x; rm -rf $TMPDIR` passed). A relative target
+  is resolved from every directory the command may run in (WHERE, below) and must be scratch from each. A
+  throwaway worktree is dropped with `git worktree remove [--force] <path>`, which is not refused;
 - refused: `gh pr merge` and `gh pr ready` with flags anywhere (`gh -R a/b pr merge`, `gh pr -R a/b merge`),
   `gh api` on `/pulls/<n>/merge`, and `gh api` on `/protection` or `/rulesets` with a mutating method
   or a field (`-X PUT`, `--method delete`, `-f`, `-F`, `--input`, `--raw-field`);
 - a declared deploy command (`Deploy commands:` in `docs/project-brief.md`) while `scripts/deploy_gate.py`
-  refuses it: the repository is the git work tree of the directory the call runs in when it carries a
-  brief, else `$CLAUDE_PROJECT_DIR`; a brief with no `scripts/deploy_gate.py` beside it refuses every
-  call, never skips. The gate matches the declared words at command position, case-insensitively, by the
-  program's basename: `FLY DEPLOY`, `fly  deploy`, `'fly' deplo'y'`, `/usr/local/bin/fly deploy`,
-  `sudo fly deploy`, `bash -c 'fly deploy'` and `a=fly; $a deploy` are all the deploy; `echo 'fly deploy'`
-  and `git commit -m 'fly deploy notes'` are not;
-- a program word written as a pattern (`gi*`, `{git,ls}`), which could name anything.
+  refuses it: the governing tree is the git work tree of the directory the call runs in when it carries a
+  brief, else the project root; the gate that judges it is always the project root's own --
+  `$CLAUDE_PROJECT_DIR`, else the checkout this file lives in -- never the governing tree's (the v7.1
+  upgrade security review's MAJOR-2: a cloned repository's script ran on the next `ls`); a project root
+  with no `scripts/deploy_gate.py` refuses every call while a brief governs, never skips. The gate matches
+  the declared words at command position, case-insensitively, by the program's basename: `FLY DEPLOY`,
+  `fly  deploy`, `'fly' deplo'y'`, `/usr/local/bin/fly deploy`, `sudo fly deploy`, `bash -c 'fly deploy'`
+  and `a=fly; $a deploy` are all the deploy; `echo 'fly deploy'` and `git commit -m 'fly deploy notes'`
+  are not;
+- a program word written as a pattern (`gi*`, `{git,ls}`), which could name anything;
+- what an alias this text defines runs (`git config alias.x 'reset --hard'`, `git -c alias.x='!rm -rf /'`),
+  judged as the git subcommand or the shell text it names, and the remote words of `ssh <host> <words>`,
+  judged as a command from the home directory (the v7.1 upgrade security review's M1).
 
 This project's own rules (model_ranking, carried over from its M21 guard in the DevFlow v7.1 upgrade):
 - `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185),
@@ -54,6 +66,10 @@ This project's own rules (model_ranking, carried over from its M21 guard in the 
   one; and `git rm`, `git mv`, `git checkout` or `git restore` naming one. Reading them is not refused. The
   one exception is v7.1's scratch rule: `rm` of a directory under `.claude/worktrees/<name>` (a worktree's
   own `.claude/` and `.githooks/` stay refused, below).
+  A directory that holds them is refused too (#282): `rm -r`, and `mv` (`git rm`, `git mv`) of a source, whose
+  path is a work tree's root with a `.claude/` or `.githooks/` or a directory above one (`rm -r .` at a root,
+  `rm -r ..` from `ios/`, `mv ../<repo> x`); the directories below it are walked, links not followed, within
+  WALK_S seconds and MAX_WALK directories, and one too large or unreadable to walk is refused.
   In a cluster of short options, `t` is `-t` only before any letter that takes a value (VALUED: `install
   -ostaff` names an owner); a `t` after one is doubt, and then every operand is judged a destination, as
   for `install -d` (the fixes review's round 3, M2).
@@ -96,7 +112,11 @@ Not held, by class -- said here so nobody believes otherwise:
 - a program named when the command runs: a variable set outside this text, an alias, a function, `hash`,
   a `PATH` holding a script of a guarded name; `xargs <deploy command>` whose subcommand comes on stdin;
 - code another program runs: a script's contents (`bash x.sh`), `python -c`, `perl -e`, `node -e`,
-  `awk`'s `system()`, `make` recipes, git hooks and aliases, `ssh host cmd`;
+  `awk`'s `system()`, `make` recipes, git hooks, git aliases set before this text, `ssh -o ProxyCommand=`;
+  and git run by the project's deploy gate in a governing tree that is another repository, which reads that
+  repository's own config (a `core.fsmonitor`, a filter) when a command matches a deploy its brief declares;
+- a `mktemp` that fails: its variable is then empty, and `rm -rf "$d/sub"` removes `/sub`; and a `$TMPDIR`
+  the shell holds other than the guard's own process does;
 - a wrapper not in WRAPPERS, whose program is then read as an argument;
 - a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an
   upstream, `push.default` or `remote.pushDefault` (from a checkout on main, each pushes main; branch
@@ -120,6 +140,8 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 #: The longest command this reads; a longer one is refused.
@@ -131,9 +153,28 @@ DEADLINE_S = 10.0
 WHERE: dict[str, list[str]] = {"dirs": []}
 #: More directories than this, and the command is not read.
 MAX_DIRS = 64
-#: `name -> literal value` for assignments seen in this text, or SCRATCH for a `mktemp` result.
+#: `name -> literal value` for assignments seen in this text, SCRATCH for a `mktemp` result, or UNKNOWN for any
+#: other value (an assignment this text made, so the variable no longer holds what the environment gave it).
 SCOPE: dict[str, object] = {}
 SCRATCH = object()
+UNKNOWN = object()
+#: Whether this call may take `$TMPDIR` as the guard's own environment holds it, and a `mktemp` result as a new
+#: directory (the v7.1 upgrade security review's B1). Not `$TMPDIR` when the text names `TMPDIR` other than to
+#: expand it (`export`, `read`, `for TMPDIR in`) or runs `unset`; not `mktemp` when it defines a function or an
+#: alias of that name.
+TRUST: dict[str, bool] = {"TMPDIR": True, "mktemp": True}
+TMPDIR_NAMED = re.compile(r"(?<![\w$])(?<!\$\{)TMPDIR\b|(?:^|[\s;&|(){}!`])unset\b")
+MKTEMP_DEFINED = re.compile(r"\bmktemp\s*\(\s*\)|\bfunction\s+mktemp\b|\balias\b[^;&|\n]*\bmktemp=")
+#: A variable as `_scratch` reads one: `$name` or `${name}` exactly; any other `${...}` form is not read.
+REFERENCE = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
+#: How long, in all, one call may spend walking directories to find the work trees a target holds
+#: (`_walk`), and how many directories; past either, the target is taken to hold one.
+WALK_S = 4.0
+MAX_WALK = 400_000
+WALK: dict[str, float] = {"left": WALK_S}
+#: The checkout this file lives in (`.claude/hooks/bash_guard.py` below its root): the project root when
+#: `$CLAUDE_PROJECT_DIR` is not set, so the deploy gate is always the project's own (MAJOR-2).
+GUARD_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 #: Every word list in program position, for the deploy gate: `[program, arg, ...]`.
 CANDIDATES: list[list[str]] = []
 
@@ -187,6 +228,11 @@ READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoa
                  ("checks", "list"), ("volumes", "list")}
 
 DESTRUCTIVE = "BLOCKED: destructive command (C.9, permission-matrix.md S5). Escalate to the owner instead."
+HOLDS_OWNED = ("BLOCKED: `{path}` holds a git work tree's .claude/ or .githooks/, the owner's hooks and settings; "
+               "removing or moving it removes them (#282, OWNER APPROVAL). To drop a throwaway worktree, use "
+               "`git worktree remove <path>`.")
+UNWALKED = ("BLOCKED: `{path}` is too large or unreadable to tell whether it holds a git work tree's .claude/ or "
+            ".githooks/ (#282), so it is not removed or moved; name a smaller path.")
 RESTORE = ("BLOCKED: `git restore` without --staged, or with --worktree, discards uncommitted work "
            "(permission-matrix.md S5). Revert in place, or use --staged to unstage only.")
 PROTECTED_PUSH = ("BLOCKED: the agent never pushes the protected branch (AGENTS.md S3). Push YOUR branch and open a "
@@ -201,9 +247,9 @@ GH_MERGE = ("BLOCKED: a human marks a pull request ready and merges it, never th
             "Leave the draft for the owner.")
 GH_PROTECTION = "BLOCKED: branch protection and rulesets are the owner settings (AGENTS.md S3). Propose the change and stop."
 NOT_JSON = "BLOCKED: this guard cannot read the tool call -- the payload is not a JSON object."
-GATE_MISSING = ("BLOCKED: deploy gate -- {root} declares deploy commands in docs/project-brief.md and has no "
-                "scripts/deploy_gate.py, so no command can be told from a deploy. Restore the script "
-                "(INSTALL-MANIFEST.md); the guard never skips this check.")
+GATE_MISSING = ("BLOCKED: deploy gate -- {tree} declares deploy commands in docs/project-brief.md and the project "
+                "root {root} has no scripts/deploy_gate.py, so no command can be told from a deploy. Restore the "
+                "script (INSTALL-MANIFEST.md); the guard never skips this check, nor runs another tree's gate.")
 OWNERS = ("BLOCKED: .claude/ and .githooks/ hold the owner's hooks and settings; an agent does not write them "
           "(OWNER APPROVAL, the M21 closure security seat's S3). Propose the change instead.")
 FLY = ("BLOCKED: `{shown}` may change the hosted engine, and only the owner runs that, in their own terminal "
@@ -641,17 +687,20 @@ def judge_text(text: str, depth: int = 0) -> str | None:
 
 
 def _assign(word: Word) -> None:
-    """Record `name=value` for the rest of this text: a literal, a `mktemp` result, or unknown."""
+    """Record `name=value` for the rest of this text: a literal, a `mktemp` result, or unknown. A `mktemp`
+    result is the whole value and nothing else, one substitution running `mktemp` alone: `d=$(mktemp -d)/..`,
+    `d=$(mktemp -d; echo /x)` and `d=$(mktemp -d)$x` are unknown (the v7.1 upgrade security review's B1)."""
     name, _, value = word.text.partition("=")
     if name.endswith("+") or "[" in name:
-        SCOPE.pop(name.rstrip("+"), None)
+        SCOPE[name.rstrip("+").split("[", 1)[0]] = UNKNOWN
         return
-    if any(MKTEMP.match(sub) for sub in word.subs):
+    if (value == "$(...)" and len(word.subs) == 1 and MKTEMP.match(word.subs[0])
+            and not re.search(r"[;&|\n`<>()]|\$\(", word.subs[0])):
         SCOPE[name] = SCRATCH
     elif "$" not in value and not word.glob:
         SCOPE[name] = value
     else:
-        SCOPE.pop(name, None)
+        SCOPE[name] = UNKNOWN
 
 
 def _expand(text: str) -> str:
@@ -675,6 +724,8 @@ def _env_file(text: str) -> bool:
 def judge_command(cmd: Command, depth: int) -> str | None:
     """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
     words = cmd.words
+    if any(TMPDIR_NAMED.search(w.text) for w in words):
+        TRUST["TMPDIR"] = False   # `read TMP""DIR`: the name, quoted apart, as the shell will see it
     written = [_expand(w.text) for w in cmd.writes]
     # The Write/Edit guard refuses a `.env` file and the owner's directories; a shell redirection is the same write.
     if any(_env_file(t) for t in written):
@@ -801,11 +852,13 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
     if program == DEPLOY and (args != ["--dry-run"] or behind_xargs):
         return DEPLOY_SCRIPT
     if program == "git":
-        return _judge_git(args, behind_xargs)
+        return _judge_git(args, behind_xargs, depth)
     if program == "rm":
         return _judge_rm(words[1:])
     if program == "gh":
         return _judge_gh(args)
+    if program == "ssh":
+        return _judge_ssh(args, depth)
     return None
 
 
@@ -1041,23 +1094,40 @@ def _writes_protected(program: str, args: list[str]) -> str | None:
         written = []
     if any(_owners(a, worktrees=program == "rm") for a in written):
         return OWNERS
+    # #282: what holds a work tree's `.claude/` or `.githooks/` -- its root, or a directory above it -- is
+    # refused to `rm -r` and as the source of `mv`. `rm -rf` meets the stricter scratch rule (`_judge_rm`).
+    recursive, forced = _rm_flags(args) if program == "rm" else (False, False)
+    if recursive and not forced:
+        moved = paths
+    elif program == "mv":   # with `-t DIR`, every operand but DIR is a source
+        moved = [a for a in paths if a not in option] if option or doubt else paths[:-1]
+    else:
+        moved = []
+    if (why := _removes_owned(moved)):
+        return why
     in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
                                          for a in args)) or (
         program == "perl" and any(a.startswith("-") and not a.startswith("--") and "i" in a[1:] for a in args))
-    if (in_place and any(_owners(a) for a in paths)) or (program == "git" and _git_writes(args)):
+    if in_place and any(_owners(a) for a in paths):
         return OWNERS
-    return None
+    return _git_writes(args) if program == "git" else None
 
 
-def _git_writes(args: list[str]) -> bool:
-    """`git rm`, `git mv`, `git checkout` or `git restore` naming a protected path, from each `-C` directory."""
+def _git_writes(args: list[str]) -> str | None:
+    """`git rm`, `git mv`, `git checkout` or `git restore` naming a protected path, from each `-C` directory;
+    and `git rm` (but `--cached`) or `git mv` naming what holds one (#282)."""
     bases, i = list(WHERE["dirs"]) or [os.getcwd()], 0
     while i < len(args) and args[i].startswith("-"):
         if args[i] == "-C" and i + 1 < len(args):
             bases = [_resolved(base, args[i + 1]) for base in bases]
         i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
     sub, rest = (args[i], args[i + 1:]) if i < len(args) else ("", [])
-    return sub in ("rm", "mv", "checkout", "restore") and any(_owners(a, bases) for a in rest if not a.startswith("-"))
+    named = [a for a in rest if not a.startswith("-")]
+    if sub in ("rm", "mv", "checkout", "restore") and any(_owners(a, bases) for a in named):
+        return OWNERS
+    if (sub == "mv" or (sub == "rm" and "--cached" not in rest)):
+        return _removes_owned(named[:-1] if sub == "mv" else named, bases)
+    return None
 
 
 def judge_write(path: str, base: str) -> str | None:
@@ -1069,7 +1139,19 @@ def judge_write(path: str, base: str) -> str | None:
     return None
 
 
-# --- the scratch exemption for rm ---------------------------------------------------------------------
+# --- the scratch exemption for rm, and what a removal or a move may not take with it ----------------------
+#
+# The v7.1 upgrade security review's B1: a target that merely started with `$TMPDIR` or a `mktemp` variable was
+# scratch, so `rm -rf $TMPDIR/../../Users/x` and `rm -rf "$TMPDIR/$unset"` passed. Every variable is now
+# substituted and the path resolved where it lands. Its MAJOR-1 (round 1's M2): this project's work trees and
+# review seats live under the temp directory, so "under a temp directory" let `rm -rf .` remove one; a path in,
+# of or above a git work tree is no scratch. And #282: the owner's-directory rule asked only whether a path lay
+# inside `.claude/` or `.githooks/`, never whether it held them, so `rm -r .` and `mv ../<repo> x` passed.
+#
+# The one exception is a worktree under `.claude/worktrees/<name>`, Claude Code's and the seats' throwaway
+# checkouts. The way to drop one is `git worktree remove <path>` (`--force` with changes in it): git deletes the
+# directory and prunes its record, and the guard does not refuse it. `rm -rf` of it passes too, leaving git a
+# stale record that `git worktree prune` clears.
 
 def _temp_bases() -> list[str]:
     """Where scratch lives: `$TMPDIR`, the interpreter's temp directory, and the usual system ones."""
@@ -1084,35 +1166,127 @@ def _temp_bases() -> list[str]:
     return out
 
 
-def _scratch_path(resolved: str) -> bool:
+def _in_worktree_dir(resolved: str) -> bool:
+    """At or below `<anything>/.claude/worktrees/<name>`: v7.1's scratch, MAJOR-1's one exception."""
     parts = resolved.replace("\\", "/").split("/")
-    for i, part in enumerate(parts):
-        if part == ".claude" and i + 2 < len(parts) and parts[i + 1] == "worktrees" and parts[i + 2]:
-            return True
-    for base in _temp_bases():
-        if resolved != base and resolved.startswith(base + os.sep):
-            return True
-    return False
+    return any(part == ".claude" and i + 2 < len(parts) and parts[i + 1] == "worktrees" and parts[i + 2]
+               for i, part in enumerate(parts))
+
+
+def _root_of(path: str, proper: bool = False) -> str | None:
+    """The nearest directory at (unless `proper`) or above `path` that holds a `.git` entry, or None."""
+    d = os.path.dirname(path) if proper else path
+    while True:
+        if os.path.lexists(os.path.join(d, ".git")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
+def _known_roots() -> list[str]:
+    """The work trees this call is known to touch without walking: those of each directory it runs in, of
+    `$CLAUDE_PROJECT_DIR` and of this file's checkout."""
+    found: list[str] = []
+    for d in [*WHERE["dirs"], os.environ.get("CLAUDE_PROJECT_DIR", ""), GUARD_ROOT]:
+        root = _root_of(os.path.realpath(d)) if d else None
+        if root and root not in found:
+            found.append(root)
+    return found
+
+
+def _listing(d: str) -> dict[str, os.DirEntry[str]]:
+    """A directory's entries by their case-folded names."""
+    with os.scandir(d) as entries:
+        return {e.name.casefold(): e for e in entries}
+
+
+class _Unwalked(Exception):
+    """A directory too large, or unreadable, to say what it holds; the caller takes the answer that refuses."""
+
+
+def _walk(top: str, wanted: Callable[[str, dict[str, os.DirEntry[str]]], bool]) -> bool:
+    """Whether a directory at or below `top` (links not followed, no `.git` entered) holds a `.git` entry and
+    satisfies `wanted(directory, names)`. Past the call's WALK budget or MAX_WALK directories, or on a
+    directory it cannot read, it raises `_Unwalked`."""
+    if not os.path.isdir(top) or os.path.islink(top):
+        return False
+    started, stack, seen = time.monotonic(), [top], 0
+    try:
+        while stack:
+            seen += 1
+            if seen > MAX_WALK or time.monotonic() - started > WALK["left"]:
+                raise _Unwalked(top)
+            d = stack.pop()
+            try:
+                names = _listing(d)
+            except OSError:
+                raise _Unwalked(top) from None
+            if ".git" in names and wanted(d, names):
+                return True
+            stack += [e.path for n, e in names.items() if n != ".git" and e.is_dir(follow_symlinks=False)]
+        return False
+    finally:
+        WALK["left"] -= time.monotonic() - started
+
+
+def _near_a_work_tree(resolved: str) -> bool:
+    """MAJOR-1: whether `resolved` lies in a git work tree, is one, or is above one (or cannot be told)."""
+    if _root_of(resolved, proper=True):
+        return True
+    if any(root == resolved or root.startswith(resolved.rstrip(os.sep) + os.sep) for root in _known_roots()):
+        return True
+    try:
+        return _walk(resolved, lambda d, names: True)
+    except _Unwalked:
+        return True
+
+
+def _scratch_path(resolved: str) -> bool:
+    """A resolved `rm -rf` target is scratch when it is a `.claude/worktrees/<name>` worktree or below one, or
+    lies below a temp directory, is no temp directory and above none, and is in, of and above no git work
+    tree (MAJOR-1)."""
+    if _in_worktree_dir(resolved):
+        return True
+    bases, cut = _temp_bases(), resolved.rstrip(os.sep) + os.sep
+    # A temp directory itself, or one above it (`$TMPDIR`, `/var/folders/qf`), holds every scratch tree: B1.
+    if not any(resolved.startswith(base + os.sep) for base in bases) or any(
+            base == resolved or base.startswith(cut) for base in bases):
+        return False
+    return not _near_a_work_tree(resolved)
+
+
+def _value(m: re.Match[str]) -> str:
+    """A variable's value as `_scratch` substitutes it; LookupError when this cannot know it."""
+    name = m.group(1) or m.group(2)
+    value = SCOPE.get(name)
+    if isinstance(value, str):
+        return value
+    if name == "TMPDIR" and name not in SCOPE and TRUST["TMPDIR"] and os.environ.get("TMPDIR"):
+        return os.environ["TMPDIR"]   # the hook's own; Claude Code hands the same environment to the shell
+    raise LookupError(name)
 
 
 def _scratch(word: Word) -> bool:
-    """Whether an `rm` target is scratch: under a temp directory, a `mktemp` result of this text, or a
-    worktree under `.claude/worktrees/` -- from every directory the command may run in. Anything this cannot
-    resolve is not scratch."""
+    """Whether an `rm -rf` or `find -delete` target is scratch, from every directory the command may run in.
+    A `mktemp` variable of this text is, alone or with a path below it that holds no `..` and nothing to
+    expand: the directory is new. Any other target has each `$name` and `${name}` replaced by the literal this
+    text assigned it (`$TMPDIR` unassigned: the guard's own), is resolved where it lands, `..` and links
+    followed, and must be `_scratch_path`. A variable this cannot know -- unset, assigned a value it cannot
+    read, `${x:-y}` -- makes the target no scratch (B1)."""
     text = word.text
-    m = VARIABLE.match(text)
-    if m:
-        if m.group(1) == "TMPDIR":
-            return True
-        value = SCOPE.get(m.group(1))
-        if value is SCRATCH:
-            return True
-        if not isinstance(value, str):
-            return False
-        text = value + text[m.end():]
-    if "$" in text or word.glob or not text:
+    if word.glob or not text:
         return False
-    if text.startswith("~") and not text.startswith(("~/", "~")):
+    m = REFERENCE.match(text)
+    if m and SCOPE.get(m.group(1) or m.group(2)) is SCRATCH and TRUST["mktemp"]:
+        rest = text[m.end():]
+        return (not rest or rest.startswith("/")) and not any(c in rest for c in "$`") and ".." not in rest.split("/")
+    try:
+        text = REFERENCE.sub(_value, text)
+    except LookupError:
+        return False
+    if not text or any(c in text for c in "$`"):
         return False
     path = os.path.expanduser(text) if text == "~" or text.startswith("~/") else text
     if path.startswith("~"):
@@ -1121,21 +1295,52 @@ def _scratch(word: Word) -> bool:
     return all(_scratch_path(os.path.realpath(os.path.join(base, path))) for base in bases)
 
 
-def _judge_rm(words: list[Word]) -> str | None:
+def _removes_owned(paths: list[str], bases: list[str] | None = None) -> str | None:
+    """#282: a path removed or moved that holds a git work tree's `.claude/` or `.githooks/` -- the work tree's
+    root, or a directory above it -- from any directory the command may run in. A `.claude/worktrees/<name>`
+    worktree is not refused for holding its own; one too large to walk is refused."""
+    def owns(d: str, names: dict[str, os.DirEntry[str]]) -> bool:
+        return any(name in names and names[name].is_dir(follow_symlinks=False) for name in OWNED)
+
+    for path in paths:
+        for base in (bases if bases is not None else WHERE["dirs"]) or [os.getcwd()]:
+            target = _resolved(base, path)
+            if _in_worktree_dir(target):
+                continue
+            cut = target.rstrip(os.sep) + os.sep
+            known = [root for root in _known_roots() if root == target or root.startswith(cut)]
+            try:
+                if any(owns(root, _listing(root)) for root in known) or _walk(target, owns):
+                    return HOLDS_OWNED.format(path=path)
+            except (_Unwalked, OSError):
+                return UNWALKED.format(path=path)
+    return None
+
+
+def _rm_flags(args: list[str]) -> tuple[bool, bool]:
+    """(recursive, forced) for `rm`'s arguments: `-r`, `-R`, `--recursive` (a unique prefix); `-f`, `--force`."""
     opts: list[str] = []
+    for a in args:
+        if a == "--":
+            break
+        if a.startswith("-") and len(a) > 1:
+            opts.append(a)
+    letters = "".join(a[1:] for a in opts if not a.startswith("--"))
+    longs = [a for a in opts if a.startswith("--")]
+    recursive = "r" in letters or "R" in letters or any(_unique(a, "--recursive", GIT_LONG["rm"]) for a in longs)
+    forced = "f" in letters or any(_unique(a, "--force", GIT_LONG["rm"]) for a in longs)
+    return recursive, forced
+
+
+def _judge_rm(words: list[Word]) -> str | None:
     targets: list[Word] = []
     for k, w in enumerate(words):
         if w.text == "--":
             targets += words[k + 1:]
             break
-        if w.text.startswith("-") and len(w.text) > 1:
-            opts.append(w.text)
-        else:
+        if not (w.text.startswith("-") and len(w.text) > 1):
             targets.append(w)
-    letters = "".join(a[1:] for a in opts if not a.startswith("--"))
-    longs = [a for a in opts if a.startswith("--")]
-    recursive = "r" in letters or "R" in letters or any(_unique(a, "--recursive", GIT_LONG["rm"]) for a in longs)
-    forced = "f" in letters or any(_unique(a, "--force", GIT_LONG["rm"]) for a in longs)
+    recursive, forced = _rm_flags([w.text for w in words])
     if not (recursive and forced):
         return None
     if targets and all(_scratch(w) for w in targets):
@@ -1177,6 +1382,37 @@ def _judge_gh(args: list[str]) -> str | None:
         if mutating and any(re.search(r"/protection(?:$|[/?])|/rulesets(?:$|[/?])", e) for e in endpoints):
             return GH_PROTECTION
     return None
+
+
+# --- ssh ----------------------------------------------------------------------------------------------
+
+#: `ssh`'s short options that take a value (OpenSSH): in a cluster, the rest of the word, or the next word, is it.
+SSH_VALUED = set("BbcDEeFIiJLlmOoPpQRSWw")
+
+
+def _judge_ssh(args: list[str], depth: int) -> str | None:
+    """The v7.1 upgrade security review's M1: `ssh <host> <words>` runs the words, joined by spaces, in the
+    remote shell, so they are judged as a command -- from the home directory, as the remote shell starts there,
+    so a relative `rm -rf` target is never taken for a local temp directory's."""
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--":
+            i += 1
+            break
+        if not arg.startswith("-") or len(arg) == 1:
+            break
+        valued = next((j for j in range(1, len(arg)) if arg[j] in SSH_VALUED), None)
+        i += 2 if valued == len(arg) - 1 else 1
+    remote = args[i + 1:]
+    if not remote:
+        return None
+    where = WHERE["dirs"]
+    WHERE["dirs"] = [os.path.expanduser("~")]
+    try:
+        return judge_text(" ".join(remote), depth + 1)
+    finally:
+        WHERE["dirs"] = where
 
 
 # --- shells and git -----------------------------------------------------------------------------------
@@ -1227,13 +1463,31 @@ def _skips_hooks(option: str) -> bool:
     return len(name) >= 8 and "--no-verify".startswith(name)  # refused by the caller
 
 
-def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901 -- one branch per subcommand
+def _judge_alias(key: str, value: str, depth: int) -> str | None:
+    """The v7.1 upgrade security review's M1: an alias this text defines (`git config alias.<x> <value>`,
+    `git -c alias.<x>=<value>`) is judged as what it runs -- a value starting `!` as shell text, any other as
+    the git subcommand it names -- since a later `git <x>` in this text, or in another, runs it."""
+    if not key.lower().startswith("alias."):
+        return None
+    return judge_text(value[1:] if value.startswith("!") else f"git {value}", depth + 1)
+
+
+def _judge_git(args: list[str], behind_xargs: bool,  # noqa: C901 -- one branch per subcommand
+               depth: int = 0) -> str | None:
     i = 0
     while i < len(args) and args[i].startswith("-"):
         if args[i] in ("-c", "--config-env") and i + 1 < len(args) and "hookspath" in args[i + 1].lower():
             return NO_VERIFY
         if args[i].startswith(("-c", "--config-env")) and "hookspath" in args[i].lower():
             return NO_VERIFY
+        setting = (args[i + 1] if args[i] in ("-c", "--config-env") and i + 1 < len(args) else
+                   args[i].split("=", 1)[1] if args[i].startswith("--config-env=") else "")
+        key, _, value = setting.partition("=")
+        if key.lower().startswith("alias.") and args[i].startswith("--config-env"):
+            return (f"BLOCKED: `{args[i]}` takes the alias `{key}` from the environment, which this guard cannot "
+                    "read; set it with `-c` instead (the v7.1 upgrade security review's M1).")
+        if (why := _judge_alias(key, value, depth)):
+            return why
         i += 2 if args[i] in ("-C", "-c", "--config-env", "--git-dir", "--work-tree", "--namespace",
                               "--exec-path") else 1
     if i >= len(args):
@@ -1249,6 +1503,11 @@ def _judge_git(args: list[str], behind_xargs: bool) -> str | None:  # noqa: C901
         refs = [a for a in rest if not a.startswith("-")]
         if any(r.removeprefix("refs/").removeprefix("heads/") in PROTECTED for r in refs):
             return PROTECTED_REF
+    if sub == "config":   # `git config [set] [--global] alias.<x> <value>`: every word after an alias key
+        named = [a for a in rest if not a.startswith("-")]
+        for k in range(len(named) - 1):
+            if (why := _judge_alias(named[k], named[k + 1], depth)):
+                return why
 
     def given(*wanted: str) -> bool:
         return any(_unique(a, w, known) for a in longs for w in wanted)
@@ -1298,27 +1557,36 @@ def _toplevel(cwd: str) -> str | None:
     return top or None
 
 
+def project_home() -> str:
+    """The project root, whose `scripts/deploy_gate.py` is the only gate this guard runs: `$CLAUDE_PROJECT_DIR`,
+    or the checkout this file lives in (the v7.1 upgrade security review's MAJOR-2)."""
+    return os.environ.get("CLAUDE_PROJECT_DIR", "") or GUARD_ROOT
+
+
 def project_root(cwd: str) -> str | None:
-    """The repository whose brief governs this call: the work tree of `cwd` when it carries
-    `docs/project-brief.md`, else `$CLAUDE_PROJECT_DIR` when that does; None when neither has a brief, so
-    nothing is declared."""
-    for cand in (_toplevel(cwd), os.environ.get("CLAUDE_PROJECT_DIR", "")):
+    """The tree whose brief and verdicts govern this call: the work tree of `cwd` when it carries
+    `docs/project-brief.md`, else the project root when that does; None when neither has a brief, so nothing
+    is declared. The tree is only read, by the project's own gate (`judge_deploy`)."""
+    for cand in (_toplevel(cwd), project_home()):
         if cand and os.path.isfile(os.path.join(cand, "docs", "project-brief.md")):
             return cand
     return None
 
 
 def judge_deploy(candidates: list[list[str]], cwd: str) -> str | None:
-    """Hand every program-position word list to `scripts/deploy_gate.py --judge` in the governing
-    repository; its refusal is this guard's. A brief with no gate script beside it refuses the call."""
+    """Hand every program-position word list to the project root's own `scripts/deploy_gate.py --judge`, run
+    in the governing tree; its refusal is this guard's. No script of the tree the call runs in is run: a
+    cloned repository's `scripts/deploy_gate.py` once ran on the next `ls` (MAJOR-2). A project root without
+    its gate refuses every call while a brief governs, never skips, and never takes another tree's gate."""
     if not candidates:
         return None
     root = project_root(cwd)
     if root is None:
         return None
-    gate = os.path.join(root, "scripts", "deploy_gate.py")
+    home = project_home()
+    gate = os.path.join(home, "scripts", "deploy_gate.py")
     if not os.path.isfile(gate):
-        return GATE_MISSING.format(root=root)
+        return GATE_MISSING.format(tree=root, root=home)
     payload = json.dumps({"cwd": cwd, "commands": candidates}).encode("utf-8")
     try:
         r = subprocess.run([sys.executable, "-I", "-B", gate, "--judge"], input=payload, capture_output=True,
@@ -1361,6 +1629,9 @@ def judge_call(payload: object) -> str | None:
     WHERE["dirs"] = list(dict.fromkeys([os.path.normpath(os.path.abspath(cwd)), os.path.realpath(cwd)]))
     SCOPE.clear()
     CANDIDATES.clear()
+    WALK["left"] = WALK_S
+    TRUST["TMPDIR"] = not TMPDIR_NAMED.search(command)   # B1: `unset TMPDIR`, `for TMPDIR in`, `read TMPDIR`
+    TRUST["mktemp"] = not MKTEMP_DEFINED.search(command)
     return judge_text(command) or judge_deploy(list(CANDIDATES), cwd)
 
 
