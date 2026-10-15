@@ -64,9 +64,13 @@ enum KeptAnswers {
         return (list.categories, entry.fetchedAt)
     }
 
-    /// #288 phase 3, red: nothing is shown yet.
+    /// What the screen shows after `error` instead of its sentence: the kept answer for this surface and
+    /// budget, when the engine could not be reached and one is kept; otherwise nil, and the sentence.
     static func shown(after error: EngineError, _ kept: [KeptAnswer], task: String, budget: String,
-                      now: Date) -> (recommendation: Recommendation, fetchedAt: Date)? { nil }
+                      now: Date) -> (recommendation: Recommendation, fetchedAt: Date)? {
+        guard standsIn(for: error) else { return nil }
+        return recommendation(kept, task: task, budget: budget, now: now)
+    }
 
     /// Younger than `maxAge`, and not dated after `now` (a clock that stepped back).
     private static func usable(_ entry: KeptAnswer, now: Date) -> Bool {

@@ -58,6 +58,9 @@ struct ContentView: View {
     @State private var standingsStamp = 0
     /// When the standings on screen reached this phone (review M3, #72).
     @State private var standingsFetchedAt: Date?
+    /// #288 (D-202 clause 5): when the answer on screen is one kept from an earlier visit because the
+    /// engine could not be reached, the time it arrived; `nil` for an answer the engine just sent.
+    @State private var answerKeptAt: Date?
     @State private var planMemo = PlanMemo()
     /// M20-W4 (Ruling A): the second coding surface's family list, planned beside the first.
     @State private var pairedPlanMemo = PlanMemo()
@@ -193,6 +196,14 @@ struct ContentView: View {
                 if let held {
                     readingCard(held)
                 } else {
+                // #288 (D-202 clause 5): an answer kept from an earlier visit says the day it arrived, so
+                // it never reads as today's.
+                if let keptAt = answerKeptAt {
+                    Text(UIText.keptAnswer(fetchedAt: keptAt, language))
+                        .font(.footnote).foregroundStyle(Design.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("keptAnswer")
+                }
                 // D-168 clause 7 (M17-W5): several boards chosen, the product's combined list is the
                 // answer; one board, today's cards below.
                 // #70: planned when what it reads changes, not on every render (a keystroke is one).
@@ -1101,8 +1112,16 @@ struct ContentView: View {
         // the ARTIFACT, which the refresh replaces every twelve hours. A failed re-read keeps the
         // list it had: a discovery call that can blank the product is a worse dependency than the
         // facts it adds.
+        // #288 (D-202 clause 5): each answer the engine sends is kept, and a launch that cannot reach it
+        // lists the surfaces it kept last.
         if let fresh = try? await client.categories(), !fresh.isEmpty, gate.isCurrent(ticket) {
             categories = fresh
+            if let payload = KeptAnswers.payload(fresh) {
+                StandingsStore.onDevice.keep(route: KeptAnswers.categoriesRoute, task: "", budget: "", payload: payload)
+            }
+        } else if categories.isEmpty, gate.isCurrent(ticket),
+                  let kept = KeptAnswers.categories(StandingsStore.onDevice.keptAnswers(), now: Date()) {
+            categories = kept.categories
         }
         do {
             // One request carries every surface for the coding intent (Ruling A), so the home
@@ -1110,12 +1129,29 @@ struct ContentView: View {
             let recommendation = try await client.recommendation(task: task, budget: budget)
             guard gate.isCurrent(ticket) else { return }
             state = .loaded(recommendation.answers, orderingNote: recommendation.orderingNote)
+            answerKeptAt = nil
+            if let payload = KeptAnswers.payload(recommendation) {
+                StandingsStore.onDevice.keep(
+                    route: KeptAnswers.recommendationsRoute, task: task, budget: budget, payload: payload
+                )
+            }
         } catch let error as EngineError {
-            guard gate.isCurrent(ticket) else { return }
-            state = .failed(error)
+            // #288: an engine that could not be reached is stood in for by the last answer it sent for
+            // this surface and budget, dated; otherwise, and for every answer it refused, its sentence.
+            let kept = KeptAnswers.shown(after: error, StandingsStore.onDevice.keptAnswers(), task: task, budget: budget, now: Date())
+            if let kept {
+                guard gate.isCurrent(ticket) else { return }
+                state = .loaded(kept.recommendation.answers, orderingNote: kept.recommendation.orderingNote)
+                answerKeptAt = kept.fetchedAt
+            } else {
+                guard gate.isCurrent(ticket) else { return }
+                state = .failed(error)
+                answerKeptAt = nil
+            }
         } catch {
             guard gate.isCurrent(ticket) else { return }
             state = .failed(.undecodable(String(describing: error)))
+            answerKeptAt = nil
         }
         // Started, not awaited: neither the answer nor the echo `ask()` sets after this returns
         // waits for the day's first download (code review R3, second review R5).
@@ -1124,7 +1160,8 @@ struct ContentView: View {
 
     /// D-167 clause 1: every board's standings, fetched the same way whatever the reader asks, at
     /// most once a day. When only this fetch fails, the kept copy still combines; with no
-    /// connection at all the answer itself fails first, and the screen says so.
+    /// connection at all the answer itself fails first, and the screen says so, or shows the answer
+    /// kept for that surface with its day (#288).
     private func refreshStandings() {
         guard !standingsInFlight else { return }
         standingsInFlight = true

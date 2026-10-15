@@ -463,9 +463,13 @@ public enum UIText {
         language == .turkish ? "Şu anda cevap yok" : "No answer right now"
     }
 
-    /// #288 phase 3, red: not worded yet.
+    /// #288 (D-202 clause 5): over an answer kept from an earlier visit, shown because the engine could
+    /// not be reached. The day is the UTC calendar day it arrived, written as the boards' dates are.
     public static func keptAnswer(fetchedAt: Date, _ language: Language) -> String {
-        ""
+        let day = fetchedAt.formatted(.iso8601.year().month().day())
+        return language == .turkish
+            ? "Motora ulaşılamadı; bu, motorun \(day) tarihinde verdiği cevap."
+            : "The engine could not be reached, so this is the answer it gave on \(day)."
     }
 
     /// The engine address the app asked, under a failure to reach it (M18-W1 review B2).
