@@ -128,3 +128,24 @@ func staleCopyDays(fetchedAt: Date?, now: Date) -> Int? {
     guard age >= StandingsStore.maxAge else { return nil }
     return Int(age / 86_400)
 }
+
+/// #288 phase 2, red: the kept answers are not kept yet.
+struct KeptAnswer: Codable, Equatable {
+    let route: String
+    let task: String
+    let budget: String
+    let fetchedAt: Date
+    let payload: Data
+}
+
+extension StandingsStore {
+    static let maxKeptAnswers = 32
+
+    func keptAnswers() -> [KeptAnswer] {
+        []
+    }
+
+    func keep(route: String, task: String, budget: String, payload: Data) {}
+
+    func keep(route: String, task: String, budget: String, payload: Data, at date: Date) {}
+}
