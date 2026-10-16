@@ -3466,6 +3466,8 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
 
 **Amended by D-187 (2026-10-08)**: an understood question is answered from the closest board, never "not measured"; the note and the question back stay for input that is not a search.
 
+**Amended by D-203 (2026-10-16)**: clause 3 -- the wording tier also holds small talk, text with no meaning and a dictated answer, measured on a fresh held-out set (#66).
+
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
 **Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
@@ -5275,3 +5277,21 @@ Defaults the agent took, because the owner was asleep (run rule: an unanswered q
 **Mitigation if violated:** If the golden expectations are wrong, the tests hold the wrong answer in place. The owner's morning review of the set, and the `disputed` mark, are the guard against that.
 
 **Revisit when:** the owner corrects the golden set, or a fresh held-out measurement shows a shipped rule is worse than the one before it.
+
+## D-203 — The wording tier holds small talk, text with no meaning and a dictated answer (#66)
+
+**Status:** proposed -- the agent's, in run product-night under D-202 clause 6, for the owner's review
+**Date:** 2026-10-16 · **Amends:** D-169 (clause 3).
+
+**Decision:** On a device without Apple Intelligence, the wording tier holds three more kinds of input as not a search, so the screen shows the owner's guiding note (D-169 clause 4) or asks back, instead of a ranking:
+1. small talk: greetings and how-are-you lines, in English and Turkish;
+2. text with no meaning: placeholder Latin, or one word repeated three or more times;
+3. a dictated answer: "write nothing else" and its Turkish form count as an order to the app.
+
+The on-device model's schema, `RoutingOutcome` and every gate are unchanged.
+
+**Rationale:** On the fresh held-out set `reading_heldout_m23` (168 rows, written by an independent seat the implementer never saw; `docs/research/reading-wave-m23-probe.md`), the rule catches 11 of 72 non-searches against the shipped 10. It keeps 65 of 96 searches right, and holds or asks no real search. No language group loses a search. It meets D-202 clause 6's bar. On the tuning sets it catches 36 of 50 against 29.
+
+**Mitigation if violated:** A real model search phrased like small talk gets the note instead of a ranking. "Change" on the screen still lets the reader pick a surface. The fresh set had no such case.
+
+**Revisit when:** a genuine search is reported held, or the next fresh set shows the gain does not carry. The margin was one row, in English only. 61 of 72 non-searches are still ranked on the wording tier, so D-169 clause 6's 80 % bar stays the on-device model's.
