@@ -15,8 +15,9 @@ enum KeptAnswers {
     static let categoriesRoute = "v1/categories"
 
     /// How long a kept answer may stand in for one the engine could not send: a week. The engine
-    /// refreshes nightly (D-151), so an older answer is more likely wrong than late.
-    static let maxAge: TimeInterval = 7 * 86_400
+    /// refreshes nightly (D-151), so an older answer is more likely wrong than late. The store drops an
+    /// answer at the same age, so nothing is kept that may not be shown.
+    static let maxAge = StandingsStore.maxAnswerAge
 
     /// Whether a failure is one a kept answer stands in for: the engine could not be reached (D-202
     /// clause 5). An engine that answered and refused, or sent what this app cannot read, says so

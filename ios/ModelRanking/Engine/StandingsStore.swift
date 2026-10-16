@@ -170,7 +170,9 @@ extension StandingsStore {
     /// and few enough that the file stays small. The oldest goes first.
     static let maxKeptAnswers = 32
 
-    /// The security review's M3, red: not pruned by yet.
+    /// How long an answer is kept: as long as it may stand in (`KeptAnswers.maxAge`, a week) and no
+    /// longer, so the file is not a dated history of the surfaces asked (the #288 security review's M3).
+    /// Declared here, so the privacy sink reads no other file's state to prune by it.
     static let maxAnswerAge: TimeInterval = 7 * 86_400
 
     /// The largest kept answers' file this store reads (the #288 security review's M2): the file is read
@@ -179,7 +181,11 @@ extension StandingsStore {
     /// are about 2 MB; the write side keeps the file under this ceiling too.
     static let maxAnswersBytes = 8 * 1024 * 1024
 
-    /// The kept answers' file, beside the standings file and never the same one (INV-66).
+    /// The kept answers' file, beside the standings file and never the same one (INV-66). It is written as
+    /// the standings file is, through the one write below, so it has the same protection class (the
+    /// platform's default for an app's files). `.completeFileProtection`, as the gap register uses, would
+    /// widen the sink's Foundation list and the write's text pin, which is a gate edit for the owner (the
+    /// #288 security review's M3).
     private var answersFile: StandingsStore {
         StandingsStore(url: url.deletingLastPathComponent().appendingPathComponent("answers.json"))
     }
@@ -210,12 +216,19 @@ extension StandingsStore {
         store(KeptAnswer(route: KeptAnswers.categoriesRoute, task: "", budget: "", fetchedAt: Date(), payload: payload))
     }
 
-    /// A newer answer for the same route, surface and budget replaces the older one; past
+    /// Answers past `maxAnswerAge` or dated ahead are dropped, and a newer answer for the same route,
+    /// surface and budget replaces the older one; past
     /// `maxKeptAnswers`, or past `maxAnswersBytes` once encoded, the oldest is dropped, so the store never
     /// writes a file it would refuse to read; an answer too large to keep on its own is not kept. Best
     /// effort, like the standings.
     private func store(_ entry: KeptAnswer) {
         var kept = keptAnswers()
+        // M3: every write drops what can no longer be shown, past its week or dated ahead of the clock.
+        let now = entry.fetchedAt
+        kept.removeAll {
+            let age = now.timeIntervalSince($0.fetchedAt)
+            return age < 0 || age >= Self.maxAnswerAge
+        }
         kept.removeAll { $0.route == entry.route && $0.task == entry.task && $0.budget == entry.budget }
         kept.append(entry)
         while kept.count > Self.maxKeptAnswers {
