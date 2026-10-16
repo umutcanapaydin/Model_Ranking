@@ -284,6 +284,21 @@ final class KeptAnswerTests: OfflineTestCase {
         XCTAssertEqual(kept.last?.task, "surface-\(StandingsStore.maxKeptAnswers - 1)", "the newest answer was dropped")
     }
 
+    func testAWriteDropsEveryAnswerPastItsLimitOrDatedAhead() throws {
+        // The security review's M3: an answer past the week is never shown, so it is not kept either;
+        // the file is not a dated history of the surfaces the reader asked. One dated ahead of the clock
+        // (a clock that stepped back) goes too.
+        let now = Date()
+        try plant([entry(try decoded(recommendationPayload(task: "expired")), at: now.addingTimeInterval(-8 * 86_400)),
+                   entry(try decoded(recommendationPayload(task: "ahead")), at: now.addingTimeInterval(3_600)),
+                   entry(try decoded(recommendationPayload(task: "recent")), at: now.addingTimeInterval(-86_400))],
+                  in: folder)
+        store().keep(try decoded(recommendationPayload(task: "new")))
+        XCTAssertEqual(store().keptAnswers().map(\.task), ["recent", "new"])
+        XCTAssertFalse(try answersText().contains("expired"), "an expired answer stayed on the device")
+        XCTAssertEqual(StandingsStore.maxAnswerAge, KeptAnswers.maxAge, "kept as long as it may be shown, no longer")
+    }
+
     func testOnlyAnEngineThatCouldNotBeReachedIsStoodInFor() {
         // D-202 clause 5 says "cannot be reached": an engine that answered and refused, or sent what this
         // app cannot read, says so itself, and a cleartext refusal is a setting to fix, not an outage.

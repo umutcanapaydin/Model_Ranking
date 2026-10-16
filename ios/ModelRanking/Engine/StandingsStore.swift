@@ -170,6 +170,9 @@ extension StandingsStore {
     /// and few enough that the file stays small. The oldest goes first.
     static let maxKeptAnswers = 32
 
+    /// The security review's M3, red: not pruned by yet.
+    static let maxAnswerAge: TimeInterval = 7 * 86_400
+
     /// The largest kept answers' file this store reads (the #288 security review's M2): the file is read
     /// whole, so one grown or planted larger is refused before it is decoded, and reads as nothing kept.
     /// The largest answer measured on 2026-10-04 was 47,920 bytes, so 32 of them, base64 in the file,
