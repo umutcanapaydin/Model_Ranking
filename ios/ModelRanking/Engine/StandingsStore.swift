@@ -184,6 +184,12 @@ extension StandingsStore {
         return kept
     }
 
+    /// The security review's MJ1, red: not kept yet.
+    func keep(_ recommendation: Recommendation) {}
+
+    /// The security review's MJ1, red: not kept yet.
+    func keep(_ categories: [Category]) {}
+
     /// Keep an answer the engine just sent, dated by this store's clock (#170's rule for the
     /// standings: the screen does not choose the date written beside what it keeps).
     func keep(route: String, task: String, budget: String, payload: Data) {

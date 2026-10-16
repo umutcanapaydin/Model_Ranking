@@ -130,12 +130,26 @@ def test_the_screen_shows_the_kept_answer_and_its_day_when_the_engine_cannot_be_
     assert re.search(r"KeptAnswers\.shown\(after: error, StandingsStore\.onDevice\.keptAnswers\(\), "
                      r"task: task, budget: budget, now: Date\(\)\)", load), "a failure does not ask for the kept answer"
     assert load.index("KeptAnswers.shown(") < load.index("state = .failed(error)"), "the failure is shown first"
-    assert re.search(r"StandingsStore\.onDevice\.keep\(\s*route: KeptAnswers\.recommendationsRoute, task: task, "
-                     r"budget: budget,", load), "a fresh answer is not kept"
+    assert re.search(r"StandingsStore\.onDevice\.keep\(recommendation\)", load), "a fresh answer is not kept"
+    assert re.search(r"StandingsStore\.onDevice\.keep\(fresh\)", load), "a fresh surfaces' list is not kept"
     assert "answerKeptAt = nil" in load, "a fresh answer does not clear the kept answer's day"
     home = view[view.index("private func home(") : view.index("private func failure(")]
     shown = re.search(r"if let (\w+) = answerKeptAt \{\s*Text\(UIText\.keptAnswer\(fetchedAt: \1, language\)\)", home)
     assert shown, "the home screen does not show the kept answer's day"
+
+
+def test_the_kept_answers_store_takes_only_what_the_engine_sent() -> None:
+    """The #288 security review's MJ1: `keep` took any route, surface, budget, bytes and date, so a later
+    change could write the reader's typed words to the device and every gate stayed green. It now takes a
+    decoded answer or a decoded surfaces' list and nothing else: no string, no bytes and no date, so the
+    compiler refuses a call with any of them. The key is the engine's own echo and the date the store's
+    clock (`KeptAnswerTests`). This pins the declarations; adding `keep` to `PROVENANCE` is the owner's."""
+    store = _code((IOS / "ModelRanking" / "Engine" / "StandingsStore.swift").read_text(encoding="utf-8"))
+    declared = sorted(re.sub(r"\s+", " ", params).strip() for params in re.findall(r"\bfunc keep\s*\(([^)]*)\)", store))
+    assert declared == ["_ categories: [Category]", "_ recommendation: Recommendation"], declared
+    assert "fetchedAt: Date()" in store, "a kept answer is not dated by the store's own clock"
+    assert re.search(r"task: recommendation\.query\.task, budget: recommendation\.query\.budget", store), (
+        "a kept answer is not keyed by the engine's own echo")
 
 
 def test_the_local_network_prompt_speaks_turkish_too() -> None:

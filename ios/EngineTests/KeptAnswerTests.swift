@@ -4,6 +4,10 @@
 //  The answers are kept in a file of their own beside the standings, never in the standings file
 //  (INV-66), as the app decoded them, with the time they arrived. Nothing is bundled (REQ-APP-001):
 //  the only answers the phone ever holds are ones the engine sent it.
+//
+//  The store takes only a decoded answer, keyed by the engine's own echo of what it answered and dated
+//  by the store's clock (the security review's MJ1). A test that needs a chosen date plants the file
+//  itself, as the store would have written it.
 
 import XCTest
 
@@ -47,6 +51,22 @@ private let categoriesPayload = Data(#"""
       "ranking_effort": null, "close_call_margin": 1.5}]}
     """#.utf8)
 
+/// A kept entry as the store writes one, dated by the test rather than by the store's clock.
+private func entry(_ recommendation: Recommendation, at date: Date, task: String? = nil) throws -> KeptAnswer {
+    KeptAnswer(route: KeptAnswers.recommendationsRoute, task: task ?? recommendation.query.task,
+               budget: recommendation.query.budget, fetchedAt: date, payload: try JSONEncoder().encode(recommendation))
+}
+
+/// Write `entries` as the kept answers' file in `folder`, as the store would.
+private func plant(_ entries: [KeptAnswer], in folder: URL) throws {
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try JSONEncoder().encode(entries).write(to: folder.appendingPathComponent("answers.json"))
+}
+
+private func decoded(_ payload: Data = recommendationPayload()) throws -> Recommendation {
+    try JSONDecoder().decode(Recommendation.self, from: payload)
+}
+
 final class KeptAnswerTests: OfflineTestCase {
     private var folder: URL!
     private let arrived = Date(timeIntervalSince1970: 1_790_000_000)
@@ -66,14 +86,8 @@ final class KeptAnswerTests: OfflineTestCase {
         StandingsStore(url: folder.appendingPathComponent("standings.json"))
     }
 
-    private func decoded(_ payload: Data = recommendationPayload()) throws -> Recommendation {
-        try JSONDecoder().decode(Recommendation.self, from: payload)
-    }
-
-    private func keep(_ recommendation: Recommendation, task: String = "assistant", budget: String = "unlimited",
-                      at date: Date) throws {
-        let payload = try XCTUnwrap(KeptAnswers.payload(recommendation), "the answer could not be encoded to keep")
-        store().keep(route: KeptAnswers.recommendationsRoute, task: task, budget: budget, payload: payload, at: date)
+    private func answersText() throws -> String {
+        String(decoding: try Data(contentsOf: folder.appendingPathComponent("answers.json")), as: UTF8.self)
     }
 
     func testNothingKeptMeansNothingToShow() {
@@ -83,22 +97,47 @@ final class KeptAnswerTests: OfflineTestCase {
         XCTAssertNil(KeptAnswers.categories(store().keptAnswers(), now: arrived))
     }
 
-    func testAnAnswerIsKeptWithTheTimeItArrivedAndShownForItsOwnSurface() throws {
-        try keep(try decoded(), at: arrived)
+    func testAnAnswerIsKeptByTheStoresOwnClockAndShownForItsOwnSurface() throws {
+        let before = Date()
+        store().keep(try decoded())
+        let after = Date()
+        let entry = try XCTUnwrap(store().keptAnswers().first)
+        XCTAssertTrue(entry.fetchedAt >= before && entry.fetchedAt <= after, "not dated by the store's clock")
         let kept = try XCTUnwrap(KeptAnswers.recommendation(store().keptAnswers(), task: "assistant",
-                                                            budget: "unlimited", now: arrived.addingTimeInterval(3_600)))
-        XCTAssertEqual(kept.fetchedAt, arrived)
+                                                            budget: "unlimited", now: after))
+        XCTAssertEqual(kept.fetchedAt, entry.fetchedAt)
         XCTAssertEqual(kept.recommendation.answers.map(\.surface), ["assistant"])
         XCTAssertEqual(kept.recommendation.orderingNote, "No position here means anything.")
+    }
+
+    func testAnAnswerIsKeptUnderTheSurfaceAndBudgetTheEngineSaysItAnswered() throws {
+        // MJ1: the key is the engine's own echo (`query`), not a string the caller chose.
+        store().keep(try decoded(recommendationPayload(task: "coding", budget: "cheap")))
+        let entry = try XCTUnwrap(store().keptAnswers().first)
+        XCTAssertEqual([entry.route, entry.task, entry.budget], [KeptAnswers.recommendationsRoute, "coding", "cheap"])
+    }
+
+    func testOnlyWhatTheEngineSentAndTheAppDecodedIsKept() throws {
+        // MJ1: the store takes a decoded answer and nothing else, so a field the app does not decode, the
+        // reader's words planted in one among them, never reaches the file.
+        let smuggled = String(decoding: recommendationPayload(), as: UTF8.self)
+            .replacingOccurrences(of: #""api_version": "v1","#, with: #""api_version": "v1", "typed": "help me write a poem","#)
+            .replacingOccurrences(of: #""title": "Chat","#, with: #""title": "Chat", "question": "plan my trip","#)
+        XCTAssertTrue(smuggled.contains("poem") && smuggled.contains("trip"), "the plant did not land")
+        store().keep(try decoded(Data(smuggled.utf8)))
+        let text = try answersText()
+        XCTAssertFalse(text.contains("poem") || text.contains("typed"), "a field the app does not decode was kept")
+        XCTAssertFalse(text.contains("trip") || text.contains("question"), "a field the app does not decode was kept")
+        XCTAssertEqual(store().keptAnswers().count, 1)
     }
 
     func testAKeptAnswerIsWhatTheAppDecoded() throws {
         // The answer is kept as the app decoded it and read back the same: the pick's numbers, its
         // open-ended fact, the ranking row and the source health all survive the round trip.
         let original = try decoded()
-        try keep(original, at: arrived)
+        store().keep(original)
         let back = try XCTUnwrap(KeptAnswers.recommendation(store().keptAnswers(), task: "assistant",
-                                                            budget: "unlimited", now: arrived)).recommendation
+                                                            budget: "unlimited", now: Date())).recommendation
         let pick = try XCTUnwrap(back.answers.first?.picks.first)
         let was = try XCTUnwrap(original.answers.first?.picks.first)
         XCTAssertEqual(pick.model, was.model)
@@ -114,24 +153,24 @@ final class KeptAnswerTests: OfflineTestCase {
     }
 
     func testAKeptAnswerIsNeverShownForAnotherSurfaceOrBudget() throws {
-        try keep(try decoded(), at: arrived)
+        store().keep(try decoded())
         let kept = store().keptAnswers()
-        XCTAssertNil(KeptAnswers.recommendation(kept, task: "coding", budget: "unlimited", now: arrived),
+        XCTAssertNil(KeptAnswers.recommendation(kept, task: "coding", budget: "unlimited", now: Date()),
                      "an answer for another surface was shown")
-        XCTAssertNil(KeptAnswers.recommendation(kept, task: "assistant", budget: "cheap", now: arrived),
+        XCTAssertNil(KeptAnswers.recommendation(kept, task: "assistant", budget: "cheap", now: Date()),
                      "an answer for another budget was shown")
-        XCTAssertNil(KeptAnswers.categories(kept, now: arrived), "an answer was shown as the surfaces")
+        XCTAssertNil(KeptAnswers.categories(kept, now: Date()), "an answer was shown as the surfaces")
     }
 
     func testAnAnswerKeptUnderOneSurfaceButSentForAnotherIsNotShown() throws {
         // The kept entry's own key and the answer it holds must agree; a mismatch shows nothing.
-        try keep(try decoded(recommendationPayload(task: "coding")), task: "assistant", at: arrived)
+        try plant([entry(try decoded(recommendationPayload(task: "coding")), at: arrived, task: "assistant")], in: folder)
         XCTAssertNil(KeptAnswers.recommendation(store().keptAnswers(), task: "assistant", budget: "unlimited",
                                                 now: arrived))
     }
 
     func testAKeptAnswerOlderThanItsLimitIsNotShown() throws {
-        try keep(try decoded(), at: arrived)
+        try plant([entry(try decoded(), at: arrived)], in: folder)
         let kept = store().keptAnswers()
         let limit = KeptAnswers.maxAge
         XCTAssertNotNil(KeptAnswers.recommendation(kept, task: "assistant", budget: "unlimited",
@@ -146,40 +185,36 @@ final class KeptAnswerTests: OfflineTestCase {
     }
 
     func testANewerAnswerForTheSameSurfaceReplacesTheOlderOne() throws {
-        try keep(try decoded(recommendationPayload(model: "Old")), at: arrived)
-        try keep(try decoded(recommendationPayload(model: "New")), at: arrived.addingTimeInterval(60))
+        store().keep(try decoded(recommendationPayload(model: "Old")))
+        store().keep(try decoded(recommendationPayload(model: "New")))
         XCTAssertEqual(store().keptAnswers().count, 1)
         let kept = try XCTUnwrap(KeptAnswers.recommendation(store().keptAnswers(), task: "assistant",
-                                                            budget: "unlimited", now: arrived.addingTimeInterval(120)))
+                                                            budget: "unlimited", now: Date()))
         XCTAssertEqual(kept.recommendation.answers.first?.picks.first?.model, "New")
-        XCTAssertEqual(kept.fetchedAt, arrived.addingTimeInterval(60))
     }
 
     func testEachSurfaceKeepsItsOwnAnswerAndTheOldestGoesFirst() throws {
         let limit = StandingsStore.maxKeptAnswers
         for index in 0...limit {
-            try keep(try decoded(recommendationPayload(task: "surface-\(index)")), task: "surface-\(index)",
-                     at: arrived.addingTimeInterval(Double(index)))
+            store().keep(try decoded(recommendationPayload(task: "surface-\(index)")))
         }
         let kept = store().keptAnswers()
         XCTAssertEqual(kept.count, limit, "the kept answers grew past their limit")
         XCTAssertFalse(kept.contains { $0.task == "surface-0" }, "the oldest answer was not the one dropped")
-        XCTAssertNotNil(KeptAnswers.recommendation(kept, task: "surface-\(limit)", budget: "unlimited",
-                                                   now: arrived.addingTimeInterval(Double(limit))))
-        XCTAssertNotNil(KeptAnswers.recommendation(kept, task: "surface-1", budget: "unlimited",
-                                                   now: arrived.addingTimeInterval(Double(limit))))
+        XCTAssertNotNil(KeptAnswers.recommendation(kept, task: "surface-\(limit)", budget: "unlimited", now: Date()))
+        XCTAssertNotNil(KeptAnswers.recommendation(kept, task: "surface-1", budget: "unlimited", now: Date()))
     }
 
     func testTheSurfacesAreKeptAndShownToo() throws {
         let categories = try JSONDecoder().decode(CategoryList.self, from: categoriesPayload).categories
-        let payload = try XCTUnwrap(KeptAnswers.payload(categories))
-        store().keep(route: KeptAnswers.categoriesRoute, task: "", budget: "", payload: payload, at: arrived)
-        let kept = try XCTUnwrap(KeptAnswers.categories(store().keptAnswers(), now: arrived.addingTimeInterval(60)))
+        store().keep(categories)
+        let kept = try XCTUnwrap(KeptAnswers.categories(store().keptAnswers(), now: Date()))
         XCTAssertEqual(kept.categories, categories)
-        XCTAssertEqual(kept.fetchedAt, arrived)
-        XCTAssertNil(KeptAnswers.recommendation(store().keptAnswers(), task: "", budget: "", now: arrived),
+        let entry = try XCTUnwrap(store().keptAnswers().first)
+        XCTAssertEqual([entry.route, entry.task, entry.budget], [KeptAnswers.categoriesRoute, "", ""])
+        XCTAssertNil(KeptAnswers.recommendation(store().keptAnswers(), task: "", budget: "", now: Date()),
                      "the surfaces were shown as an answer")
-        XCTAssertNil(KeptAnswers.categories(store().keptAnswers(), now: arrived.addingTimeInterval(KeptAnswers.maxAge)))
+        XCTAssertNil(KeptAnswers.categories(store().keptAnswers(), now: entry.fetchedAt.addingTimeInterval(KeptAnswers.maxAge)))
     }
 
     func testKeepingAnAnswerNeverTouchesTheStandingsFile() throws {
@@ -191,7 +226,7 @@ final class KeptAnswerTests: OfflineTestCase {
         store().save(try FetchedStandings(payload: standings), at: arrived)
         let file = folder.appendingPathComponent("standings.json")
         let before = try Data(contentsOf: file)
-        try keep(try decoded(), at: arrived.addingTimeInterval(60))
+        store().keep(try decoded())
 
         XCTAssertEqual(try Data(contentsOf: file), before, "keeping an answer changed the standings file")
         XCTAssertEqual(store().load()?.fetchedAt, arrived)
@@ -203,7 +238,7 @@ final class KeptAnswerTests: OfflineTestCase {
 
     func testAStorePointedAnywhereButAFileKeepsNothing() throws {
         // Security S1, for the kept answers: the store only ever reads and writes a file on this device.
-        try keep(try decoded(), at: arrived)
+        store().keep(try decoded())
         let stored = try Data(contentsOf: folder.appendingPathComponent("answers.json"))
         let elsewhere = try XCTUnwrap(URL(string: "data:application/json;base64,\(stored.base64EncodedString())"))
         XCTAssertEqual(StandingsStore(url: elsewhere).keptAnswers(), [], "a store read answers from something not a file")
@@ -214,7 +249,7 @@ final class KeptAnswerTests: OfflineTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try Data("not json".utf8).write(to: folder.appendingPathComponent("answers.json"))
         XCTAssertEqual(store().keptAnswers(), [])
-        try keep(try decoded(), at: arrived)
+        store().keep(try decoded())
         XCTAssertEqual(store().keptAnswers().count, 1, "an unreadable file stopped a new answer being kept")
     }
 
@@ -253,11 +288,8 @@ final class KeptAnswerScreenTests: OfflineTestCase {
     }
 
     private func kept() throws -> [KeptAnswer] {
-        let store = StandingsStore(url: folder.appendingPathComponent("standings.json"))
-        let answer = try JSONDecoder().decode(Recommendation.self, from: recommendationPayload())
-        store.keep(route: KeptAnswers.recommendationsRoute, task: "assistant", budget: "unlimited",
-                   payload: try XCTUnwrap(KeptAnswers.payload(answer)), at: arrived)
-        return store.keptAnswers()
+        try plant([entry(try decoded(), at: arrived)], in: folder)
+        return StandingsStore(url: folder.appendingPathComponent("standings.json")).keptAnswers()
     }
 
     func testAFailureToReachTheEngineShowsTheKeptAnswerForTheSameSurface() throws {
