@@ -130,6 +130,10 @@ enum InputSignals {
     static let rolePhrases: [String] = [
         "you are now", "from now on you", "reply with the single word", "sen artık bir", "artık sen bir",
         "kuralları bir kenara", "pretend ur a", "from now on answer",
+        // #66 (run product-night): the answer dictated, by the negative order that closes it ("write only
+        // 'vision', write nothing else"). A search says what a model should not do in another form ("a
+        // model that writes nothing else", "yazmayan"); one that uses the order itself is asked, not decided.
+        "başka bir şey yazma", "baska bir sey yazma", "say nothing else", "write nothing else",
     ]
 
     /// A greeting, thanks or small talk, and nothing else ("hi", "how are you", "ok", "selam",
@@ -150,7 +154,14 @@ enum InputSignals {
         }
     }
 
-    static let smallTalkPhrases = ["eline sağlık"]
+    /// #66 (run product-night): a farewell, "what's up", a question to the app about itself, and how the
+    /// asker feels, each a phrase whose words alone a search may hold too ("canım" is also "my dear",
+    /// "sen" is "you", "up" and "going" are everywhere).
+    static let smallTalkPhrases = [
+        "eline sağlık", "sen kimsin", "canım sıkılıyor", "canim sikiliyor", "who are you", "i am bored", "i m bored",
+        "im bored", "i am tired", "i m tired", "im tired", "hoşça kal", "hosca kal", "ne yapıyorsun", "ne yapiyorsun",
+        "whats up", "what s up", "how is it going", "how s it going", "hows it going",
+    ]
 
     static let smallTalkWords: Set<String> = [
         "hi", "hello", "hey", "hiya", "yo", "sup", "thanks", "thank", "you", "thx", "ok", "okay", "cool",
@@ -159,7 +170,27 @@ enum InputSignals {
         "teşekkürler", "teşekkür", "ederim", "sağol", "sağ", "ol", "tamam", "peki", "günaydın", "iyi",
         "geceler", "akşamlar", "görüşürüz", "nasilsin", "eyvallah", "tmm", "çok", "that", "was", "really",
         "helpful", "much",
+        // #66 (run product-night): "today", "I am tired", "who are you", greetings, "I'm fine", "I'm bored"
+        // and "what are you up to" in Turkish, typed with or without its letters, and English greetings,
+        // each with one reading.
+        "bugün", "bugun", "yorgunum", "kimsin", "merhabalar", "selamlar", "nasılsınız", "nasilsiniz", "iyiyim",
+        "sıkıldım", "sikildim", "napıyorsun", "napiyorsun", "howdy", "goodbye", "cheers", "afternoon",
     ]
+
+    /// #66 (run product-night): text with no meaning made of real words, which `noWord` cannot see:
+    /// placeholder Latin and nothing else ("lorem ipsum dolor sit amet"), or one word typed three times
+    /// or more and nothing else ("the the the the the"). A search names what it is for beside them
+    /// ("lorem ipsum text for my site"), so this decides alone, as `noWord` does.
+    static func noMeaning(_ text: String) -> Bool {
+        folds(text).contains { folded in
+            let words = wordsOf(folded)
+            if words.count >= 3, Set(words).count == 1 { return true }
+            return words.starts(with: ["lorem", "ipsum"]) && words.allSatisfy(placeholderWords.contains)
+        }
+    }
+
+    /// The opening words of the placeholder Latin, "lorem ipsum", read only together (`noMeaning`).
+    static let placeholderWords: Set<String> = ["lorem", "ipsum", "dolor", "sit", "amet"]
 
     /// #66 (M19-W4): a question of everyday fact asked for its answer, not a search for a model
     /// ("when did the berlin wall fall", "kanadanın başkenti neresi"). Short, written as a question of
@@ -412,7 +443,8 @@ enum InputSignals {
 /// D-169 as amended at M18-W3 and by D-184: the reading, from the signals in code and the model's
 /// verdict.
 ///
-/// - No word, or small talk and nothing else, decides alone: there is nothing to route.
+/// - No word (or no meaning, #66), or small talk and nothing else, decides alone: there is nothing to
+///   route.
 /// - A doubt in code (pasted content, an instruction to the app, a question of fact) and the
 ///   model's "not a search" together decide it is not a search.
 /// - Either one alone is a doubt, and the reader is asked.

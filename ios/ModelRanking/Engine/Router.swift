@@ -1137,7 +1137,9 @@ struct TieredRouter {
         // image is answered from `vision`, the board of the models that read images best, and is no
         // longer told "not measured".
         read.reading = inputReading(
-            noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
+            // #66 (run product-night): text made of real words with no meaning decides as no word does.
+            noWord: InputSignals.noWord(question) || InputSignals.noMeaning(question),
+            smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)
                 || InputSignals.asksAFact(question),
             modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil)
