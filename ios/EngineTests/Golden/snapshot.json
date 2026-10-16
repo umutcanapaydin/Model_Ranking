@@ -1,0 +1,16 @@
+{
+  "source": "https://model-ranking.fly.dev",
+  "fetched_at": "2026-10-15T23:03:58Z",
+  "files": {
+    "categories.json": "/v1/categories",
+    "boards.json": "/v1/boards"
+  },
+  "health": {
+    "status": "ok",
+    "version": "0.1.0",
+    "build": "release-51b2ee2-data-6120fb83-from-51b2ee2",
+    "evidence": "servable",
+    "refresh": "off"
+  },
+  "note": "The hosted engine's public read-only payloads, pinned as fixtures for GoldenQuestionTests (#289). Test target only, never the app (REQ-APP-001). Fetch again and re-derive with scripts/golden_questions.py."
+}

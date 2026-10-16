@@ -1,0 +1,939 @@
+[
+  {
+    "question": "my flask app returns a 500 error when I post json, how do I find out why",
+    "language": "en",
+    "expected_surface": "coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "claude-4.7-opus",
+      "gpt-5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "GPT-5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (swebench, epoch_swe_bench_verified, aider) change the top 3; the fresh boards alone give ['claude-4.6-opus', 'claude-opus5.5', 'mimo-v2.6-pro']"
+  },
+  {
+    "question": "my typescript types are a mess, which model helps untangle generics",
+    "language": "en",
+    "expected_surface": "coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "claude-4.7-opus",
+      "gpt-5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "GPT-5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (swebench, epoch_swe_bench_verified, aider) change the top 3; the fresh boards alone give ['claude-4.6-opus', 'claude-opus5.5', 'mimo-v2.6-pro']"
+  },
+  {
+    "question": "which ai is best at fixing bugs in a large java project",
+    "language": "en",
+    "expected_surface": "coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "claude-4.7-opus",
+      "gpt-5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "GPT-5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (swebench, epoch_swe_bench_verified, aider) change the top 3; the fresh boards alone give ['claude-4.6-opus', 'claude-opus5.5', 'mimo-v2.6-pro']"
+  },
+  {
+    "question": "python'da bir listeyi tersine çevirmenin en kısa yolu ne",
+    "language": "tr",
+    "expected_surface": "coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "claude-4.7-opus",
+      "gpt-5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "GPT-5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (swebench, epoch_swe_bench_verified, aider) change the top 3; the fresh boards alone give ['claude-4.6-opus', 'claude-opus5.5', 'mimo-v2.6-pro']"
+  },
+  {
+    "question": "react native ile yazdığım kod derlenmiyor, nereden başlamalıyım",
+    "language": "tr",
+    "expected_surface": "coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "claude-4.7-opus",
+      "gpt-5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "GPT-5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (swebench, epoch_swe_bench_verified, aider) change the top 3; the fresh boards alone give ['claude-4.6-opus', 'claude-opus5.5', 'mimo-v2.6-pro']"
+  },
+  {
+    "question": "cheapest model that is still good at coding",
+    "language": "en",
+    "expected_surface": "coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "claude-4.7-opus",
+      "gpt-5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "Claude Opus 4.7",
+      "GPT-5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (swebench, epoch_swe_bench_verified, aider) change the top 3; the fresh boards alone give ['claude-4.6-opus', 'claude-opus5.5', 'mimo-v2.6-pro']"
+  },
+  {
+    "question": "I want an agent that takes a ticket, writes the code and opens a pull request without me",
+    "language": "en",
+    "expected_surface": "agentic-coding",
+    "disputed": false,
+    "reason": null,
+    "known_miss": 292,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5",
+      "gpt6-astra"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5",
+      "GPT 6 Astra"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (epoch_deepswe_external, epoch_terminalbench) change the top 3; the fresh boards alone give ['claude-fable-5.1', 'claude-opus5.5', 'gpt6-astra']"
+  },
+  {
+    "question": "best ai coding agent for working in the terminal",
+    "language": "en",
+    "expected_surface": "agentic-coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5",
+      "gpt6-astra"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5",
+      "GPT 6 Astra"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (epoch_deepswe_external, epoch_terminalbench) change the top 3; the fresh boards alone give ['claude-fable-5.1', 'claude-opus5.5', 'gpt6-astra']"
+  },
+  {
+    "question": "gece ben uyurken depomdaki eski kütüphaneleri güncelleyen bir ajan istiyorum",
+    "language": "tr",
+    "expected_surface": "agentic-coding",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5",
+      "gpt6-astra"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5",
+      "GPT 6 Astra"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (epoch_deepswe_external, epoch_terminalbench) change the top 3; the fresh boards alone give ['claude-fable-5.1', 'claude-opus5.5', 'gpt6-astra']"
+  },
+  {
+    "question": "help me with my calculus homework on limits",
+    "language": "en",
+    "expected_surface": "mathematics",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "what is the sum of all integers from 1 to 1000",
+    "language": "en",
+    "expected_surface": "mathematics",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "I'm prepping for a maths olympiad and need someone to check my solutions",
+    "language": "en",
+    "expected_surface": "mathematics",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "x kare artı üç x eksi on sıfıra eşitse x kaç",
+    "language": "tr",
+    "expected_surface": "mathematics",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "olasılık ödevimde takıldım, iki kart çekme sorusu",
+    "language": "tr",
+    "expected_surface": "mathematics",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "I love sudoku-style puzzles, which AI is sharpest at them",
+    "language": "en",
+    "expected_surface": "abstract",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "spot the odd one out: 3, 5, 7, 9, 11",
+    "language": "en",
+    "expected_surface": "abstract",
+    "disputed": true,
+    "reason": "the question fits two surfaces: an odd one out is a pattern puzzle (abstract), and these are numbers (mathematics)",
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "zeka küpü gibi bir bulmacayı hangi model çözebilir",
+    "language": "tr",
+    "expected_surface": "abstract",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "why does a mitochondrion have its own DNA",
+    "language": "en",
+    "expected_surface": "expert",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-sonnet5.5",
+      "gemini3.8-flash"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Sonnet 5.5",
+      "Gemini 3.8 Flash"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (epoch_mmlu) change the top 3; the fresh boards alone give ['claude-sonnet5.5', 'gpt6-astra', 'gpt6.1-sol']"
+  },
+  {
+    "question": "a hard question about quantum field theory",
+    "language": "en",
+    "expected_surface": "expert",
+    "disputed": false,
+    "reason": null,
+    "known_miss": 301,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-sonnet5.5",
+      "gemini3.8-flash"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Sonnet 5.5",
+      "Gemini 3.8 Flash"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (epoch_mmlu) change the top 3; the fresh boards alone give ['claude-sonnet5.5', 'gpt6-astra', 'gpt6.1-sol']"
+  },
+  {
+    "question": "organik kimya sınavım için sn1 ve sn2 tepkimelerinin farkı ne",
+    "language": "tr",
+    "expected_surface": "expert",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-sonnet5.5",
+      "gemini3.8-flash"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Sonnet 5.5",
+      "Gemini 3.8 Flash"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "boards older than 90 days or undated (epoch_mmlu) change the top 3; the fresh boards alone give ['claude-sonnet5.5', 'gpt6-astra', 'gpt6.1-sol']"
+  },
+  {
+    "question": "we're a family of four, is there one AI plan that covers homework, recipes and work emails",
+    "language": "en",
+    "expected_surface": "everyday",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "which chatbot should I use day to day",
+    "language": "en",
+    "expected_surface": "everyday",
+    "disputed": true,
+    "reason": "the question fits two surfaces: a chatbot is the assistant surface's word, and day-to-day use across tasks is everyday's",
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "her güne yetecek, her işe koşabileceğim bir yapay zeka hangisi",
+    "language": "tr",
+    "expected_surface": "everyday",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "is it worth switching from Copilot to Claude for normal stuff",
+    "language": "en",
+    "expected_surface": "everyday",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "draft a short note to my kid's teacher explaining she was sick yesterday",
+    "language": "en",
+    "expected_surface": "assistant",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "what should I cook tonight with eggs, spinach and some feta",
+    "language": "en",
+    "expected_surface": "assistant",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "patronuma yarın izinli olacağımı kibarca söyleyen iki cümle",
+    "language": "tr",
+    "expected_surface": "assistant",
+    "disputed": false,
+    "reason": null,
+    "known_miss": 293,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "how many people are in this group picture",
+    "language": "en",
+    "expected_surface": "vision",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_vision): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "can it read handwriting from a picture of my notes",
+    "language": "en",
+    "expected_surface": "vision",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_vision): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "bu fotoğraftaki yazıyı okuyabilir misin",
+    "language": "tr",
+    "expected_surface": "vision",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_vision): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "is the A7 motorway closed right now",
+    "language": "en",
+    "expected_surface": "search",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "gpt-5.5",
+      "gpt-5.6-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "GPT-5.5",
+      "GPT-5.6 Sol"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_search): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "are there any train strikes in Germany this week",
+    "language": "en",
+    "expected_surface": "search",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "gpt-5.5",
+      "gpt-5.6-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "GPT-5.5",
+      "GPT-5.6 Sol"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_search): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "bu akşam istanbul'da hangi konserler var",
+    "language": "tr",
+    "expected_surface": "search",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "gpt-5.5",
+      "gpt-5.6-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "GPT-5.5",
+      "GPT-5.6 Sol"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_search): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "find me studies on intermittent fasting and link the actual sources",
+    "language": "en",
+    "expected_surface": "search_factuality",
+    "disputed": false,
+    "reason": null,
+    "known_miss": 293,
+    "expected_top3": [
+      "claude-4.6-opus",
+      "gpt-5.5",
+      "gpt-5.6-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 4.6",
+      "GPT-5.5",
+      "GPT-5.6 Sol"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena_search_factuality): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "I'm fact-checking a blog post about the moon landing, which model can I trust on dates",
+    "language": "en",
+    "expected_surface": "factuality",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "is it true that we only use 10 percent of our brain",
+    "language": "en",
+    "expected_surface": "factuality",
+    "disputed": false,
+    "reason": null,
+    "known_miss": 294,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "tarih ödevim için yanlış bilgi uydurmayan bir model",
+    "language": "tr",
+    "expected_surface": "factuality",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-opus5.5",
+      "gpt6-astra",
+      "gpt6.1-sol"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5.5",
+      "GPT 6 Astra",
+      "GPT 6.1 Sol"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "pull every deadline out of this 40 page tender document",
+    "language": "en",
+    "expected_surface": "document",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "I have to review a long lease agreement tonight, which ai should read it",
+    "language": "en",
+    "expected_surface": "document",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "kira kontratımı okuyup bana özet çıkar",
+    "language": "tr",
+    "expected_surface": "document",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "set up a simple site for my yoga studio with class times",
+    "language": "en",
+    "expected_surface": "web-dev",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-fable-5.1",
+      "claude-opus5.5",
+      "claude-sonnet5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Fable 5.1",
+      "Claude Opus 5.5",
+      "Claude Sonnet 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "düğünümüz için davetiye gibi tek sayfalık bir web sayfası yapalım",
+    "language": "tr",
+    "expected_surface": "web-dev",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-fable-5.1",
+      "claude-opus5.5",
+      "claude-sonnet5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Fable 5.1",
+      "Claude Opus 5.5",
+      "Claude Sonnet 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "which ai can use my laptop to sort my downloads folder",
+    "language": "en",
+    "expected_surface": "computer-use",
+    "disputed": false,
+    "reason": null,
+    "expected_top3": [
+      "claude-fable-5.1",
+      "claude-opus5.5",
+      "gpt6-astra"
+    ],
+    "expected_top3_names": [
+      "Claude Fable 5.1",
+      "Claude Opus 5.5",
+      "GPT 6 Astra"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "tarayıcımda benim yerime alışveriş yapacak bir yapay zeka var mı",
+    "language": "tr",
+    "expected_surface": "computer-use",
+    "disputed": false,
+    "reason": null,
+    "known_miss": 295,
+    "expected_top3": [
+      "claude-fable-5.1",
+      "claude-opus5.5",
+      "gpt6-astra"
+    ],
+    "expected_top3_names": [
+      "Claude Fable 5.1",
+      "Claude Opus 5.5",
+      "GPT 6 Astra"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "I care about speed more than anything, which model replies instantly",
+    "language": "en",
+    "expected_surface": "everyday",
+    "disputed": true,
+    "reason": "speed is measured by no surface (D-187 answers it from the closest one), so no surface is the settled answer",
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "bütçem az, hem ucuz hem hızlı olsun",
+    "language": "tr",
+    "expected_surface": "everyday",
+    "disputed": true,
+    "reason": "price and speed name no task: price is the budget control and no surface measures speed, so no surface is the settled answer",
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": false,
+    "top3_reason": null
+  },
+  {
+    "question": "my grandmother only speaks Turkish, which AI would she get on with",
+    "language": "en",
+    "expected_surface": "assistant",
+    "disputed": true,
+    "reason": "no board measures Turkish: the question fits assistant and everyday alike, and neither ranks Turkish",
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "türkçe dilbilgisi hatası yapmayan bir yapay zeka arıyorum",
+    "language": "tr",
+    "expected_surface": "assistant",
+    "disputed": true,
+    "reason": "no board measures Turkish: the question fits assistant and everyday alike, and neither ranks Turkish",
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena): the screen shows the engine's cards, not a list built from the boards"
+  },
+  {
+    "question": "bu ingilizce e-postayı türkçeye çevir",
+    "language": "tr",
+    "expected_surface": "assistant",
+    "disputed": true,
+    "reason": "no surface measures translation: assistant is the closest, and no board ranks Turkish",
+    "expected_top3": [
+      "claude-5-opus",
+      "claude-fable-5.1",
+      "claude-opus5.5"
+    ],
+    "expected_top3_names": [
+      "Claude Opus 5",
+      "Claude Fable 5.1",
+      "Claude Opus 5.5"
+    ],
+    "top3_disputed": true,
+    "top3_reason": "the family has one board (arena): the screen shows the engine's cards, not a list built from the boards"
+  }
+]
