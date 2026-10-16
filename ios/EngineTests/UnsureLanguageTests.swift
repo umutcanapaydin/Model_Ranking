@@ -77,7 +77,7 @@ final class UnsureLanguageTests: OfflineTestCase {
     /// unsure of (the names pull it to Spanish, French or Slovak), with and without its Turkish letters. The
     /// issue's own line, the triage's two, and the implementer's own; never a held-out row.
     private let shortTurkish = [
-        "claude mu chatgpt mi almanca",            // the issue's
+        "gemini mi claude mu fransizca",           // the issue's shape (its own line is held out)
         "o3 m\u{00FC} o4 m\u{00FC}",               // the triage's
         "gemini mi claude mu kod",                 // the triage's
         "o3 mu o4 mu",
@@ -115,6 +115,30 @@ final class UnsureLanguageTests: OfflineTestCase {
             let outcome = await TieredRouter(model: nil).route(question, within: known)
             XCTAssertEqual(outcome.categoryID, "everyday", question)
             XCTAssertFalse(outcome.unmeasured, question)
+        }
+    }
+
+    /// D-191's three verdicts on #218 found an English search read as Turkish for one of its words: "mu", "MI",
+    /// "Kim", "NE", a German letter, a Turkish name or town. Here each sits beside a model's name. None is read
+    /// as Turkish: the recogniser is sure of it, or holds English among its readings, or reads its other words
+    /// as English. (A line it is already sure is Turkish, "ask claude to email" a Turkish name, stays so, as
+    /// before #218.)
+    func testAnEnglishQuestionThatNamesAModelBesideAWordTurkishAlsoWritesIsNotReadAsTurkish() {
+        for question in ["gpt for mu and mi", "claude mi score", "is claude ne good", "gpt \u{00FC}ber alles",
+                         "mistral mu zero", "llama kim jong", "claude on mi phone", "grok mu vs gpt mu",
+                         "gpt message for g\u{00F6}khan", "gemini m\u{00FC}ller", "trip from izmir with gpt",
+                         "claude vs gemini vs gpt", "grok 4 vs gpt 5", "qwen 3 coder vs claude", "gemini pro vs flash"] {
+            XCTAssertFalse(SimilarityRouter.readsTurkish(question), question)
+            XCTAssertFalse(SimilarityRouter.readsTurkish(question.uppercased()), question)
+        }
+    }
+
+    /// The rule reads a question that names a model, and only one: an unsure line that names none keeps the
+    /// recogniser's reading, so Kurmanji, which it reads between English and Turkish as Turkish, still declines.
+    func testAnUnsureLineThatNamesNoModelIsNotReadAsTurkish() {
+        for question in ["k\u{00EE}jan ba\u{015F}tir e", "al\u{00EE}kariya min bike", "iphone mu android mi"] {
+            XCTAssertFalse(SimilarityRouter.turkishBesideModelNames(question), question)
+            XCTAssertFalse(SimilarityRouter.readsTurkish(question), question)
         }
     }
 

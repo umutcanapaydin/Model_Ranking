@@ -667,9 +667,40 @@ struct SimilarityRouter: QuestionRouter {
         guard !composed.unicodeScalars.contains(where: turkicNotTurkishLetters.contains) else { return false }
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
-        guard recogniser.dominantLanguage == .turkish else { return false }
-        return (recogniser.languageHypotheses(withMaximum: 1)[.turkish] ?? 0) >= confidentLanguage
+        let language = recogniser.dominantLanguage ?? .undetermined
+        let confidence = recogniser.languageHypotheses(withMaximum: 1)[language] ?? 0
+        if language == .turkish, confidence >= confidentLanguage { return true }
+        // #218: a reading the recogniser is unsure of, with English not among its readings (the reading
+        // #273 declines), may be the names' doing.
+        guard language != .english, confidence < confidentLanguage,
+              (recogniser.languageHypotheses(withMaximum: 3)[.english] ?? 0) < englishAmongReadings
+        else { return false }
+        return turkishBesideModelNames(text)
     }
+
+    /// #218: a short Turkish question that names a model ("gemini mi claude mu fransizca") is not confidently
+    /// Turkish to the recogniser: the names are no language's words and pull it to Spanish or French. So
+    /// the question is read without them (`languageWords`), between the two languages this tier reads. It is
+    /// Turkish when it names a model (`ModelFamilies`, `CategoryHints.generalWords`) and its other words read as
+    /// Turkish at `turkishBesideModelNames` or more. No word decides it: the recogniser reads the words (D-191,
+    /// D-196). A question that names no model keeps the recogniser's reading, so a language the recogniser
+    /// confuses with Turkish (Kurmanji) is not read as Turkish for it; one that names a model may be.
+    static func turkishBesideModelNames(_ text: String) -> Bool {
+        let names = text.lowercased().split { !($0.isLetter || $0.isNumber) }.contains { word in
+            let plain = CategoryHints.plain(String(word))
+            return ModelFamilies.words.contains(plain) || CategoryHints.generalWords.words.contains(plain)
+        }
+        let words = languageWords(text)
+        guard names, !words.isEmpty else { return false }
+        let between = NLLanguageRecognizer()
+        between.languageConstraints = [.english, .turkish]
+        between.processString(words.joined(separator: " "))
+        return (between.languageHypotheses(withMaximum: 2)[.turkish] ?? 0) >= turkishBesideModelNames
+    }
+
+    /// #218: how likely, between English and Turkish, a named model's other words must be Turkish. On the
+    /// implementer's own short lines, Turkish ones read 0.97 to 1.00 and English ones 0.71 or less.
+    static let turkishBesideModelNames = 0.9
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
         let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
