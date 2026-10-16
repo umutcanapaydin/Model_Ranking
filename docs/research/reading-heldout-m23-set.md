@@ -26,6 +26,10 @@ No question equals (after case folding, NFC and dropping punctuation) any string
 question is within a `difflib` ratio of 0.9 of one either (highest 0.875). The check printed counts and
 row numbers only, never text from the existing sets.
 
+Correction, after the set was committed: the check compared whole strings only. The integration delta
+review (`docs/reviews/integration-run-product-night-security.md`, N1) found that row 127 is contained
+whole inside a longer string of `notasearch_heldout_m19_questions.json`, a retired set.
+
 ## Counts
 
 168 rows: 96 searches, 72 `NOT_A_SEARCH`.

@@ -82,4 +82,4 @@ The margin is one row of 72, in English only. On fresh rows, the wording tier st
 lines that are not a search: 20 of 24 English, 20 of 26 Turkish and 21 of 22 in other languages.
 #66's wider goal stays open.
 
-This record quotes no question from the set, which stays held out for later waves.
+This record quotes no question from the set. After #301 was measured, the set was committed spent and retired (`scripts/router_probe/reading_heldout_m23_questions.json`, `03e845a`).
