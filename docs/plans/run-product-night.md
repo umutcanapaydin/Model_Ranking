@@ -21,7 +21,7 @@ Rulings: D-201, D-202
 | issue-289 | enhancement/issue-289-golden | none | none | running |
 | issue-273 | fix/issue-273-unsure-language | #298 | none | stopped |
 | issue-218 | fix/issue-218-short-turkish | #299 | none | stopped |
-| issue-66 | enhancement/issue-66-guiding-note | none | none | running |
+| issue-66 | enhancement/issue-66-guiding-note | #300 | none | stacked |
 
 ## Stops
 
