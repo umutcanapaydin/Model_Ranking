@@ -73,6 +73,51 @@ final class UnsureLanguageTests: OfflineTestCase {
         XCTAssertEqual(SimilarityRouter.languageWords("gpt-4o mu Claude Opus mu, kod"), ["mu", "mu", "kod"])
     }
 
+    /// #218: a short Turkish question that names a model and one or two words more, which the recogniser is
+    /// unsure of (the names pull it to Spanish, French or Slovak), with and without its Turkish letters. The
+    /// issue's own line, the triage's two, and the implementer's own; never a held-out row.
+    private let shortTurkish = [
+        "claude mu chatgpt mi almanca",            // the issue's
+        "o3 m\u{00FC} o4 m\u{00FC}",               // the triage's
+        "gemini mi claude mu kod",                 // the triage's
+        "o3 mu o4 mu",
+        "claude mi gpt mi ceviri",
+        "claude almanca",
+        "claude odev icin",
+        "gpt \u{00F6}dev",
+        "claude kodlama",
+    ]
+
+    func testAShortTurkishQuestionThatNamesAModelIsReadAsTurkish() {
+        for question in shortTurkish {
+            let recogniser = NLLanguageRecognizer()
+            recogniser.processString(question)
+            let language = recogniser.dominantLanguage ?? .undetermined
+            XCTAssertNotEqual(language, .english, question)
+            XCTAssertLessThan(recogniser.languageHypotheses(withMaximum: 1)[language] ?? 1,
+                              SimilarityRouter.confidentLanguage, question)
+            XCTAssertLessThanOrEqual(question.split(separator: " ").count, 5, question)
+            XCTAssertTrue(SimilarityRouter.readsTurkish(question), question)
+        }
+    }
+
+    /// On the Turkish path, a question naming a brand and no surface keeps `everyday`, as D-196 clause 1 has
+    /// it for every Turkish question about models in general. On the English path these read as a surface
+    /// the question does not name: web-dev, factuality.
+    func testAShortTurkishQuestionThatNamesABrandAndNoSurfaceIsAnsweredFromEveryday() async throws {
+        struct NoEmbedding: Error {}
+        guard NLContextualEmbedding(language: .turkish)?.hasAvailableAssets ?? false else {
+            XCTFail("the embedding's assets are not on this machine, so #218's routing is not measured here")
+            throw NoEmbedding()
+        }
+        for question in ["claude almanca", "claude odev icin", "gpt \u{00F6}dev"] {
+            XCTAssertNil(CategoryHints.namedSurface(question, within: known), question)
+            let outcome = await TieredRouter(model: nil).route(question, within: known)
+            XCTAssertEqual(outcome.categoryID, "everyday", question)
+            XCTAssertFalse(outcome.unmeasured, question)
+        }
+    }
+
     /// The other side of the floor: an unsure question with words enough, whose readings hold English at
     /// `englishAmongReadings` or more, stays on the English path.
     func testAnUnsureQuestionWhoseReadingsHoldEnglishStaysOnTheEnglishPath() {
