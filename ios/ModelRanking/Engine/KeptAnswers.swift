@@ -4,8 +4,8 @@
 //  A phone away from its engine showed only the failure sentence. Now the last answer the engine sent
 //  for the same surface and budget is shown instead, with the day it arrived, for up to a week. The
 //  answers are kept by `StandingsStore` (in a file beside the standings, never in it) as this app
-//  decoded them; this file only encodes them to keep, and decides which kept answer, if any, may stand
-//  in. Nothing is bundled (REQ-APP-001): an answer the phone shows is one the engine sent it.
+//  decoded them; this file decides which kept answer, if any, may stand in. Nothing is bundled
+//  (REQ-APP-001): an answer the phone shows is one the engine sent it.
 
 import Foundation
 
@@ -30,16 +30,6 @@ enum KeptAnswers {
         }
     }
 
-    /// An answer as the app decoded it, encoded to keep.
-    static func payload(_ recommendation: Recommendation) -> Data? {
-        try? JSONEncoder().encode(recommendation)
-    }
-
-    /// The surfaces' list as the app decoded it, encoded to keep.
-    static func payload(_ categories: [Category]) -> Data? {
-        try? JSONEncoder().encode(CategoryList(categories: categories))
-    }
-
     /// The kept answer for this very surface and budget, with the time it arrived, or nil: never one
     /// kept for another surface or budget, nor one whose own query names another, nor one past
     /// `maxAge` or dated after `now`.
@@ -58,10 +48,10 @@ enum KeptAnswers {
     /// or it is empty.
     static func categories(_ kept: [KeptAnswer], now: Date) -> (categories: [Category], fetchedAt: Date)? {
         guard let entry = kept.last(where: { $0.route == categoriesRoute }), usable(entry, now: now),
-              let list = try? JSONDecoder().decode(CategoryList.self, from: entry.payload),
-              !list.categories.isEmpty
+              let categories = try? JSONDecoder().decode([Category].self, from: entry.payload),
+              !categories.isEmpty
         else { return nil }
-        return (list.categories, entry.fetchedAt)
+        return (categories, entry.fetchedAt)
     }
 
     /// What the screen shows after `error` instead of its sentence: the kept answer for this surface and

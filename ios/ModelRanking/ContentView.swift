@@ -1116,9 +1116,7 @@ struct ContentView: View {
         // lists the surfaces it kept last.
         if let fresh = try? await client.categories(), !fresh.isEmpty, gate.isCurrent(ticket) {
             categories = fresh
-            if let payload = KeptAnswers.payload(fresh) {
-                StandingsStore.onDevice.keep(route: KeptAnswers.categoriesRoute, task: "", budget: "", payload: payload)
-            }
+            StandingsStore.onDevice.keep(fresh)
         } else if categories.isEmpty, gate.isCurrent(ticket),
                   let kept = KeptAnswers.categories(StandingsStore.onDevice.keptAnswers(), now: Date()) {
             categories = kept.categories
@@ -1130,11 +1128,7 @@ struct ContentView: View {
             guard gate.isCurrent(ticket) else { return }
             state = .loaded(recommendation.answers, orderingNote: recommendation.orderingNote)
             answerKeptAt = nil
-            if let payload = KeptAnswers.payload(recommendation) {
-                StandingsStore.onDevice.keep(
-                    route: KeptAnswers.recommendationsRoute, task: task, budget: budget, payload: payload
-                )
-            }
+            StandingsStore.onDevice.keep(recommendation)
         } catch let error as EngineError {
             // #288: an engine that could not be reached is stood in for by the last answer it sent for
             // this surface and budget, dated; otherwise, and for every answer it refused, its sentence.

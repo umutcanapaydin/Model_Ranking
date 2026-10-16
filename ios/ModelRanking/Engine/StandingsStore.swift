@@ -184,24 +184,29 @@ extension StandingsStore {
         return kept
     }
 
-    /// The security review's MJ1, red: not kept yet.
-    func keep(_ recommendation: Recommendation) {}
-
-    /// The security review's MJ1, red: not kept yet.
-    func keep(_ categories: [Category]) {}
-
-    /// Keep an answer the engine just sent, dated by this store's clock (#170's rule for the
-    /// standings: the screen does not choose the date written beside what it keeps).
-    func keep(route: String, task: String, budget: String, payload: Data) {
-        keep(route: route, task: task, budget: budget, payload: payload, at: Date())
+    /// Keep an answer the engine just sent: the decoded answer and nothing else, keyed by the surface and
+    /// budget the engine says it answered (its `query` echo) and dated by this store's clock. No string,
+    /// bytes or date of the caller's reaches the file, so a caller cannot keep what the reader typed (the
+    /// #288 security review's MJ1; #170's rule for the standings' date).
+    func keep(_ recommendation: Recommendation) {
+        guard let payload = try? JSONEncoder().encode(recommendation) else { return }
+        store(KeptAnswer(route: KeptAnswers.recommendationsRoute,
+                         task: recommendation.query.task, budget: recommendation.query.budget,
+                         fetchedAt: Date(), payload: payload))
     }
 
-    /// `keep`, dated. A newer answer for the same route, surface and budget replaces the older one;
-    /// past `maxKeptAnswers` the oldest is dropped. Best effort, like the standings.
-    func keep(route: String, task: String, budget: String, payload: Data, at date: Date) {
+    /// Keep the surfaces' list the engine just sent, which is asked with no surface and no budget.
+    func keep(_ categories: [Category]) {
+        guard let payload = try? JSONEncoder().encode(categories) else { return }
+        store(KeptAnswer(route: KeptAnswers.categoriesRoute, task: "", budget: "", fetchedAt: Date(), payload: payload))
+    }
+
+    /// A newer answer for the same route, surface and budget replaces the older one; past
+    /// `maxKeptAnswers` the oldest is dropped. Best effort, like the standings.
+    private func store(_ entry: KeptAnswer) {
         var kept = keptAnswers()
-        kept.removeAll { $0.route == route && $0.task == task && $0.budget == budget }
-        kept.append(KeptAnswer(route: route, task: task, budget: budget, fetchedAt: date, payload: payload))
+        kept.removeAll { $0.route == entry.route && $0.task == entry.task && $0.budget == entry.budget }
+        kept.append(entry)
         while kept.count > Self.maxKeptAnswers {
             kept.removeFirst()
         }
