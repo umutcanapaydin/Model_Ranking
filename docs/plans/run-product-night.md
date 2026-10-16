@@ -19,8 +19,8 @@ Rulings: D-201, D-202
 |---|---|---|---|---|
 | issue-288 | enhancement/issue-288-phone | #296 | none | stacked |
 | issue-289 | enhancement/issue-289-golden | none | none | running |
-| issue-273 | fix/issue-273-unsure-language | none | none | running |
-| issue-218 | fix/issue-218-short-turkish | none | none | queued |
+| issue-273 | fix/issue-273-unsure-language | #298 | none | running |
+| issue-218 | fix/issue-218-short-turkish | #299 | none | running |
 | issue-66 | enhancement/issue-66-guiding-note | none | none | queued |
 
 ## Stops
