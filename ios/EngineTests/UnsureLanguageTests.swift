@@ -59,4 +59,27 @@ final class UnsureLanguageTests: OfflineTestCase {
             XCTAssertEqual(outcome.tier, .manual, question)
         }
     }
+
+    /// The fix's main risk, a short English question declined (the triage's note). Each is read as another
+    /// language below `confidentLanguage`, but holds fewer than three words of language: a model's name
+    /// or tier and a version are no language's words. Counted word by word, five of the seven would decline.
+    func testAShortEnglishQuestionOfNamesAndVersionsStaysOnTheEnglishPath() {
+        for question in ["claude vs gemini vs gpt", "grok 4 vs gpt 5", "kimi k2 vs glm 4.5", "qwen 3 coder vs claude",
+                         "claude vs gpt", "arena elo", "gemini pro vs flash"] {
+            assertUnsureAndNotEnglish(question)
+            XCTAssertLessThan(SimilarityRouter.languageWords(question).count, SimilarityRouter.wordsToReadALanguage, question)
+            XCTAssertTrue(SimilarityRouter.readsEnglish(question), question)
+        }
+        XCTAssertEqual(SimilarityRouter.languageWords("gpt-4o mu Claude Opus mu, kod"), ["mu", "mu", "kod"])
+    }
+
+    /// The other side of the floor: an unsure question with words enough, whose readings hold English at
+    /// `englishAmongReadings` or more, stays on the English path.
+    func testAnUnsureQuestionWhoseReadingsHoldEnglishStaysOnTheEnglishPath() {
+        for question in ["rewrite my bio pls", "make me a logo pls", "bot 2 write cv", "os world leaders"] {
+            assertUnsureAndNotEnglish(question)
+            XCTAssertGreaterThanOrEqual(SimilarityRouter.languageWords(question).count, SimilarityRouter.wordsToReadALanguage)
+            XCTAssertTrue(SimilarityRouter.readsEnglish(question), question)
+        }
+    }
 }

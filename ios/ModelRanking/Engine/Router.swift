@@ -605,16 +605,44 @@ struct SimilarityRouter: QuestionRouter {
     ///
     /// **#222 (2026-10-14): Turkish is read now**, against Turkish examples (`readsTurkish`,
     /// `CategoryHints.examplesTurkish`). This still declines every other language it is sure of.
+    ///
+    /// **#273: and a language it is unsure of**, unless English is among its readings. A question read as
+    /// another language below `confidentLanguage`, with three or more words of language
+    /// (`languageWords`) and English not among the recogniser's top three readings at
+    /// `englishAmongReadings` or more, declines too. A shorter question stays in, as below: names,
+    /// versions and acronyms ("claude vs gpt", "grok 4 vs gpt 5", "arena elo") are read as anything.
     static func readsEnglish(_ text: String) -> Bool {
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
         guard let language = recogniser.dominantLanguage else { return true }
         // Undetermined stays IN. A two-word question ("swe bench") is often unclassifiable, and
         // refusing those would break the English path this tier exists to serve. Only a confident
-        // non-English reading declines.
+        // non-English reading declines, or an unsure one with words enough to be read (#273).
         guard language != .english, language != .undetermined else { return true }
         let confidence = recogniser.languageHypotheses(withMaximum: 1)[language] ?? 0
-        return confidence < confidentLanguage
+        guard confidence < confidentLanguage else { return false }
+        guard languageWords(text).count >= wordsToReadALanguage else { return true }
+        return (recogniser.languageHypotheses(withMaximum: 3)[.english] ?? 0) >= englishAmongReadings
+    }
+
+    /// #273: how many words of language an unsure reading needs before it can decline a question.
+    static let wordsToReadALanguage = 3
+
+    /// #273: how likely the recogniser must hold English, among its top three readings, for a question it
+    /// is unsure of to stay on the English path. On the implementer's own short lines, the unsure English ones
+    /// held English at 0.068 to 0.26 and the other languages at 0.04 or less.
+    static let englishAmongReadings = 0.05
+
+    /// #273: the words of a question that carry its language: none that holds a digit (a version, "gpt-4o"),
+    /// and none that is a model's name or tier (`ModelFamilies`, `CategoryHints.generalWords`,
+    /// `CategoryHints.modelTierWords`), which belong to no language. A name with a second reading ("code",
+    /// "llama") is only left out of this count, and the count only keeps a question on the English path.
+    static func languageWords(_ text: String) -> [String] {
+        text.lowercased().split { !($0.isLetter || $0.isNumber) }.map(String.init).filter { word in
+            let plain = CategoryHints.plain(word)
+            return !word.contains(where: \.isNumber) && !ModelFamilies.words.contains(plain)
+                && !CategoryHints.generalWords.words.contains(plain) && !CategoryHints.modelTierWords.contains(plain)
+        }
     }
 
     /// The Latin letters Azerbaijani and Turkmen write and Turkish never does, in both cases (the review's
