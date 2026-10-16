@@ -73,6 +73,16 @@ final class KeywordRoutingTests: OfflineTestCase {
         ])
     }
 
+    /// #289: quantum physics names `expert`, in English and in Turkish, before the embedding reads the
+    /// question's other words (a field theory read as maths). Made up for this test.
+    func testQuantumPhysicsNamesExpert() async {
+        await assertRoutes([
+            ("explain the quantum hall effect", "expert"),
+            ("which model knows quantum mechanics", "expert"),
+            ("kuantum tünellemesi nasıl olur", "expert"),
+        ])
+    }
+
     /// The second review's B1: the common ways to ask the app's main question about code.
     func testTheCommonWaysToAskAboutCodeAreRead() async {
         await assertRoutes([
