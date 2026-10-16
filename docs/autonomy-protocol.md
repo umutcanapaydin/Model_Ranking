@@ -35,7 +35,7 @@ reassert it at any time without cause.
 
 - **⛔ zones** (the brief's HIGH-risk areas: authentication, payments, personal data, cryptography, irreversible migrations, regulated compliance, production deploy automation) are detected by
   **path/glob patterns declared in the plan** (`security-globs`), never by agent self-classification.
-  A diff touching a ⛔ glob forces the wave to HIGH (a security pass on its slice) and the slice
+  A diff touching a ⛔ glob forces the wave to HIGH (its slice named to the milestone Security-Reviewer) and the slice
   receives **owner/senior line-by-line review before the release deploys**. The BLOCKING release
   security review (Stage 5.1) never moves.
 - **Blocked = halt-and-notify, never improvise:** on a BLOCKING security verdict or non-assumable

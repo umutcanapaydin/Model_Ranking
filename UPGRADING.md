@@ -6,6 +6,67 @@ silently overwrites any file of yours that the new version happens to ship under
 Apply the *difference* between the version you installed and the new one, three-way, so your
 changes survive and every collision is shown to you.
 
+## 0 · Read before the first command — what bites in every upgrade
+
+What the field hit, in order of when it bites (two projects upgraded to `v7.1` on 2026-10-14/15,
+one from `v7.0`, one from `v6.6`). Each is explained in its section below; this box exists so the
+agent doing the upgrade meets them first.
+
+1. **Start the upgrade session in the repository root, and keep its work out of the temp
+   directory.** A session started anywhere else registers none of the repository's hooks, skills or
+   profiles, and `make session-check` — a leg of `check-fast`, `check` and `gate` — refuses it. An
+   upgrade branch checked out under `/tmp` or `/private/tmp` is lost at the next reboot: work in the
+   clone, or commit early.
+2. **The agent commits, pushes the upgrade branch and opens the draft PR; the owner merges** —
+   from a terminal or the GitHub UI, as for every PR (§5). Never hand the owner the commit or the
+   push. When `make session-check` cannot pass in this session — the upgrade installs or changes
+   the SessionStart hook (from `v6.6` or older), or the session began outside the root — finish the
+   tree, ask the owner **once** to restart Claude Code in the repository root, and continue there:
+   the new session has the marker. Do not `--no-verify`; do not record a skip row for it.
+3. **Commit the decision before the code.** Rules that read history (an ADR first appears before
+   the code it governs) have nothing to read on a staged tree, so a tree green before the commit
+   can still fail `make gate` at the push. Commit the upgrade ADR and the records' versions
+   (`docs/decisions.md`, `docs/watchlist.md`) first, the rest second, and run the gate on the range
+   after committing.
+4. **A diverged installation is a merge of two designs, not a patch.** Before resolving, list the
+   shipped files the project changed (`git diff <your-tag> HEAD --stat -- <shipped paths>`) and ask
+   the owner once for every place where the project and the new version solved the same problem
+   differently. A hunk that applied cleanly can still change a project rule with no conflict marker
+   (`git apply -3` changed a project's finding regex outside the conflict): read the diff of every
+   shipped file the project had changed, not only the conflicted ones.
+5. **The ledger goes red on rows in other spellings** (`v7.1` below): `docs/control-events.csv`
+   accepts `skip`, `bypass`, `review`, and a `review` row must cite `D-<n>`, `P-<n>` or `R-<n>`.
+   Rewrite `rejected`, `ruling`, `within-scope` rows in place; a control that already holds three
+   skips gets one `review` row citing the ADR that reviewed it. Keep
+   `docs/warnings.ledger.template.md`: the legend is read from it. **Ask the owner before the
+   rewrite:** Claude Code's auto mode refuses an in-place edit of the ledger as audit tampering. A
+   row that recorded something that never ran has no kind of its own: say so in its reason when you
+   give it one.
+6. **A light project that has released goes red on `make closes`** (`v7.1` below): a
+   `docs/reviews/release-security.md` with no `docs/reviews/release-tester.md` beside it is refused
+   (`closure_check.py --release-records`). Run the release Tester inside the upgrade PR before
+   pushing it, not after CI fails.
+7. **The first deploy after the upgrade needs fresh verdicts.** The deploy gate counts `.claude/`,
+   `scripts/`, `conformance/` and the `Makefile` as code, so the upgrade itself makes the security
+   verdict stale: plan a security delta over it. A heavy project's `docs/reviews/m<N>-tester.md`
+   written under `v7.0` has no `**Reviewed head:**`, and a project from `v6.6` or older has no
+   milestone Tester verdict at all: `make deploy-check` and the deploy gate refuse every declared
+   deploy until the Tester runs on the milestone and records its head. Plan both runs before the
+   first deploy, not at it.
+8. **After the owner merges, start a new Claude Code session from the repository root** (§5).
+   The session that upgraded predates its own hooks; nothing registered in it is the new version's.
+9. **`git remote add devflow`** leaves two GitHub remotes, and `gh` without `--repo` stops asking
+   which one: run `gh repo set-default <owner>/<repo>` once, or the owner's next `gh pr merge` fails.
+10. **A guard the project added rules to does not take a patch by `git apply -3`.** The shipped
+   `.claude/hooks/bash_guard.py` changes in most releases; a project copy carrying its own rules
+   conflicts in dozens of hunks (model_ranking's ran to twice the shipped length). Take the shipped
+   file, port the project's rules onto it, keep the shipped guard tests, and ask the owner to re-pin
+   it (`make guard-pin`). The shipped tests set `TMPDIR` themselves: a CI runner has none, and a
+   project's own guard test that leaned on macOS's `TMPDIR` passed on the laptop and failed in CI.
+
+Then `docs/project-brief.md`, `docs/decisions.md` and `docs/watchlist.md` take the new
+`process_version:` (§4), or `make check` refuses the brief (`V1`).
+
 ## 1 · Which version you have
 
 `.gp/installed` says, on its `gp_version:` line. An install older than that file: the
@@ -86,15 +147,20 @@ pre-push hook runs `make gate`) · `make labels` · `make check` · `make gate` 
 draft PR for the whole upgrade. A human merges. If the project has no `docs/project-brief.md` yet,
 run `/setup-project` afterwards: the choices it records decide how the new version runs.
 
-**Then start a new session.** `make session-check` cannot pass in the session that installs or
-upgrades the SessionStart hook: the hook did not exist when the session began, so it wrote no marker
-for it. In the field this produced skip rows in `docs/control-events.csv` and, in one project, the
-three-skips lock. Do not record a skip for it: the leg stays red in this session by construction,
-every other leg of `make check` and `make gate` is run by name for the upgrade PR, and the first
-session started from the repository root after the merge passes it. **Push the upgrade branch from a
-terminal outside Claude Code:** the pre-push hook runs `make gate`, whose first leg is that session
-check, and outside a Claude Code session it has nothing to check and passes. The post-edit hook
-reports the same red leg after every edit in the upgrade session; that is the same cause.
+**When the session cannot pass `make session-check`.** It cannot in the session that installs or
+upgrades the SessionStart hook (the hook did not exist when the session began, so it wrote no
+marker for it), nor in one started outside the repository root. In the field this produced skip rows
+in `docs/control-events.csv`, in one project the three-skips lock, and in another an owner handed
+the commit and the push. Do neither: do not record a skip, and do not hand the owner commands.
+Finish the tree, run every other leg of `make check` by name, then ask the owner once to restart
+Claude Code in the repository root and continue in the new session — it has the marker, so the
+agent commits, pushes the upgrade branch through the pre-push `make gate` and opens the draft PR
+itself. The post-edit hook reports the same red leg after every edit until the restart; that is the
+same cause. A project that merged its own rules into `.claude/hooks/bash_guard.py` needs a new pin:
+that one step is the owner's (`make guard-pin` from a terminal, `INSTALL.md` "Changing the Bash
+guard"), because the guard is the safety floor — ask for it with the restart, in the same message. A session whose hook already existed before the upgrade
+(`v6.7` or later), started in the root, passes the check and needs no restart until the merge.
+**After the merge, start a new session** from the repository root.
 
 **An upgraded project writing its first brief:** `/setup-project` reads `.gp/installed` at the new
 version and no brief — that is not another upgrade; answer the questions.
@@ -103,6 +169,63 @@ version and no brief — that is not another upgrade; answer the questions.
 
 Read every entry newer than the version you had. Older than `v6.0.1`: compare the old and the new
 `AGENTS.md` side by side after the upgrade.
+
+**`v7.1.2`** — PATCH: the guard holes a heavy project's security review found, and heavy mode's
+security review moved to the milestone's end (2026-10-16). No record changes shape and no stage
+changes; take every file. From `v7.1.1`: `git diff v7.1.1 v7.1.2 | git apply -3`, then the three
+records' `process_version:` to `v7.1.2` (§4), then `make install`, then restart the session (§5).
+From `v7.1` take the `v7.1.1` entry first, or diff from `v7.1` directly.
+- **Take the guard, `.claude/settings.json` and `scripts/deploy_gate.py` together.** The guard runs
+  only its own project's deploy gate and asks it about other repositories with `JUDGE_PROTOCOL = 2`;
+  a project that added its own rules to the guard ports them onto the new file and the owner re-pins
+  it (`make guard-pin`, INSTALL.md "Changing the Bash guard") — `git apply -3` will conflict there.
+- **What the guard now refuses that it passed:** `rm -r` without `-f` outside scratch (with no
+  terminal it never prompts); `mv`, `rm -r`, `find -delete` and `git rm -r` of the repository, a work
+  tree the command runs in, the home directory, or anything in `.git`; inside a worktree you work in,
+  its own files (they are not scratch); a scratch target holding a git work tree; a git alias to a
+  writing command set with `git config`, and code-running config keys judged as shell; `include.path`;
+  `ssh host <command>` judged as the command; any deploy declared in another repository. An agent that
+  hits one of these is meant to: remove files by name, use `git worktree remove`, or ask the owner.
+- **Heavy mode: the Security-Reviewer runs once per milestone**, on the plan's last wave, over the
+  whole milestone, writing `docs/reviews/m<N>-security.md` — `/close-wave` step 4. A wave no longer
+  gets its own security review, and `make review-need` says so in heavy mode while it prints the
+  signals. `make wave-check` asks for the file on the last wave of a plan whose close declares
+  `v7.1.2`; closes written before are graded as they were (`--wave-security`). A milestone open
+  across the upgrade: run the milestone security review on its last wave as the new rule asks.
+- **Light mode is unchanged**, except `rm -r` above.
+
+**`v7.1.1`** — PATCH: what the first two `v7.1` upgrades found (2026-10-14/15). No record changes
+shape and no stage changes; take every file. From `v7.1`: `git diff v7.1 v7.1.1 | git apply -3`, then
+the three records' `process_version:` to `v7.1.1` (§4), then `make install`.
+- **The read-first box (§0) and §5 are rewritten** from the two upgrades: the agent commits, pushes
+  the upgrade branch and opens the draft PR, and the owner merges; when `make session-check`
+  cannot pass, the agent asks once for a restart in the repository root instead of handing the
+  owner commands; commit the decision before the code; a diverged installation; the light
+  `release-records` bite; fresh verdicts before the first deploy.
+- **The conformance suite runs in an installation.** `test-process-version` grades only the files
+  the manifest delivers (it graded every record in the project: 109 of 121 and 280 of 292 failed
+  in the field); `test-placeholder-allow`, `test-make-targets` and `test-run-check` run in throwaway
+  trees, so a project's own `.placeholder-allow` entries, ledger rows and a real `D-999` no longer
+  fail them. Drop any local patch of these four tests and take the shipped ones.
+- **`closure_check.py` decides history first:** a closure report that declares no version, or one
+  older than `v6.0`, is graded by filename and id only and no longer needs `record_type: closure`.
+  A project that kept `make closes` out of `make check` for its old reports can put it back.
+- **`wave_check.py`: a wave close that declares no `process_version`** is history only when it is
+  dated before `installed_on` in `.gp/installed`; one dated on or after it, or undated, is refused —
+  a close written after DevFlow was installed declares its version. A tree with no `.gp/installed`
+  is graded as before.
+- **AGENTS.md §2a writes examples, not placeholders**, so a project that keeps it passes
+  `make bootstrap-check` C1. Re-apply your §2a from the new text if you kept the section.
+- **The Bash guard** follows `cd`, `pushd` and `popd` through the command: `cd <repo> && rm -rf src`
+  from a temp directory or a `.claude/worktrees/` checkout is refused, and a declared deploy after a
+  `cd` into another repository is judged by that repository's gate. It refuses every prefix of
+  `--no-verify` (`--no-veri`), `--config-env` and `GIT_CONFIG_*` naming `core.hooksPath`,
+  `git config core.hooksPath`, and a `push --delete` whose branch is a variable it cannot resolve
+  (`m=main; git push origin --delete $m`). `$TMPDIR` is scratch only when it is set, and a path that
+  climbs out of it with `..` is not. It refuses every deploy in a tree whose `scripts/deploy_gate.py`
+  predates the guard's `--judge` question (a `v7.0` gate answered it with exit 0): upgrade that tree.
+  The pin in `.claude/settings.json` changes with the guard — take both files.
+- **The deploy gate** declares `JUDGE_PROTOCOL = 1`, the line the guard reads.
 
 **`v7.1`** — the `v7.0` field measurement (DevFlow #16, three projects, 2026-10-12). Records change
 shape in two places; no stage changes.
@@ -150,8 +273,9 @@ shape in two places; no stage changes.
   `conformance/closure/closure-report-m90{7,8,9}.md`. A rename in the patch is keyed by its NEW
   name, so if your tree no longer has the old fixtures (deleted, or renamed by hand), `git apply`
   refuses with "does not exist in index": exclude the new names (§2), then take the fixtures from
-  the tag — `git checkout <tag> -- conformance/wave conformance/reviews conformance/closure
-  conformance/run` — and delete any old-named copies; `conformance/test-fixture-ids.py` refuses a
+  the tag — `git archive <tag> conformance/wave conformance/reviews conformance/closure
+  conformance/run | tar -x` (the Bash guard refuses `git checkout <tag> -- <paths>`, which discards
+  uncommitted work) — and delete any old-named copies; `conformance/test-fixture-ids.py` refuses a
   fixture a project could reach, and `test-milestone-tester.py` refuses a tree with none.
 - `make session-check`'s and `make bootstrap-check`'s PASS lines say what they checked
   (`core.hooksPath`), not what the hook file runs.

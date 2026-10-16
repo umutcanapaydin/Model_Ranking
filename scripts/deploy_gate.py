@@ -9,7 +9,8 @@ Three ways in, one question -- is the release verdict current for THIS tree?
 
 The Bash guard (`.claude/hooks/bash_guard.py`) lexes every Bash tool call into simple commands and hands
 this script, with `--judge`, the words of each one in program position: `{"commands": [["fly",
-"deploy", "--remote-only"], ...]}`. A command is a deploy when one the brief lists as `Deploy commands:`
+"deploy", "--remote-only"], ...]}` -- only when this file carries the line `JUDGE_PROTOCOL = <n>` (below),
+so an older gate is refused rather than asked a question it would answer with exit 0. A command is a deploy when one the brief lists as `Deploy commands:`
 (`docs/project-brief.md`; `/setup-project` asks for them; none listed, nothing is a deploy) matches it
 word for word from the first word: the program by its basename (`/usr/local/bin/fly` is `fly`), the
 rest exactly, all case-insensitive, with the invoked command's own options ignored unless the declared
@@ -18,9 +19,11 @@ command carries options itself (`fly deploy` matches `fly --verbose deploy` and 
 mentions the command is not a deploy, because the guard never hands those words over.
 
 THE REPOSITORY IS THE ONE THE COMMAND RUNS IN. The guard resolves it from the call's own directory
-(`git rev-parse --show-toplevel`), a worktree included, and runs this script there; the verdicts and
-the diff are read from that checkout, never from the main checkout. By hand, the repository is the
-work tree of the current directory.
+(`git rev-parse --show-toplevel`), a worktree included, and runs this script -- always its own
+project's copy, never the one in the tree it judges -- with that tree as its directory; the verdicts and
+the diff are read from that checkout, never from the main checkout. A repository that is neither the
+project nor a worktree of it is `foreign`: its brief is read only to tell a deploy, and every deploy there
+is refused. By hand, the repository is the work tree of the current directory.
 
 For a deploy, and for `--check`, two verdicts must be current, each read the same way:
   * the security verdict, `docs/reviews/release-security.md` -- the Security-Reviewer's;
@@ -65,6 +68,13 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from brief_fields import listing, mode  # noqa: E402
 
+#: The Bash guard calls `--judge` only in a gate that carries this line, at the start of a line, exactly:
+#: a gate written before `--judge` existed reads the flag as the command, finds no deploy and exits 0, so
+#: under a newer guard every declared deploy passed (a v7.0 gate under the v7.1 guard passed `fly deploy`).
+#: Raise the number when the `--judge` payload or its answer changes; the guard reads it as a floor.
+#: 2 (v7.1.2): the payload may say `"foreign": true` -- the guard runs only its own project's gate, and in
+#: any other repository asks it only whether a word list is one of that brief's deploys, which it refuses.
+JUDGE_PROTOCOL = 2
 SECURITY = Path("docs/reviews/release-security.md")
 RELEASE_TESTER = Path("docs/reviews/release-tester.md")
 MILESTONE_TESTER = re.compile(r"^m(\d+)-tester\.md$")
@@ -272,10 +282,15 @@ def toplevel(cwd: Path) -> Path | None:
     return Path(top) if top else None
 
 
-def judge(commands: list[list[str]], root: Path) -> int:
+def judge(commands: list[list[str]], root: Path, foreign: bool = False) -> int:
     hit = deploy_in(commands, root)
     if not hit:
         return 0
+    if foreign:  # its verdicts are that repository's word, not this project's: they are not read
+        print(f"BLOCKED: deploy gate -- `{hit}` is a deploy declared in {root}, which is not this session's "
+              "project: the Bash guard judges no other repository's deploys. Deploy it from a session started "
+              "in that repository.", file=sys.stderr)
+        return 2
     for why, _ in verdicts(root):
         if why:
             return refuse(f"`{hit}` is a deploy, and {why}")
@@ -307,9 +322,12 @@ def main(argv: list[str]) -> int:
             if not isinstance(commands, list) or not all(
                     isinstance(c, list) and all(isinstance(w, str) for w in c) for c in commands):
                 raise ValueError("commands is not a list of word lists")
+            foreign = payload.get("foreign", False)
+            if not isinstance(foreign, bool):
+                raise ValueError("foreign is not true or false")
         except (ValueError, KeyError, TypeError, AttributeError) as error:
             return refuse(f"the guard's payload cannot be read ({type(error).__name__}: {error})")
-        return judge(commands, root)
+        return judge(commands, root, foreign)
     cwd = Path.cwd()
     root = toplevel(cwd)
     if argv == ["--check"]:

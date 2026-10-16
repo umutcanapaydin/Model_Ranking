@@ -398,6 +398,9 @@ def main() -> int:
                   # The M21-W4 Tester: what the docstring says it reads and no case held -- `rm`'s split and long
                   # options, `rm` behind a wrapper, and a shell given `-s` (each plant stayed green without them).
                   'rm -r -f build', 'rm --recursive --force build', 'sudo rm -r -f build',
+                  # v7.1.2: `rm -r` without `-f` too -- Claude Code runs Bash with no terminal, so it never
+                  # prompts and removes what `rm -rf` removes (it sat in MUST_ALLOW through v7.1.1).
+                  'rm -r build',
                   'cat setup.sh | bash -s -- --quiet',
                   # It blocks what it cannot read: an unclosed quote, substitution or backtick (no case held these).
                   "echo 'not closed", 'echo "not closed', 'echo $(date', 'echo `date', 'echo ${HOME']
@@ -407,7 +410,7 @@ def main() -> int:
                   "git commit -m 'fly deploy docs'", "grep -n deploy_hosted_engine.sh docs/release-testflight.md",
                   # The second W5 review's M2: an option or a branch that only starts like --mirror.
                   "git log --grep push --min-parents=2", "git push origin wave/m19--minor", "git push origin fix--mi",
-                  "git status", "rm file.txt", "rm -r build",
+                  "git status", "rm file.txt", "rm build.log",
                   "git reset HEAD~1", "npm run format",
                   "gh pr create --draft --title t", "gh pr view 12", "gh pr list --state open",
                   "gh api repos/o/r/branches/main/protection",
@@ -642,9 +645,16 @@ def main() -> int:
                               ("(cd ios) && touch .githooks/x", worktree, True, {}),
                               ('eval "cd .githooks" && touch commit-msg', worktree, True, {}),
                               # Round 3, M7: elsewhere every directory a `cd` reached is kept, and each `cd` is taken
-                              # from each of them -- after one made in a subshell, too (G13) -- up to MAX_DIRS (G14).
+                              # from each of them -- after one made in a subshell, too (G13) -- up to a bound (G14).
                               ("(cd ios); cd .githooks && touch x", worktree, True, {}),
-                              ("(cd a1; cd a2; cd a3; cd a4; cd a5; cd a6; cd a7; cd a8)", plain, True, {}))]
+                              # DevFlow v7.1.2 (D-205): a long `cd` chain alone is no longer refused -- past
+                              # MAX_PLACES its places become ones the guard cannot name -- so G14 now holds where a
+                              # write needs them: from every directory the chain reached (FOLLOWED), and past
+                              # MAX_FOLLOWED of those the call is not read.
+                              ("(cd a1; cd a2; cd a3; cd a4; cd a5; cd a6; cd a7; cd a8)", plain, False, {}),
+                              ("(cd a1; cd a2; cd a3; cd a4; cd a5; cd a6; cd a7; cd a8); touch .githooks/x", worktree,
+                               True, {}),
+                              ("(" + "; ".join(f"cd a{n}" for n in range(1, 14)) + "); touch x", plain, True, {}))]
             if env_hook:
                 cases += [("Write", f"a write to `{f}`" + (f" from {cwd.relative_to(trees)}" if cwd else ""),
                            fpath(f, cwd), want, None, extra)

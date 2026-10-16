@@ -2,7 +2,7 @@
 record_type: wave
 id: wave-checklist-template
 status: draft
-process_version: v7.1
+process_version: v7.1.2
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -18,8 +18,8 @@ date: 2026-09-23
 > (AGENTS.md §3) halt to the owner immediately.
 > The wave does not close until every row is ✅ or has an explicit WAIVED entry (row 9).
 > Rows marked *(plan-tag)* are derived from the plan's risk tags — do not hand-copy; if the plan
-> tags a pass, it appears here and blocks (the failure mode: a tagged pulled-forward security pass
-> silently skipped).
+> tags a pass, it appears here and blocks (the failure mode: a tagged HIGH slice's security signals
+> silently dropped before the milestone's security review).
 >
 > **Evidence rule (anti-theater):** every ✅ cites a FRESH, SCOPED referent — a commit in this
 > wave's range, a test-run on this wave's code, a review file for THIS wave. A referent outside
@@ -32,8 +32,8 @@ date: 2026-09-23
 |---|---|---|---|
 | 1 | Risk tier recorded for this wave in the plan (LOW/MED/HIGH; auto-HIGH if the diff touches authz/secrets/crypto/input-parsing/egress) | plan `file:line` | |
 | 2 | Per-agent dev-test loop ran (implement → test → self-review → fix) | test-run ref | |
-| 3 | The reviews `make review-need` computes ran via `/close-wave`, one subagent at a time: the Code-Reviewer always; the Security-Reviewer when the line says security; on the plan's last wave the milestone Tester. None BLOCKING, each declares `**Independent:** yes` — its reviewer wrote none of this code (`make wave-check` reads them). An author who reviewed marks this row WAIVED, with a row for this wave in `docs/control-events.csv`. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `docs/reviews/m{N}-wave-{W}-review.md` (+ `-security.md`; + `m{N}-tester.md` on the last wave) | |
-| 4 | *(plan-tag)* HIGH slice: pulled-forward security pass on this slice DONE | review file | |
+| 3 | The reviews `make review-need` computes ran via `/close-wave`, one subagent at a time: the Code-Reviewer always; on the plan's last wave the milestone Security-Reviewer and the milestone Tester, over the whole milestone. None BLOCKING, each declares `**Independent:** yes` — its reviewer wrote none of this code (`make wave-check` reads them). An author who reviewed marks this row WAIVED, with a row for this wave in `docs/control-events.csv`. Reviewer countersigns 2 randomly-chosen rows of THIS checklist against the actual artifacts (anti self-attestation) | `docs/reviews/m{N}-wave-{W}-review.md` (+ `m{N}-security.md` and `m{N}-tester.md` on the last wave) | |
+| 4 | *(plan-tag)* HIGH slice: its security signals (`make review-need`) named for the milestone Security-Reviewer, or reviewed by it on the last wave | review-need line, or `m{N}-security.md` | |
 | 5 | *(last wave)* The milestone Tester's fault-injection on the milestone's 1–2 most load-bearing behaviors — an earlier wave marks this row N/A, evidence `not the plan's last wave`: break → RED confirmed; restore reproduces pre-injection BYTES (md5), never re-derived; after any FIX round, replay the previous round's mutant set — the independent set's survivors where one exists → reverted byte-identical (md5); every stay-GREEN fault got its mandatory new test. **HIGH only, advisory:** if a mutation runner is wired, mutant kill-rate on changed code recorded beside the verdict — never blocks | tester log + new test refs (+ kill-rate line at HIGH) | |
 | 6 | Every acceptance criterion touched has a citing test entering through the LIVE entrypoint (not a unit shim) — "built ≠ wired" | test `file:line` | |
 | 7 | New/changed security invariants added to the release's invariants list with their NEGATIVE test | `security-invariants` row | |

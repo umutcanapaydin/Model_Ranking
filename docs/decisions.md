@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v7.1
+process_version: v7.1.2
 date: 2026-08-11
 ---
 # Decisions
@@ -89,6 +89,8 @@ date: 2026-08-11
 **Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Testing is needed on every wave; security reads the whole release surface at once, which is more complete. Nothing deploys before the release, so the security review always precedes go-live.
 
 **Mitigation:** `make wave-check` refuses a wave close without both verdict files in `docs/reviews/`, or with a BLOCKING one. No deploy step in `docs/closure-checklist.md` §E.2 runs before §E.1 passes.
+
+**Amended at `v7.1.2`** (the owner's ruling of 2026-10-16; the body above is kept as written): in heavy mode the **Security-Reviewer** runs once per milestone, on the plan's last wave, over the whole milestone, writing `docs/reviews/m{N}-security.md` (required by `make wave-check` and `closure_check.py`); no wave or fix in heavy mode is routed to security, and `make review-need` prints each range's signals for that review. Light mode, the deploy gate and Stage 5.1 are unchanged.
 
 **Revisit when:** A release is harmed by late security feedback — then move a security pass earlier for that risk class.
 

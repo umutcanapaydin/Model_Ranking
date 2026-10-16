@@ -10,7 +10,7 @@ Started: 2026-10-13
 Ended: 2026-10-14 — went to bed
 Integration branch: `integration/run-m902` · PR: #<n>
 Plan PR: #905
-Rulings: D-99999, D-100
+Rulings: D-999, D-100
 
 ## Milestones, in order
 

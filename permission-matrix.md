@@ -50,7 +50,7 @@
 | `git reset --hard` / `git checkout -- <path>` / `git checkout .` / `git restore` | ❌ DENY | Never. Loss of work. Replit lesson + seed C.9. **ENFORCED** by the `Bash` PreToolUse guard. `git restore --staged` is allowed: it unstages and never touches the worktree |
 | `git push --force` / `--force-with-lease` | ❌ DENY | Never. Loss of history. **ENFORCED** by the `Bash` PreToolUse guard |
 | `git push` to the default branch | ❌ DENY | Push your own branch and open a draft PR; a human merges. **ENFORCED** by the `Bash` PreToolUse guard for a destination the command names (`main`, `heads/main`, `refs/heads/main`). A destination git chooses itself (a bare `git push`, `HEAD`, `@`, an upstream, `push.default`) is not held by the guard; GitHub's branch protection on `main` is the control of record there (gap G-7) |
-| `rm -rf` anything | ❌ DENY | Only specific files via `rm <path>` with reason. **ENFORCED** by the `Bash` PreToolUse guard, which lets it through only under the temp directory, a `mktemp` result or `.claude/worktrees/` — and refuses `find … -delete` the same way |
+| `rm -r` / `rm -rf` anything | ❌ DENY | Only specific files via `rm <path>` with reason. **ENFORCED** by the `Bash` PreToolUse guard, which lets a recursive `rm` (forced or not: with no terminal `rm -r` never prompts) through only under the temp directory, a `mktemp` result or `.claude/worktrees/` — never on the repository, a work tree or the home directory — and refuses `find … -delete` the same way |
 | Drop database table | ❌ DENY | Replit Jul 2025: agent deleted prod DB despite "code freeze" |
 | Run migrations on production | ❌ DENY | Senior human approval |
 | Modify CI / GitHub Actions secrets | ❌ DENY | Senior human approval |

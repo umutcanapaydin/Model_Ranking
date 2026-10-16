@@ -12,7 +12,8 @@ why: its first version accepted `README.md`, its second rejected every row of co
 
 WHAT IT REFUSES, and each one is a real way a closure pack goes hollow:
   * a filename that is not `closure-report-m{N}.md` -- a gate that reads whatever it is handed
-  * no `record_type: closure` frontmatter -- then `check_records.py` cannot see it at all
+  * no `record_type: closure` frontmatter -- then `check_records.py` cannot see it at all (a report
+    graded by today's rules only: history is decided before it)
   * a frontmatter `id` that differs from the filename -- two milestones' packs sharing an id
   * a missing section. §1 is what shipped, §1a is per wave, §1b is what was decided on the owner's
     behalf, §3 is the mechanical telemetry, §5 is the ledgers. A pack missing §1b hides the
@@ -38,12 +39,18 @@ WHAT IT REFUSES, and each one is a real way a closure pack goes hollow:
     no file other than a record may differ from that head in the working tree, committed or not.
     Either file must carry `## Verdict` PASS or MINOR and `**Independent:** yes`. The mode is the
     brief's `Working mode:` (`make mode`; unset: heavy), and the output names it.
+  * from `v7.1.2`, in heavy mode, no milestone Security-Reviewer verdict `m{N}-security.md` beside the
+    report, PASS or MINOR and `**Independent:** yes`: heavy mode runs security once per milestone, on
+    the plan's last wave (the owner's ruling of 2026-10-16).
 
 GRADED BY THE VERSION THE REPORT DECLARES, like `wave_check.py`: a report is append-only evidence.
 This check first shipped in `v6.0`; a report that declares an earlier version, or none, is history
 and is held only to its filename and its id. Until v6.7 every report was graded by today's
 template, and a field project whose fifteen older reports could never pass took `closes` out of
-`make check` to get green again (field report, 2026-09-23).
+`make check` to get green again (field report, 2026-09-23). Until v7.1.1 the front-matter rule ran
+before the version was read, so a report written before closure front matter existed
+(`record_type: ratification`) stayed red as history and `closes` stayed out (model_ranking, twelve
+reports): history is decided first.
 
 Exit: 0 pass · 1 fail · 2 usage.
 """
@@ -88,6 +95,27 @@ def code_changed_since(head: str) -> list[str] | None:
     except (OSError, subprocess.CalledProcessError):
         return None
     return [f for f in changed if not is_deploy_record(f)]
+
+
+def milestone_security(p: pathlib.Path) -> list[str]:
+    """From v7.1.2, heavy mode: the milestone Security-Reviewer's verdict `<report dir>/reviews/m{N}-security.md`,
+    written on the plan's last wave over the whole milestone -- heavy mode's one security review before
+    the release's (the owner's ruling of 2026-10-16). PASS or MINOR, `**Independent:** yes`."""
+    n = re.match(r"closure-report-(m\d+)", p.name)
+    f = p.resolve().parent / "reviews" / f"{n.group(1) if n else 'm{N}'}-security.md"
+    if not f.is_file():
+        return [f"no milestone Security-Reviewer verdict at `{f.parent.name}/{f.name}` -- heavy mode runs "
+                "security once per milestone, on the plan's last wave (`/close-wave`)"]
+    body = f.read_text(encoding="utf-8", errors="replace")
+    bad: list[str] = []
+    v = re.search(r"^##\s*Verdict\s*\n+\s*\W*(PASS|MINOR|BLOCKING)\b(.*)$", body, re.M)
+    if not v or "|" in v.group(2):
+        bad.append(f"`{f.name}` carries no `## Verdict` of PASS / MINOR / BLOCKING")
+    elif v.group(1) == "BLOCKING":
+        bad.append(f"`{f.name}` is BLOCKING -- the milestone does not close on a BLOCKING security review")
+    if not re.search(r"^\s*\*\*Independent:\*\*[ \t]*yes\b", body, re.M | re.I):
+        bad.append(f"`{f.name}` does not declare `**Independent:** yes`")
+    return bad
 
 
 def milestone_tester(p: pathlib.Path, mode: str) -> list[str]:
@@ -210,17 +238,22 @@ def main(argv: list[str]) -> int:
         bad.append(f"`{p.name}` is not a closure report filename. Expected "
                    f"`closure-report-m{{N}}.md` -- a gate that reads whatever it is handed is "
                    f"not a gate")
-    if not re.match(r"^---\s*\n(.*?\n)?record_type:\s*closure\b", text, re.S):
-        bad.append("no `record_type: closure` frontmatter -- a closure report is a governance "
-                   "record, and `check_records.py` is blind to it without one")
     stem = p.stem
     m = re.search(r"^id:\s*(\S+)", text, re.M)
     if m and m.group(1) != stem:
         bad.append(f"frontmatter `id: {m.group(1)}` does not match the filename `{stem}` -- two "
                    f"milestones' packs with one id resolve to whichever the validator reads last")
 
+    # History is decided FIRST. v6.7 demanded `record_type: closure` before it asked the version, so
+    # a report written before closure front matter existed (`record_type: ratification`, or none)
+    # stayed red as history -- model_ranking's twelve, and `make closes` stayed out of its
+    # `make check`, so `--release-records` never ran there (v7.1.1).
     vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
     version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None
+    if version is not None and version >= (6, 0) and not re.match(
+            r"^---\s*\n(.*?\n)?record_type:\s*closure\b", text, re.S):
+        bad.append("no `record_type: closure` frontmatter -- a closure report is a governance "
+                   "record, and `check_records.py` is blind to it without one")
     if version is None or version < (6, 0):
         declared = f"v{vm.group(1)}" if vm else "no process_version"
         print(f"  NOTE {p.name} declares {declared} -- graded as history: filename and id only")
@@ -294,6 +327,8 @@ def main(argv: list[str]) -> int:
 
     if version >= (7, 1):
         bad += milestone_tester(p, brief_fields.mode(root))
+    if version >= (7, 1, 2) and brief_fields.mode(root) != "light":
+        bad += milestone_security(p)
 
     for b in bad:
         print(f"  FAIL {b}")

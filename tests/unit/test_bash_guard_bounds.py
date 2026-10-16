@@ -71,13 +71,16 @@ def guard() -> ModuleType:
 
 
 @pytest.fixture
-def ungoverned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A directory outside any repository, and a `$CLAUDE_PROJECT_DIR` with no brief: no deploy gate. (The
-    deploy gate is the project root's own since the v7.1 upgrade security review's MAJOR-2, so an unset
-    `$CLAUDE_PROJECT_DIR` would make the guard's own checkout, which has a brief, the project root.)"""
+def ungoverned(guard: ModuleType, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory,
+               monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A directory outside any repository, a `$CLAUDE_PROJECT_DIR` with no brief, and a guard checkout with no
+    brief: no deploy gate. Since DevFlow v7.1.2 (D-205) the gate is always the guard's own checkout's (`OWN`,
+    the v7.1 upgrade security review's MAJOR-2 as DevFlow closed it), and that checkout's brief judges a call
+    from any directory, so `OWN` is pointed at an empty directory beside the test's own."""
     where = tmp_path / "elsewhere"
     where.mkdir()
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(where))
+    monkeypatch.setattr(guard, "OWN", str(tmp_path_factory.mktemp("own")))
     return where
 
 
@@ -307,22 +310,28 @@ def test_rm_rf_of_a_temp_variables_own_scratch_is_allowed(guard: ModuleType, tem
 @pytest.mark.parametrize(("command", "where"), [
     ("rm -rf .", "."), ("rm -rf .git", "."), ("rm -rf ios", "."), ("rm -rf ./ios ./.git", "."), ("rm -rf ../", "."),
     ("rm -rf ..", "ios"), ("rm -fr ../repo", "ios"), ("find . -delete", "."), ("find ios -delete", "."),
+    # DevFlow v7.1.2: `rm -r` without `-f` meets the scratch rule too -- Claude Code runs Bash with no terminal,
+    # so it never prompts and removes what `rm -rf` removes (it was allowed below through v7.1.1).
+    ("rm -r ios", "."),
 ])
 def test_rm_rf_in_above_or_of_a_work_tree_under_the_temp_directory_is_refused(guard: ModuleType, repo: Path,
                                                                               command: str, where: str) -> None:
     """The v7.1 upgrade security review's MAJOR-1 (round 1's M2): this project's work trees and review seats
-    live under the system temp directory, so "under a temp directory" let `rm -rf .` remove one."""
+    live under the system temp directory, so "under a temp directory" let `rm -rf .` remove one. DevFlow v7.1.2
+    refuses a target that is or holds a work tree in words of its own (HOLDS_REPO)."""
     why = _bash(guard, command, repo / where)
-    assert why and ("destructive" in why or "#282" in why), (command, why)
+    assert why and any(w in why for w in ("destructive", "#282", "holds a git work tree")), (command, why)
 
 
 def test_rm_rf_of_a_temp_directory_that_holds_work_trees_is_refused(guard: ModuleType, repo: Path,
                                                                     ungoverned: Path) -> None:
-    """`rm -rf /private/tmp/claude-501` held every session's tree; here the directory holding `repo`."""
+    """`rm -rf /private/tmp/claude-501` held every session's tree; here the directory holding `repo`. DevFlow
+    v7.1.2 refuses a scratch target that holds a work tree in words of its own (HOLDS_REPO)."""
+    held = ("destructive", "holds a git work tree")
     why = _bash(guard, f"rm -rf {repo.parent}", ungoverned)
-    assert why and "destructive" in why, why
+    assert why and any(w in why for w in held), why
     why = _bash(guard, f"rm -rf {repo.parent}/elsewhere {repo}", ungoverned)
-    assert why and "destructive" in why, why
+    assert why and any(w in why for w in held), why
 
 
 @pytest.mark.parametrize(("command", "where"), [
@@ -351,7 +360,7 @@ def seat(repo: Path) -> Path:
 @pytest.mark.parametrize("command", [
     "rm -rf .claude/worktrees/seat", "rm -r .claude/worktrees/seat", "rm -rf .claude/worktrees/seat/src",
     "git worktree remove .claude/worktrees/seat", "git worktree remove --force .claude/worktrees/seat",
-    "rm -r ios", "mv ios/a ios/b", "git rm -r ios", "git mv ios mobile", "rm file.txt", "mv -t . ios/a",
+    "mv ios/a ios/b", "git rm -r ios", "git mv ios mobile", "rm file.txt", "mv -t . ios/a",
     "git rm -r --cached .",
 ])
 def test_a_throwaway_worktree_and_ordinary_paths_may_still_be_removed(guard: ModuleType, repo: Path, seat: Path,
@@ -401,7 +410,7 @@ def test_rm_rf_of_scratch_too_large_to_walk_is_refused(guard: ModuleType, temp_d
     assert _bash(guard, f"rm -rf {big}", ungoverned) is None
     monkeypatch.setattr(guard, "MAX_WALK", 2)
     why = _bash(guard, f"rm -rf {big}", ungoverned)
-    assert why and "destructive" in why, why
+    assert why and ("destructive" in why or "more files than this guard looks through" in why), why
 
 
 def _git_init(where: Path) -> None:
@@ -422,11 +431,12 @@ def foreign(ungoverned: Path) -> Path:
 
 
 @pytest.fixture
-def gated(ungoverned: Path) -> Path:
-    """The project root (`$CLAUDE_PROJECT_DIR`) with its own deploy gate."""
+def gated(guard: ModuleType, ungoverned: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The project root (`$CLAUDE_PROJECT_DIR`, and the guard's own checkout, `OWN`) with its own deploy gate."""
     (ungoverned / "scripts").mkdir()
     for name in ("deploy_gate.py", "brief_fields.py"):
         (ungoverned / "scripts" / name).write_bytes((ROOT / "scripts" / name).read_bytes())
+    monkeypatch.setattr(guard, "OWN", str(ungoverned))
     return ungoverned
 
 
@@ -444,15 +454,17 @@ def test_another_repositorys_deploy_gate_never_runs_with_no_project_dir(guard: M
                                                                         monkeypatch: pytest.MonkeyPatch) -> None:
     """With `$CLAUDE_PROJECT_DIR` unset, the project root is the checkout the guard file lives in."""
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.setattr(guard, "OWN", str(GUARD.resolve().parents[2]))
     assert _bash(guard, "ls", foreign) is None
     assert not (foreign / "scripts" / "RAN").exists()
 
 
 def test_a_project_whose_gate_is_missing_refuses_even_from_another_repository(guard: ModuleType, foreign: Path,
                                                                               ungoverned: Path) -> None:
-    """Fails closed: a brief declares deploys and the project root has no gate; another tree's is no stand-in."""
+    """Fails closed: a brief declares deploys and the project root has no gate; another tree's is no stand-in.
+    Since DevFlow v7.1.2 the project root whose gate runs is the guard's own checkout (`OWN`)."""
     why = _bash(guard, "ls", foreign)
-    assert why and "has no scripts/deploy_gate.py" in why and str(ungoverned) in why, why
+    assert why and "has no scripts/deploy_gate.py" in why and str(guard.OWN) in why, why
     assert not (foreign / "scripts" / "RAN").exists()
 
 

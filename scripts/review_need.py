@@ -2,9 +2,10 @@
 """Which review does this change need? Computed from the diff and the working mode, never from the
 author's judgment.
 
-    python3 scripts/review_need.py [--range A..B] [--at <sha>] [--plan docs/plans/mN-plan.md]
+    python3 scripts/review_need.py [--range A..B] [--at <sha>] [--plan docs/plans/mN-plan.md] [--wave-security]
       (default range: merge-base with the default branch..HEAD; --at reads the brief and the plan
-       as of that commit -- how `make wave-check` grades a close by the rules of its own time)
+       as of that commit -- how `make wave-check` grades a close by the rules of its own time;
+       --wave-security routes heavy mode's security per wave, the rule before v7.1.2, for such a close)
 
 The last line is the answer, and `/close-wave`, `/fix-issue` and `make wave-check` read it:
 
@@ -15,6 +16,11 @@ under (`working mode: light -- ...`): in the field the skills said "light runs n
 while this script, mode-blind, said `code-reviewer`, and two projects followed each in turn (24
 contradictions, DevFlow #16). The mode is the brief's `Working mode:` (`make mode`; unset: heavy),
 read as of `--at` when given, so a close is graded by the mode of its own time.
+
+**Heavy mode runs the Security-Reviewer once per milestone** (the owner's ruling of 2026-10-16, v7.1.2):
+on the plan's last wave, over the whole milestone, beside the milestone Tester (`/close-wave`). A wave
+or a fix in heavy mode is never routed to security here; its signals are still printed, for the
+milestone's review to read. Light mode is unchanged: security per change, on these signals.
 
 MEASURED, not invented (the 2026-09-28 review of three field repositories, 483 commits, 109 security
 findings, 58 pull requests):
@@ -129,7 +135,8 @@ def declared_globs(root: Path | str, at: str | None = None, plan: str | None = N
     return globs
 
 
-def assess(rng: str, at: str | None = None, plan: str | None = None) -> tuple[str, list[str]]:
+def assess(rng: str, at: str | None = None, plan: str | None = None,
+           wave_security: bool = False) -> tuple[str, list[str]]:
     root: Path | str = brief_root_at(at) if at else "."
     mode = brief_fields.mode(root)
     numstat = git("diff", "--numstat", rng)
@@ -182,6 +189,11 @@ def assess(rng: str, at: str | None = None, plan: str | None = None) -> tuple[st
     if parsers:
         security.append(f"new parser or fetch of untrusted input: {', '.join(parsers[:5])}")
     reasons += security or ["no security signal"]
+    if security and mode != "light" and not wave_security:
+        reasons.append("heavy mode: security runs once per milestone, on the plan's last wave, over the whole "
+                       "milestone (`/close-wave`, docs/reviews/m<N>-security.md) -- these signals are for it, "
+                       "not routed to this range")
+        security = []
     need = ("code-reviewer+security" if need_cr and security else "code-reviewer" if need_cr
             else "security" if security else "none")
     return need, reasons
@@ -192,7 +204,7 @@ def main(argv: list[str]) -> int:
         rng = argv[argv.index("--range") + 1] if "--range" in argv else default_range()
         at = argv[argv.index("--at") + 1] if "--at" in argv else None
         plan = argv[argv.index("--plan") + 1] if "--plan" in argv else None
-        need, reasons = assess(rng, at, plan)
+        need, reasons = assess(rng, at, plan, wave_security="--wave-security" in argv)
     except (OSError, subprocess.CalledProcessError, RuntimeError, IndexError) as e:
         print(f"review-need CANNOT RUN: {e} -- a review decision with no diff behind it decides nothing")
         return 2

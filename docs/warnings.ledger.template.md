@@ -2,7 +2,7 @@
 record_type: warnings
 id: warnings-ledger-template
 status: draft
-process_version: v7.1
+process_version: v7.1.2
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your

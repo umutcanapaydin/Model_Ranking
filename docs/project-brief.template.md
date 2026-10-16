@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v7.1
+process_version: v7.1.2
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -83,8 +83,9 @@ date: 2026-09-23
 10. **Working mode:** `<heavy (default) | light>` *(light: issues only — file, triage, fix; no
     Code-Reviewer; the milestone Tester once before each release, on everything merged since its
     last verdict; heavy: waves as well — a Code-Reviewer per wave, the Tester once per milestone, on
-    the plan's last wave. The Security-Reviewer runs in both when a change needs it and before every
-    deploy. `make mode` reads this line)*
+    the plan's last wave, and the Security-Reviewer beside it, once per milestone. In light mode the
+    Security-Reviewer runs when a change needs it; in both, before every deploy. `make mode` reads
+    this line)*
 11. **QA verification:** `<off (default) | on>` *(off: a bug closes when its fix merges; on: a person
     verifies on a deployed build and the `qa:` labels track it)*
 

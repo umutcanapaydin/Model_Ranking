@@ -10,7 +10,8 @@ was routed to security for no product change. The Go body parser in the field wa
 Each case is a throwaway git repository with its own brief: the script is run there and its last
 line (`review-need: ...`) and its reasons are read. Both polarities per rule: light must not answer
 `code-reviewer`, heavy must; a test-only HIGH hit must be `none`, the same path as product code must
-be `security`; `NewDecoder` must be `security`, and a stacked branch measured by its own base must
+be `security` (light mode; in heavy mode it is kept for the milestone's security review, v7.1.2); `NewDecoder`
+must be `security`, and a stacked branch measured by its own base must
 not report the lower branch's gate change.
 
 Exit: 0 every case behaves - 1 one does not - 2 git not installed.
@@ -49,8 +50,8 @@ class Repo:
         self.git("commit", "-q", "-m", msg)
         return self.git("rev-parse", "HEAD")
 
-    def need(self, rng: str = "HEAD~1..HEAD") -> tuple[str, str]:
-        r = subprocess.run([sys.executable, str(SCRIPT), "--range", rng], cwd=self.root, capture_output=True,
+    def need(self, rng: str = "HEAD~1..HEAD", *extra: str) -> tuple[str, str]:
+        r = subprocess.run([sys.executable, str(SCRIPT), "--range", rng, *extra], cwd=self.root, capture_output=True,
                            text=True, env=self.env)
         out = r.stdout + r.stderr
         last = out.strip().splitlines()[-1] if out.strip() else ""
@@ -94,7 +95,7 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
-        r.write("docs/project-brief.md", brief("heavy", "src/**, tests/**"))
+        r.write("docs/project-brief.md", brief("light", "src/**, tests/**"))
         r.commit("brief")
         r.write("tests/test_auth_flow.py", "def test_x():\n    assert 1\n")
         r.commit("test only")
@@ -104,9 +105,20 @@ def main() -> int:
         r.commit("product")
         case("the same path shape as product code: security", r.need(), "review-need: security",
              "declared HIGH paths: src/auth_flow.py")
+        # v7.1.2: heavy mode runs security once per milestone (the owner's ruling of 2026-10-16), so the
+        # same range in heavy mode is not routed there; the signal is printed for the milestone's review.
+        r.write("docs/project-brief.md", brief("heavy", "src/**, tests/**"))
+        r.commit("heavy")
+        r.write("src/auth_flow.py", "x = 2\n")
+        r.commit("product, heavy")
+        case("heavy mode, a HIGH path: no per-wave security, the signal kept for the milestone", r.need(),
+             "review-need: none", "declared HIGH paths: src/auth_flow.py", "security runs once per milestone")
+        case("...and with --wave-security (a close written before v7.1.2): security, as it was",
+             r.need("HEAD~1..HEAD", "--wave-security"), "review-need: security")
 
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
+        r.write("docs/project-brief.md", brief("light"))
         r.write("src/h.go", "package h\n\nfunc load(r io.Reader, v any) error {\n"
                             "\tdec := json.NewDecoder(r)\n\treturn dec.Decode(v)\n}\n")
         r.commit("decoder")
@@ -128,8 +140,8 @@ def main() -> int:
         print("test-review-need-mode FAIL (scripts/review_need.py in throwaway repositories):")
         print("\n".join(bad))
         return 1
-    print("test-review-need-mode PASS: 7 cases of scripts/review_need.py -- mode, test-only paths, Go decoders, "
-          "stacked range")
+    print("test-review-need-mode PASS: 9 cases of scripts/review_need.py -- mode, test-only paths, Go decoders, "
+          "stacked range, heavy mode's security once per milestone")
     return 0
 
 

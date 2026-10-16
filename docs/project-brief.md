@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief
 status: ratified
-process_version: v7.1
+process_version: v7.1.2
 date: 2026-08-06
 ---
 # Project Brief — model_ranking

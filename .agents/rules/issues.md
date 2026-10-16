@@ -25,9 +25,10 @@ milestone closes before a release, on everything merged since the Tester's last 
 (`docs/closure-checklist.md` §B.0 and §E.1).
 
 **Heavy** (the default): the same issue skills, and waves on top. **A wave is one container issue
-plus its children** — `/plan-milestone` opens it, `/close-wave` closes it with a Code-Reviewer, the
-Security-Reviewer when needed, and on the plan's last wave the milestone Tester. `/fix-issue` is a
-one-issue wave whose reviews `make review-need` computes. Several slices route to `wave`, never to
+plus its children** — `/plan-milestone` opens it, `/close-wave` closes it with a Code-Reviewer, and on
+the plan's last wave the milestone Security-Reviewer and the milestone Tester, each over the whole
+milestone (security once per milestone, the owner's ruling of 2026-10-16). `/fix-issue` is a one-issue
+wave whose reviews `make review-need` computes. Several slices route to `wave`, never to
 `/work-enhancement`.
 
 `make mode` prints which. The owner chooses it in `/setup-project`; nothing switches it by itself.

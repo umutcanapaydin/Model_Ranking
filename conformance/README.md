@@ -11,7 +11,7 @@ A control nobody exercises is a control nobody has.
 | `test-*.py` | `run-all.py` | One control each. The suite is derived from the directory: add a file and it runs. Its docstring's first line is its description, and a test with no docstring fails |
 | `lib_record.py` | the tests | Shared helpers: record or instruction surface, the delivered documents (`.md` and `.html`), the GP-internal set from `INSTALL-MANIFEST.md`, a git environment that cannot touch the graded repository |
 | `pass/`, `fail/` | `scripts/check_records.py --self-test` (`make check-records-selftest`, a leg of `make check`) | Record fixtures for the governance validator |
-| `wave/`, `reviews/`, `closure/`, `closure/reviews/` | `test-make-targets.py`, `test-milestone-tester.py` | Wave-close and closure-report fixtures for `scripts/wave_check.py` and `scripts/closure_check.py`, with the Tester verdicts they cite |
+| `wave/`, `reviews/`, `closure/`, `closure/reviews/` | `test-make-targets.py`, `test-milestone-tester.py`, `test-milestone-security.py`, `test-wave-unversioned.py` | Wave-close and closure-report fixtures for `scripts/wave_check.py` and `scripts/closure_check.py`, with the Tester verdicts they cite |
 | `run/` | `test-run-check.py` | Run-record fixtures for `scripts/run_check.py`: one filled, one broken for its declared reasons, and the plan file the filled one names |
 
 `python3 conformance/run-all.py` prints each test with its description. Each test's verdict is its
@@ -48,13 +48,21 @@ search and pointed `wave_check.py` at that project's real `docs/plans/m1-plan.md
   `**Independent:** yes`. The Tester verdict beside it is from the per-wave Tester of `v6`,
   which `v7` no longer requires; the checklist's rows still cite it as evidence.
 - `wave/m901-wave-3-close.md` is hollow and must fail, and it must fail for the two reasons it declares.
+- `wave/m905-wave-1-close.md` declares no `process_version`: history when it predates the
+  installation (`.gp/installed`'s `installed_on`) or no marker exists, refused when it is dated on or
+  after the installation, or undated beside a marker (`test-wave-unversioned.py`).
 - `closure/closure-report-m907.md` is a filled copy of `docs/closure-report.template.md` and must pass
   (it declares `v6.3`, so the rules that came later do not apply to it).
 - `closure/closure-report-m908.md` is missing §1b and its §6 prose, and must fail.
+- `closure/closure-report-m910.md` is history in the shape of a field project's oldest reports --
+  `record_type: ratification`, no `process_version`, none of today's sections -- and must pass:
+  a history report is graded by its filename and id only.
 - `closure/closure-report-m909.md` declares `v7.1` and must pass: its §1 citations name files this
   package ships, and the milestone Tester's verdict sits beside it in `closure/reviews/m909-tester.md`
   -- from `v7.1` `closure_check.py` requires that verdict in both working modes
-  (`test-milestone-tester.py` proves the refusals, in both modes).
+  (`test-milestone-tester.py` proves the refusals, in both modes). It stays at `v7.1`: from `v7.1.2`
+  heavy mode also asks for the milestone Security-Reviewer's `m{N}-security.md`, and
+  `test-milestone-security.py` re-declares the fixture to prove that rule in both polarities.
 
 When a template changes, its filled fixture changes in the same change.
 

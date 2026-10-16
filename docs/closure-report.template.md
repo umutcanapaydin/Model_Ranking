@@ -2,7 +2,7 @@
 record_type: closure
 id: closure-report-template
 status: draft
-process_version: v7.1
+process_version: v7.1.2
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -31,7 +31,7 @@ date: 2026-09-23
 
 ## 1a. Per-wave table (one row per wave; each cell links to committed evidence)
 
-| Wave | Risk tier | Reviews (Code-Reviewer; security when needed; the milestone Tester on the last wave) | Findings opened/closed | Test Δ | Escalations | PR |
+| Wave | Risk tier | Reviews (Code-Reviewer; the milestone Security-Reviewer and Tester on the last wave) | Findings opened/closed | Test Δ | Escalations | PR |
 |---|---|---|---|---|---|---|
 | W{1} | `<tier>` | `<review file (+ security file)>` | `<n>/<n>` | `<+n>` | `<none|list>` | `<#PR>` |
 
@@ -56,7 +56,7 @@ so the believed-vs-actual gap is visible.*
 
 ## 4. Security & invariants
 
-- HIGH waves' security passes on their slices: `<none | review files>` (the release security review runs once, at Stage 5.1)
+- The milestone security review: `docs/reviews/m{N}-security.md`, and the HIGH waves whose signals it read: `<none | waves>` (the release security review runs once, at Stage 5.1)
 - Invariants table current: every row cites its NEGATIVE test — `<referent>`
 - ⛔-glob touches this milestone: `<none | list + line-by-line review referent>`
 
