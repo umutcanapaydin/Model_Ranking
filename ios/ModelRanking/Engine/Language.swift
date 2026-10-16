@@ -463,6 +463,16 @@ public enum UIText {
         language == .turkish ? "Şu anda cevap yok" : "No answer right now"
     }
 
+    /// #288 (D-202 clause 5): over an answer kept from an earlier visit, shown because the engine could
+    /// not be reached. The day is the calendar day it arrived where the reader is (the UTC day read an
+    /// answer kept after midnight in Istanbul as the day before's), written as the boards' dates are.
+    public static func keptAnswer(fetchedAt: Date, timeZone: TimeZone = .current, _ language: Language) -> String {
+        let day = fetchedAt.formatted(Date.ISO8601FormatStyle(timeZone: timeZone).year().month().day())
+        return language == .turkish
+            ? "Motora ulaşılamadı; bu, motorun \(day) tarihinde verdiği cevap."
+            : "The engine could not be reached, so this is the answer it gave on \(day)."
+    }
+
     /// The engine address the app asked, under a failure to reach it (M18-W1 review B2).
     public static func engineAddress(_ language: Language, _ address: String) -> String {
         language == .turkish ? "Motor adresi: \(address)" : "Engine address: \(address)"

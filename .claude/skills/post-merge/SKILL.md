@@ -1,6 +1,6 @@
 ---
 name: post-merge
-description: Use immediately after a human has merged a PR — to clean up the branch, move the issue to the right lifecycle state, and hand off to verification. Also when asked what happened to a merged change or whether something is ready to verify. Never merges anything itself.
+description: Use immediately after a human has merged a PR — to clean up the branch, move the issue to the right lifecycle state, and hand off to verification. Also when asked what happened to a merged change or whether something is ready to verify. Never merges a pull request itself.
 ---
 
 Runs **only after a human merges.** Read `.agents/rules/issues.md` first.
@@ -23,10 +23,45 @@ git push origin --delete <branch>
 ```
 `-d` refuses a branch that was **squash-merged**, because its commits never reached the default
 branch. Step 1 already proved the PR MERGED, so then — and only then — `git branch -D <branch>`.
+A squash also drops the head a review verdict names: the milestone Tester's `**Reviewed head:**` on
+the plan's last wave is now unreachable, and `make deploy-check` fails closed until the Tester
+runs again. Tell the owner; `docs/branch-protection.md` asks for merge commits for this reason.
+
+## 2a · An integration PR (`integration/<name>`)
+
+Step 1 on the integration PR. Then, for each PR its body says it carries:
+
+```bash
+gh pr view <stacked-pr> --json state,mergedAt   # MERGED once its head commit is on the default branch
+```
+
+A merge commit lands every stacked branch's commits, and GitHub marks each stacked PR MERGED by
+itself. One still OPEN means the integration PR was squashed, or that branch was left out of the
+stack: close it with one comment naming the integration PR and the commit that carries its change.
+The stacked draft is the record of that change, open or closed; it is never deleted. Then step 2
+for the integration branch and every stacked branch, and steps 3–6 once per stacked PR's issues:
+the integration PR's `Closes` lines are what closed them. A PR the run file lists as `stopped`
+is not left out of the stack by mistake: it stays open for the next run or `/fix-issue`, and is
+not closed here.
+
+A run's integration PR (`integration/run-<name>`, `/plan-run`): the same, and §7 already ran
+inside the run, on the integration branch, for every milestone it closed — verify the records
+exist (`docs/reviews/m<N>-tester.md`, `docs/reviews/m<N>-repo-review.md`, the Capture entries,
+`docs/plans/run-<name>.md` with its `Ended:` filled and `make run-check` green) rather than
+running them again. A stop row in the run file is an open question for the owner: its answer is an
+ADR, and the stopped wave goes to the next run or to `/fix-issue`. The plan PR's merge is the
+owner's signature on the run's rulings: append `**Status:** accepted` to each ADR on the run
+file's `Rulings:` line (a new line, never an edit — `/log-decision`).
 
 ## 3 · Route the issue by what it actually is
 
-Read its state and labels, then:
+Read its state and labels, and the brief's `QA verification:` (`off` unless it says `on`):
+
+- **QA off (the default)** → every issue the PR resolved is closed by the merge, a `bug` included:
+  one comment on each naming the merged PR and the test that went red, then green. If one is still
+  open, close it with that comment. That is the whole step.
+
+**QA on:**
 
 - **`bug`** → stays open, gets `dev:done`, one comment linking the
   merged PR. **Do not set `qa:ready`** — merged is not deployed, and you have no signal for a
@@ -37,7 +72,7 @@ Read its state and labels, then:
   leaves the hole open for the next one.
 - **non-`bug`** → the merge closing it is correct. Leave it closed.
 
-## 4 · Later, when you are told
+## 4 · Later, when you are told (QA on)
 
 - **"It is deployed"** → each `bug` with `dev:done` from that deploy swaps to `qa:ready`.
 - **`qa:passed`** (the verifier's) → close the issue with one comment naming the verification.
@@ -60,3 +95,10 @@ the context is still in anyone's head.
 
 The lifecycle vocabulary is closed. If the state you want is not in it, the answer is not a new
 label — it is that the state is not real yet.
+
+## 7 · The plan's last wave (heavy mode)
+
+The merged PR was a `wave/*` branch whose close says `Last wave of the plan: yes` → every wave of
+the milestone has merged, and the milestone closes now: walk `docs/closure-checklist.md` §B —
+`/repo-review` across the whole milestone, the capture, and the Quality Gate if the brief turns it
+on. Nothing deploys at a milestone close.

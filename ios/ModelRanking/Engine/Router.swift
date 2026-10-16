@@ -406,8 +406,10 @@ extension CategoryHints {
             id: "abstract", stems: ["puzzle", "riddle", "bulmaca", "oruntu", "sequence"],
             words: ["logic", "mantik", "mantigi"], phrases: [["comes", "next"], ["siradaki", "sayi*"]]),
         SurfaceWords(
+            // #289: quantum physics, in both languages (the golden set's "a hard question about quantum field
+            // theory" read as maths). A word with one reading in a question to this app: physics.
             id: "expert", stems: ["medical", "medicine", "lawyer", "scien", "physics", "chemistry", "biology", "tibb",
-                                  "doktor", "hukuk", "avukat", "kimya", "biyoloji", "uzman"],
+                                  "doktor", "hukuk", "avukat", "kimya", "biyoloji", "uzman", "quantum", "kuantum"],
             words: ["law", "legal", "bilim", "doctor", "expert", "fizik", "fizigi", "fizikte", "fizikten", "fizikle"]),
         SurfaceWords(
             id: "search", stems: ["internet", "arastir"],
@@ -605,16 +607,44 @@ struct SimilarityRouter: QuestionRouter {
     ///
     /// **#222 (2026-10-14): Turkish is read now**, against Turkish examples (`readsTurkish`,
     /// `CategoryHints.examplesTurkish`). This still declines every other language it is sure of.
+    ///
+    /// **#273: and a language it is unsure of**, unless English is among its readings. A question read as
+    /// another language below `confidentLanguage`, with three or more words of language
+    /// (`languageWords`) and English not among the recogniser's top three readings at
+    /// `englishAmongReadings` or more, declines too. A shorter question stays in, as below: names,
+    /// versions and acronyms ("claude vs gpt", "grok 4 vs gpt 5", "arena elo") are read as anything.
     static func readsEnglish(_ text: String) -> Bool {
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
         guard let language = recogniser.dominantLanguage else { return true }
         // Undetermined stays IN. A two-word question ("swe bench") is often unclassifiable, and
         // refusing those would break the English path this tier exists to serve. Only a confident
-        // non-English reading declines.
+        // non-English reading declines, or an unsure one with words enough to be read (#273).
         guard language != .english, language != .undetermined else { return true }
         let confidence = recogniser.languageHypotheses(withMaximum: 1)[language] ?? 0
-        return confidence < confidentLanguage
+        guard confidence < confidentLanguage else { return false }
+        guard languageWords(text).count >= wordsToReadALanguage else { return true }
+        return (recogniser.languageHypotheses(withMaximum: 3)[.english] ?? 0) >= englishAmongReadings
+    }
+
+    /// #273: how many words of language an unsure reading needs before it can decline a question.
+    static let wordsToReadALanguage = 3
+
+    /// #273: how likely the recogniser must hold English, among its top three readings, for a question it
+    /// is unsure of to stay on the English path. On the implementer's own short lines, the unsure English ones
+    /// held English at 0.068 to 0.26 and the other languages at 0.04 or less.
+    static let englishAmongReadings = 0.05
+
+    /// #273: the words of a question that carry its language: none that holds a digit (a version, "gpt-4o"),
+    /// and none that is a model's name or tier (`ModelFamilies`, `CategoryHints.generalWords`,
+    /// `CategoryHints.modelTierWords`), which belong to no language. A name with a second reading ("code",
+    /// "llama") is only left out of this count, and the count only keeps a question on the English path.
+    static func languageWords(_ text: String) -> [String] {
+        text.lowercased().split { !($0.isLetter || $0.isNumber) }.map(String.init).filter { word in
+            let plain = CategoryHints.plain(word)
+            return !word.contains(where: \.isNumber) && !ModelFamilies.words.contains(plain)
+                && !CategoryHints.generalWords.words.contains(plain) && !CategoryHints.modelTierWords.contains(plain)
+        }
     }
 
     /// The Latin letters Azerbaijani and Turkmen write and Turkish never does, in both cases (the review's
@@ -639,9 +669,40 @@ struct SimilarityRouter: QuestionRouter {
         guard !composed.unicodeScalars.contains(where: turkicNotTurkishLetters.contains) else { return false }
         let recogniser = NLLanguageRecognizer()
         recogniser.processString(text)
-        guard recogniser.dominantLanguage == .turkish else { return false }
-        return (recogniser.languageHypotheses(withMaximum: 1)[.turkish] ?? 0) >= confidentLanguage
+        let language = recogniser.dominantLanguage ?? .undetermined
+        let confidence = recogniser.languageHypotheses(withMaximum: 1)[language] ?? 0
+        if language == .turkish, confidence >= confidentLanguage { return true }
+        // #218: a reading the recogniser is unsure of, with English not among its readings (the reading
+        // #273 declines), may be the names' doing.
+        guard language != .english, confidence < confidentLanguage,
+              (recogniser.languageHypotheses(withMaximum: 3)[.english] ?? 0) < englishAmongReadings
+        else { return false }
+        return turkishBesideModelNames(text)
     }
+
+    /// #218: a short Turkish question that names a model ("gemini mi claude mu fransizca") is not confidently
+    /// Turkish to the recogniser: the names are no language's words and pull it to Spanish or French. So
+    /// the question is read without them (`languageWords`), between the two languages this tier reads. It is
+    /// Turkish when it names a model (`ModelFamilies`, `CategoryHints.generalWords`) and its other words read as
+    /// Turkish at `turkishBesideModelNames` or more. No word decides it: the recogniser reads the words (D-191,
+    /// D-196). A question that names no model keeps the recogniser's reading, so a language the recogniser
+    /// confuses with Turkish (Kurmanji) is not read as Turkish for it; one that names a model may be.
+    static func turkishBesideModelNames(_ text: String) -> Bool {
+        let names = text.lowercased().split { !($0.isLetter || $0.isNumber) }.contains { word in
+            let plain = CategoryHints.plain(String(word))
+            return ModelFamilies.words.contains(plain) || CategoryHints.generalWords.words.contains(plain)
+        }
+        let words = languageWords(text)
+        guard names, !words.isEmpty else { return false }
+        let between = NLLanguageRecognizer()
+        between.languageConstraints = [.english, .turkish]
+        between.processString(words.joined(separator: " "))
+        return (between.languageHypotheses(withMaximum: 2)[.turkish] ?? 0) >= turkishBesideModelNames
+    }
+
+    /// #218: how likely, between English and Turkish, a named model's other words must be Turkish. On the
+    /// implementer's own short lines, Turkish ones read 0.97 to 1.00 and English ones 0.71 or less.
+    static let turkishBesideModelNames = 0.9
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
         let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -1137,7 +1198,9 @@ struct TieredRouter {
         // image is answered from `vision`, the board of the models that read images best, and is no
         // longer told "not measured".
         read.reading = inputReading(
-            noWord: InputSignals.noWord(question), smallTalk: InputSignals.smallTalk(question),
+            // #66 (run product-night): text made of real words with no meaning decides as no word does.
+            noWord: InputSignals.noWord(question) || InputSignals.noMeaning(question),
+            smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)
                 || InputSignals.asksAFact(question),
             modelSaysNotASearch: outcome.tier == .model ? outcome.reading != .search : nil)

@@ -87,6 +87,7 @@ final class UITextLanguageTests: OfflineTestCase {
             ("seeTheBoards", { UIText.seeTheBoards($0) }),
             ("boardsBehind", { UIText.boardsBehind($0) }),
             ("placeOn", { UIText.placeOn("SWE-bench Verified", place: 2, $0) }),
+            ("keptAnswer", { UIText.keptAnswer(fetchedAt: Date(timeIntervalSince1970: 1_792_100_000), $0) }),
         ]
     }
 

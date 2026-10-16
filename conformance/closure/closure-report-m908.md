@@ -1,11 +1,11 @@
 ---
 record_type: closure
-id: closure-report-m8
+id: closure-report-m908
 status: ratified
 process_version: v6.3
 date: 2026-09-23
 ---
-# Closure Report — M8 (the owner's milestone review pack)
+# Closure Report — M908 (the owner's milestone review pack)
 
 <!-- HOLLOW fixture: §1b is missing and §6 was never written. closure_check must refuse it. -->
 
@@ -22,7 +22,7 @@ date: 2026-09-23
 
 | Wave | Risk tier | Reviews (Code-Reviewer + Tester, + security if HIGH) | Findings opened/closed | Test Δ | Escalations | PR |
 |---|---|---|---|---|---|---|
-| W1 | MED | `docs/reviews/m8-wave-1-review.md` + `docs/reviews/m8-wave-1-tester.md` | 2/2 | +9 | none | #52 |
+| W1 | MED | `docs/reviews/m908-wave-1-review.md` + `docs/reviews/m908-wave-1-tester.md` | 2/2 | +9 | none | #52 |
 
 ## 2. Git record (annotated)
 
@@ -41,7 +41,7 @@ date: 2026-09-23
 
 ## 5. Ledgers (nothing silent)
 
-- **Skipped/waived checks:** none — `docs/control-events.csv` has no row for M8
+- **Skipped/waived checks:** none — `docs/control-events.csv` has no row for M908
 
 ## 6. Architecture delta — PROSE (the comprehension-debt countermeasure)
 

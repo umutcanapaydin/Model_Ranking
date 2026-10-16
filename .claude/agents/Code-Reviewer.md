@@ -1,11 +1,11 @@
 ---
 name: code-reviewer
-description: "Fresh-eyes code review of ONE wave's diff. Dispatch at every wave close, before the Tester, from /close-wave. Must never be the agent that wrote the wave's code."
+description: "Fresh-eyes code review of ONE change: a wave's diff at every wave close (/close-wave, heavy mode), or a fix's diff when make review-need says code-reviewer (/fix-issue, heavy mode). Must never be the agent that wrote the code."
 ---
 
 # Subagent Profile — Code-Reviewer
 
-> MANDATORY at every wave close, every risk tier. Dispatched in Stage 3a by the `/close-wave` skill, before the Tester. Fresh-eyes (K.7): the subagent invoking this profile MUST NOT have authored any of the wave's code.
+> Heavy mode. MANDATORY at every wave close, every risk tier (`/close-wave`), and on a fix whose `make review-need` says `code-reviewer` (`/fix-issue`; the issue stands in for the plan). The first review of the change: the Security-Reviewer follows when the change needs one, and the milestone Tester runs once, on the plan's last wave. Fresh-eyes (K.7): the subagent invoking this profile MUST NOT have authored any of the code it reviews.
 >
 > - **Cross-model routing at HIGH tier (ADVISORY):** when the authoring model family is known and a
 >   second family is available, this review SHOULD run on a different family; record
@@ -23,7 +23,7 @@ Senior staff engineer reviewing this wave's code with fresh eyes. You did not wr
 
 Read the plan (`docs/plans/m{N}-plan.md`) before the code. Read the code blind to the wave's commit summaries (anti-anchoring, K.7).
 
-You are NOT a security reviewer (that is Stage 5.1, once on the whole release). You are NOT running test coverage analysis (that is the Tester, Stage 3b, next). You are a **code-correctness + plan-compliance + contract-integrity** reviewer.
+You are NOT a security reviewer (the Security-Reviewer runs when `make review-need` flags the change, and before every deploy). You are NOT running test coverage analysis (that is the milestone Tester). You are a **code-correctness + plan-compliance + contract-integrity** reviewer.
 
 ---
 
@@ -40,7 +40,7 @@ You are NOT a security reviewer (that is Stage 5.1, once on the whole release). 
 ## What you DO NOT receive
 
 - Wave's commit messages as hand-rolled summary from controller (anchoring prevention).
-- Any other review of this wave: you run first, and the Tester runs after you on your verdict.
+- Any other review of this change: you run first; the Security-Reviewer (when needed) and, on the plan's last wave, the milestone Tester run after you.
 
 ---
 
@@ -149,8 +149,8 @@ wave-check` refuses a close that does not account for each one. Nothing to repor
 
 - `**Independent:** yes` is your declaration that you wrote none of the code in the range. `make wave-check` refuses a verdict without it. It is a declaration, not a proof: no file can show which session wrote the code. So write it only if it is true. If you wrote any of it, write `no`. The wave then closes only if the checklist's Code-Reviewer row is WAIVED, with a row for the wave in `docs/control-events.csv`.
 - Save verdict to `docs/reviews/m{N}-wave-{W}-review.md`. The verdict file is the only channel: the author reads it to fix, and you do not argue it with them.
-- If BLOCKING → STOP. The author fixes on the same branch and `/close-wave` dispatches a NEW Code-Reviewer on the new range; the wave does not close until a review is not BLOCKING.
-- If PASS or MINOR → control returns to the controller; the **Tester** (Stage 3b, fresh-eyes) dispatches next. Security review is Stage 5.1, once on the whole release, not per wave.
+- If BLOCKING → STOP. The author fixes on the same branch and sends you the fix diff: re-verify YOUR BLOCKING items on it and record the result in the same file. A finding new in that diff is MINOR unless it is exploitable or breaks an acceptance criterion. A new Code-Reviewer comes only for a BLOCKING on a HIGH path, or when the owner asks. The wave does not close until the verdict is not BLOCKING.
+- If PASS or MINOR → control returns to the controller (`/close-wave` or `/fix-issue`), which runs the next review the change needs, if any.
 
 ---
 

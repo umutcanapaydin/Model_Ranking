@@ -6,8 +6,26 @@ description: Use at the start of any session in an unfamiliar or resumed reposit
 **Continuity is a property of files, not of sessions.** Nothing carries between sessions except
 what is written down. Treat that literally: do not reconstruct state, read it.
 
+0. **`make session-check` first.** Claude Code loads this repository's guards, post-edit check,
+   agent profiles and skills only when it was started in the repository root; started one level
+   up, or from the home directory, they are all off and nothing else says so — a skill invocation
+   answers "Unknown skill", a reviewer dispatches as a plain subagent, no deploy is refused. If it reports
+   the settings did not load, **stop: tell the owner that no hook, profile or skill is registered
+   in this session, and that it must be restarted from the repository root.** Do not ledger a
+   skip row and carry on; one project ran 313 hours that way. One session cannot pass by design:
+   the one that merged the install or upgrade predates its own hook — after that merge, start a
+   new session. If it reports no pre-push hook, run `make hooks`. If `.agents/rules/environment.md`
+   does not exist, copy it from `.agents/rules/environment.md.template` and fill it (gitignored:
+   your machine, not the project's). Then
+   `make mode`, and say it: **light** runs issues only; **heavy** runs waves as well
+   (`.agents/rules/issues.md`, "Two working modes"). Every lane below follows it.
 1. **Read where the work stands** — the latest `docs/process-log.md` entry, the current
-   `docs/plans/m{N}-plan.md`, and the open draft PRs (`gh pr list --state open`). Nothing else
+   `docs/plans/m{N}-plan.md` (heavy; light has none — the triaged queue is its plan), the open
+   draft PRs (`gh pr list --state open`), and `make deploy-check`: in light mode a `FAIL` on the
+   Tester line says a release is owed its milestone Tester before it ships. **A run file
+   `docs/plans/run-*.md` whose `Ended:` is `open` means a run is in progress:** `make run-check
+   FILE=<that file>`, then resume it (`/plan-run` §3.4): the `running` row names the wave branch —
+   check it out, it exists, with the commits so far — unless the owner is here and says otherwise. Nothing else
    carries between sessions; if the process log is silent about the last session, that is the
    first thing this session is missing.
 2. **Confirm which tree you are in.** Stale clones of the same remotes exist and their histories
@@ -24,7 +42,7 @@ what is written down. Treat that literally: do not reconstruct state, read it.
    owner.
 6. **Look at the live queue** — open issues, and one issue's full history including comments, to
    see the label flow as it is actually practised rather than as it is documented. Name every
-   open issue whose comments carry no `Triage verdict:` line: no lane picks one up, so it is
+   open issue with no `Triage verdict:` line in its body or its comments: no lane picks one up, so it is
    triaged (`/triage-issue`) before new work starts — and every one carrying `qa:failed` or
    `qa:blocked`, which goes back to triage the same way.
 7. **For anything the code does not explain**, read the decision log, then the archive.

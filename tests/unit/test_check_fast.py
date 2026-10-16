@@ -81,7 +81,7 @@ def test_without_drops_the_named_legs_and_refuses_a_name_that_is_not_one() -> No
     assert problems and "tests" in problems[0]
 
 
-RECORDS = ["check-records", "check-records-selftest", "install-check", "harvest-context-check", "shell-dialect",
+RECORDS = ["session-check", "check-records", "check-records-selftest", "install-check", "harvest-context-check", "shell-dialect",
            "wave-check-all"]
 
 

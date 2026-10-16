@@ -31,10 +31,8 @@
 If you just cloned this repo:
 
 1. Generate your own `environment.md` (gitignored) from `.agents/rules/environment.md.template`.
-2. Read `AGENTS.md` at the repo root (hard cap 150 lines; the rules, and a routing index to everything else).
-3. Read `practices.md` and `issues.md` end-to-end.
-4. Skim `playbook-seeds.md` so you know where the seeds live. Don't memorize it.
-5. Verify `make check` is GREEN.
+2. Run `/start-session`. It is the read order and it runs the checks; `AGENTS.md` §3.1 is the
+   order before any change. There is no second list here, because two lists drift.
 
 ---
 

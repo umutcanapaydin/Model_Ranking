@@ -2,7 +2,7 @@
 record_type: design
 id: branch-protection
 status: ratified
-process_version: v6.6
+process_version: v7.1
 date: 2026-09-23
 ---
 # Required status checks — the one list
@@ -23,6 +23,8 @@ Require these **job names** — not step names, not workflow names:
 | `secret-scan` | `ci.yml` | gitleaks. Dropping it means a credential can reach the default branch through a green PR |
 | `dep-audit` | `ci.yml` | `pip-audit --strict .` against the project's declared dependencies |
 | **`install-and-governance`** | `ci.yml` | install completeness (`M0`–`M4`), the governance records, the validator's not-a-no-op proof, and the conformance suite |
+
+**Merge method: merge commits.** Turn squash merging off (and rebase merging). A squash drops the wave branch's head from history, and that head is what the milestone Tester's verdict names as `**Reviewed head:**`: in a fresh clone `make deploy-check` and the deploy gate then cannot compare it and fail closed until the Tester runs again. An integration PR (`integration/<name>`, a run) must merge as a merge commit for the same reason, and so that GitHub marks the stacked PRs merged.
 
 Also enable: **require a pull request with at least one human approval**, **require branches to be up
 to date before merging** (otherwise a check can pass against a stale base), and **include

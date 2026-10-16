@@ -55,6 +55,8 @@ permission-matrix.md
 .agents/rules/playbook-seeds.md
 .agents/rules/environment.md.template
 .claude/settings.json
+.claude/hooks/bash_guard.py     (the Bash guard; settings.json pins its sha256)
+.claude/hooks/guard_pin.py      (rewrites that pin: `make guard-pin`)
 .githooks/pre-push
 .claude/skills/
 .claude/agents/
@@ -68,8 +70,14 @@ Makefile
 .devflow-stack
 scripts/check_fast.py
 scripts/ci_liveness.py
+scripts/secrets_scan.py
+scripts/brief_fields.py
+scripts/review_need.py
+scripts/deploy_gate.py
+scripts/session_check.py
 scripts/bootstrap-check.sh
 scripts/check_records.py
+scripts/run_check.py
 scripts/standup.sh
 scripts/README.md
 schemas/record.schema.json
@@ -82,6 +90,7 @@ conformance/
 .gitattributes
 .mcp.json
 .language-allow
+.placeholder-allow
 .skill-refs-allow
 .path-refs-allow
 ```
@@ -121,6 +130,7 @@ docs/closure-report.template.md
 docs/fixpack.template.md
 docs/license-review.template.md
 docs/project-brief.template.md
+docs/run.template.md
 docs/plans/
 docs/reviews/
 INSTALL-MANIFEST.md
@@ -154,7 +164,8 @@ pipeline-design.md
 These build, export and prove the distribution before it ships, and none of them can run inside an
 installation (`make falsify` says so and skips). `.gp/installed` is listed so the distribution's own
 marker never travels: a project's `make install` writes the project's marker, and the project
-commits it.
+commits it — `check_records.py` M2 exempts that one path in an installation for this reason, and
+it is the only GP-INTERNAL path that may be present there.
 
 One file is generated and declared in neither list: `.install-lock`, written into the delivery by
 `make export-project`. It records how many files each directory carried, and `M1` compares against

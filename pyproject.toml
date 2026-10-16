@@ -112,7 +112,16 @@ known-first-party = ["app"]   # ◄── change if package renamed
 "scripts/check_records.py" = ["C901", "S603", "S607", "B023", "RUF001"]
 "scripts/write_install_marker.py" = ["S603", "S607"]
 "scripts/coverage_floor.py" = ["S314"]
-"scripts/closure_check.py" = ["C901"]
+# DevFlow v7.1 upgrade (D-199): the scripts v7.1 added or changed are kept as shipped, for the same reason
+# as above. Beyond those rules: PTH (os.path and open() as written upstream), SIM102 (nested ifs as
+# written), B008 (a default argument built once, read only), RUF100 and I001 (an upstream `noqa` and
+# import order after `sys.path` is set).
+"scripts/closure_check.py" = ["C901", "S603", "S607", "PTH201", "SIM102", "RUF100", "I001"]
+"scripts/deploy_gate.py" = ["S603", "S607", "PTH119"]
+"scripts/review_need.py" = ["C901", "S603", "S607", "RUF100"]
+"scripts/run_check.py" = ["C901", "B008", "PTH201", "SIM102"]
+"scripts/secrets_scan.py" = ["S607", "PTH113"]
+"scripts/session_check.py" = ["S603", "S607", "PTH109"]
 # Customer-wire-format schemas may need camelCase (seed H.1):
 # "src/<pkg>/schemas/**" = ["N815"]
 

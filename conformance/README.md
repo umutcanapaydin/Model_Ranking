@@ -11,7 +11,8 @@ A control nobody exercises is a control nobody has.
 | `test-*.py` | `run-all.py` | One control each. The suite is derived from the directory: add a file and it runs. Its docstring's first line is its description, and a test with no docstring fails |
 | `lib_record.py` | the tests | Shared helpers: record or instruction surface, the delivered documents (`.md` and `.html`), the GP-internal set from `INSTALL-MANIFEST.md`, a git environment that cannot touch the graded repository |
 | `pass/`, `fail/` | `scripts/check_records.py --self-test` (`make check-records-selftest`, a leg of `make check`) | Record fixtures for the governance validator |
-| `wave/`, `reviews/`, `closure/` | `test-make-targets.py` | Wave-close and closure-report fixtures for `scripts/wave_check.py` and `scripts/closure_check.py` |
+| `wave/`, `reviews/`, `closure/`, `closure/reviews/` | `test-make-targets.py`, `test-milestone-tester.py` | Wave-close and closure-report fixtures for `scripts/wave_check.py` and `scripts/closure_check.py`, with the Tester verdicts they cite |
+| `run/` | `test-run-check.py` | Run-record fixtures for `scripts/run_check.py`: one filled, one broken for its declared reasons, and the plan file the filled one names |
 
 `python3 conformance/run-all.py` prints each test with its description. Each test's verdict is its
 exit code: 0 PASS · 1 FAIL · 2 NOT-EVALUABLE. NOT-EVALUABLE means the test could not evaluate here
@@ -36,12 +37,24 @@ change.
 
 ## Close-record fixtures
 
-- `wave/m1-wave-2-close.md` is a filled copy of `docs/wave-checklist.template.md` and must pass.
-  `wave_check.py` reads its two verdict files from `../reviews/`, and each declares
-  `**Independent:** yes`.
-- `wave/m1-wave-3-close.md` is hollow and must fail, and it must fail for the two reasons it declares.
-- `closure/closure-report-m7.md` is a filled copy of `docs/closure-report.template.md` and must pass.
-- `closure/closure-report-m8.md` is missing §1b and its §6 prose, and must fail.
+Fixtures take milestone numbers no project reaches (`m901`, `m907`...): the checkers' filename rules
+forbid a `fixture-` prefix, and a fixture named `m1-wave-2` was found in a project's own records
+search and pointed `wave_check.py` at that project's real `docs/plans/m1-plan.md`.
+`test-fixture-ids.py` refuses a fixture below `m900`, or one named like a record under `docs/`.
+
+- `wave/m901-wave-2-close.md` is a filled copy of `docs/wave-checklist.template.md` and must pass.
+  It declares `v7.0`, the version its rules are meant for (a close is graded by the version it
+  declares); `wave_check.py` reads its Code-Reviewer verdict from `../reviews/`, which declares
+  `**Independent:** yes`. The Tester verdict beside it is from the per-wave Tester of `v6`,
+  which `v7` no longer requires; the checklist's rows still cite it as evidence.
+- `wave/m901-wave-3-close.md` is hollow and must fail, and it must fail for the two reasons it declares.
+- `closure/closure-report-m907.md` is a filled copy of `docs/closure-report.template.md` and must pass
+  (it declares `v6.3`, so the rules that came later do not apply to it).
+- `closure/closure-report-m908.md` is missing §1b and its §6 prose, and must fail.
+- `closure/closure-report-m909.md` declares `v7.1` and must pass: its §1 citations name files this
+  package ships, and the milestone Tester's verdict sits beside it in `closure/reviews/m909-tester.md`
+  -- from `v7.1` `closure_check.py` requires that verdict in both working modes
+  (`test-milestone-tester.py` proves the refusals, in both modes).
 
 When a template changes, its filled fixture changes in the same change.
 

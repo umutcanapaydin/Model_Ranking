@@ -887,3 +887,41 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   32 of them, and the other 7 are equivalent, a belt, or a deleted assertion. The two Swift plants each
   failed only their store's new on-device test.
 
+## 2026-10-15 — DevFlow v6.6 to v7.1 (D-199)
+
+- The owner merged the hardening wave (#280), and five issues were closed. The owner then asked for the
+  DevFlow v7.1 upgrade and chose a merged guard, heavy mode, and both deploy commands gated.
+- `git diff v6.6 v7.1` was applied three-way, with workflows left out; 17 files conflicted. Two subagents
+  merged the guard and the two record checkers; every project rule was kept or replaced by a stricter one.
+- The ledger's `ruling` and `within-scope` rows and its milestone-wide waves were rewritten to v7.1's
+  kinds and shapes, each marked in place.
+- `make session-check` is red in this session by design. The owner commits and pushes from a terminal.
+- Lesson: an upgrade over a project that grew its own copies of a version's features is a merge of two
+  designs, not a patch. The conflicts were where the project had got there first.
+
+
+## 2026-10-15 — The v7.1 upgrade's reviews, and the queue triaged (D-200)
+
+- A new session started in the repository passed `make session-check`, so the upgrade was committed and pushed
+  from it (`27d2022`, `18ebafd`), with `make check` and `make gate` green, and opened as draft PR #281.
+- `make review-need` asked for `code-reviewer+security`. The Code-Reviewer found the ledger merge had loosened
+  the three-row rule (BLOCKING-1) and let one wave's skip row cover its whole milestone (MAJOR-1). The owner
+  accepted v7.1's reset (D-200) and chose exact matching. MAJOR-1, M1, M3 and a later NIT were fixed red first.
+  Round 2 found no BLOCKING, MAJOR or MINOR.
+- All eleven untriaged issues were triaged: #242 goes to a wave, and the rest are `work-issue`. The review's K1
+  is filed as #282: removing a parent of `.claude/` passes the guard.
+- Lesson: "every project rule kept or replaced by a stricter one" is a claim a merge cannot check on itself.
+  The reviewer found the one rule that got looser by running `main`'s deleted assertions against HEAD.
+
+## 2026-10-16 — Run product-night (light): the phone, the guiding note, the golden set
+
+- Three changes are stacked on #291: #296 (#288, a device build reaches the hosted engine and keeps the last
+  answer), #300 (#66, more small talk and meaningless text get the note; 11 of 72 non-searches caught against
+  10 on the fresh set) and #302 (#289, 49 golden questions with a top 3 derived from a pinned snapshot).
+- Three reading rules are stops (#298, #299, #303). On the fresh m23 set each scored the same as the shipped
+  rule, so D-202 clause 6 holds them back.
+- Fresh worktrees have no gitignored `advisor.db`, so the commit hook's `test` leg cannot run there. Copying it
+  was refused, rightly. Implementers committed red tests, and the green steps were applied in the one tree
+  that has the artifact.
+- Lesson: an implementer worktree needs everything the commit hook needs before the work starts. Decide where
+  the artifact comes from at dispatch, not when the first green commit fails.

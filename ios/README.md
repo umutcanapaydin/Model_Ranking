@@ -12,10 +12,14 @@ Two processes. The engine first, on the Mac:
 
 Then open `ios/ModelRanking.xcodeproj` in Xcode and run on any iPhone simulator. The simulator
 shares the Mac's loopback, so `EngineClient.localDefault` (`http://127.0.0.1:8080`) reaches it.
+On your own iPhone a build asks the hosted engine (`https://model-ranking.fly.dev`) unless
+`Config/Engine.local.xcconfig` names another address (#288, D-202 clause 4).
 
-If the engine is not running the app says so and names the command — it does not show a spinner
-forever, and it does not show stale or invented data. There is no mock payload anywhere in the
-target; a screen with numbers on it is a screen that reached the engine.
+If the engine cannot be reached the app shows the last answer it sent for the same surface, with the
+day it arrived, for up to a week (#288, D-202 clause 5); with none kept, it says so and names the
+command. It does not show a spinner forever, and it does not show invented data. There is no mock
+payload anywhere in the target; a screen with numbers on it is a screen that reached the engine,
+then or on an earlier day it names.
 
 ## Why `Models.swift` looks mechanical
 

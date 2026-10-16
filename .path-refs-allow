@@ -13,6 +13,7 @@ docs/EXPERIENCE.md            # the project's own experience log, from EXPERIENC
 docs/cost-log.md              # the spend ledger, written at a milestone close when the Quality Gate is on
 docs/coverage-by-req.md       # a Quality Gate artefact, written per milestone when the gate is on
 docs/pipeline-readiness-audit.md  # written once, at milestone N-2 from the final one
+docs/reviews/release-tester.md   # the light-mode milestone Tester's verdict before a release (DevFlow v7.1). An exact row, as D-155's amendment asks of release-security.md above
 docs/retrospective.md         # written once, optionally, when the work is done (/cycle-close, Stage 5.3)
 environment.md                # .agents/rules/environment.md, generated per developer and gitignored
 data-model.md                 # a project rules file named in .agents/rules/README.md as an example

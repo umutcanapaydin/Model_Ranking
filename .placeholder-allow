@@ -1,0 +1,9 @@
+# Named exceptions to bootstrap-check's placeholder check ([C1], [C3] in scripts/bootstrap-check.sh).
+# One entry per line: `<path>: <text> -- <reason>`. An entry exempts that exact text in that file only.
+# An entry without a reason, for a file the check does not read, or matching nothing any more fails
+# the check (conformance/test-placeholder-allow.py proves each of those), so the list cannot go stale.
+# An entry hides EVERY occurrence of its text in its file: name notation only -- an append-only
+# record that quotes `box-<checkout>-<model>` and may not be reworded -- never a template's own
+# field names, which are the unfilled fields this check exists to find.
+#
+# Ships empty. A project adds an entry when a record it may not edit carries placeholder-shaped text.

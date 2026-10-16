@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v6.6
+process_version: v7.1
 date: 2026-08-11
 ---
 # Decisions
@@ -92,6 +92,10 @@ date: 2026-08-11
 
 **Revisit when:** A release is harmed by late security feedback — then move a security pass earlier for that risk class.
 
+**Amended at `v7.1`** (DevFlow v7.1's text for this record, mandatory subagent profiles: reviews computed from the change; kept as an amendment so the body above stays as written, B.2): **Decision:** Reviews are fresh-eyes subagents (`.claude/agents/`) and `make review-need` computes which a change gets. Heavy mode: every wave the **Code-Reviewer**; the **Tester** once per milestone, on the plan's last wave. Both modes: the **Security-Reviewer** on a slice the signals flag, before every deploy (the deploy gate), and on the whole release at Stage 5.1, writing `docs/reviews/release-security.md` with its reviewed head. The read-only Explorer is used for exploration. Other profiles are project-specific and graduate per `docs/subagents.md`. **Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Measured across two field projects: the per-wave Tester was the costliest review per real defect (41M–57M tokens against 1.9M–5.2M for the Code-Reviewer) and security the cheapest and highest-yield; three deploys in one project went out unreviewed while the rule was prose. **Mitigation:** `make wave-check` refuses a wave close without the verdicts its range needs (recomputed), or with a BLOCKING one. The deploy gate refuses a deploy command while code changed after the reviewed head.
+
+**Amended at `v7.1`** (the owner's ruling of 2026-10-13, DevFlow #16 D8; the body above is kept as written): the milestone **Tester** runs at every milestone close in both modes — in light mode once before each release, on everything merged since its last verdict, writing `docs/reviews/release-tester.md` with its reviewed head, which the deploy gate reads.
+
 ---
 
 ## D-006 — BLOCKING / MINOR / Catastrophe taxonomy locked (UNIVERSAL, v2.0)
@@ -111,6 +115,8 @@ Full taxonomy in `permission-matrix.md` §11.
 **Mitigation:** PASS verdicts WITHOUT `file:line` evidence are automatically demoted to BLOCKING (no false-pass surface). All BLOCKING findings need an attached evidence path.
 
 **Revisit when:** A milestone closes with a new BLOCKING class not covered.
+
+**Amended at `v7.1`** (DevFlow v7.1's text for this record's Decision, kept as an amendment so the body above stays as written, B.2): Review verdicts (the Code-Reviewer, the milestone Tester, the Security-Reviewer), Quality Gate verdicts (Stage 4.1, when on) and the release security review (Stage 5.1) MUST use these categories: **The categories are `permission-matrix.md` §11** — BLOCKING, MINOR and Catastrophe-class, with their members. That list is the only one; this record fixes that it exists and who must use it, and does not repeat it. It once did, and the two copies had drifted to nine BLOCKING classes here against fourteen there.
 
 ---
 
@@ -132,6 +138,8 @@ The full `make gate` runs before every push (`make hooks`) and at `/pre-merge`. 
 **Mitigation:** The promotion rule is in `permission-matrix.md`. The end-of-work harness diet (`/cycle-close`) retires hooks that never fired.
 
 **Revisit when:** A milestone surfaces a recurrent rule violation that would benefit from another hook.
+
+**Amended at `v7.1`** (the body above is kept as written): the shipped set is five hooks — SessionStart (the session marker `make session-check` reads); PreToolUse Write/Edit (`.env`, `.env.*`, `<x>.env`, `.envrc`); PreToolUse Bash, the pinned `.claude/hooks/bash_guard.py` (destructive git, `rm -rf` and `find -delete` outside scratch, a skipped hook, a moved protected ref, a shell write to a secrets file, `gh pr merge`/`ready`, the deploy gate); PostToolUse (`make check-fast`). Every hook sets `timeout` and `onFailure: block`, so one that cannot run blocks too.
 
 ---
 
@@ -2995,6 +3003,8 @@ changes as follows:
 
 **Amended by D-172 (2026-09-29)**: the per-milestone security seat is back, once at each milestone's closure, and never per wave.
 
+**Amended by D-199 (2026-10-15)**: the project runs on DevFlow v7.1; `make closes` stays out of `make check`, and the commit identity rule is unchanged.
+
 ## D-162 — The out-of-100 anchor is the surface's floor, and moves with it
 
 **Status:** accepted -- **ruled by the owner 2026-09-23** (asked in Turkish whether the reference
@@ -3456,6 +3466,8 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
 
 **Amended by D-187 (2026-10-08)**: an understood question is answered from the closest board, never "not measured"; the note and the question back stay for input that is not a search.
 
+**Amended by D-203 (2026-10-16)**: clause 3 -- the wording tier also holds small talk, text with no meaning and a dictated answer, measured on a fresh held-out set (#66).
+
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
 **Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
@@ -3598,6 +3610,7 @@ network surface (B1, M1) and the closure seat reads it again.
 **Revisit when:** a wave's defect that a slice pass would have caught reaches the owner, or anything
 deploys beyond the owner's Mac.
 
+**Amended by D-199 (2026-10-15)**: in heavy mode the Tester runs once per milestone, on the plan's last wave, not per wave; the security seat stays at each milestone's closure, and also runs where `make review-need` flags a change.
 
 ## D-173 — The engine's backlog decisions: stable ties, guards by id, an accessibility loss guard, bounds at refresh, a compressed boards route
 
@@ -5122,3 +5135,187 @@ by a review or a Tester and each a place where a check passes because it does no
 
 **Revisit when:** #242 moves the compiled rules to allowlists, #243 runs the compiled gate in CI, or a
 review finds a check here passing on something it does not read.
+
+## D-199 — The project runs on DevFlow v7.1, in heavy mode, with both deploy commands gated
+
+**Status:** accepted -- the owner asked for the upgrade (2026-10-14, translated from Turkish: *"we have
+reached DevFlow 7.1, we will upgrade our flow for it"*) and chose in session (2026-10-15): merge the Bash
+guard, heavy mode, gate both deploy commands · **Date:** 2026-10-15 · **Amends:** D-161, D-172.
+
+**Context.** DevFlow moved from v6.6 to v7.1 through v6.7 and v7.0:
+- a SessionStart marker and `make session-check`;
+- two working modes, with the reviews computed by `make review-need`, and the Tester once per milestone in heavy mode;
+- a deploy gate and `make deploy-check`;
+- the Bash guard as a pinned file;
+- a ledger whose row kinds come from a legend;
+- the brief's version checked (`V1`) and the process log's session numbers (`S1`).
+
+The project had grown its own copy of several of these: a pinned guard file (M21), project kinds in the
+control-events ledger (`ruling`, `within-scope`), and inline code spans read as notation (W-015).
+`git diff v6.6 v7.1` was applied three-way, with `.github/workflows/` left out.
+
+**Decision.**
+1. **Heavy mode** (`Working mode: heavy` in the brief). A wave gets the Code-Reviewer. The Tester runs once per
+   milestone, on the plan's last wave (`docs/reviews/m{N}-tester.md`), not per wave as D-172 said; waves
+   closed before this keep their per-wave Testers. `Paths that make a change HIGH:` is `none`, so the
+   security seat stays at each milestone's closure and on the release (D-172), except where
+   `make review-need` flags a sensitive name or a new parser.
+2. **The deploy gate guards `fly deploy` and `scripts/deploy_hosted_engine.sh`.** Each is refused until
+   `docs/reviews/release-security.md` and the milestone Tester's verdict name a reviewed head with no code
+   changed after it. This is stricter than D-185 in one place: the script's `--dry-run` is refused too while
+   the verdicts are stale. QA verification is off; no runtime config file sits outside git.
+3. **One guard, merged.** v7.1's `.claude/hooks/bash_guard.py` is the base. The project's M21 rules it lacked
+   are carried in it, held by `tests/unit/test_bash_guard_bounds.py`:
+   - D-185's refusal of `fly`/`flyctl` other than read-only subcommands, and of the deploy script without
+     `--dry-run`;
+   - the refusal of writes into any work tree's `.claude/` and `.githooks/`, now run by the Write/Edit hook
+     too (`--write`);
+   - `-t` read only for cp, mv, ln and install;
+   - `python -I -S` for every hook.
+
+   Taken from v7.1 by design: `rm -rf` passes only on scratch (the temp directory, a `mktemp` result,
+   `.claude/worktrees/<name>`), resolved from every directory the command can run in. The deadline is 10 s.
+   `make guard-pin` writes the pin into both hooks. G-7 and INV-82 say so.
+4. **The ledger takes v7.1's kinds.** Rows of kind `ruling` and `within-scope`, and waves written `m<N>` or
+   `m<N>-closure`, were rewritten in place, each marked `[rewritten at the DevFlow v7.1 upgrade, D-199: ...]`:
+   - an owner's ruling became a `review` row citing R-1, or this decision for `repository-hooks`, whose fix
+     is v7.1's session marker;
+   - a `within-scope` row became a `review` row citing R-1;
+   - a milestone-wide wave became the milestone's last wave.
+
+   A wave close's skip may be ledgered under any wave of its milestone, since v7.1 has no milestone-only
+   wave shape (`scripts/wave_check.py::skip_ledger_problems`).
+5. **What stays the project's own:**
+   - `make closes` stays out of `make check` (D-161). M1-M15's closure reports, the early wave closes, and
+     the release of 2026-10-07, which had per-wave Testers and no milestone Tester, fail today's rules;
+     `wave-check-all` grades the closes.
+   - W-015 stays: inline code spans are notation to `make bootstrap-check`. `conformance/test-placeholder-allow.py`
+     writes its notation outside backticks.
+   - `conformance/test-process-version.py` grades, in an installation, only the files the manifest ships.
+     The project's records keep the version they were written under.
+   - The optional §2a of `AGENTS.md` (two agent tools) is left out, since only one tool works here.
+6. **The upgrade session cannot pass `make session-check`**, since the hook did not exist when it began, and
+   records no skip for it. The owner commits and pushes the upgrade from a terminal, and the first session
+   started in the repository after the merge passes it. The `ci.yml` half of v6.7 (a `python` container,
+   the gitleaks binary, `DEVFLOW_RUNNER`) is the owner's, with #278.
+
+**Revisit when:** DevFlow ships the next version, the owner changes the working mode, or a release needs
+the milestone Tester that `make deploy-check` now asks for.
+
+**Amended by D-200 (2026-10-15)**: clause 4 -- a `review` row citing a decision resets the three-row count, by the owner's choice; a skip row covers its own wave only, and a row for another wave of the milestone counts only when the upgrade moved it there from a milestone-only id.
+
+**Amended by D-201 (2026-10-16)**: clause 1 -- the project runs in light mode.
+
+## D-200 — The three-row count takes v7.1's reset, and one wave's skip row covers that wave only
+
+**Status:** accepted -- the owner's choices of 2026-10-15, in session, on the v7.1 upgrade review
+(`docs/reviews/devflow-v7.1-upgrade-review.md`), translated from Turkish: BLOCKING-1 *"accept the v7.1
+meaning"*, MAJOR-1 *"exact matching for new closes"* · **Date:** 2026-10-15 · **Amends:** D-199.
+
+**Context.** The upgrade's Code-Reviewer found that the ledger merge (D-199 clause 4) changed two rules
+the project had held since the M21 fixes review:
+- On `main`, only the owner's `ruling` reset a control's three-row count, and an in-scope event reset
+  nothing. In v7.1 a `review` row whose reason cites a `D-`, `P-` or `R-<n>` resets it
+  (`scripts/wave_check.py`, `ledger_findings`). The rows rewritten from `within-scope`, and the `review`
+  row a docs-only commit now needs, are such rows. Nothing checks that the cited decision exists.
+- A skip row for any wave of a milestone covered every other wave of it, so three skipped waves needed
+  one row and the three-row rule could not fire.
+
+**Decision.**
+1. **The reset is v7.1's.** A `review` row citing a decision resets its control's count, as v7.1 ships it;
+   the owner's ruling of 2026-10-10 that only the owner's ruling resets a count is replaced. The rewritten
+   rows stay as they are. The cost is accepted: one `review` row citing any id clears a struck control, and
+   only a reader of `docs/control-events.csv` sees it.
+2. **One wave's skip row covers that wave only.** A row for another wave of the same milestone counts only
+   when it carries the upgrade's marker for a milestone-only id (``[rewritten at the DevFlow v7.1 upgrade,
+   D-199: wave was `m<N>` ``), which is what such a row covered on `main`. Held by
+   `tests/unit/test_wave_check_m21_rules.py::test_a_row_for_another_wave_of_the_milestone_does_not_count`.
+
+**Rationale.** Keeping v7.1's reset unforked lets the next upgrade apply the ledger rules without a
+merge; the per-wave widening was the project's own reading, and it cost the three-row rule its signal.
+
+**Mitigation if violated.** A control bypassed again and again is never put under review: the ledger
+would show a run of bypasses, each followed by a `review` row that addresses something else.
+
+**Revisit when:** a struck control is cleared by a `review` row whose cited decision does not exist or
+does not address it, or DevFlow answers the field finding that a resetting `review` row should cite a
+decision that exists.
+
+## D-201 — The project runs in light mode
+
+**Status:** proposed
+**Owner ruling:** 2026-10-16, in chat, for run product-night
+**Date:** 2026-10-16 · **Amends:** D-199 (clause 1).
+
+**Decision:** `Working mode: light` in `docs/project-brief.md`. Work goes issue by issue (`/fix-issue`, `/work-enhancement`), each a red test, the change, `make gate` and one draft PR. No Code-Reviewer runs per change. The Security-Reviewer runs when `make review-need` says so and before every deploy. The milestone Tester runs once before a release, on everything merged since its last verdict (`docs/reviews/release-tester.md`).
+
+**Rationale:** The owner asked (translated from Turkish) for the run to put "less process, more product" first: ranking the right models for the right question, in an app the owner can test on the phone. Heavy mode's per-wave review rounds took two days on one upgrade.
+
+**Mitigation if violated:** A change lands with no independent code review. The red-to-green test per change, `make gate`, the security seat where the signals point, and the Tester before release are what hold it.
+
+**Revisit when:** a light-mode change reaches the owner broken in a way a code review would have caught, or the owner turns heavy mode back on.
+
+## D-202 — The product run: the right models for the right question, on the owner's iPhone
+
+**Status:** proposed
+**Owner ruling:** 2026-10-16, in chat, for run product-night
+**Date:** 2026-10-16
+
+**Decision:** The owner's answers (translated from Turkish):
+1. **Scope:** ranking correctness, non-English questions (#218, #273), input that is not a model search (#66), and an app that works on the phone. All four are in the run.
+2. **What "right" means:** each question in a golden set expects a surface and a top 3, both derived from the measurements on the published boards. The agent drafts 30 to 50 questions, and the owner corrects them in the morning. A question whose answer is not settled is marked `disputed`, and the tests put no hard expectation on it.
+3. **Test path:** the owner installs from Xcode on their own iPhone.
+
+Defaults the agent took, because the owner was asleep (run rule: an unanswered question takes its default, written down):
+4. A build running on a physical device with no local engine override talks to the hosted engine, not to loopback, which a phone can never reach.
+5. When the engine cannot be reached, the app shows the last answer it received for that question's surface, kept in Caches and dated, instead of the failure sentence. Nothing is bundled as fixture data, as REQ-APP-001 requires.
+6. A new reading rule (#218, #273, #66) is measured on a fresh held-out set written by an independent seat, as D-191 and D-196 require. A rule that does not beat the shipped one on that set is not shipped; the measurement is recorded instead.
+7. Nothing deploys and nothing is uploaded to TestFlight in the run.
+
+**Rationale:** The owner wants to pick up the app in the morning and judge its rankings on the phone. The golden set makes "right" checkable at all; until now nothing tested a real question against a top N.
+
+**Mitigation if violated:** If the golden expectations are wrong, the tests hold the wrong answer in place. The owner's morning review of the set, and the `disputed` mark, are the guard against that.
+
+**Revisit when:** the owner corrects the golden set, or a fresh held-out measurement shows a shipped rule is worse than the one before it.
+
+**Amended by D-204 (2026-10-17)**: clause 6 -- the owner ships #273, #218 and #301 although each scored the same as the shipped rule on the fresh set.
+
+## D-203 — The wording tier holds small talk, text with no meaning and a dictated answer (#66)
+
+**Status:** proposed -- the agent's, in run product-night under D-202 clause 6, for the owner's review
+**Date:** 2026-10-16 · **Amends:** D-169 (clause 3).
+
+**Decision:** On a device without Apple Intelligence, the wording tier holds three more kinds of input as not a search, so the screen shows the owner's guiding note (D-169 clause 4) or asks back, instead of a ranking:
+1. small talk: greetings and how-are-you lines, in English and Turkish;
+2. text with no meaning: placeholder Latin, or one word repeated three or more times;
+3. a dictated answer: "write nothing else" and its Turkish form count as an order to the app.
+
+The on-device model's schema, `RoutingOutcome` and every gate are unchanged.
+
+**Rationale:** On the fresh held-out set `reading_heldout_m23` (168 rows, written by an independent seat the implementer never saw; `docs/research/reading-wave-m23-probe.md`), the rule catches 11 of 72 non-searches against the shipped 10. It keeps 65 of 96 searches right, and holds or asks no real search. No language group loses a search. It meets D-202 clause 6's bar. On the tuning sets it catches 36 of 50 against 29.
+
+**Mitigation if violated:** A real model search phrased like small talk gets the note instead of a ranking. "Change" on the screen still lets the reader pick a surface. The fresh set had no such case.
+
+**Revisit when:** a genuine search is reported held, or the next fresh set shows the gain does not carry. The margin was one row, in English only. 61 of 72 non-searches are still ranked on the wording tier, so D-169 clause 6's 80 % bar stays the on-device model's.
+
+## D-204 — The owner's answers to run product-night's stops and open questions
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat, for run product-night
+**Date:** 2026-10-17 · **Amends:** D-202 (clause 6, for #273, #218 and #301 only).
+
+**Decision:** The owner's answers (translated from Turkish):
+1. **#298 (#273) and #299 (#218) ship.** On the fresh held-out set they scored the same as the shipped rule, which D-202 clause 6 alone would hold back. The owner ships them anyway: neither loses a search, and #273 turns 5 confident readings in other languages into "not measured".
+2. **#303 (#301) ships.** `quantum` and `kuantum` are expert words. The rule moves 1 of 1247 probe questions from wrong to right and loses none, and every earlier independent held-out set labels quantum questions `expert`.
+3. **D-203 is approved** as written. It is accepted when this ADR is.
+4. **Light mode decides this stack's reviews** (D-201). #288, #66 and #289 merge with the security verdicts they have and no Code-Reviewer. #290 is merged before #291 (the integration delta review's M1).
+5. **The golden snapshot stays in the repository** with its CC-BY-NC-4.0 SWE-bench data. It is a test-target fixture only, it carries its attribution, and the engine already serves the same data on `/v1`.
+6. **The guard fixes wait for DevFlow 7.1.2.** #282–#287 and v7.1.1's remaining guard fixes are taken after that upgrade, as one small PR that the owner applies.
+
+The three PRs are stacked on the integration PR (#291), so the owner merges #281, #290 and #291 only.
+
+**Rationale:** The owner wants the app in hand. A rule that loses nothing on the fresh set and is right on the older sets is worth more shipped than parked.
+
+**Mitigation if violated:** If a shipped rule turns out worse, the next fresh held-out set shows it, and D-202's "Revisit when" reopens it.
+
+**Revisit when:** the next fresh held-out set is written, or DevFlow 7.1.2 lands.

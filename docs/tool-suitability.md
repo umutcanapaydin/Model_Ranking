@@ -6,7 +6,7 @@
 
 ## Strong fit — Delegate freely (Risk tier LOW)
 
-Tasks where AI agents perform reliably with light review. The Stage 3 per-wave Code-Reviewer + Tester is sufficient. The Quality Gate (Stage 4.1), when on, runs standard checks; the release Security review (Stage 5.1) is light at this tier.
+Tasks where AI agents perform reliably with light review. The per-wave Code-Reviewer, and the milestone Tester, are sufficient. The Quality Gate (Stage 4.1), when on, runs standard checks; the release Security review (Stage 5.1) is light at this tier.
 
 - Test generation (unit + integration)
 - Documentation updates (README, changelog, inline comments, ADR drafts via `/log-decision`)
@@ -25,7 +25,7 @@ Tasks where AI agents perform reliably with light review. The Stage 3 per-wave C
 
 ## Medium fit — Delegate with stronger spec + review (Risk tier MEDIUM)
 
-Tasks where AI agents work but human oversight matters. Stage 3 per-wave Code-Reviewer + Tester necessary. The Quality Gate, when on, must be thorough. The release Security review (Stage 5.1) runs SAST opportunistically; a security-touching wave may pull a security pass forward (HIGH-risk trigger).
+Tasks where AI agents work but human oversight matters. The per-wave Code-Reviewer and the milestone Tester are necessary. The Quality Gate, when on, must be thorough. The release Security review (Stage 5.1) runs SAST opportunistically; a security-touching wave may pull a security pass forward (HIGH-risk trigger).
 
 - Multi-file feature implementation (>2 files, cross-module)
 - Performance improvements (require profiling validation)
@@ -41,7 +41,7 @@ Tasks where AI agents work but human oversight matters. Stage 3 per-wave Code-Re
 
 ## Weak fit — Senior human review mandatory (Risk tier HIGH)
 
-Tasks where AI agents have known high failure rate. Stage 3 per-wave Code-Reviewer + Tester and the Stage 5.1 release Security review (plus the Quality Gate, when on) are necessary but **not sufficient**. Per permission-matrix §11, ANY change in these categories without senior human review is automatic BLOCKING.
+Tasks where AI agents have known high failure rate. The per-wave Code-Reviewer, the milestone Tester and the Security-Reviewer on every flagged slice and deploy (plus the Quality Gate, when on) are necessary but **not sufficient**. Per permission-matrix §11, ANY change in these categories without senior human review is automatic BLOCKING.
 
 - **Authentication / authorization logic.** Lovable CVE-2025-48757 lesson; Veracode 45% finding.
 - **Cryptography.** Hand-rolled crypto is almost always wrong; AI doubles the risk.
@@ -70,7 +70,7 @@ Risk tier HIGH milestone gates:
 ### Stage 1 (every milestone plan)
 - For each REQ-ID, classify Strong / Medium / Weak fit.
 - Milestone overall risk tier = highest task in it.
-- Risk tier drives the Stage 3 per-wave review (Code + Tester; HIGH adds a security pass) + the Stage 5.1 release Security-Reviewer scan depth + senior-review gate.
+- Risk tier and `make review-need` drive the reviews (Code-Reviewer per wave, Tester per milestone, security by signal) + the Stage 5.1 release Security-Reviewer scan depth + senior-review gate.
 
 ### When ambiguous
 - Default UP. "Medium-but-could-be-Weak" → Weak.

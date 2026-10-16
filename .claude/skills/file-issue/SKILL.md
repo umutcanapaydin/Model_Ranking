@@ -14,9 +14,8 @@ description: Use the moment you find a problem outside the scope of what you are
    review id, or the session).
 3. **Only labels that already exist** — see `.agents/rules/issues.md`. A label nobody created is
    a label no skill and no CI rule will ever match.
-4. If `/fix-issue` could safely handle it, say so in the body.
-5. **Do not start fixing it here.** You are in the middle of something else; that is why this
+4. **Do not start fixing it here.** You are in the middle of something else; that is why this
    skill exists.
-6. **It is not filed until it is triaged.** When the task you are in ends, run `/triage-issue`
+5. **It is not filed until it is triaged.** When the task you are in ends, run `/triage-issue`
    on it — inside a wave, `/close-wave` step 6 does it for everything the wave filed. An issue
    with no `Triage verdict:` line is one no lane will pick up; `/start-session` lists them.

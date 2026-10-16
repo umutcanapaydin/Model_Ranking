@@ -53,7 +53,7 @@ PY = next((str(p) for p in (PKG / ".venv" / "bin" / "python", PKG / ".venv" / "S
 # The tests print to a pipe this runner reads. Both ends are UTF-8, whatever the console's code page:
 # on a cp1254 console a test printing a character outside it died mid-report, and the runner filed
 # the traceback as the test's verdict.
-CHILD_ENV = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+CHILD_ENV = {**{k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}, "PYTHONIOENCODING": "utf-8"}
 
 
 def discover_tests() -> list[tuple[str, str]]:
@@ -128,6 +128,25 @@ def leg_tokens(leg: str, body: str, seen: set[str] | None = None) -> set[str]:
     for prereq in prereqs:
         tokens |= leg_tokens(prereq, body, seen)
     return tokens
+
+
+CI_MARK = re.compile(r"^#[ \t]*ci:[ \t]*(?:job[ \t]+([\w-]+)|none[ \t]+--[ \t]+(\S.{11,}))[ \t]*$", re.M)
+
+
+def ci_marker(target: str, body: str) -> tuple[str, str] | None:
+    """A target's own declaration of its CI caller, read from the comment block under it:
+
+        # ci: job <name>          -- that job in an executing workflow is the caller
+        # ci: none -- <reason>    -- nothing in CI can run it, and the reason says why
+
+    A named entry with a written reason, beside the thing it describes -- never a list kept here.
+    `job` is verified (the job must exist); `none` must carry a reason of a sentence."""
+    rule = re.search(rf"^{re.escape(target)}:[ \t]*([^\n#]*)(?:#[^\n]*)?\n((?:[ \t].*\n|#.*\n|\n)*)",
+                     body, re.M)
+    m = CI_MARK.search(rule.group(2)) if rule else None
+    if not m:
+        return None
+    return ("job", m.group(1)) if m.group(1) else ("none", m.group(2))
 
 
 def leg_tokens_by_subtarget(leg: str, body: str) -> dict:
@@ -226,6 +245,18 @@ def caller_liveness() -> list[str]:
             called = {sub for sub in by_sub if re.search(rf"\bmake\s+{re.escape(sub)}\b", ci)}
             covered = set().union(*(by_sub[sub] for sub in called)) if called else set()
             missing = [tok for tok in missing if tok not in covered]
+        # What is still missing may belong to a target that names its caller (`ci_marker`).
+        if missing:
+            owners = {leg: leg_tokens(leg, body)} | leg_tokens_by_subtarget(leg, body)
+            for target, toks in owners.items():
+                mark = ci_marker(target, body)
+                if not mark or not (set(missing) & set(toks)):
+                    continue
+                if mark[0] == "job" and not re.search(rf"(?m)^\s+{re.escape(mark[1])}:\s*$", ci):
+                    problems.append(f"caller-liveness: `make {target}` names CI job `{mark[1]}` as "
+                                    "its caller, and no executing workflow has that job")
+                    continue
+                missing = [tok for tok in missing if tok not in toks]
         if missing:
             problems.append(f"caller-liveness: `make {leg}` is a leg of `make gate` and nothing in "
                             f"the executing workflows runs: {', '.join(missing)}")

@@ -144,7 +144,13 @@ docs/reviews/m21-wave-2-tester.md # M21-W2: the Tester quotes its Turkish probe 
 ios/EngineTests/CreditsTests.swift      # #260: asserts the Credits screen's Turkish notices (the change made to the data, no warranty) by their words, for the reason LanguageTests does
 # #271 (D-198 clause 1): L1 reads JSON and Swift escapes since #271. These held Turkish written with escapes:
 scripts/router_probe/reading_heldout_m22_questions.json  # #237 (D-196): the live held-out set, written by an independent seat, half Turkish by design
+scripts/router_probe/reading_heldout_m23_questions.json  # run product-night (D-202 clause 6): the fresh held-out set, written by an independent seat, spent on #273, #218, #66 and #301; Turkish and nine other languages by design
 scripts/router_probe/turkish_tuning_questions.json  # #222 (D-196): the reading wave's own Turkish tuning questions, kept verbatim
 docs/research/reading-wave-m22-runs/  # #222 (D-196): the probe's runs on the wave's own Turkish sets, each row its question as run; the Turkish is the evidence
 ios/EngineTests/TurkishEmbeddingTests.swift  # #222 (D-196): asserts how Turkish questions are read, by their words, for the reason ReadingTests does
 ios/EngineTests/TurkishReadingTesterTests.swift  # the reading wave's Tester: asserts Turkish questions by their words, for the same reason
+ios/EngineTests/Golden/golden-questions.json  # #289 (D-202 clause 2): the golden question set, a third of it Turkish
+                                  # as readers type it; the Turkish questions ARE the data the router is checked on
+ios/.build/                       # #289: SwiftPM's build output (gitignored), not repository content: the test
+                                  # bundle carries its own copy of the Golden resources, golden-questions.json included
+ios/EngineTests/UnsureLanguageTests.swift  # #273, #218: asserts how questions in other languages (Kurmanji, Albanian) and short Turkish ones are read, by their words, for the reason ReadingTests does

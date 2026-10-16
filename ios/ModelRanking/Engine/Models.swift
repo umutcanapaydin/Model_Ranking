@@ -14,7 +14,7 @@
 import Foundation
 
 /// The whole response to one question.
-struct Recommendation: Decodable {
+struct Recommendation: Codable {
     let apiVersion: String
     let query: Query
     /// Both coding answers arrive here when the task is `coding` — Ruling A, frozen by D-115.
@@ -38,7 +38,7 @@ struct Recommendation: Decodable {
 /// Fetched rather than hardcoded, deliberately. The engine derives this list from CATEGORIES; a
 /// copy of it in Swift would be a second roster to keep in step, and this project has already
 /// spent two milestones on the cost of a list typed out by hand.
-struct Category: Decodable, Identifiable, Equatable {
+struct Category: Codable, Identifiable, Equatable {
     let id: String
     let title: String
     let primaryBenchmark: String
@@ -89,17 +89,17 @@ struct Category: Decodable, Identifiable, Equatable {
     }
 }
 
-struct CategoryList: Decodable {
+struct CategoryList: Codable {
     let categories: [Category]
 }
 
-struct Query: Decodable {
+struct Query: Codable {
     let task: String
     let budget: String
 }
 
 /// One surface's answer. A surface with nothing to say still arrives, carrying the reason.
-struct Answer: Decodable, Identifiable {
+struct Answer: Codable, Identifiable {
     let surface: String
     let title: String
     let primaryBenchmark: String
@@ -157,7 +157,7 @@ struct Answer: Decodable, Identifiable {
 
 /// One model's position in a surface's ranking. Carries no `label`, `why` or `trade_off`, because
 /// nothing chose it — those belong to a `Pick`.
-struct RankedModel: Decodable, Identifiable, Equatable {
+struct RankedModel: Codable, Identifiable, Equatable {
     let model: String
     let vendor: String
     let score: Double
@@ -183,7 +183,7 @@ struct RankedModel: Decodable, Identifiable, Equatable {
 }
 
 /// How fresh this surface's evidence is, on a wall clock. `notice` is the sentence a user reads.
-struct SourceHealth: Decodable, Equatable {
+struct SourceHealth: Codable, Equatable {
     let benchmark: String
     let stale: Bool
     let notice: String?
@@ -192,7 +192,7 @@ struct SourceHealth: Decodable, Equatable {
     let reason: String?
 }
 
-struct SourceRow: Decodable, Identifiable, Equatable {
+struct SourceRow: Codable, Identifiable, Equatable {
     let source: String
     let rows: Int
     let newestRunDate: String?
@@ -210,7 +210,7 @@ struct SourceRow: Decodable, Identifiable, Equatable {
 
 /// One labelled answer. `label` is the engine's, not the client's: `best_quality`, `best_value`,
 /// `budget_pick`.
-struct Pick: Decodable, Identifiable {
+struct Pick: Codable, Identifiable {
     let label: String
     let model: String
     let vendor: String
@@ -279,7 +279,7 @@ struct EngineErrorBody: Decodable {
 /// D-136's facts are open-ended by design — a new reason may carry values this build has never
 /// seen — so decoding them into a fixed struct would either drop fields or refuse payloads a
 /// newer engine sends. This keeps them, and the composition layer reads what it recognises.
-enum JSONValue: Decodable {
+enum JSONValue: Codable {
     case string(String)
     case number(Double)
     case bool(Bool)
@@ -303,6 +303,19 @@ enum JSONValue: Decodable {
             self = .array(value)
         } else {
             self = .null
+        }
+    }
+
+    /// #288: written back as it was read, so a kept answer reads the same (`KeptAnswers`).
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case let .string(text): try container.encode(text)
+        case let .number(value): try container.encode(value)
+        case let .bool(flag): try container.encode(flag)
+        case let .object(fields): try container.encode(fields)
+        case let .array(items): try container.encode(items)
+        case .null: try container.encodeNil()
         }
     }
 

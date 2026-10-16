@@ -6,3 +6,8 @@
 Makefile        text eol=lf
 *.mk            text eol=lf
 .devflow-stack  text eol=lf
+# The Bash guard is pinned by sha256 in .claude/settings.json: a CRLF checkout changes the hash
+# and every Bash call is refused. Python and JSON read the same either way, so all of them stay LF.
+*.py            text eol=lf
+*.json          text eol=lf
+.claude/hooks/* text eol=lf

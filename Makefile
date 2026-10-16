@@ -5,11 +5,14 @@
 # with `make install PYTHON=/path/to/python`. Seed C.2: pin a minimum, not a fixed version.
 # `python` is last for Windows, where the python.org installer names it so, and where `python3`
 # can be the Microsoft Store alias -- it prints an error and exits non-zero, so the version test
-# skips it rather than choosing it.
+# skips it rather than choosing it. A candidate must also be able to build a venv: Debian and
+# Ubuntu ship a system Python without `ensurepip` (python3-venv is a separate package), and on the
+# first CI run in a python:3.12 container the system python3.13 came first and `make install`
+# failed there. Such a Python is skipped, not chosen.
 PYTHON ?= $(shell \
   for v in python3.13 python3.12 python3.11 python3 python; do \
     if command -v $$v >/dev/null 2>&1; then \
-      if $$v -c "import sys; sys.exit(0 if sys.version_info >= (3,11) else 1)" 2>/dev/null; then \
+      if $$v -c "import sys, ensurepip, venv; sys.exit(0 if sys.version_info >= (3,11) else 1)" 2>/dev/null; then \
         echo $$v; break; \
       fi; \
     fi; \
@@ -60,7 +63,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need deploy-check guard-pin
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -131,7 +134,7 @@ format: install  ## black, then ruff --fix, over src and tests
 typecheck: install  ## mypy (strict) over src (another stack: STACK_TYPECHECK)
 	$(if $(ON_PYTHON),$(PY) -m mypy src,$(call bound,STACK_TYPECHECK))
 
-check: lint typecheck test check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls  ## the offline half of the gate, one leg after another (the post-edit hook runs check-fast)
+check: session-check lint typecheck test check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls  ## the offline half of the gate, one leg after another (the post-edit hook runs check-fast)
 
 coverage-floor: install  ## W-041: no module carries materially less test proof than the rest
 	@# W-041. The per-module half of the coverage gate; the global floor lives in pyproject.
@@ -317,9 +320,32 @@ shell-dialect:  ## every shipped .sh parses and declares one dialect
 	$(call need,bash,check the shell scripts)
 	@bash scripts/shell_dialect_check.sh
 
-secrets:  ## gitleaks over the working tree (install it first: INSTALL.md)
-	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks not installed: cannot scan the tree for secrets. Install gitleaks (INSTALL.md)" >&2; exit 2; }
-	gitleaks detect --source . --no-git -v
+mode:  ## this project's working mode, light or heavy (docs/project-brief.md `Working mode:`; unset: heavy)
+	@$(SYS_PY) scripts/brief_fields.py mode
+
+review-need:  ## which review a change needs: none, code-reviewer, security, or both (make review-need [RANGE=A..B])
+	@$(SYS_PY) scripts/review_need.py $(if $(RANGE),--range $(RANGE))
+
+# The deploy gate without a command, for the deploys the Bash guard never sees -- the owner's own
+# terminal, a dashboard, a TestFlight upload. The Bash guard runs the same check (scripts/deploy_gate.py)
+# on the brief's `Deploy commands:`; this is the question asked by hand, before any of them.
+deploy-check:  ## is the release security verdict and the milestone Tester's verdict current for this tree? (/going-live cites it)
+	@$(SYS_PY) scripts/deploy_gate.py --check
+
+# The Bash hook runs .claude/hooks/bash_guard.py only when its sha256 is the one .claude/settings.json
+# pins; a changed guard refuses every Bash call until the owner re-pins it here and restarts Claude Code.
+guard-pin:  ## after editing .claude/hooks/bash_guard.py: write its sha256 into .claude/settings.json (owner step; restart Claude Code)
+	@$(SYS_PY) .claude/hooks/guard_pin.py
+
+session-check:  ## inside Claude Code: did this session load the project's guards, and is core.hooksPath set? (outside it: nothing to check)
+# Claude Code loads .claude/settings.json only from the directory it was started in; started one
+# level up, every guard is off and nothing says so. The SessionStart hook leaves a marker this reads.
+# ci: none -- only a Claude Code session has a marker to check; in CI it has nothing to read
+	@$(SYS_PY) scripts/session_check.py
+
+secrets:  ## gitleaks over the files git tracks -- what a push can carry -- every match redacted (install it: INSTALL.md)
+# ci: job secret-scan
+	@$(SYS_PY) scripts/secrets_scan.py
 
 #: Every lock under requirements/ (D-177), read from the directory, so a new lock is audited unasked.
 LOCKS := $(sort $(wildcard requirements/*.lock))
@@ -404,14 +430,19 @@ smoke-deps:  ## Stage 5.2 (seed L.8): invoke EACH external dependency for real a
 	  exit 1; }
 	@bash docs/smoke-deps.sh
 
-closes:  ## every filled wave-close checklist and closure report in the tree, checked -- none is optional
-# In DevFlow this is part of `make check`. In model_ranking it is NOT (D-161): closure_check.py grades
-# every closure report by today's template, so M1-M15's fail; `wave-check-all` grades the wave closes,
-# and a closure report is checked at its own closure with `make closure-check FILE=...`.
+closes:  ## every filled wave-close checklist, closure report and run record in the tree, checked, and a reviewed release has its Tester -- none is optional
+# In DevFlow this is part of `make check`. In model_ranking it is NOT (D-161, kept at the v7.1 upgrade by
+# D-199): M1-M15's closure reports and the early wave closes fail today's rules, and the release of
+# 2026-10-07 had per-wave Testers (D-172), not a milestone Tester. `wave-check-all` grades the wave closes;
+# a closure report is checked at its own closure with `make closure-check FILE=...`; the deploy gate
+# (`make deploy-check`) holds the milestone Tester's verdict for the next release.
 	@n=0; rc=0; for f in docs/plans/m*-wave-*-close.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
 	  $(SYS_PY) scripts/wave_check.py "$$f" || rc=1; done; \
 	for f in docs/closure-report-m*.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
 	  $(SYS_PY) scripts/closure_check.py "$$f" || rc=1; done; \
+	for f in docs/plans/run-*.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
+	  $(SYS_PY) scripts/run_check.py "$$f" || rc=1; done; \
+	$(SYS_PY) scripts/closure_check.py --release-records || rc=1; \
 	echo "closes: $$n close record(s) checked"; exit $$rc
 
 closure-check:  ## check one filled milestone closure report (make closure-check FILE=docs/closure-report-mN.md)
@@ -422,11 +453,18 @@ closure-check:  ## check one filled milestone closure report (make closure-check
 	@$(SYS_PY) scripts/closure_check.py "$(FILE)"
 
 wave-check:  ## check one filled wave-close checklist (make wave-check FILE=docs/plans/mN-wave-W-close.md)
-# It refuses a file that is not a wave checklist, a close without both review verdicts, and a
-# close whose review verdict is BLOCKING.
+# It refuses a file that is not a wave checklist, a close without the review verdicts its change
+# needs (recomputed from its commit range), and a close whose review verdict is BLOCKING.
 	@test -n "$(FILE)" || { echo "usage: make wave-check FILE=docs/plans/m{N}-wave-{W}-close.md"; exit 2; }
 	@test -f "$(FILE)" || { echo "FAIL [wave-check]: $(FILE) missing -- copy docs/wave-checklist.template.md"; exit 1; }
 	@$(SYS_PY) scripts/wave_check.py "$(FILE)"
+
+run-check:  ## check one run record (make run-check FILE=docs/plans/run-<name>.md)
+# An unattended run's one record (/plan-run). It refuses a hollow or inconsistent one: a stacked
+# wave with no close record, a closed milestone with a wave still queued, a stop with no row.
+	@test -n "$(FILE)" || { echo "usage: make run-check FILE=docs/plans/run-<name>.md"; exit 2; }
+	@test -f "$(FILE)" || { echo "FAIL [run-check]: $(FILE) missing -- copy docs/run.template.md"; exit 1; }
+	@$(SYS_PY) scripts/run_check.py "$(FILE)"
 
 export-project:  ## produce an INSTALLATION from this distribution package (DEST=/path/to/project; distribution only)
 	@test -n "$(DEST)" || { echo "usage: make export-project DEST=/path/to/your-project"; exit 2; }
@@ -444,7 +482,7 @@ labels:  ## Stage 0: create the issue-label vocabulary on GitHub, once per repo 
 # Without `gh` it prints the table to create by hand, and exits 2.
 	@$(SYS_PY) scripts/create_labels.py
 
-hooks:  ## Stage 0, once per clone: a gate on every git commit and git merge (check-fast, check-red or check-docs), `make gate` before every push
+hooks:  ## Stage 0, once per clone: points core.hooksPath at .githooks -- a gate on every git commit and git merge (check-fast, check-red or check-docs), `make gate` before every push
 	$(call need,git,install the commit-msg and pre-push hooks)
 	@git config core.hooksPath .githooks
 	@echo "core.hooksPath = $$(git config core.hooksPath) -- commit-msg now runs make check-fast (check-red for a declared red test commit, check-docs for a docs-only one), pre-push runs make gate"

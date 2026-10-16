@@ -23,22 +23,30 @@ correct it.
    that never used DevFlow — it is adopted: `docs/codex-audit.md` records what exists before any
    wave changes it. Default, derived from §1 — say which fact decided it: a recorded install version
    (`.gp/installed`, or the project's own DevFlow records) → upgrade; code beyond the starter →
-   adopted; otherwise new.
+   adopted; otherwise new. One exception: `.gp/installed` already at this version and no brief yet is
+   an upgraded project writing its first brief — not another upgrade; ask on.
 2. **Milestone Quality Gate — off (default) or on?** On: every milestone close also writes a closure
    report (`docs/closure-report.template.md`) with the REQ-ID trace, coverage delta and token cost,
-   and `make closes` grades it. Off: a milestone closes on its merged waves; each wave's Tester
-   already requires a citing test for every criterion it touched. On costs time at every close; turn
-   it on for customer-facing or regulated work.
+   and `make closes` grades it. Off: a milestone closes on its merged waves; the milestone Tester
+   already requires a citing test for every criterion. On costs time at every close; turn it on for
+   customer-facing or regulated work. Heavy mode only (question 10): a light project has no
+   plans and no closure report, and this stays `off`.
 3. **A retrospective when the work is done — no (default) or yes?** One short file at the very end
    (`/cycle-close`): what went right, where we got stuck, which controls earned their place. Never
    during the work.
 4. **Which HIGH-risk areas does this project touch?** Authentication, payments, personal data,
    cryptography, irreversible migrations, regulated compliance, production deploy automation — or
-   none. A wave touching one is HIGH: it also gets a security pass, and a named senior human
-   reviews it. Default: none, until the first one appears.
+   none — and the paths that hold them, as globs (`src/auth/**, migrations/**`): `make review-need`
+   sends any change touching one to the Security-Reviewer, in either mode. Default: none, until the
+   first one appears.
 5. **Who is the senior human reviewer for those areas?** A name and a contact. Default: the owner.
-6. **Does the work end in a deploy, and where?** It decides whether Stage 5 (security review, then
-   `/going-live`) applies and what it checks against. Default: decided at the first release.
+6. **Does the work end in a deploy, and where — and which commands deploy?** The commands (`fly
+   deploy`, `./ios/install.sh`, `devicectl device install`) are what the deploy gate guards: each is
+   refused until a security review, and the milestone Tester, have seen every code change since their reviewed heads. Default:
+   decided at the first deploy; until then none is guarded. Also ask which files the deploy reads
+   that git does not track (a gitignored plist, `.env.production`, a signing profile): the brief's
+   `Runtime config files:` line, which `/going-live` opens before a deploy because no git-based
+   gate can see them. Default: `none`.
 7. **What can this repository enforce by itself?** Can it run GitHub Actions (a private repository
    on a free plan may have no minutes), and can the default branch be protected? If not, the gate on
    each developer's machine is the only enforcement: `make hooks` makes it run before every push, and
@@ -52,16 +60,34 @@ correct it.
    stays English; a product in another language names the paths that hold its copy — design files,
    localisation strings — so the English-only rule does not refuse them.
 
+10. **The working mode — heavy (default) or light?** Light: issues only — file, triage, fix; a red
+    test, the change, `make gate`, one draft PR; no Code-Reviewer; the Security-Reviewer when a
+    change needs it and before every deploy; the milestone Tester once before each release, on
+    everything merged since its last verdict. For a small product one person merges. Heavy: waves as well — `/plan-milestone`, a Code-Reviewer per wave, the Tester
+    once per milestone. Switching later is a brief change; nothing switches it by itself.
+11. **QA verification — off (default) or on?** Off: a bug closes when its fix merges, its red→green
+    test the verification. On: a person verifies on a deployed build and the `qa:` labels track it
+    (`.agents/rules/issues.md`).
+
 The owner may answer "defaults" to any or all. Never invent an answer: an unanswered question takes
 its default, written down as the default.
 
 ## 3 · Record and act
 
 - Write the answers into `docs/project-brief.md` (copy `docs/project-brief.template.md` if it does
-  not exist): every answer in its field, each default marked as one. Question 7's two lines keep the
+  not exist): every answer in its field, each default marked as one. Question 7's three lines keep the
   template's wording, with the placeholder replaced by the bare word `yes` or `no`:
-  `GitHub Actions run here:` and `The default branch can be protected:`. `make bootstrap-check`
-  reads them, and anything but `yes` counts as `no`.
+  `GitHub Actions run here:`, `The default branch can be protected:` and `make hooks installed in
+  every clone`. `make bootstrap-check` reads the first two, and anything but `yes` counts as `no`.
+  Four more lines are read by `scripts/brief_fields.py` and one by `/going-live`, so they too keep
+  the template's wording with the placeholder
+  replaced: `Working mode:` (`light` or `heavy`), `QA verification:` (`off` or `on`),
+  `Deploy commands:`, `Runtime config files:` and `Paths that make a change HIGH:` (`none`, or a
+  comma-separated list).
+- Copy `docs/EXPERIENCE.template.md` to `docs/EXPERIENCE.md` if it does not exist (Stage 0 does not
+  close without it; the first entry is written at the first milestone close). An adopted codebase
+  (question 1c): write `docs/codex-audit.md` now — what exists, from `git ls-files` and one run of
+  its tests, and which of it stays — before any issue is filed against it.
 - Question 9: write the stack, one line, to `.devflow-stack`. For a product in another language,
   add each path the owner names to `.language-allow`, one row each, with the reason:
   `design/   # the product's UI copy is Turkish; the design files quote it as it ships`.
@@ -69,8 +95,17 @@ its default, written down as the default.
   choices. Without `gh`, push the branch and hand the owner the compare URL —
   `https://github.com/<owner>/<repo>/compare/<default-branch>...<branch>?expand=1` — to open it as
   a draft.
+- **After the owner merges an install or upgrade PR, start a new session from the repository
+  root.** The session that installed the hooks predates them: `make session-check` cannot pass
+  in it, and a skip row for that is noise (`/start-session`, step 0).
 - Brand-new or adopted: the common steps in `INSTALL.md`, from naming the project in
-  `pyproject.toml` to `make bootstrap-check`, in order, then `/plan-milestone`. Without `gh`,
+  `pyproject.toml` to `make bootstrap-check`, in order, then the first work — heavy:
+  `/plan-milestone`; light: `/file-issue` one issue per requirement in `docs/prd.md`, `/triage-issue` each, then the skill each verdict names. Without `gh`,
   `make labels` prints the labels to create by hand and exits 2: hand the owner that table.
-- An upgrade: `UPGRADING.md`, and nothing else from this list until it is done.
+- An upgrade: `UPGRADING.md`, and nothing else from this list until it is done — then the new
+  session above.
 - A choice changes later: update the brief the same way. It is the one place the next agent reads.
+  A switch of working mode also re-triages the open issues whose verdict belongs to the other mode:
+  light → heavy, a `work-enhancement` verdict; heavy → light, a `wave` verdict and the open
+  container issues of an unfinished plan (their children go back to triage; the container closes
+  as not planned).

@@ -51,9 +51,11 @@ def scrubbed_env(extra: dict | None = None) -> dict:
                                timeout=10).stdout.split() or list(_GIT_LOCAL_FALLBACK)
     except (OSError, subprocess.SubprocessError):
         names = list(_GIT_LOCAL_FALLBACK)
+    # The Claude Code session id goes too: a scratch tree is not the tree the session started in, so
+    # `make session-check` would rightly refuse every one of them.
     env = {k: v for k, v in os.environ.items() if k not in names and k not in _GIT_IDENTITY
            and not k.startswith("GIT_CONFIG_KEY_")
-           and not k.startswith("GIT_CONFIG_VALUE_")}
+           and not k.startswith("GIT_CONFIG_VALUE_") and k != "CLAUDE_CODE_SESSION_ID"}
     env.update(extra or {})
     return env
 

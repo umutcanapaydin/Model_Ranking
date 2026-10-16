@@ -38,6 +38,14 @@ WHAT IT CHECKS
   Warnings (v4.3):            C2a a warning may not survive the close it was raised in
                               C2b the same control ACCEPTED 3x -> the CONTROL goes under review
                               C2c ACCEPTED without a reason and an owning milestone
+  Upgrade (v7.1):             V1 the brief's `process_version:` (docs/project-brief.md) differs
+                                 from the `gp_version:` in `.gp/installed`, or the brief declares
+                                 none while a marker exists. A tree with no `.gp/installed` is
+                                 not graded, and the output says so
+  Process log (v7.1):         S1 a session number `S<n>` used by two headings of
+                                 docs/process-log.md
+  Nested checkouts (v7.1):    a file inside ANOTHER checkout below the root (a git worktree,
+                              a submodule) belongs to that tree's own check, not this one
 
 WHAT IT DELIBERATELY DOES NOT CHECK (V4C-35 narrowness rule): prose quality, rationale truth,
 whether a review was independent, or anything a human must judge. Shape only.
@@ -729,8 +737,25 @@ def _ignored(pkg: Path) -> frozenset:
     return frozenset(x for x in r.stdout.split("\0") if x)
 
 
-def _skip(rel: Path, pkg: Path | None = None) -> bool:
+@functools.cache
+def _is_checkout(d: str) -> bool:
+    return (Path(d) / ".git").exists()
+
+
+def _nested(rel: Path, root: Path) -> bool:
+    """Is `rel` inside ANOTHER checkout below `root` -- a git worktree (`.claude/worktrees/x`), a
+    submodule, a clone? Its files belong to that tree's own check, not to this one. Derived from the
+    `.git` entry each checkout carries, not from a list of where worktrees usually go: a field
+    project's worktrees sat under `.claude/worktrees/` and turned its record check red."""
+    parts = rel.parts[:-1] if rel.parts else ()
+    return any(_is_checkout(str(root.joinpath(*parts[:i]))) for i in range(1, len(parts) + 1))
+
+
+def _skip(rel: Path, pkg: Path | None = None, root: Path | None = None) -> bool:
     if any(part in SKIP_DIRS or part.endswith(".egg-info") for part in rel.parts):
+        return True
+    base = root or pkg
+    if base is not None and _nested(rel, base):
         return True
     return pkg is not None and rel.as_posix() in _ignored(pkg)
 
@@ -1064,6 +1089,72 @@ def warning_ledger(root: Path) -> list[Finding]:
     return f
 
 
+# ── V1: the brief declares the version the tree installed ───────────────────────────────────
+# `.gp/installed` is a measurement (`write_install_marker.py`); the brief's `process_version:` is a
+# claim nothing read until v7.1. The upgrade recipe (UPGRADING.md §4) names the field; this makes
+# forgetting it visible. No marker, no grade: a hand-copied tree has M4 for that, and a project that
+# has not run `make install` yet is not lying about its version.
+BRIEF = "docs/project-brief.md"
+INSTALLED_VERSION_RE = re.compile(r"^gp_version:\s*(\S+)\s*$", re.M)
+
+
+def version_rule(root: Path) -> list[Finding]:
+    marker = root / INSTALL_MARKER
+    brief = root / BRIEF
+    if not marker.is_file():
+        print(f"(V1 not graded: no {INSTALL_MARKER} in this tree -- nothing measured what it installed)")
+        return []
+    if not brief.is_file():
+        return []                                        # /setup-project writes it; M1 does not require it
+    m = INSTALLED_VERSION_RE.search(marker.read_text(encoding="utf-8", errors="replace"))
+    if not m:
+        return [Finding(Path(INSTALL_MARKER), 1, "V1", "carries no `gp_version:` line -- a marker "
+                        "that names no version measures nothing; rerun `make install`")]
+    installed = m.group(1)
+    text = brief.read_text(encoding="utf-8", errors="replace")
+    fm = FM_RE.match(text)
+    declared = re.search(r"^process_version:\s*(\S+)\s*$", fm.group(1), re.M) if fm else None
+    line = 1
+    if declared:
+        line = text[: fm.start(1) + declared.start()].count("\n") + 1
+        if declared.group(1) == installed:
+            return []
+    return [Finding(Path(BRIEF), line, "V1",
+                    f"declares process_version `{declared.group(1) if declared else '(none)'}` while "
+                    f"{INSTALL_MARKER} measured `{installed}` -- the upgrade left the brief stale. Set "
+                    f"the brief's `process_version:` to {installed} and answer the setup questions "
+                    "that version added (UPGRADING.md §4)")]
+
+
+# ── S1: session numbers in the process log are unique ───────────────────────────────────────
+# `docs/process-log.md` is append-only, one `## S<n>` heading per session. Two agent tools writing
+# the same file used S49-S52 twice through three merges; nothing read the numbers. A duplicate is
+# reported at the second heading, with the line of the first.
+PROCESS_LOG = "docs/process-log.md"
+SESSION_HEADING_RE = re.compile(r"^#{2,4}\s*S(\d+)\b")
+
+
+def session_numbers(root: Path) -> list[Finding]:
+    log = root / PROCESS_LOG
+    if not log.is_file():
+        return []
+    seen: dict[str, int] = {}
+    f: list[Finding] = []
+    for i, line in enumerate(log.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        m = SESSION_HEADING_RE.match(line)
+        if not m:
+            continue
+        n = m.group(1)
+        if n in seen:
+            f.append(Finding(Path(PROCESS_LOG), i, "S1",
+                             f"session `S{n}` is already the heading at line {seen[n]} -- session "
+                             "numbers are unique and monotonic (two agents on one repository wrote the "
+                             "same numbers twice). Renumber this entry to the next unused number"))
+        else:
+            seen[n] = i
+    return f
+
+
 # ── L1: the repository is written in ENGLISH (V4C-79, owner directive 2026-08-12) ────────────
 # WHY. The owner works with the chair in Turkish and ships the repository to everyone else:
 # developers, other agents, and eventually customers. A repository half in one language is readable
@@ -1355,7 +1446,7 @@ def language_rule(root: Path) -> list[Finding]:
                 allow.append(body)
     f: list[Finding] = []
     for p in sorted(root.rglob("*")):
-        if _skip(p.relative_to(root)):
+        if _skip(p.relative_to(root), root=root):
             continue
         if not p.is_file() or p.is_symlink():
             continue
@@ -1485,8 +1576,11 @@ def governed_records(root: Path) -> list[Path]:
         rel = path.relative_to(root)
         # Adoption review MINOR-2: a prefix match on every segment dropped `docs/reviews/conformance-*.md`
         # and `.github/`. Fixtures are skipped only as the ROOT-level `conformance/` directory.
+        # v7.1: a file inside ANOTHER checkout below the root (a git worktree, a submodule) belongs
+        # to that tree's own check, not this one.
         if (rel.parts[:1] == ("conformance",) or any(part in {".git", ".venv", "__pycache__", "node_modules"}
-                                                     or part.startswith("general_pipeline_v") for part in rel.parts)):
+                                                     or part.startswith("general_pipeline_v") for part in rel.parts)
+                or _nested(rel, root)):
             continue
         # v5.3, TB-090 (Increment 18). This also matched by BASENAME, so the single exemption
         # entry -- written to hide a duplicate -- hid the CANONICAL copy too. Measured: the file
@@ -1846,10 +1940,44 @@ def self_test(root: Path) -> int:
         (pkg / "docs" / "cites.md").write_text(f"Enforced per `{fake}`, which nothing ratified.\n", encoding="utf-8")
         got |= {x.rule for x in rule_id_refs(probe)}                          # X5
 
+        # V1 -- a brief left at the old version by an upgrade; quiet when it matches the marker.
+        up = probe / "upgraded"
+        (up / "docs").mkdir(parents=True)
+        (up / ".gp").mkdir()
+        (up / ".gp" / "installed").write_text("gp_version: v7.1\nmanifest_sha256: 0\n", encoding="utf-8")
+        (up / "docs" / "project-brief.md").write_text(
+            "---\nrecord_type: brief\nid: project-brief\nstatus: draft\nprocess_version: v7.1\n---\n# brief\n",
+            encoding="utf-8")
+        if version_rule(up):
+            bad += 1
+            print("self-test FAIL: V1 fired on a brief that declares the installed version")
+        else:
+            print("self-test ok: probe/V1-quiet stays silent when the brief and .gp/installed agree")
+        (up / "docs" / "project-brief.md").write_text(
+            "---\nrecord_type: brief\nid: project-brief\nstatus: draft\nprocess_version: v6.3\n---\n# brief\n",
+            encoding="utf-8")
+        got |= {x.rule for x in version_rule(up)}
+
+        # S1 -- a session number used twice; quiet on distinct numbers.
+        plog = probe / "plog"
+        (plog / "docs").mkdir(parents=True)
+        (plog / "docs" / "process-log.md").write_text(
+            "# Process Log\n\n## S1 — first\n\ntext\n\n## S2 — second\n\ntext\n", encoding="utf-8")
+        if session_numbers(plog):
+            bad += 1
+            print("self-test FAIL: S1 fired on a process log whose session numbers are distinct")
+        else:
+            print("self-test ok: probe/S1-quiet stays silent on distinct session numbers")
+        (plog / "docs" / "process-log.md").write_text(
+            "# Process Log\n\n## S1 — first\n\ntext\n\n## S2 — second\n\n## S2 — again\n", encoding="utf-8")
+        got |= {x.rule for x in session_numbers(plog)}
+
         for rule, why in (("P2", "missing §0 changelog heading"),
                           ("D1", "drifted shipped-vs-live validator copy"),
                           ("C1b", "a due condition whose named artifact is absent"),
                           ("M3", "an unclassified package path (manifest rot)"),
+                          ("V1", "brief whose process_version differs from .gp/installed"),
+                          ("S1", "session number used twice in docs/process-log.md"),
                           ("C2a", "a warning that outlived its close"),
                           ("C2b", "the same control ACCEPTED three times"),
                           ("C2c", "ACCEPTED with no reason and no owning milestone"),
@@ -1901,6 +2029,8 @@ def main() -> int:
     findings += root_path_refs(root)                                  # X4
     findings += rule_id_refs(root)                                    # X5
     findings += adr_pointer_findings(root)                            # A1 (#200)
+    findings += version_rule(root)                                    # V1 (v7.1)
+    findings += session_numbers(root)                                 # S1 (v7.1)
     # G1 (v5.2, 17-8) -- FAIL CLOSED. The Security seat's ratified V5C-110 amendment #4: an empty
     # or errored derived set is a FAILURE, never a vacuous pass. It was unmet at this exact site
     # until Increment 17: a one-line edit to an in-tree `.governed-records` produced

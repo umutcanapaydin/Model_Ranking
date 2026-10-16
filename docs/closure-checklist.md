@@ -26,7 +26,7 @@ Stage 0 may not close until:
 - [ ] `.gitignore` in place and committed before the first real commit (venv/caches/`environment.md` never tracked)
 - [ ] git finished host-side (mounted-filesystem lock footgun; clear `.git/*.lock` host-side if stale — seed C.12)
 
-Then Stage 1: `/plan-milestone`. The owner approves the plan by merging its PR.
+Then the first work. Heavy mode: Stage 1, `/plan-milestone`; the owner approves the plan by merging its PR. Light mode: `/file-issue` one issue per requirement in `docs/prd.md`, `/triage-issue` each, then the skill each verdict names — light has no plans or waves, so §B does not apply, with one exception: **the milestone Tester row in B.0**. In light mode the milestone closes before a release, and the Tester runs then; §A, §D and §E apply as written.
 
 ---
 
@@ -53,21 +53,22 @@ Tick each box. Skipped on purpose: leave `[ ]` with a one-line reason in the sam
 
 ---
 
-## §B — Per-milestone closure (Stage 4)
+## §B — Per-milestone closure (Stage 4) — heavy mode; the milestone Tester row in B.0 holds in both modes
 
 ### B.0 — Every wave was closed (Stage 3)
 
 - [ ] Each implementing agent ran a per-agent **dev-test loop** on its slice (implement → write/run tests → self-review → fix)
-- [ ] Every wave was closed by `/close-wave`: **Code-Reviewer** (`docs/reviews/m{N}-wave-{W}-review.md`) **then Tester** (`docs/reviews/m{N}-wave-{W}-tester.md`), two separate fresh-eyes subagents that never wrote the wave's code, each verdict declaring `**Independent:** yes`; every acceptance criterion the wave touched has a passing citing test
+- [ ] Every wave was closed by `/close-wave` with the reviews `make review-need` computed: the **Code-Reviewer** (`docs/reviews/m{N}-wave-{W}-review.md`), the **Security-Reviewer** where the range needed one (`-security.md`), each a fresh-eyes subagent declaring `**Independent:** yes`
+- [ ] The **milestone Tester** ran once per milestone, in either mode — heavy: on the plan's last wave, across the whole milestone (`docs/reviews/m{N}-tester.md`, dispatched by `/close-wave`); light: before the release, on everything merged since its previous verdict (`docs/reviews/release-tester.md`, with its `**Reviewed head:**`; the release row in §E.1 cites it) — and every acceptance criterion has a passing citing test
 - [ ] Every wave has its committed wave-close checklist (`docs/plans/m{N}-wave-{W}-close.md` from `docs/wave-checklist.template.md`) and `make wave-check` is green on it; skips and bypasses are rows in `docs/control-events.csv`
 - [ ] Every wave's BLOCKING findings were fixed before it closed, and every MINOR/K.9/risk finding is in its checklist's findings table — fixed, filed as an issue, or refused with a reason; each wave's risk tier recorded in the plan (HIGH waves also had a security pass on the slice)
-- [ ] `/repo-review` ran across the **whole milestone** (`git diff <base of the first wave>...<default branch>`) and wrote `docs/reviews/m{N}-repo-review.md`: what no single wave could see — one fact changed in one wave and not in another, documentation drift, a rule applied in one wave and not the next. Each finding fixed (a PR) or filed with `/file-issue`, none left in the file alone
-- [ ] Every wave's draft PR was reviewed and merged by a human
+- [ ] `/repo-review` ran across the **whole milestone** (`git diff <base of the first wave>...<default branch>`; in a run, `...integration/run-<name>`, the base being the milestone's `Base` sha in `docs/plans/run-<name>.md`) and wrote `docs/reviews/m{N}-repo-review.md`: what no single wave could see — one fact changed in one wave and not in another, documentation drift, a rule applied in one wave and not the next. Each finding fixed (a PR) or filed with `/file-issue`, none left in the file alone
+- [ ] Every wave's draft PR was reviewed and merged by a human — in a run (`/plan-run`) the waves are stacked on `integration/run-<name>`, this section runs on that branch when the plan's last wave stacks, and the human merges the integration PR; the run record `docs/plans/run-<name>.md` is green on `make run-check`
 
 ### B.1 — Quality Gate (Stage 4.1) — OPTIONAL, off by default
 
-> Only if the owner turned it on in the project brief. Off: skip to B.2 — the per-wave Tester already
-> requires a citing test for every criterion a wave touched. On: every box below, plus the owner
+> Only if the owner turned it on in the project brief. Off: skip to B.2 — the milestone Tester already
+> requires a citing test for every criterion the milestone touched. On: every box below, plus the owner
 > review pack `docs/closure-report-m{N}.md`, which `make closes` grades inside `make check` and CI.
 
 - [ ] Done Evidence assembly: combine each wave's Done Evidence block into the milestone log
@@ -108,8 +109,8 @@ Runs once, after the final milestone closes, or at a release the owner calls: E.
 
 ### E.1 — Security review (Stage 5.1) — BLOCKING, before any deploy
 
-Runs once, on the whole release, before anything deploys. A fresh-eyes subagent from `.claude/agents/Security-Reviewer.md` writes its verdict to `docs/reviews/release-security.md`. **It must be PASS or MINOR before any E.2 step** (a
-MINOR's findings each fixed or filed, as `.claude/agents/Security-Reviewer.md` says); BLOCKING stops the release.
+Runs on the whole release, before anything deploys. A fresh-eyes subagent from `.claude/agents/Security-Reviewer.md` writes its verdict to `docs/reviews/release-security.md` with its `**Reviewed head:**`. **It must be PASS or MINOR before any E.2 step** (a
+MINOR's findings each fixed or filed, as `.claude/agents/Security-Reviewer.md` says); BLOCKING stops the release. Between releases, in light and heavy mode alike, the **deploy gate** holds the same line: a command listed as `Deploy commands:` in the brief is refused while any code changed after that reviewed head, or after the milestone Tester's; a delta review of `<reviewed head>..HEAD` by each closes it (`make deploy-check` prints both).
 
 - [ ] Secret scan green across all waves (gitleaks in CI and in `make gate`); no `.env`/secret committed
 - [ ] Dependency hygiene: every new dep exists on PyPI and its first release is ≥ 90 days old (`make slopsquat`) + pip-audit clean
@@ -121,6 +122,8 @@ MINOR's findings each fixed or filed, as `.claude/agents/Security-Reviewer.md` s
 - [ ] Every guard/limit/enforcement component in the release is WIRED — reachable from the live request path, proven by an end-to-end citing test ("built ≠ wired")
 - [ ] **Only if the project handles money:** integer minor units + currency end-to-end; Money type rejects float; float sweep of money modules clean
 - [ ] **Skip ledger:** every check that legitimately did NOT run for this release (contract-test self-skips, N/A rows) is a row in `docs/control-events.csv` with its reason — silent non-execution is indistinguishable from PASS
+- [ ] **The milestone Tester's verdict is current** — heavy: `docs/reviews/m{N}-tester.md` of the release's last milestone; light: `docs/reviews/release-tester.md` — either one's `**Reviewed head:**` with no code changed after it. It is the only fault injection a release gets; in the field one release went out under light mode with none, because the mode switch had cancelled the wave that carried it
+- [ ] **`make deploy-check` PASS, its output line pasted here** — the deploy gate's question with no command: are the release verdicts current for this tree? A deploy run from a dashboard, an IDE or another shell never meets the Bash guard; this row is the gate it meets. Three of four field deploys were made that way, two with no current verdict
 - [ ] **Verdict PASS or MINOR** → proceed to E.2. **BLOCKING → nothing deploys.**
 
 ### E.2 — Deploy + go-live readiness (Stage 5.2)
@@ -169,12 +172,12 @@ one.
 - [ ] If the owner wants one: `/cycle-close` writes `docs/retrospective.md` — what we did right, where we got stuck, which controls earned their place (retire what never fired; record it in `docs/watchlist.md`)
 - [ ] Final roadmap snapshot (e.g., `roadmap-final-phase{N}.md`)
 
-## §D — Stage 6: Maintenance loop (post-deploy fix waves)
+## §D — Stage 6: Maintenance loop (post-deploy fixes)
 
-Per FIX WAVE: the normal wave close applies (`/close-wave`, §B.0) + red-test intake.
+Per FIX: `/fix-issue` in either mode, with the reviews `make review-need` computes; in heavy mode a fix of several slices is a planned wave, closed by `/close-wave` (§B.0). Red-test intake either way.
 Per FIXPACK (the deploy gate — walk `docs/fixpack.template.md`):
 
-- [ ] Every fix row complete (bug ref · red test · commit · CR + Tester verdicts · gate-attribution lesson)
+- [ ] Every fix row complete (bug ref · red test · commit · the verdicts `make review-need` asked for · gate-attribution lesson)
 - [ ] Security floor: gitleaks/SCA · full invariant suite GREEN · diff-scoped read · ⛔ auto-escalation honored
 - [ ] Full regression GREEN once on the exact final bundled build
 - [ ] **Owner out-of-sandbox verification signed** (reproduce pre-fix → gone post-fix → local tests) — BLOCKING

@@ -7,24 +7,40 @@ run once per project, except the ones marked *every clone*.
 
 | Tool | Why DevFlow needs it |
 |---|---|
-| git, bash and grep | every script and the pre-push gate are bash; on Windows that is Git Bash, which ships grep. The Bash guard matches each command with grep: without it every command is refused, `BLOCKED: this guard cannot run -- grep is not on PATH (see INSTALL.md).` |
-| Python ≥3.11 | DevFlow's own tooling — the records validator, the conformance suite, the guards that read each tool call — is Python on every stack, whatever the product is written in |
+| git, bash and grep | every script and the pre-push gate are bash; on Windows that is Git Bash, which ships grep (`make bootstrap-check` and the Makefile's help use it) |
+| Python ≥3.11 | DevFlow's own tooling — the records validator, the conformance suite, the guards that read each tool call — is Python on every stack, whatever the product is written in. The Bash guard (`.claude/hooks/bash_guard.py`) needs nothing else: without a working interpreter it refuses every call |
 | GNU make | every command is a make target, and the post-edit hook runs `make check-fast` |
 | gh, the GitHub CLI | `make labels`, `make ci-liveness` and the draft pull requests the skills open. Without it, the common steps say what to do instead |
 | gitleaks | `make secrets`, a leg of `make gate`, which runs before every push |
+| Claude Code 2.1.295 or later | every hook in `.claude/settings.json` sets `"onFailure": "block"`, which Claude Code reads from 2.1.295; see below |
 
-**Claude Code 2.1.295 or later.** The Bash hook in `.claude/settings.json` sets `"onFailure": "block"`,
-which Claude Code reads from 2.1.295: there a hook that times out blocks the call. On an older version a
-timed-out hook lets the call through, and only the guard's own 5 s bound (`.claude/hooks/bash_guard.py`)
-protects. Check with `claude --version`.
+**Claude Code 2.1.295 or later.** Every hook in `.claude/settings.json` carries a `timeout` and
+`"onFailure": "block"`. A command hook that times out does not block the call on its own, and a hook
+that cannot start — a missing script, a missing interpreter — is a non-blocking error unless
+`onFailure` says `block`; that field exists from 2.1.295. On an older version the guard still refuses
+what it reads (its own catch-all exits 2), but a hook that hangs or cannot start lets the call through.
+Check with `claude --version`.
 
-**Changing the Bash guard.** The Bash hook and the Write/Edit hook run `.claude/hooks/bash_guard.py` only
-when its sha256 is the one `.claude/settings.json` pins, so a changed guard blocks every Bash call and every
-write. To change it: edit the guard, put its new sha256 (`shasum -a 256 .claude/hooks/bash_guard.py`) in both
-hooks' commands in `.claude/settings.json`, and start a new Claude Code session, since a session keeps the
-hooks it started with. A session open when such a change is pulled blocks every Bash call and every write
-until it is restarted. Agents cannot make this change: the hooks refuse their writes into the `.claude/` and
-`.githooks/` of every work tree.
+**Changing the Bash guard.** The `Bash` hook and the Write/Edit hook run `.claude/hooks/bash_guard.py`
+only when the file's sha256 is the one pinned in `.claude/settings.json`; a changed or missing guard refuses every Bash call and every write
+(`BLOCKED: .claude/hooks/bash_guard.py is not the guard the settings pin`). To change it: edit the
+guard, run `make guard-pin` **from a terminal outside Claude Code**, which writes the new sha256 into both hooks (inside it, the loaded hook hashes
+the guard before any Bash call and refuses the edited one, `make guard-pin` included; it rewrites the
+pin, and `conformance/test-hook-claims.py` fails while the pin is stale), commit both files, and if a
+Claude Code session still refuses every Bash call after that, restart it — Claude Code reloads an
+edited settings file by itself in recent versions, and the refusal line says what to do either way.
+This is the owner's step: a pull request that changes the guard is a change to the safety floor, and
+the reviewer reads `conformance/test-bash-guard.py` for what it now refuses and allows. Agents cannot make this change: the
+hooks refuse their writes into the `.claude/` and `.githooks/` of every work tree.
+
+**Permission modes.** Claude Code asks before most commands in its default mode; `permissions.allow`
+in `.claude/settings.json` names the read-only and gate commands that never ask. A session that
+nobody watches — an unattended run (`/plan-run`) — needs a mode that does not prompt: Claude Code's
+auto mode, or `--dangerously-skip-permissions` inside a sandbox. In such a session the hooks are the
+only guard, which is why they fail closed.
+
+**`.mcp.json`** names GitHub's remote MCP server (`https://api.githubcopilot.com/mcp/`): Claude Code
+asks you to sign in to it once; nothing is installed for it, and no Node is needed.
 
 ## Windows
 
@@ -129,15 +145,19 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
    git archive <tag> | tar -xf -
    ```
 
-   The `devflow` remote stays: `UPGRADING.md` applies the next version from it.
-2. **`/setup-project`**, in Claude Code. Nine questions, each with its reason and default. It writes
-   `docs/project-brief.md`, the product's stack to `.devflow-stack` and, for a product in another
-   language, the paths you name to `.language-allow`. It commits them on a branch and opens a draft
-   pull request; without `gh`, it pushes the branch and hands you the compare URL to open the draft
-   yourself. Merging it is you signing the choices.
-3. Name the project in `pyproject.toml`.
-4. `make install` — *every clone*: the venv, DevFlow's tooling and the project; it records the
-   installed version in `.gp/installed`.
+   The `devflow` remote stays: `UPGRADING.md` applies the next version from it. The tag is an
+   export — it carries `.install-lock`, which `make install-check` reads, and nothing of the
+   distribution's own tooling.
+2. **Name the project in `pyproject.toml`** — `make install` installs it under that name, and the
+   setup questions read it. An existing Python project: its `[project]` table and dependencies, and
+   the coverage paths in `[tool.pytest.ini_options]` and `[tool.coverage]` (they point at the
+   scaffold's `src/app`; point them at your package, or the floor grades the wrong code).
+3. `make install` — *every clone*: the venv, DevFlow's tooling and the project; it records the
+   installed version in `.gp/installed`, which the project commits.
+4. **The install commit, by you, in the terminal** — the one commit an agent never makes on the
+   default branch: `git add -A && git commit -m "Install DevFlow <tag>"`. A brand-new project then
+   gets its `origin` and its first push, so the next step has a branch to open a draft against:
+   `git remote add origin <your repository> && git push -u origin main`.
 5. `make hooks` — *every clone*: `make gate` runs before every push, and on every `git commit` and
    `git merge` (git runs it on neither `cherry-pick` nor `rebase`) the commit-msg gate runs one of three
    targets (`scripts/commit_gate.py`; the owner's ruling of 2026-10-10, `docs/refusals.md` R-1):
@@ -155,14 +175,28 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 6. `make labels` — once per repository: every lifecycle skill keys on the labels in
    `.agents/rules/issues.md`, and a fresh repository has none of them. Without `gh` it prints the
    table of labels to create and exits 2: create them by hand on the repository's Labels page.
-7. A stack other than `python`: bind its legs in `stack.mk`
+7. **`/setup-project`**, in a Claude Code session started in the repository root — a session that
+   begins after step 4, so the hooks it loads are the ones you committed. Eleven questions, each
+   with its reason and default. It writes `docs/project-brief.md`, copies `docs/EXPERIENCE.md` from
+   its template, writes the product's stack to `.devflow-stack` and, for a product in another
+   language, the paths you name to `.language-allow`. It commits them on a branch and opens a draft
+   pull request; without `gh`, it pushes the branch and hands you the compare URL to open the draft
+   yourself. Merging it is you signing the choices. An adopted codebase also gets its
+   `docs/codex-audit.md` here (question 1).
+8. A stack other than `python`: bind its legs in `stack.mk`
    ([Binding another stack](#binding-another-stack), below).
-8. Branch protection on the default branch (`docs/branch-protection.md`), if the brief says the
-   repository can have it. Once CI has run, `make ci-liveness` says in one line whether its latest
-   runs started any step. It is advisory: it always exits 0, and no gate runs it.
-9. `make check-fast`, then `make check` — both green. `check-fast` runs the legs of `check` side by
-   side and names every one that fails; `check` runs them in order and is the merge gate.
-10. `make bootstrap-check` until it is green, then `/plan-milestone`.
+9. Branch protection on the default branch (`docs/branch-protection.md`), if the brief says the
+   repository can have it — and the merge method it names: merge commits, never squash, so the
+   heads the review verdicts name stay in history. Once CI has run, `make ci-liveness` says in one line whether its latest
+   runs started any step. It is advisory: it always exits 0, and no gate runs it. **CI on a
+   self-hosted runner:** set the repository or organisation variable `DEVFLOW_RUNNER` to the
+   runner's label (Settings → Secrets and variables → Actions → Variables); unset, the jobs run on
+   GitHub's `ubuntu-latest`. Either way each job runs in a plain `python` container, so the two
+   behave alike. Where GitHub-hosted runners start no job (a billing limit), this is how CI runs.
+10. `make check-fast`, then `make check` — both green. `check-fast` runs the legs of `check` side by
+    side and names every one that fails; `check` runs them in order and is the merge gate.
+11. `make bootstrap-check` until it is green — it is the end of Stage 0, not its start — then the first work: `/plan-milestone` in heavy mode;
+    in light mode, `/file-issue` one issue per requirement in `docs/prd.md`, `/triage-issue` each, then the skill each verdict names.
 
 ## Installing into an existing repository
 
@@ -202,7 +236,7 @@ For each colliding path, `git show <tag>:<path>` prints DevFlow's copy.
 | `.install-lock` | **Take DevFlow's, unchanged — never regenerate it from your tree.** It records how many files each DevFlow directory shipped with; your own files only add to those counts, and `make install-check` fails only on fewer. A `.install-lock` already in your repository means DevFlow is installed here: this is an upgrade — stop, and follow `UPGRADING.md`. |
 | `docs/decisions.md` | **DevFlow's universal decisions first, yours after them.** `make bootstrap-check` requires D-001..D-007; your own ADRs keep their ids, by the reconciliation recipe in its P-001. |
 | `Makefile`, `pyproject.toml` | **Take DevFlow's, then carry yours over.** They are the gate and its tooling. Your make targets go into `stack.mk` (the Makefile includes it) or into the Makefile; a Python project's `[project]` table and dependencies go into DevFlow's `pyproject.toml`, keeping its `dev` extra and its `[tool.*]` sections. |
-| `.github/workflows/` | **A human's part** — an agent never edits workflows. Keep yours; a human adds DevFlow's `ci.yml` beside them, under another name if yours is taken. |
+| `.github/workflows/` | **A human's part** — an agent never edits workflows. Keep yours; a human adds DevFlow's `ci.yml` and `issue-agent.yml` beside them (both are in the manifest, and `make install-check` counts them), under other names if yours are taken. |
 | anything else | Keep yours, read DevFlow's, merge by hand. |
 
 A file of yours at a path that `INSTALL-MANIFEST.md` lists as GP-INTERNAL fails `make install-check`

@@ -21,10 +21,9 @@ Task: <one sentence — what we are building>
 PRD: <path or "attached" — docs/prd.md>
 
 Do, in order:
-1. Read README.md, then AGENTS.md (note the operating mode), then permission-matrix.md,
-   then .agents/rules/practices.md.
+1. Read README.md, then AGENTS.md (note the operating mode) and follow its §3.1 read order.
 2. Run `/setup-project`: ask me the setup questions and record the answers in docs/project-brief.md.
-   Then Stage 0 as the README lists it, ending with `make bootstrap-check` until green.
+   Then the rest of Stage 0 as `INSTALL.md`'s common steps list it, ending with `make bootstrap-check` until green.
    If we wrap/fork any OSS engine: docs/license-review.md FIRST (day-0 gate).
 3. BEFORE any plan or code, echo back to me in ≤10 lines:
    - the operating mode and what it means for MY touchpoints vs yours

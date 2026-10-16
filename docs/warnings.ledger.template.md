@@ -2,7 +2,7 @@
 record_type: warnings
 id: warnings-ledger-template
 status: draft
-process_version: v6.6
+process_version: v7.1
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -26,7 +26,19 @@ carries the work (`#42`): this ledger records why, the issue list is where work 
 (`.agents/rules/issues.md`, "Where a finding goes").
 
 A skipped or bypassed control is not a warning: it is a row in `docs/control-events.csv`, the one
-ledger `make wave-check` counts.
+ledger `make wave-check` counts. Its rows take these kinds, and this table is the legend
+`scripts/wave_check.py` reads -- a row whose kind is not here is a finding, not a new category:
+
+| kind | means | the reason must |
+|---|---|---|
+| `skip` | the control could not run: no environment, no trigger, N/A | say `NO-ENVIRONMENT` or what was missing, and when it last ran |
+| `bypass` | someone chose not to run it: pressure, an owner instruction, `--no-verify` by a human | say `PRESSURE` and who decided |
+| `review` | the review three skips or bypasses demand, recorded: the control was fixed, re-scoped, or found right with its cause fixed. It restarts that control's count; the rows before it stay | cite the decision -- an ADR (`D-<n>`, `P-<n>`) or a `docs/refusals.md` row (`R-<n>`). A review row that cites nothing counts nothing, and `make wave-check` refuses it |
+
+The `wave` column says where the event happened, in one of these shapes: `m<N>-w<W>` (a wave),
+`issue-<n>` (a fix or an enhancement in the issue lane), `release` (a Stage 5 gate),
+`upgrade-v<X.Y>` (a DevFlow upgrade), `setup` (Stage 0). Three field projects wrote free-form
+values there, and nothing could count by wave.
 
 ## How to use it
 

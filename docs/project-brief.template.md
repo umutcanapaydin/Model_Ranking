@@ -2,14 +2,14 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v6.6
+process_version: v7.1
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
      filename. `check_records.py` reads it; a copy without it fails R1 on the first run. -->
 # Project Brief — `<PROJECT_NAME>`
 
-> **`/setup-project` fills this.** It reads what the repository already says, asks the nine questions
+> **`/setup-project` fills this.** It reads what the repository already says, asks the eleven questions
 > in §2 in one message, and writes every answer into its field — an unanswered question takes its
 > default, written down as the default. It commits the brief on a branch and opens a draft PR; **the
 > owner merging that PR is the owner signing the choices.** A choice that changes later is updated
@@ -36,8 +36,10 @@ date: 2026-09-23
    before any wave changes it; otherwise **new**)*
 2. **Milestone Quality Gate:** `<off (default) | on>` *(on: every milestone close also writes
    `docs/closure-report-m{N}.md` with the REQ-ID trace, coverage delta and token cost, `make closes`
-   grades it, and the owner runs his own milestone test session; off: a milestone closes on its merged
-   waves, and each wave's Tester already requires a citing test for every criterion it touched)*
+   grades it, and the owner runs their own milestone test session; off: a milestone closes on its merged
+   waves, and the milestone Tester already requires a citing test for every criterion; heavy mode
+   only — a light project has no plans and no closure report; its milestone closes before a
+   release, with the milestone Tester)*
 3. **Retrospective when the work is done:** `<no (default) | yes>` *(one short file at the very end,
    `/cycle-close`, Stage 5.3 — never during the work)*
 4. **HIGH-risk areas this project touches:** *(default: none, until the first one appears; a wave
@@ -51,12 +53,19 @@ date: 2026-09-23
    - [ ] Production deploy automation
    - [ ] Wraps / forks an OSS engine *(not a question of its own: a ticked box makes
          `docs/license-review.md` required, and `make bootstrap-check` reads this line)*
+   - Paths that make a change HIGH: `<none | comma-separated globs>` *(`make review-need` sends a
+     change touching one to the Security-Reviewer, in either mode)*
 5. **Senior human reviewer for those areas:** `<name + contact>` *(default: the owner)*
 6. **Does the work end in a deploy, and where:** `<yes: target environment | no>` *(default: decided
    at the first release; it decides whether Stage 5 — security review, then `/going-live` — applies
    and what it checks against)*
+   - Deploy commands: `<none | comma-separated commands>` *(the deploy gate refuses each until a
+     security review, and the milestone Tester, have seen every code change since their reviewed heads)*
+   - Runtime config files: `<none | comma-separated paths>` *(what the deploy reads that git does
+     not track — a gitignored plist, `.env.production`, a signing profile; `/going-live` opens each
+     one before a deploy, since no git-based gate can see it)*
 7. **What this repository can enforce by itself:** *(default: assume neither until someone checks;
-   replace each placeholder with the bare word `yes` or `no` — `make bootstrap-check` reads these two
+   replace each placeholder with the bare word `yes` or `no` — `make bootstrap-check` reads the first two
    lines, and unless both say `yes`, a clone without `make hooks` fails Stage 0)*
    - GitHub Actions run here: `<yes | no>` *(a private repository on a free plan may have no minutes)*
    - The default branch can be protected: `<yes | no>` *(no: the gate on each developer's machine is
@@ -70,6 +79,14 @@ date: 2026-09-23
    - Language of its user-facing copy: `<English (default) | the language>`
    - Paths that hold that copy: `<none | the paths>` *(the repository stays English; each path goes
      into `.language-allow` with its reason — design files, localisation strings)*
+
+10. **Working mode:** `<heavy (default) | light>` *(light: issues only — file, triage, fix; no
+    Code-Reviewer; the milestone Tester once before each release, on everything merged since its
+    last verdict; heavy: waves as well — a Code-Reviewer per wave, the Tester once per milestone, on
+    the plan's last wave. The Security-Reviewer runs in both when a change needs it and before every
+    deploy. `make mode` reads this line)*
+11. **QA verification:** `<off (default) | on>` *(off: a bug closes when its fix merges; on: a person
+    verifies on a deployed build and the `qa:` labels track it)*
 
 ## 2.1 Repositories — every tree that ships something a customer can reach
 
@@ -101,7 +118,7 @@ other trees, which it cannot see.
 - **Token budget cap per milestone:** `<e.g., $5 / 500k tokens / no cap>`
 - **MCP servers beyond the GitHub default:** `<none (default) | list>` *(add only if the team uses the
   tool daily)*
-- **AGENTS.md size cap:** 150 hard cap (the template ships at ≤120) *(change only by ADR)*
+- **AGENTS.md size cap:** 150 hard cap (the template ships at ≤140) *(change only by ADR)*
 - **Subagent profiles beyond the shipped four:** `<none (default) | list>` *(a new profile is a
   candidate until it meets the graduation rule in `docs/subagents.md`)*
 
@@ -113,5 +130,6 @@ other trees, which it cannot see.
 
 **Next:** the common steps in `INSTALL.md` — `make install`, `make hooks`, `make labels`, a
 `stack.mk` for a stack other than `python`, then `make bootstrap-check` (walk
-`docs/closure-checklist.md` §0) — then `/plan-milestone`. The owner approves each milestone plan by
-merging its PR; no wave is dispatched before that.
+`docs/closure-checklist.md` §0) — then the first work. Heavy mode: `/plan-milestone`; the owner
+approves each milestone plan by merging its PR, and no wave is dispatched before that. Light mode:
+`/file-issue` one issue per requirement in `docs/prd.md`, `/triage-issue` each, then the skill each verdict names.

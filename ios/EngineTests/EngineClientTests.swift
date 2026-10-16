@@ -801,6 +801,64 @@ final class EngineAddressTests: OfflineTestCase {
     }
 }
 
+/// #288 (D-202 clause 4): a build on the owner's iPhone reaches the hosted engine unless a local override
+/// names another address; the simulator keeps the address its build was given. The device-or-simulator
+/// flag is injected, so every case runs here on the Mac.
+final class DeviceAddressTests: OfflineTestCase {
+    private let loopback = URL(string: "http://127.0.0.1:8080")!
+
+    func testADeviceBuildWithNoOverrideTalksToTheHostedEngine() {
+        // The tracked xcconfig gives a Debug build loopback, which a phone can never reach.
+        XCTAssertEqual(EngineClient.address(configured: EngineClient.engineURL(from: "http://127.0.0.1:8080"),
+                                            onDevice: true), EngineClient.hosted)
+        for raw in ["http://localhost:8080", "http://[::1]:8080", "http://127.0.0.2:8080", "http://LOCALHOST"] {
+            XCTAssertEqual(EngineClient.address(configured: EngineClient.engineURL(from: raw), onDevice: true),
+                           EngineClient.hosted, raw)
+        }
+    }
+
+    func testADeviceBuildWithAnUnusableAddressTalksToTheHostedEngine() {
+        // An address that is not one falls back to loopback (`engineURL(from:)`); on a phone that is the
+        // failure sentence and nothing else, so the phone asks the hosted engine instead.
+        for raw: String? in [nil, "", "not a url", "$(ENGINE_URL)", "http://:8080"] {
+            XCTAssertEqual(EngineClient.address(configured: EngineClient.engineURL(from: raw), onDevice: true),
+                           EngineClient.hosted, raw ?? "nil")
+        }
+    }
+
+    func testADeviceBuildWithAnOverrideTalksToTheOverride() {
+        for raw in ["http://My-Mac.local:8080", "http://192.0.2.26:8080", "https://engine.example"] {
+            let configured = EngineClient.engineURL(from: raw)
+            XCTAssertEqual(EngineClient.address(configured: configured, onDevice: true), URL(string: raw), raw)
+        }
+    }
+
+    func testTheSimulatorKeepsTheAddressItsBuildWasGiven() {
+        XCTAssertEqual(EngineClient.address(configured: EngineClient.engineURL(from: "http://127.0.0.1:8080"),
+                                            onDevice: false), loopback)
+        XCTAssertEqual(EngineClient.address(configured: EngineClient.engineURL(from: nil), onDevice: false), loopback)
+        let override = EngineClient.engineURL(from: "http://My-Mac.local:8080")
+        XCTAssertEqual(EngineClient.address(configured: override, onDevice: false), override)
+    }
+
+    func testTheHostedEngineIsTheReleaseAddressOverHttps() {
+        XCTAssertEqual(EngineClient.hosted.absoluteString, "https://model-ranking.fly.dev")
+        XCTAssertEqual(EngineClient.hosted.scheme, "https")
+        // A Release build is given the hosted address; on a device it stays there.
+        let release = EngineClient.engineURL(from: "https://model-ranking.fly.dev")
+        XCTAssertEqual(EngineClient.address(configured: release, onDevice: true), EngineClient.hosted)
+    }
+
+    func testTheAppsClientUsesTheChosenAddress() {
+        XCTAssertEqual(EngineClient(onDevice: false).baseURL,
+                       EngineClient.address(configured: EngineClient.localDefault, onDevice: false))
+        XCTAssertEqual(EngineClient(onDevice: true).baseURL,
+                       EngineClient.address(configured: EngineClient.localDefault, onDevice: true))
+        XCTAssertEqual(EngineClient(onDevice: true).baseURL, EngineClient.hosted,
+                       "the test host's bundle carries no address, so a device client reaches the hosted engine")
+    }
+}
+
 /// A stub that answers 200, hands over the first bytes of a body, and then the transfer fails.
 private final class MidStreamFailureStub: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var failure = URLError(.timedOut)
