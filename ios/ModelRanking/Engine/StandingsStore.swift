@@ -5,9 +5,15 @@
 //  sent, as this app decoded it, with the time it arrived. Nothing the reader typed ever reaches it:
 //  its only input is a `FetchedStandings`, which stores only the fields the app decodes.
 //
+//  Since #288 (D-202 clause 5) it also keeps, in a file of its own beside the standings file, the last
+//  answer the engine sent for each surface, so a question asked while the engine cannot be reached shows
+//  that answer, dated. The surface and the budget those answers were asked for are the only things
+//  derived from the question that this file writes, and they never reach the standings file (INV-66).
+//
 //  It is the second file the client-declaration gate lets touch the file system, beside the gap
 //  register in `FrontDoor.swift`, and each file-system call below is permitted as that exact
-//  expression by the text gate (`tests/unit/test_router_hints.py`, D-167 clause 4).
+//  expression by the text gate (`tests/unit/test_router_hints.py`, D-167 clause 4). Both files this
+//  store keeps go through the one read and the one write below.
 
 import Foundation
 
@@ -55,10 +61,7 @@ public struct StandingsStore {
     /// The stored standings, or nil when nothing usable is stored: an absent, unreadable or
     /// undecodable file is nothing stored, never a crash.
     func load() -> LoadedStandings? {
-        // Security S1: the read below fetches an https address as happily as a file. A store is
-        // only ever a file on this device, so anything else is refused before it is touched.
-        guard url.isFileURL,
-              let data = try? Data(contentsOf: url),
+        guard let data = contents(),
               let stored = try? JSONDecoder().decode(StoredStandings.self, from: data),
               let fetched = try? FetchedStandings(payload: stored.payload)
         else { return nil }
@@ -70,9 +73,26 @@ public struct StandingsStore {
     /// Best effort, like the gap register: a store that cannot be written costs a download, never
     /// the reader's answer.
     func save(_ fetched: FetchedStandings, at date: Date) {
-        guard url.isFileURL, let data = try? JSONEncoder().encode(
+        guard let data = try? JSONEncoder().encode(
             StoredStandings(fetchedAt: date, payload: fetched.payload)
         ) else { return }
+        replaceContents(with: data)
+    }
+
+    /// The store's file, or nil when it is absent or empty. The one read in this file.
+    private func contents() -> Data? {
+        // Security S1: the read below fetches an https address as happily as a file. A store is
+        // only ever a file on this device, so anything else is refused before it is touched.
+        guard url.isFileURL,
+              let data = try? Data(contentsOf: url),
+              !data.isEmpty
+        else { return nil }
+        return data
+    }
+
+    /// The one write in this file, to the store's own file and only when it is a file (Security S1).
+    private func replaceContents(with data: Data) {
+        guard url.isFileURL else { return }
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true
         )
@@ -127,4 +147,100 @@ func staleCopyDays(fetchedAt: Date?, now: Date) -> Int? {
     let age = now.timeIntervalSince(fetchedAt)
     guard age >= StandingsStore.maxAge else { return nil }
     return Int(age / 86_400)
+}
+
+/// #288 (D-202 clause 5): one answer the engine sent, kept so that it can be shown, dated, while the
+/// engine cannot be reached. What is written for it, and nothing else.
+struct KeptAnswer: Codable, Equatable {
+    /// The route that sent it (`KeptAnswers.recommendationsRoute` or `KeptAnswers.categoriesRoute`).
+    let route: String
+    /// The surface and the budget the request carried, the two values `/v1/recommendations` is sent
+    /// (REQ-RTR-004); both empty for the surfaces' list, which is asked with neither.
+    let task: String
+    let budget: String
+    /// When it arrived, by this store's clock.
+    let fetchedAt: Date
+    /// The answer as the app decoded it, encoded again (`KeptAnswers.payload`), so a field the app does
+    /// not decode is never kept.
+    let payload: Data
+}
+
+extension StandingsStore {
+    /// How many answers are kept: more than the engine has surfaces, so each surface keeps its own,
+    /// and few enough that the file stays small. The oldest goes first.
+    static let maxKeptAnswers = 32
+
+    /// How long an answer is kept: as long as it may stand in (`KeptAnswers.maxAge`, a week) and no
+    /// longer, so the file is not a dated history of the surfaces asked (the #288 security review's M3).
+    /// Declared here, so the privacy sink reads no other file's state to prune by it.
+    static let maxAnswerAge: TimeInterval = 7 * 86_400
+
+    /// The largest kept answers' file this store reads (the #288 security review's M2): the file is read
+    /// whole, so one grown or planted larger is refused before it is decoded, and reads as nothing kept.
+    /// The largest answer measured on 2026-10-04 was 47,920 bytes, so 32 of them, base64 in the file,
+    /// are about 2 MB; the write side keeps the file under this ceiling too.
+    static let maxAnswersBytes = 8 * 1024 * 1024
+
+    /// The kept answers' file, beside the standings file and never the same one (INV-66). It is written as
+    /// the standings file is, through the one write below, so it has the same protection class (the
+    /// platform's default for an app's files). `.completeFileProtection`, as the gap register uses, would
+    /// widen the sink's Foundation list and the write's text pin, which is a gate edit for the owner (the
+    /// #288 security review's M3).
+    private var answersFile: StandingsStore {
+        StandingsStore(url: url.deletingLastPathComponent().appendingPathComponent("answers.json"))
+    }
+
+    /// Every kept answer, oldest first, or none when nothing usable is kept: an absent, unreadable or
+    /// undecodable file is nothing kept, never a crash.
+    func keptAnswers() -> [KeptAnswer] {
+        guard let data = answersFile.contents(), data.count <= Self.maxAnswersBytes,
+              let kept = try? JSONDecoder().decode([KeptAnswer].self, from: data)
+        else { return [] }
+        return kept
+    }
+
+    /// Keep an answer the engine just sent: the decoded answer and nothing else, keyed by the surface and
+    /// budget the engine says it answered (its `query` echo) and dated by this store's clock. No string,
+    /// bytes or date of the caller's reaches the file, so a caller cannot keep what the reader typed (the
+    /// #288 security review's MJ1; #170's rule for the standings' date).
+    func keep(_ recommendation: Recommendation) {
+        guard let payload = try? JSONEncoder().encode(recommendation) else { return }
+        store(KeptAnswer(route: KeptAnswers.recommendationsRoute,
+                         task: recommendation.query.task, budget: recommendation.query.budget,
+                         fetchedAt: Date(), payload: payload))
+    }
+
+    /// Keep the surfaces' list the engine just sent, which is asked with no surface and no budget.
+    func keep(_ categories: [Category]) {
+        guard let payload = try? JSONEncoder().encode(categories) else { return }
+        store(KeptAnswer(route: KeptAnswers.categoriesRoute, task: "", budget: "", fetchedAt: Date(), payload: payload))
+    }
+
+    /// Answers past `maxAnswerAge` or dated ahead are dropped, and a newer answer for the same route,
+    /// surface and budget replaces the older one; past
+    /// `maxKeptAnswers`, or past `maxAnswersBytes` once encoded, the oldest is dropped, so the store never
+    /// writes a file it would refuse to read; an answer too large to keep on its own is not kept. Best
+    /// effort, like the standings.
+    private func store(_ entry: KeptAnswer) {
+        var kept = keptAnswers()
+        // M3: every write drops what can no longer be shown, past its week or dated ahead of the clock.
+        let now = entry.fetchedAt
+        kept.removeAll {
+            let age = now.timeIntervalSince($0.fetchedAt)
+            return age < 0 || age >= Self.maxAnswerAge
+        }
+        kept.removeAll { $0.route == entry.route && $0.task == entry.task && $0.budget == entry.budget }
+        kept.append(entry)
+        while kept.count > Self.maxKeptAnswers {
+            kept.removeFirst()
+        }
+        while let data = try? JSONEncoder().encode(kept) {
+            if data.count <= Self.maxAnswersBytes {
+                answersFile.replaceContents(with: data)
+                return
+            }
+            guard kept.count > 1 else { return }
+            kept.removeFirst()
+        }
+    }
 }

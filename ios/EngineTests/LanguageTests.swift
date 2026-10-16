@@ -725,3 +725,28 @@ final class EffortNameTests: OfflineTestCase {
         XCTAssertEqual(effortName("ultra", .turkish), "ultra", "a level this build does not know keeps its name")
     }
 }
+
+/// #288 (D-202 clause 5): the line over a kept answer says the day the engine sent it, in the reader's
+/// language, so an old answer never reads as today's.
+final class KeptAnswerLineTests: OfflineTestCase {
+    func testTheKeptAnswerSaysTheDayItArrivedInTheReadersLanguage() {
+        let arrived = Date(timeIntervalSince1970: 1_792_100_000)  // 2026-10-15, 21:33 UTC
+        let utc = TimeZone(identifier: "UTC")!
+        XCTAssertEqual(UIText.keptAnswer(fetchedAt: arrived, timeZone: utc, .english),
+                       "The engine could not be reached, so this is the answer it gave on 2026-10-15.")
+        XCTAssertEqual(UIText.keptAnswer(fetchedAt: arrived, timeZone: utc, .turkish),
+                       "Motora ulaşılamadı; bu, motorun 2026-10-15 tarihinde verdiği cevap.")
+    }
+
+    /// Found by running it in the simulator: an answer kept at 00:33 in Istanbul said the day before,
+    /// the UTC day, so an answer minutes old read as yesterday's. The day is the reader's own.
+    func testTheDayIsTheReadersOwnDay() {
+        let arrived = Date(timeIntervalSince1970: 1_792_100_000)  // 2026-10-16, 00:33 in Istanbul
+        let istanbul = TimeZone(identifier: "Europe/Istanbul")!
+        XCTAssertEqual(UIText.keptAnswer(fetchedAt: arrived, timeZone: istanbul, .english),
+                       "The engine could not be reached, so this is the answer it gave on 2026-10-16.")
+        let losAngeles = TimeZone(identifier: "America/Los_Angeles")!
+        XCTAssertEqual(UIText.keptAnswer(fetchedAt: arrived, timeZone: losAngeles, .english),
+                       "The engine could not be reached, so this is the answer it gave on 2026-10-15.")
+    }
+}

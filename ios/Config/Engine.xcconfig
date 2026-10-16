@@ -1,9 +1,15 @@
 // M18-W1 (D-171): the engine the app talks to, read into the Info plist's `EngineURL`.
-// Loopback serves the Mac and its simulator. To run on your iPhone, create Engine.local.xcconfig
-// beside this file (git-ignored) with your Mac's name, and install the service with --lan:
+// Loopback serves the Mac and its simulator; a phone asks the hosted engine (#288). To run your iPhone
+// against your Mac instead, create Engine.local.xcconfig beside this file (git-ignored) with your Mac's
+// name, and install the service with --lan:
 //   ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080   (Debug only: Release stays hosted)
 // (`/$()/` keeps `//` from starting a comment in an xcconfig.)
 ENGINE_URL = http:/$()/127.0.0.1:8080
+// #288 (D-202 clause 4): a build for a phone says so, and the app then asks the hosted engine instead of
+// loopback, which a phone can never reach. An address of your own above, in Engine.local.xcconfig, is
+// still asked. The simulator shares the Mac's loopback and keeps it.
+ENGINE_ON_DEVICE = NO
+ENGINE_ON_DEVICE[sdk=iphoneos*] = YES
 // The app icon (M19-W5): App Store Connect refuses an upload without one.
 ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
 // The bundle id lives here, not in the project, so a personal team can override it (and set
