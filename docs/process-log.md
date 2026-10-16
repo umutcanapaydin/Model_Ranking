@@ -912,3 +912,16 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   is filed as #282: removing a parent of `.claude/` passes the guard.
 - Lesson: "every project rule kept or replaced by a stricter one" is a claim a merge cannot check on itself.
   The reviewer found the one rule that got looser by running `main`'s deleted assertions against HEAD.
+
+## 2026-10-16 — Run product-night (light): the phone, the guiding note, the golden set
+
+- Three changes are stacked on #291: #296 (#288, a device build reaches the hosted engine and keeps the last
+  answer), #300 (#66, more small talk and meaningless text get the note; 11 of 72 non-searches caught against
+  10 on the fresh set) and #302 (#289, 49 golden questions with a top 3 derived from a pinned snapshot).
+- Three reading rules are stops (#298, #299, #303). On the fresh m23 set each scored the same as the shipped
+  rule, so D-202 clause 6 holds them back.
+- Fresh worktrees have no gitignored `advisor.db`, so the commit hook's `test` leg cannot run there. Copying it
+  was refused, rightly. Implementers committed red tests, and the green steps were applied in the one tree
+  that has the artifact.
+- Lesson: an implementer worktree needs everything the commit hook needs before the work starts. Decide where
+  the artifact comes from at dispatch, not when the first green commit fails.
