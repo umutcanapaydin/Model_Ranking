@@ -5278,6 +5278,8 @@ Defaults the agent took, because the owner was asleep (run rule: an unanswered q
 
 **Revisit when:** the owner corrects the golden set, or a fresh held-out measurement shows a shipped rule is worse than the one before it.
 
+**Amended by D-204 (2026-10-17)**: clause 6 -- the owner ships #273, #218 and #301 although each scored the same as the shipped rule on the fresh set.
+
 ## D-203 — The wording tier holds small talk, text with no meaning and a dictated answer (#66)
 
 **Status:** proposed -- the agent's, in run product-night under D-202 clause 6, for the owner's review
@@ -5295,3 +5297,25 @@ The on-device model's schema, `RoutingOutcome` and every gate are unchanged.
 **Mitigation if violated:** A real model search phrased like small talk gets the note instead of a ranking. "Change" on the screen still lets the reader pick a surface. The fresh set had no such case.
 
 **Revisit when:** a genuine search is reported held, or the next fresh set shows the gain does not carry. The margin was one row, in English only. 61 of 72 non-searches are still ranked on the wording tier, so D-169 clause 6's 80 % bar stays the on-device model's.
+
+## D-204 — The owner's answers to run product-night's stops and open questions
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat, for run product-night
+**Date:** 2026-10-17 · **Amends:** D-202 (clause 6, for #273, #218 and #301 only).
+
+**Decision:** The owner's answers (translated from Turkish):
+1. **#298 (#273) and #299 (#218) ship.** On the fresh held-out set they scored the same as the shipped rule, which D-202 clause 6 alone would hold back. The owner ships them anyway: neither loses a search, and #273 turns 5 confident readings in other languages into "not measured".
+2. **#303 (#301) ships.** `quantum` and `kuantum` are expert words. The rule moves 1 of 1247 probe questions from wrong to right and loses none, and every earlier independent held-out set labels quantum questions `expert`.
+3. **D-203 is approved** as written. It is accepted when this ADR is.
+4. **Light mode decides this stack's reviews** (D-201). #288, #66 and #289 merge with the security verdicts they have and no Code-Reviewer. #290 is merged before #291 (the integration delta review's M1).
+5. **The golden snapshot stays in the repository** with its CC-BY-NC-4.0 SWE-bench data. It is a test-target fixture only, it carries its attribution, and the engine already serves the same data on `/v1`.
+6. **The guard fixes wait for DevFlow 7.1.2.** #282–#287 and v7.1.1's remaining guard fixes are taken after that upgrade, as one small PR that the owner applies.
+
+The three PRs are stacked on the integration PR (#291), so the owner merges #281, #290 and #291 only.
+
+**Rationale:** The owner wants the app in hand. A rule that loses nothing on the fresh set and is right on the older sets is worth more shipped than parked.
+
+**Mitigation if violated:** If a shipped rule turns out worse, the next fresh held-out set shows it, and D-202's "Revisit when" reopens it.
+
+**Revisit when:** the next fresh held-out set is written, or DevFlow 7.1.2 lands.

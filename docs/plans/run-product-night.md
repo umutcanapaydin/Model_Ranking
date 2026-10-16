@@ -5,7 +5,7 @@ Started: 2026-10-16
 Ended: 2026-10-16 — stopped at not-assumable, nothing independent left
 Integration branch: `integration/run-product-night` · PR: #291
 Plan PR: #290
-Rulings: D-201, D-202
+Rulings: D-201, D-202, D-204
 
 ## Milestones, in order
 
