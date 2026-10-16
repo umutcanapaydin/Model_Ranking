@@ -253,6 +253,37 @@ final class KeptAnswerTests: OfflineTestCase {
         XCTAssertEqual(store().keptAnswers().count, 1, "an unreadable file stopped a new answer being kept")
     }
 
+    func testAFileOverTheCeilingIsNothingKept() throws {
+        // The security review's M2: the file is read whole, so one grown or planted large is refused
+        // before it is decoded, as a payload over its ceiling is (INV-74). Padded with JSON white space,
+        // so only the ceiling can refuse it.
+        let ceiling = StandingsStore.maxAnswersBytes
+        let valid = try JSONEncoder().encode([entry(try decoded(), at: arrived)])
+        let file = folder.appendingPathComponent("answers.json")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try (valid + Data(repeating: UInt8(ascii: " "), count: ceiling - valid.count)).write(to: file)
+        XCTAssertEqual(store().keptAnswers().count, 1, "a file at the ceiling must still be read")
+        try (valid + Data(repeating: UInt8(ascii: " "), count: ceiling - valid.count + 1)).write(to: file)
+        XCTAssertEqual(store().keptAnswers(), [], "a file over the ceiling was decoded")
+    }
+
+    func testKeepingNeverWritesAFileOverTheCeilingAndKeepsTheNewest() throws {
+        // The write side keeps the file under the same ceiling, oldest first, so an answer the store
+        // wrote is never one it then refuses to read.
+        let long = String(repeating: "x", count: 400 * 1024)
+        for index in 0..<StandingsStore.maxKeptAnswers {
+            let text = String(decoding: recommendationPayload(task: "surface-\(index)"), as: UTF8.self)
+                .replacingOccurrences(of: "No position here means anything.", with: long)
+            store().keep(try decoded(Data(text.utf8)))
+        }
+        let size = try Data(contentsOf: folder.appendingPathComponent("answers.json")).count
+        XCTAssertLessThanOrEqual(size, StandingsStore.maxAnswersBytes, "the store wrote a file it will not read")
+        let kept = store().keptAnswers()
+        XCTAssertFalse(kept.isEmpty, "the file was over the ceiling and read as nothing kept")
+        XCTAssertLessThan(kept.count, StandingsStore.maxKeptAnswers, "nothing was dropped to stay under the ceiling")
+        XCTAssertEqual(kept.last?.task, "surface-\(StandingsStore.maxKeptAnswers - 1)", "the newest answer was dropped")
+    }
+
     func testOnlyAnEngineThatCouldNotBeReachedIsStoodInFor() {
         // D-202 clause 5 says "cannot be reached": an engine that answered and refused, or sent what this
         // app cannot read, says so itself, and a cleartext refusal is a setting to fix, not an outage.

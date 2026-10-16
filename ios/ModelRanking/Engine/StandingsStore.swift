@@ -170,6 +170,9 @@ extension StandingsStore {
     /// and few enough that the file stays small. The oldest goes first.
     static let maxKeptAnswers = 32
 
+    /// The security review's M2, red: not enforced yet.
+    static let maxAnswersBytes = 8 * 1024 * 1024
+
     /// The kept answers' file, beside the standings file and never the same one (INV-66).
     private var answersFile: StandingsStore {
         StandingsStore(url: url.deletingLastPathComponent().appendingPathComponent("answers.json"))
