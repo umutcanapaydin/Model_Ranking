@@ -170,7 +170,10 @@ extension StandingsStore {
     /// and few enough that the file stays small. The oldest goes first.
     static let maxKeptAnswers = 32
 
-    /// The security review's M2, red: not enforced yet.
+    /// The largest kept answers' file this store reads (the #288 security review's M2): the file is read
+    /// whole, so one grown or planted larger is refused before it is decoded, and reads as nothing kept.
+    /// The largest answer measured on 2026-10-04 was 47,920 bytes, so 32 of them, base64 in the file,
+    /// are about 2 MB; the write side keeps the file under this ceiling too.
     static let maxAnswersBytes = 8 * 1024 * 1024
 
     /// The kept answers' file, beside the standings file and never the same one (INV-66).
@@ -181,7 +184,7 @@ extension StandingsStore {
     /// Every kept answer, oldest first, or none when nothing usable is kept: an absent, unreadable or
     /// undecodable file is nothing kept, never a crash.
     func keptAnswers() -> [KeptAnswer] {
-        guard let data = answersFile.contents(),
+        guard let data = answersFile.contents(), data.count <= Self.maxAnswersBytes,
               let kept = try? JSONDecoder().decode([KeptAnswer].self, from: data)
         else { return [] }
         return kept
@@ -205,7 +208,9 @@ extension StandingsStore {
     }
 
     /// A newer answer for the same route, surface and budget replaces the older one; past
-    /// `maxKeptAnswers` the oldest is dropped. Best effort, like the standings.
+    /// `maxKeptAnswers`, or past `maxAnswersBytes` once encoded, the oldest is dropped, so the store never
+    /// writes a file it would refuse to read; an answer too large to keep on its own is not kept. Best
+    /// effort, like the standings.
     private func store(_ entry: KeptAnswer) {
         var kept = keptAnswers()
         kept.removeAll { $0.route == entry.route && $0.task == entry.task && $0.budget == entry.budget }
@@ -213,7 +218,13 @@ extension StandingsStore {
         while kept.count > Self.maxKeptAnswers {
             kept.removeFirst()
         }
-        guard let data = try? JSONEncoder().encode(kept) else { return }
-        answersFile.replaceContents(with: data)
+        while let data = try? JSONEncoder().encode(kept) {
+            if data.count <= Self.maxAnswersBytes {
+                answersFile.replaceContents(with: data)
+                return
+            }
+            guard kept.count > 1 else { return }
+            kept.removeFirst()
+        }
     }
 }
