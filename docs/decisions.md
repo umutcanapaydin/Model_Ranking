@@ -5206,6 +5206,8 @@ the milestone Tester that `make deploy-check` now asks for.
 
 **Amended by D-201 (2026-10-16)**: clause 1 -- the project runs in light mode.
 
+**Amended by D-205 (2026-10-17)**: the project runs on DevFlow v7.1.2, in light mode; the guard is v7.1.2's file with the project's rules ported onto it.
+
 ## D-200 — The three-row count takes v7.1's reset, and one wave's skip row covers that wave only
 
 **Status:** accepted -- the owner's choices of 2026-10-15, in session, on the v7.1 upgrade review
@@ -5255,6 +5257,8 @@ decision that exists.
 
 **Revisit when:** a light-mode change reaches the owner broken in a way a code review would have caught, or the owner turns heavy mode back on.
 
+**Status:** accepted -- 2026-10-17, the owner merged the plan PR #290 (run product-night)
+
 ## D-202 — The product run: the right models for the right question, on the owner's iPhone
 
 **Status:** proposed
@@ -5280,6 +5284,8 @@ Defaults the agent took, because the owner was asleep (run rule: an unanswered q
 
 **Amended by D-204 (2026-10-17)**: clause 6 -- the owner ships #273, #218 and #301 although each scored the same as the shipped rule on the fresh set.
 
+**Status:** accepted -- 2026-10-17, the owner merged the plan PR #290 (run product-night)
+
 ## D-203 — The wording tier holds small talk, text with no meaning and a dictated answer (#66)
 
 **Status:** proposed -- the agent's, in run product-night under D-202 clause 6, for the owner's review
@@ -5297,6 +5303,8 @@ The on-device model's schema, `RoutingOutcome` and every gate are unchanged.
 **Mitigation if violated:** A real model search phrased like small talk gets the note instead of a ranking. "Change" on the screen still lets the reader pick a surface. The fresh set had no such case.
 
 **Revisit when:** a genuine search is reported held, or the next fresh set shows the gain does not carry. The margin was one row, in English only. 61 of 72 non-searches are still ranked on the wording tier, so D-169 clause 6's 80 % bar stays the on-device model's.
+
+**Status:** accepted -- 2026-10-17, approved by the owner (D-204 clause 3) and merged in #291
 
 ## D-204 — The owner's answers to run product-night's stops and open questions
 
@@ -5319,3 +5327,23 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** If a shipped rule turns out worse, the next fresh held-out set shows it, and D-202's "Revisit when" reopens it.
 
 **Revisit when:** the next fresh held-out set is written, or DevFlow 7.1.2 lands.
+
+**Status:** accepted -- 2026-10-17, the owner's ruling, merged in #291
+
+## D-205 — The project runs on DevFlow v7.1.2, in light mode
+
+**Status:** proposed -- the owner asked for the upgrade on 2026-10-17 (translated from Turkish: *"take 7.1.2 from DevFlow and finish the upgrade; we will go on in light mode"*)
+**Date:** 2026-10-17 · **Amends:** D-199.
+
+**Context.** DevFlow moved from v7.1 to v7.1.2 through v7.1.1. Both are patches: no record changes shape and no stage changes. Most of the difference is the Bash guard. v7.1.1 follows `cd`, refuses more ways of skipping a hook, and treats `$TMPDIR` as scratch only when it is set. v7.1.2 refuses `rm -r` and `mv` of a work tree or of `.git`, git aliases to writing commands, code-running config keys, and a deploy declared in another repository. The deploy gate goes to `JUDGE_PROTOCOL = 2`. Two of v7.1.1's conformance fixes were already taken in #281 (`ab8686f`). Nothing in `.github/workflows/` changed.
+
+**Decision.**
+1. **Light mode stays** (D-201). v7.1.2 moves heavy mode's security review to the milestone's end; light mode is unchanged apart from the guard.
+2. **`git diff v7.1 v7.1.2` is applied three-way.** `.github/workflows/` is left out, since it did not change. `.claude/` and `.githooks/` are left out of the agent's apply, because they are the owner's to write (AGENTS.md §5). The agent prepares that half as one patch, and the owner applies it, re-pins the guard (`make guard-pin`) and commits.
+3. **The guard is v7.1.2's file, with the project's rules ported onto it**: the M21 bounds that D-199 clause 3 carried, and the two owner patches of #281 (`b4dc1f3`, `b39bbe8`). `tests/unit/test_bash_guard_bounds.py` holds them. Each of #282–#287 is closed where v7.1.2 or the port covers it, with the test that shows it, and kept open where it does not.
+
+**Rationale:** The owner wants the guard fixes taken from DevFlow rather than written by hand (D-204 clause 6), and v7.1.2 is the version that carries them.
+
+**Mitigation if violated:** If a project rule is lost in the port, a command the project refused passes again. The bounds test and `conformance/test-bash-guard.py` both run against the new file before the owner pins it.
+
+**Revisit when:** the next DevFlow release, or a guard finding that v7.1.2 does not cover.
