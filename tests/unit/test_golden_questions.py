@@ -129,6 +129,21 @@ def test_a_hand_edited_top_three_fails_the_check_and_rederiving_restores_it(tmp_
     assert path.read_text(encoding="utf-8") == golden.QUESTIONS.read_text(encoding="utf-8")
 
 
+@pytest.mark.parametrize(("name", "broken"), [
+    ("categories.json", '{"categories": []}'),                # an emptied snapshot
+    ("golden-questions.json", '{"question": "not a list"}'),  # a golden file that is not a list
+])
+def test_a_broken_folder_exits_one_and_writes_nothing(tmp_path: pathlib.Path, name: str, broken: str) -> None:
+    """The #289 security review's M2: the error exit is what a caller reads, so it is asserted, in both modes."""
+    folder = tmp_path / "Golden"
+    shutil.copytree(golden.GOLDEN, folder)
+    (folder / name).write_text(broken, encoding="utf-8")
+    before = (folder / golden.QUESTIONS.name).read_text(encoding="utf-8")
+    assert golden.main(["--check", "--folder", str(folder)]) == 1
+    assert golden.main(["--folder", str(folder)]) == 1
+    assert (folder / golden.QUESTIONS.name).read_text(encoding="utf-8") == before
+
+
 def _strings(value: Any) -> list[str]:
     if isinstance(value, str):
         return [value]
