@@ -919,6 +919,16 @@ final class GuidingNoteTests: OfflineTestCase {
         }
     }
 
+    /// Everyday greetings, farewells and how the asker is, in both languages, typed with or without the
+    /// Turkish letters. Written for this test.
+    func testEverydayGreetingsAndFeelingsAreTheNote() async {
+        for question in ["merhabalar", "selamlar, nasılsınız?", "iyiyim sağol", "çok sıkıldım", "napıyorsun",
+                         "hoşça kal", "ne yapıyorsun bugün", "nasilsiniz", "howdy", "good afternoon", "whats up",
+                         "how's it going", "goodbye", "cheers"] {
+            await assertTheNote(question)
+        }
+    }
+
     /// Text with no meaning made of real words: placeholder Latin, and one word over and over.
     func testPlaceholderTextAndOneWordRepeatedAreTheNote() async {
         for question in ["lorem ipsum dolor sit amet", "Lorem ipsum", "the the the the the", "code code code"] {
@@ -948,7 +958,9 @@ final class GuidingNoteTests: OfflineTestCase {
                          "who are you going to recommend for coding", "bugün hangi model kod için en iyi",
                          "a model that writes the code and nothing else",
                          "the best model for the code", "projedeki uyarıları sen düzelt diyebileceğim bir ajan",
-                         "which model says nothing wrong about history", "canım bir model önerir misin"] {
+                         "which model says nothing wrong about history", "canım bir model önerir misin",
+                         "what's up with my python imports", "ne yapıyorsun diye sorunca iyi cevap veren bir sohbet botu",
+                         "a model for writing a goodbye letter", "selamlar ile başlayan bir e-posta yazacak model"] {
             let outcome = await wordingTier(question)
             XCTAssertNotEqual(outcome.reading, .notASearch, question)
             XCTAssertFalse(InputSignals.smallTalk(question), question)
