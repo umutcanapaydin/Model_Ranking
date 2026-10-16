@@ -15,7 +15,7 @@ by the same harness.
 
 ## 1. The set
 
-reading_heldout_m23_questions.json (held out of the repository until #66 is measured) was written on 2026-10-16 by an independent seat: a subagent
+`scripts/router_probe/reading_heldout_m23_questions.json` (kept out of the repository until #66 and #301 were measured; provenance: `docs/research/reading-heldout-m23-set.md`) was written on 2026-10-16 by an independent seat: a subagent
 dispatched only to write this set. It read no routing code or examples (its README lists what it did
 read). Neither rule's implementer has seen it. It holds 168 rows: 96 searches and 72 lines that are not
 a search. Labels are a surface, `a|b`, or `NOT_A_SEARCH`. No question equals or nearly equals any
