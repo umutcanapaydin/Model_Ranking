@@ -406,8 +406,10 @@ extension CategoryHints {
             id: "abstract", stems: ["puzzle", "riddle", "bulmaca", "oruntu", "sequence"],
             words: ["logic", "mantik", "mantigi"], phrases: [["comes", "next"], ["siradaki", "sayi*"]]),
         SurfaceWords(
+            // #289: quantum physics, in both languages (the golden set's "a hard question about quantum field
+            // theory" read as maths). A word with one reading in a question to this app: physics.
             id: "expert", stems: ["medical", "medicine", "lawyer", "scien", "physics", "chemistry", "biology", "tibb",
-                                  "doktor", "hukuk", "avukat", "kimya", "biyoloji", "uzman"],
+                                  "doktor", "hukuk", "avukat", "kimya", "biyoloji", "uzman", "quantum", "kuantum"],
             words: ["law", "legal", "bilim", "doctor", "expert", "fizik", "fizigi", "fizikte", "fizikten", "fizikle"]),
         SurfaceWords(
             id: "search", stems: ["internet", "arastir"],
