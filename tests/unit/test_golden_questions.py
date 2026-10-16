@@ -164,7 +164,7 @@ def test_the_golden_set_is_apart_from_the_held_out_sets() -> None:
 
 def test_the_snapshot_is_a_resource_of_the_test_target_only() -> None:
     """REQ-APP-001: the app target bundles no fixture. The Golden folder is declared on the test target."""
-    manifest = (ROOT / "ios" / "Package.swift").read_text(encoding="utf-8")
+    manifest = (ROOT / "ios" / "Package.swift").read_text(encoding="utf-8")  # raw: the manifest; the next line cuts its // comments
     code = "\n".join(line.split("//")[0] for line in manifest.splitlines())
     assert code.count("resources:") == 1
     assert code.index(".testTarget(") < code.index('resources: [.copy("Golden")]')

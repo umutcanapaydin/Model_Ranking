@@ -348,6 +348,7 @@
     "expected_surface": "expert",
     "disputed": false,
     "reason": null,
+    "known_miss": 301,
     "expected_top3": [
       "claude-5-opus",
       "claude-sonnet5.5",
