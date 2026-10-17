@@ -184,3 +184,37 @@ def test_the_snapshot_is_a_resource_of_the_test_target_only() -> None:
     assert code.count("resources:") == 1
     assert code.index(".testTarget(") < code.index('resources: [.copy("Golden")]')
     assert not list((ROOT / "ios" / "ModelRanking").rglob("golden-questions.json"))
+
+
+#: #294 (D-206 clause 3): the golden question the owner ruled disputed.
+BRAIN_MYTH = "is it true that we only use 10 percent of our brain"
+
+
+def _ruled_disputed(entries: list[dict[str, Any]], question: str) -> list[str]:
+    """What is wrong with `question`'s entry against the owner's ruling: it is disputed, it says why with both
+    surfaces it fits, and it is no known miss, since a disputed question carries no hard expectation."""
+    found = [entry for entry in entries if entry["question"] == question]
+    if len(found) != 1:
+        return [f"{len(found)} entries hold the question"]
+    entry, problems = found[0], []
+    if entry.get("disputed") is not True:
+        problems.append("it is not disputed")
+    reason = entry.get("reason") or ""
+    problems += [f"its reason does not name {surface}" for surface in ("factuality", "expert") if surface not in reason]
+    if entry.get("known_miss") is not None:
+        problems.append(f"it is still a known miss (#{entry['known_miss']})")
+    return problems
+
+
+def test_the_ten_percent_brain_question_is_disputed_between_factuality_and_expert() -> None:
+    """# covers #294, D-206 clause 3: "is it true that we only use 10 percent of our brain" fits `factuality`
+    (is a claim true) and `expert` (the claim is science) alike. The owner ruled it disputed, so the golden test
+    puts no hard expectation on it and #294 closes. Red on the set before #310, where it was a known miss."""
+    entries = json.loads(golden.QUESTIONS.read_text(encoding="utf-8"))
+    assert _ruled_disputed(entries, BRAIN_MYTH) == []
+    # The rule reads what the ruling says, and refuses the set as it stood before #310.
+    before = [{"question": BRAIN_MYTH, "expected_surface": "factuality", "disputed": False, "reason": None,
+               "known_miss": 294}]
+    assert _ruled_disputed(before, BRAIN_MYTH) == [
+        "it is not disputed", "its reason does not name factuality", "its reason does not name expert",
+        "it is still a known miss (#294)"]
