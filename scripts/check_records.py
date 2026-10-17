@@ -1446,7 +1446,11 @@ def language_rule(root: Path) -> list[Finding]:
                 allow.append(body)
     f: list[Finding] = []
     for p in sorted(root.rglob("*")):
-        if _skip(p.relative_to(root), root=root):
+        # #304 (D-206 clause 5): what git ignores AND does not track is not repository content --
+        # SwiftPM's `ios/.build/` was, until this, allowlisted whole, tracked files included. A
+        # tracked file under an ignored path is still read, and with no work tree or no working git
+        # `_ignored()` is empty, so nothing is skipped: noisier, never quieter.
+        if _skip(p.relative_to(root), pkg=root, root=root):
             continue
         if not p.is_file() or p.is_symlink():
             continue

@@ -151,6 +151,4 @@ ios/EngineTests/TurkishEmbeddingTests.swift  # #222 (D-196): asserts how Turkish
 ios/EngineTests/TurkishReadingTesterTests.swift  # the reading wave's Tester: asserts Turkish questions by their words, for the same reason
 ios/EngineTests/Golden/golden-questions.json  # #289 (D-202 clause 2): the golden question set, a third of it Turkish
                                   # as readers type it; the Turkish questions ARE the data the router is checked on
-ios/.build/                       # #289: SwiftPM's build output (gitignored), not repository content: the test
-                                  # bundle carries its own copy of the Golden resources, golden-questions.json included
 ios/EngineTests/UnsureLanguageTests.swift  # #273, #218: asserts how questions in other languages (Kurmanji, Albanian) and short Turkish ones are read, by their words, for the reason ReadingTests does
