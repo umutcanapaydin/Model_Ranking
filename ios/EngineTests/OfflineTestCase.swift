@@ -175,9 +175,37 @@ final class OfflineGuardTests: OfflineTestCase {
         _ = try? Data(contentsOf: address)
         XCTAssertEqual(OfflineGuard.drain(), [address.absoluteString, address.absoluteString])
     }
+
+    /// #279: a subclass whose `tearDown` never reaches the base's, and whose test makes one request, is
+    /// still failed for it. The planted test is run here by hand, so its failure is counted on its own
+    /// run and not on this one; this test fails when the planted one passes.
+    func testASubclassWhoseTearDownSkipsTheBaseIsStillFailedForTheRequestItMade() {
+        let planted = SkipsTheBaseTearDown(selector: #selector(SkipsTheBaseTearDown.reachForTheNetwork))
+        planted.run()
+        XCTAssertTrue(planted.tornDownWithoutTheBase, "the planted tearDown did not run")
+        XCTAssertEqual(planted.testRun?.failureCount, 1,
+                       "a test that reached for the network passed because its tearDown skipped the base (#279)")
+        XCTAssertEqual(OfflineGuard.drain(), [], "the planted test's request was left for the next test to fail")
+    }
 }
 
 /// A stub that answers nothing: every request falls past it.
 final class DecliningStub: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool { false }
+}
+
+/// #279: a subclass whose `tearDown` does not call `super`, so the base's `tearDown` check never runs
+/// for it. It is not a test XCTest discovers (its one method is not named `test…`, and the manifest
+/// does not list it): `OfflineGuardTests` builds it by selector and runs it by hand. It lives in the
+/// base's file because `tests/unit/test_swift_tests_offline.py` refuses such an override everywhere else.
+final class SkipsTheBaseTearDown: OfflineTestCase {
+    nonisolated(unsafe) var tornDownWithoutTheBase = false
+
+    override func tearDown() {
+        tornDownWithoutTheBase = true
+    }
+
+    @objc func reachForTheNetwork() {
+        _ = try? Data(contentsOf: URL(string: "https://example.invalid/279")!)
+    }
 }
