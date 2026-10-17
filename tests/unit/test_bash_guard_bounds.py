@@ -308,22 +308,29 @@ def test_rm_rf_of_a_temp_variables_own_scratch_is_allowed(guard: ModuleType, tem
 
 
 @pytest.mark.parametrize("command", [
+    'rm -rf "$(pwd)"', 'rm -rf "$(pwd -P)"', 'rm -rf "$( pwd )"',
     'pwd() { echo ~; }; rm -rf "$(pwd)"', 'function pwd { echo ~; }; rm -rf "$(pwd)"',
     'pwd() { echo ~; }\nrm -rf "$(pwd)"', "alias pwd='echo ~'\nrm -rf \"$(pwd)\"",
     'pwd() { echo ~; }; find "$(pwd)" -delete', 'pwd() { echo ~; }; rm -rf "$(pwd)/Desktop"',
+    'p""wd() { echo ~; }; rm -rf "$(pwd)"', "'pwd'() { echo ~; }; rm -rf \"$(pwd)\"",
+    "alias p''wd='echo ~'\nrm -rf \"$(pwd)\"", 'eval "p""wd() { echo ~; }"; rm -rf "$(pwd)"',
+    'f=pwd; eval "$f() { echo ~; }"; rm -rf "$(pwd)"', "eval \"$(printf 'p%sd() { echo ~; }' w)\"; rm -rf \"$(pwd)\"",
+    'enable -n pwd; PATH=/tmp/evil:$PATH; rm -rf "$(pwd)"', 'enable -n pwd; hash -p /tmp/evil/pwd pwd; rm -rf "$(pwd)"',
+    'disable pwd; PATH=/tmp/evil:$PATH; rm -rf "$(pwd)"', "functions[pwd]='echo ~'; rm -rf \"$(pwd)\"",
     'mktemp() { echo ~; }; d=$(mktemp -d); rm -rf "$d"', 'function mktemp { echo ~; }; d=$(mktemp -d); rm -rf "$d"',
     "alias mktemp='echo ~'\nd=$(mktemp -d); rm -rf \"$d\"",
 ])
-def test_a_command_that_defines_pwd_or_mktemp_is_not_trusted_on_them(guard: ModuleType, temp_dir: Path,
-                                                                     ungoverned: Path, command: str) -> None:
-    """The v7.1.2 upgrade security review's B1 and M1: from inside scratch, `$(pwd)` is the scratch directory and a
-    `mktemp` result is a new one, unless the same command defines `pwd` or `mktemp`. Then either may print the
-    home directory, so the target is not scratch."""
+def test_pwd_is_never_read_as_scratch_and_a_redefined_mktemp_is_not_trusted(guard: ModuleType, temp_dir: Path,
+                                                                            ungoverned: Path, command: str) -> None:
+    """The v7.1.2 upgrade security review's B1, B1-R and M1. v7.1.2 read `$(pwd)` as the directory the command
+    runs in, and a command can redefine `pwd` in more ways than any pattern lists (a quoted name, `eval`,
+    `enable -n`, zsh's `functions[pwd]=`), so `$(pwd)` stays a substitution the guard cannot name, as it was before
+    v7.1.2, even from inside scratch. A `mktemp` result is a new directory unless the same command defines
+    `mktemp`."""
     inside = temp_dir / "work"
     inside.mkdir()
-    why = _bash(guard, command, inside)
-    assert why, command
-    assert _bash(guard, 'rm -rf "$(pwd)"', inside) is None, "the plain `$(pwd)` of scratch stays scratch"
+    assert _bash(guard, command, inside), command
+    assert _bash(guard, "rm -rf .", inside) is None, "the scratch directory itself, by `.`, stays scratch"
 
 
 @pytest.mark.parametrize(("command", "where"), [
