@@ -5426,3 +5426,21 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** If a project rule was lost in the merge, a gate gets looser. The upgrade's security review compares the result with v7.1.2's port.
 
 **Revisit when:** the next DevFlow release.
+
+## D-208 — #295: a verb clause right before "yapay zeka" names the question's task
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat (option (a) of run golden-night's stop row for #295).
+**Date:** 2026-10-17 · **Amends:** none.
+
+**Context.** #222's general-words rule keeps a confident Turkish question that says "yapay zeka" on `everyday` before its examples are compared, so a question that names its task in words no rule lists (the golden question `tarayıcımda benim yerime alışveriş yapacak bir yapay zeka var mı`, *(translated: is there an AI that will shop for me in my browser)*, expected `computer-use`) gets the general list. Four attempts in run golden-night could not fix it without sending general questions off `everyday` (D-206).
+
+**Decision.**
+1. **A grammar rule:** in a Turkish question, a verb clause that ends right before "yapay zeka" (a participle such as `yapacak`, `yazan`, `kullanan`) names a task, and the general-words rule does not hold the question on `everyday`; the question is then read by its examples as any other.
+2. **Measured as D-202 clause 6 as amended by D-206:** on a fresh held-out set written by an independent seat, it ships when it turns no row from right to wrong and fixes the golden question.
+
+**Rationale:** The owner chose the rule that reads the question's own grammar over shipping attempt 3 (about one general question in six leaving `everyday`) or leaving it to the on-device model, which older phones do not have.
+
+**Mitigation if violated:** A general question with a descriptive clause (`en çok kullanılan yapay zeka`, *(translated: the most used AI)*) would leave `everyday`; the fresh set's general rows catch it.
+
+**Revisit when:** the fresh measurement fails the bar, or the on-device model tier is on every supported phone.
