@@ -936,3 +936,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - **The run stacked seven PRs on #308.** They include the golden misses #293 and #292, both measured on a fresh set (m24) and shipping on D-206's bar. #295 stopped after four attempts. The owner-only rows ended as one owner bundle, with the agent half already committed, so that only one owner line is left.
 - **The owner-bundle review found #321:** `bash -c '...' --help` passed the guard unread, on `main` since `64b862a`. It is fixed in the bundle.
 - **Lesson:** every agent's Write or Edit runs the post-edit `make check-fast` in the session's project tree, whatever tree the agent works in. With seven agents writing, those runs overlapped my own commits there and failed them at random. Keep agents' scratch files in their own worktree's `build/`, and expect retries.
+
+## 2026-10-17 — upgrade/devflow-v7.2: the agent half goes green (D-207)
+
+- With the owner patch applied in a dry-run tree, `make check` failed 11 tests; `ad7c2ad` fixes them: review-need's `A...B` split, the light-mode routing test to D-207 clause 1, the ledger legend's new path, AGENTS.md's commit-msg sentences, and `docs/feature-catalog.md` kept for a security-invariant test the agent may not change.
+- `scrubbed_env` now drops the outer make's MAKEFLAGS: under v7.2 the post-edit hook was red after every edit.
+- The owner waived the guard-change security review (one bypass row in `docs/control-events.csv`).
+- **Lesson:** a dry run of the owner patch is the only place an upgrade's agent half can be proven green; run it before calling the half done.

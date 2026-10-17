@@ -69,8 +69,8 @@ NEEDS: dict[str, Need] = {
     "macos": Need("macOS's System Configuration proxy fallback",
                   lambda: hasattr(urllib.request, "getproxies_macosx_sysconf"), False,
                   "the test job runs on ubuntu, which has no such fallback (#150)"),
-    "offline": Need("a run offline at the operating system's level, children included", offline, False,
-                    "CI's half is a patch for the owner's workflow file (#122)"),
+    "offline": Need("a run offline at the operating system's level, children included", offline, True,
+                    "the test job runs pytest in a network namespace with only loopback (#122)"),
     "bash_curl": Need("bash and curl", lambda: shutil.which("bash") is not None and shutil.which("curl") is not None,
                       True, "both are on the ubuntu image"),
     "git": Need("a git checkout", lambda: shutil.which("git") is not None and (ROOT / ".git").exists(), True,
@@ -80,7 +80,7 @@ NEEDS: dict[str, Need] = {
                         lambda: shutil.which("git") is not None and subprocess.run(
                             ["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
                             capture_output=True, text=True, check=False).stdout.strip() == "false",
-                        False, "the test job's checkout sets no fetch-depth, so it holds one commit"),
+                        True, "the test job's checkout fetches the whole history (fetch-depth: 0, #278)"),
     "not_root": Need("a user that is not root", lambda: not (hasattr(os, "geteuid") and os.geteuid() == 0), True,
                      "the job runs as the runner user; root reads a mode-000 file"),
 }

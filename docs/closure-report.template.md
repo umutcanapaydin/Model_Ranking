@@ -2,7 +2,7 @@
 record_type: closure
 id: closure-report-template
 status: draft
-process_version: v7.1.2
+process_version: v7.2
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -11,8 +11,9 @@ date: 2026-09-23
 
 > **Written only when the owner turned the milestone Quality Gate on** (Stage 4.1,
 > closure-checklist §B.1). It is the owner's review pack for the milestone session: the owner reviews
-> THIS + the per-wave diffs, runs his own tests / smoke tests / checks, and signs off. Time-box:
-> 60–90 min; if the pack needs more than ~15 min of reading before the owner can start his own tests,
+> THIS + the per-wave diffs, runs their own tests / smoke tests / checks, and signs off by merging the
+> PR that carries it. Time-box: 60–90 min; if the pack needs more than ~15 min of reading before the
+> owner can start their own tests,
 > the milestone was too big (cap: ~4–6 waves / ~2k net lines — close early next time).
 > **Copy to `docs/closure-report-m{N}.md`.** `make closes` grades it. **Hard cap: 2 pages / ~150 lines**
 > — a pack too long to read defeats its purpose.
@@ -21,9 +22,9 @@ date: 2026-09-23
 > (git log/diffstat, CI runs, committed checklist + review artifacts) — assemble, don't author.
 > Every claim carries a referent the owner can spot-check in git. Only §6 is prose.
 
-## 1. What shipped (from the approved plan — criteria hash-checked)
+## 1. What shipped (from the approved plan — the criteria as merged in the plan PR)
 
-| Acceptance criterion (hash-frozen when the plan was approved) | Citing test | CI run | Status |
+| Acceptance criterion (as merged in the plan PR; `git diff <plan merge> -- docs/plans/m{N}-plan.md` shows any change) | Citing test | CI run | Status |
 |---|---|---|---|
 | `<criterion>` | `<file:line>` | `<run id>` | ✅/❌ |
 
@@ -57,7 +58,7 @@ so the believed-vs-actual gap is visible.*
 ## 4. Security & invariants
 
 - The milestone security review: `docs/reviews/m{N}-security.md`, and the HIGH waves whose signals it read: `<none | waves>` (the release security review runs once, at Stage 5.1)
-- Invariants table current: every row cites its NEGATIVE test — `<referent>`
+- `docs/security-invariants.md` current: every row cites its NEGATIVE test — `<referent>`
 - ⛔-glob touches this milestone: `<none | list + line-by-line review referent>`
 
 ## 5. Ledgers (nothing silent)
@@ -74,4 +75,4 @@ milestone, why this approach, what could break, and what a future maintainer mus
 If the agent cannot explain it, it does not ship — this section is a BLOCKING closure item.>`
 
 ---
-*Assembled from raw referents at closure. Owner sign-off: `<initials/date>`.*
+*Assembled from raw referents at closure. Owner sign-off: pending — the owner's merge of the PR that carries this report signs it.*

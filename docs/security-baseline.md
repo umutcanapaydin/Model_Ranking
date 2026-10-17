@@ -102,15 +102,15 @@ with a *tested* disable switch and correct domain scope); **fairness controls (r
 ## Invariants and wiring
 
 - **"Built ≠ wired" (guardrail).** An implemented, unit-green control not attached to the live request path is an UNSHIPPED control. Phrase acceptance criteria end-to-end ("an exhausted tenant receives 402 on the live route"), make the citing test enter through the live entrypoint, and ask per control at the security review: "is this reachable from the request path?"
-- **Negative test per security invariant (guardrail).** Keep the release's invariants list (deny-path resource release; tenant derived from the credential, never request params — IDOR; redaction). Each row cites the test that FAILS if the invariant is removed. Correct code without that test is one refactor from a silent hole.
+- **Negative test per security invariant (guardrail).** Keep the release's invariants list in `docs/security-invariants.md` (deny-path resource release; tenant derived from the credential, never request params — IDOR; redaction). Each row cites the test that FAILS if the invariant is removed. Correct code without that test is one refactor from a silent hole.
 - **Idempotency test pattern.** Same key, DIFFERENT payload, assert first-write-wins — re-sending the same payload passes even on a last-write-wins store.
 - **Money (guardrail; only for projects handling money).** Integer minor units + currency end-to-end; round half-up exactly once at the boundary; the Money type raises on float; sweep money modules for float at the security review.
-- **Sharpenings:** the fail-direction table (control → direction → switch → citing test) is reviewed at the security review and every disable switch is TESTED · deny-service enforcement defaults OFF-in-code/ON-in-prod-profile with a boot preflight that refuses enforce-ON on an unsafe datastore, failing loud · contract-test self-skips are reported, never silent.
+- **Sharpenings:** the fail-direction table in `docs/security-invariants.md` (control → direction → switch → citing test) is reviewed at the security review and every disable switch is TESTED · deny-service enforcement defaults OFF-in-code/ON-in-prod-profile with a boot preflight that refuses enforce-ON on an unsafe datastore, failing loud · contract-test self-skips are reported, never silent.
 - **Reporting principle.** Customer-facing progress artifacts stay separate from the internal truth tracker — internal risk debates never leak to the customer; reporting optimism never corrupts internal state.
 
-## Semantic-security review items (the agent's pass on a HIGH wave)
+## Semantic-security review items (the Security-Reviewer's pass on a HIGH change or milestone)
 
-- **What to look for (HIGH waves full, MED lightweight):** weakened/removed validation; broadened permissions or scopes; disabled or "temporarily" bypassed checks; debug flags left on; suspicious error-handling changes on auth paths.
+- **What to look for (HIGH ranges full, MED lightweight):** weakened/removed validation; broadened permissions or scopes; disabled or "temporarily" bypassed checks; debug flags left on; suspicious error-handling changes on auth paths.
 - **No agent suppression:** agents may NEVER waive, baseline, or suppress a gitleaks/SCA/slopsquat finding — any suppression escalates to the owner immediately.
 - **Diff-vs-plan sensitive-file flag:** any auth/crypto/secrets/CI-config/dependency-manifest file touched outside the wave's declared slice is hard-flagged.
 - **⛔-glob mid-milestone ping:** a ⛔-zone touch notifies the owner async immediately (non-blocking); the line-by-line owner review still happens before the release deploys.

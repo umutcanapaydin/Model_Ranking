@@ -1,12 +1,11 @@
 ---
 name: log-decision
-description: Use the moment a non-trivial choice is made under uncertainty — a trade-off, a library, a boundary, an exception to a rule, a deliberate deferral. Appends a decision record: what, why, and when to revisit. Append-only; a reversal supersedes, it never edits. Decisions are the expensive part and code is the cheap part.
+description: Use the moment a non-trivial choice is made under uncertainty — a trade-off, a library, a boundary, an exception to a rule, a deliberate deferral, or retiring a control. Appends an ADR; a reversal supersedes, never edits.
 ---
 
-1. Read `docs/decisions.md`. **Project ADRs start at D-100**: the next ID is the highest D-number
-   at or above D-100, plus one — or D-100 itself if there is none. D-001..D-099 are the reserved
-   universal band and are never the base for a project number.
-   While D-100 is still the `<First project decision>` placeholder, the first decision fills it.
+1. `make next-adr` prints the next ID — never read `docs/decisions.md` for it. **Project ADRs start
+   at D-100** (D-001..D-099 is the universal band); while D-100 is still the `<First project
+   decision>` placeholder, the first decision fills it. Read only the ADRs this one touches.
 2. IDs are immutable (seed B.5): a superseded ID is still used. Never reuse one. Never edit old entries (B.2 — supersede, don't edit).
 3. Ask the user for the decision content if not provided. The minimum required:
    - Topic (one sentence)
@@ -29,4 +28,8 @@ description: Use the moment a non-trivial choice is made under uncertainty — a
 6. If this decision supersedes an earlier one (e.g., D-013 → D-NNN):
    - DO NOT edit D-013's body.
    - DO append a "Status: superseded by D-NNN" line to D-013, but only as a NEW line (not in-place edit).
-7. Confirm to the user: "ADR D-NNN appended (status proposed). User approval moves it to status accepted."
+7. An ADR that retires a control or relaxes one also appends its row to `docs/watchlist.md`: what it
+   caught, why it goes, the count that brings it back.
+8. Confirm to the user: "ADR D-NNN appended (status proposed). Your merge of the PR that carries it
+   accepts it." No status line is edited for that: an ADR on the default branch is accepted (`make
+   standup` lists only the proposed ADRs not merged yet).

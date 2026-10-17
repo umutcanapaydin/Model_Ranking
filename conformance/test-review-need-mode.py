@@ -119,11 +119,23 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
         r.write("docs/project-brief.md", brief("light"))
+        # #283: the brief is read at the range's base, and a range that writes it is a policy edit, so the
+        # brief is committed before the range this case measures.
+        r.commit("brief")
         r.write("src/h.go", "package h\n\nfunc load(r io.Reader, v any) error {\n"
                             "\tdec := json.NewDecoder(r)\n\treturn dec.Decode(v)\n}\n")
         r.commit("decoder")
-        case("a Go NewDecoder/Decode body parser: security", r.need(), "review-need: security",
-             "new parser or fetch of untrusted input: .Decode(, json.NewDecoder(")
+        # v7.2 (the owner's ruling of 2026-10-17): light mode routes per change only declared HIGH paths;
+        # a parser is still found, and named for the release review.
+        case("light, a Go NewDecoder/Decode body parser and no HIGH path: found, kept for the release review",
+             r.need(), "review-need: none", "new parser or fetch of untrusted input: .Decode(, json.NewDecoder(",
+             "these signals are for the release review")
+        r.write("docs/project-brief.md", brief("light", "src/**"))
+        r.commit("declare src HIGH")
+        r.write("src/h.go", "package h\n\nfunc load(r io.Reader, v any) error {\n\treturn json.NewDecoder(r).Decode(v)\n}\n")
+        r.commit("decoder under a HIGH path")
+        case("light, the same parser under a declared HIGH path: security", r.need(), "review-need: security",
+             "declared HIGH paths: src/h.go")
 
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
@@ -135,12 +147,17 @@ def main() -> int:
              r.need(f"{lower}..HEAD"), "review-need: none")
         case("...and measured from the default base it does, which is why the range is documented",
              r.need("HEAD~2..HEAD"), "review-need: code-reviewer", "gate or control code changed: scripts/gate.py")
+        # A failed merge-base upstream (no origin/HEAD) used to hand over `..HEAD`: an empty diff, `none`.
+        case("a range with an empty side cannot run, never a vacuous none", r.need("..HEAD"),
+             "review-need CANNOT RUN: `..HEAD` is not a range of two commits -- a review decision with no diff behind it decides nothing")
+        case("a range naming no commit cannot run", r.need("nosuchref..HEAD"),
+             "review-need CANNOT RUN: `nosuchref..HEAD` is not a range of two commits -- a review decision with no diff behind it decides nothing")
 
     if bad:
         print("test-review-need-mode FAIL (scripts/review_need.py in throwaway repositories):")
         print("\n".join(bad))
         return 1
-    print("test-review-need-mode PASS: 9 cases of scripts/review_need.py -- mode, test-only paths, Go decoders, "
+    print("test-review-need-mode PASS: 11 cases of scripts/review_need.py -- mode, test-only paths, Go decoders, "
           "stacked range, heavy mode's security once per milestone")
     return 0
 

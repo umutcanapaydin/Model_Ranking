@@ -14,6 +14,8 @@ docs/cost-log.md              # the spend ledger, written at a milestone close w
 docs/coverage-by-req.md       # a Quality Gate artefact, written per milestone when the gate is on
 docs/pipeline-readiness-audit.md  # written once, at milestone N-2 from the final one
 docs/reviews/release-tester.md   # the light-mode milestone Tester's verdict before a release (DevFlow v7.1). An exact row, as D-155's amendment asks of release-security.md above
+docs/adoption-audit.md        # written once, from adoption-audit.template.md, when /setup-project adopts an existing codebase (v7.2)
+docs/releases/*               # the release records, from docs/release.template.md at each release (/going-live, v7.2)
 docs/retrospective.md         # written once, optionally, when the work is done (/cycle-close, Stage 5.3)
 environment.md                # .agents/rules/environment.md, generated per developer and gitignored
 data-model.md                 # a project rules file named in .agents/rules/README.md as an example
@@ -183,3 +185,6 @@ workflows/rosters.py                           # = src/app/workflows/rosters.py,
 workflows/subscribe.py                         # = src/app/workflows/subscribe.py, named relative to the package
 workflows/yaml_guard.py                        # = src/app/workflows/yaml_guard.py, named relative to the package
 scripts/checkpoint.sh                          # a planted mutant in the adoption review; DevFlow removed the script at D-999. Rows are keyed by TARGET, so this cannot be scoped to that one record (field finding B1)
+
+# ── 3. Files an earlier version shipped. UPGRADING names them to say what to do with them.
+docs/codex-audit.md           # the adoption audit before v7.2; UPGRADING tells a project to rename or remove it

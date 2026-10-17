@@ -48,6 +48,10 @@ tail of its log.
 `--without` leaves out `check:` prerequisites, and `--with` adds make targets outside `check:`, each a leg of
 its own: `make check-red` and `make check-docs` are check-fast so changed (`scripts/commit_gate.py`). A name
 `--without` finds in no `check:` line, or `--with` finds no target for or finds in `check:` already, FAILS.
+`--plan` prints `leg: target target...`, one leg per line, and runs nothing. `--only-records` runs the
+records leg alone: the post-edit hook passes it after a document edit (`scripts/post_edit_scope.py`).
+Every leg's `make closes` grades only the close records changed since the merge-base
+(`CLOSES_CHANGED=1`); `make check` grades them all.
 Exit: 0 every leg passed (or the plan was printed) · 1 a leg failed, or the legs cannot be derived
 or the two settings are invalid · 2 cannot run (make not installed).
 """
@@ -76,7 +80,8 @@ CODE_LEGS: tuple[str, ...] = ("lint", "typecheck", "test")
 #: Every other `check:` prerequisite: DevFlow's own checks, seconds each, one after another.
 RECORDS = "records"
 #: How the leg holding `test` runs pytest. Appended to any PYTEST_ADDOPTS already set.
-PYTEST_PARALLEL = "-n auto --dist loadgroup"
+#: Capped at four workers: on a small suite starting eight cost more than the tests (process audit F-12).
+PYTEST_PARALLEL = "-n auto --maxprocesses 4 --dist loadgroup"
 TAIL = 30
 
 
@@ -170,6 +175,9 @@ def legs(prereqs: list[str], own: list[str] | None = None) -> dict[str, list[str
 
 def leg_env(targets: list[str]) -> dict[str, str]:
     env = dict(os.environ)
+    # check-fast grades only the close records this branch changed; `make check`, the gate and CI grade
+    # every one (v7.2: 42 records took 17 s on every edit).
+    env["CLOSES_CHANGED"] = "1"
     if "test" in targets:             # the `test` target itself; a form of it brings its own
         env["PYTEST_ADDOPTS"] = f"{env.get('PYTEST_ADDOPTS', '')} {PYTEST_PARALLEL}".strip()
     return env
@@ -259,7 +267,7 @@ def run_legs(plan: dict[str, list[str]], make: str, forms: dict[str, str]) -> in
     return 1 if failed else 0
 
 
-def main(argv: list[str]) -> int:
+def main(argv: list[str]) -> int:  # noqa: C901
     for stream in (sys.stdout, sys.stderr):        # a cp1254 console prints `?`, never crashes
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
@@ -272,6 +280,8 @@ def main(argv: list[str]) -> int:
                         help="`check:` prerequisites to leave out (`make check-red`, `make check-docs`)")
     parser.add_argument("--with", dest="extra", nargs="+", default=[], metavar="TARGET",
                         help="make targets outside `check:`, each run as a leg of its own (`make check-red`)")
+    parser.add_argument("--only-records", action="store_true",
+                        help="only the records leg: the post-edit hook after a document edit")
     args = parser.parse_args(argv)
     if shutil.which(args.make) is None:
         print(f"check-fast CANNOT RUN: {args.make} not installed: cannot run the legs of "
@@ -296,6 +306,12 @@ def main(argv: list[str]) -> int:
         return 1
     plan = legs(prereqs, own)
     plan.update({t: [t] for t in args.extra})
+    if args.only_records:
+        # A document cannot change what lint, the type checker or the tests read (v7.2).
+        plan = {RECORDS: plan[RECORDS]} if RECORDS in plan else {}
+        if not plan:
+            print("check-fast: no records leg in `check:` -- nothing a document edit can change")
+            return 0
     if args.plan:
         for name, targets in plan.items():
             print(f"{name}: {shown(targets, forms)}")

@@ -1,0 +1,88 @@
+#!/bin/sh
+# post-rewrite -- #254, an amend that stages only docs onto a code commit (D-206 clause 9). Install once per
+# clone: `make hooks` (core.hooksPath = .githooks). Git runs it after `git commit --amend` with the argument
+# `amend`, and after `git rebase` with `rebase`; its standard input holds one `<old-sha> <new-sha>` line per
+# rewritten commit.
+#
+# WHY. commit-msg picks its gate from the paths the commit stages, compared with the current HEAD. During an
+# amend that HEAD is the commit being replaced, so an amend that stages one Markdown file onto a code commit is
+# gated by check-docs, and the code the amended commit carries never meets the Swift tests or the compiled gate.
+# This hook asks the same gate again -- the replaced commit's copy of scripts/commit_gate.py, the copy
+# commit-msg ran -- twice:
+#   delta  -- the amend's own paths (replaced commit -> amended commit): the target commit-msg ran;
+#   commit -- the amended commit's paths against its first parent: the target the commit needs.
+# It runs `make <commit>` unless commit-msg's run already covered it: the commit is docs-only, or the two
+# targets are the same, or commit-msg ran check-fast. A merge needs check-fast, as commit-msg says.
+# Paths go to the gate NUL-separated (`git diff -z`, `xargs -0`), so no file name is quoted or split.
+#
+# IT CANNOT REFUSE. The amend is made when git runs this hook, and git ignores its exit status. A red target
+# is printed loudly, and pre-push's `make gate` stops the push. Anything this hook cannot read -- no input
+# line, no gate, an answer that is not one of the three targets -- runs check-fast, never skips.
+#
+# NOT COVERED. `rebase` (commit-msg does not run there either; pre-push's `make gate` does). An amend made
+# with `--no-verify`: commit-msg did not run, and this hook still assumes it did.
+#
+# Exit: 0 nothing to run, or the target passed . 1 the target failed or could not run (git ignores both).
+set -u
+[ "${1:-}" = amend ] || exit 0
+cd "$(git rev-parse --show-toplevel)" || exit 1
+warn() { echo "post-rewrite WARNING: $1" >&2; exit 1; }
+
+old="" new="" rest=""
+read -r old new rest || :
+copy=""
+cleanup() { [ -n "$copy" ] && rm -f "$copy"; copy=""; }
+
+# The gate's answer for subject $1 over the NUL-separated paths of `git diff $2 $3`, or `unknown`.
+ask() {
+  if git diff --quiet "$2" "$3" -- 2>/dev/null; then
+    echo check-fast   # nothing changed: commit-msg's rule for nothing staged
+    return 0
+  fi
+  answer="$(git diff -z --name-only --no-renames "$2" "$3" -- | xargs -0 "$py" -B "$gate" --subject "$1" --)" \
+    || answer=unknown
+  case "$answer" in check-fast|check-red|check-docs) echo "$answer" ;; *) echo unknown ;; esac
+}
+
+needed=check-fast ran=unknown
+py="$(command -v python3 || command -v python)" || py=""
+if [ -z "$py" ]; then
+  echo "post-rewrite: no python3 or python on PATH (see INSTALL.md); running check-fast" >&2
+elif [ -z "$old" ] || [ -z "$new" ] || ! git cat-file -e "$new^{commit}" 2>/dev/null; then
+  echo "post-rewrite: git gave no <old> <new> line; running check-fast" >&2
+else
+  # The replaced commit's copy of the gate is the one commit-msg ran; the work tree's when it had none.
+  gate="scripts/commit_gate.py"
+  if git cat-file -e "$old:scripts/commit_gate.py" 2>/dev/null; then
+    copy="$(mktemp)" || warn "no temporary file for the replaced commit's scripts/commit_gate.py"
+    git show "$old:scripts/commit_gate.py" > "$copy" || { cleanup; warn "the replaced commit's scripts/commit_gate.py cannot be read"; }
+    gate="$copy"
+  fi
+  if [ -f "$gate" ]; then
+    subject="$(git log -1 --format=%s "$new")"
+    set -- $(git rev-list --parents -n 1 "$new")
+    case $# in
+      1) needed="$(ask "$subject" "$(git hash-object -t tree /dev/null)" "$new")" ;;   # a root commit
+      2) needed="$(ask "$subject" "$new^1" "$new")" ;;
+      *) needed=check-fast ;;                                                            # a merge
+    esac
+    ran="$(ask "$subject" "$old" "$new")"
+  else
+    echo "post-rewrite: no scripts/commit_gate.py; running check-fast" >&2
+  fi
+  cleanup
+fi
+[ "$needed" = unknown ] && needed=check-fast
+
+if [ "$needed" = check-docs ] || [ "$needed" = "$ran" ] || [ "$ran" = check-fast ]; then
+  exit 0
+fi
+# Git exports GIT_DIR and GIT_INDEX_FILE to hooks; the gate's controls run git in throwaway repositories.
+unset $(git rev-parse --local-env-vars)
+command -v make >/dev/null 2>&1 || warn "make not found (see INSTALL.md); make $needed did not run on the amended commit"
+
+echo "post-rewrite: the amend was gated by ${ran}; the amended commit needs make $needed (#254), running it"
+if make "$needed"; then
+  exit 0
+fi
+warn "make $needed FAILED above on the amended commit. The amend stands (git cannot undo it from this hook): fix it in a new commit; pre-push's make gate refuses the push until it is green."

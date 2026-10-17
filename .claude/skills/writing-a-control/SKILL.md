@@ -1,6 +1,6 @@
 ---
 name: writing-a-control
-description: Use when writing or changing anything that CHECKS something — a gate, a rule, a lint, a CI step, an assertion, a validator, a guard, a hook, a self-test, a conformance test. Also when writing a rule in prose that bans a shape, or when a review finds a defect and you are about to write the thing that stops it recurring. Covers: does it fail when it should, can it fail at all, does it read the tree you think, and does the fact live in two places.
+description: Use when writing or changing anything that CHECKS something — a gate, rule, lint, CI step, assertion, validator, guard, hook or conformance test — or a prose rule that bans a shape, or the fix that stops a reviewed defect recurring.
 ---
 
 Five questions. Each one is a defect this project has measured, most of them more than once.

@@ -51,7 +51,7 @@ dev = [
     "PyYAML>=6.0",
     # M18-W6 (#35): `make lock` resolves the lock files with it, for every platform at once.
     "uv>=0.8",
-    # Note: gitleaks installed system-wide via brew/apt (not pip); see Makefile.
+    # Note: gitleaks installed system-wide via brew/apt (not pip); see INSTALL.md.
 ]
 
 # ───── Tooling ─────
@@ -100,7 +100,7 @@ known-first-party = ["app"]   # ◄── change if package renamed
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "C90"]
-"scripts/wave_check.py" = ["C901"]      # same reason: one branch per V3C-69 row rule
+"scripts/wave_check.py" = ["C901", "S603", "S607"]  # one branch per V3C-69 row rule; `git show` of a plan with literal arguments (v7.2)
 # DevFlow v6.0 adoption (D-155). These files arrived from the methodology and are kept close to it,
 # so the next DevFlow sync is a small three-way merge. What is exempted, and why, rule by rule:
 #   S603/S607  the governance scripts call `git` (history, blobs, identity) with literal arguments
@@ -111,6 +111,12 @@ known-first-party = ["app"]   # ◄── change if package renamed
 #   C901       closure_check.py is a rules engine, the same reason as the two lines above
 "scripts/check_records.py" = ["C901", "S603", "S607", "B023", "RUF001"]
 "scripts/write_install_marker.py" = ["S603", "S607"]
+# DevFlow v7.2 (D-207): its new governance scripts call `git` with literal arguments, as the lines above;
+# next_adr.py is kept as shipped, so the next sync stays a small three-way merge.
+"scripts/ci_diff.py" = ["S603", "S607"]
+"scripts/gate_stamp.py" = ["S603", "S607"]
+"scripts/post_edit_scope.py" = ["S603", "S607"]
+"scripts/next_adr.py" = ["SIM108"]
 "scripts/coverage_floor.py" = ["S314"]
 # DevFlow v7.1 upgrade (D-199): the scripts v7.1 added or changed are kept as shipped, for the same reason
 # as above. Beyond those rules: PTH (os.path and open() as written upstream), SIM102 (nested ifs as

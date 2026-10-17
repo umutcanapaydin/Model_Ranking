@@ -52,10 +52,12 @@ def scrubbed_env(extra: dict | None = None) -> dict:
     except (OSError, subprocess.SubprocessError):
         names = list(_GIT_LOCAL_FALLBACK)
     # The Claude Code session id goes too: a scratch tree is not the tree the session started in, so
-    # `make session-check` would rightly refuse every one of them.
+    # `make session-check` would rightly refuse every one of them. The outer make's flags go too: the
+    # post-edit hook runs `make check-fast CHECK_FAST_ARGS=...`, and its MAKEFLAGS made `gate_stamp.py`
+    # in a throwaway repository read every case as "not run by a plain `make gate`".
     env = {k: v for k, v in os.environ.items() if k not in names and k not in _GIT_IDENTITY
            and not k.startswith("GIT_CONFIG_KEY_")
-           and not k.startswith("GIT_CONFIG_VALUE_") and k != "CLAUDE_CODE_SESSION_ID"}
+           and not k.startswith("GIT_CONFIG_VALUE_") and k not in ("CLAUDE_CODE_SESSION_ID", "MAKEFLAGS", "MFLAGS")}
     env.update(extra or {})
     return env
 

@@ -9,12 +9,12 @@
 
 ---
 
-## Prompt A — NEW PROJECT (bootstrap from the starter package)
+## Prompt A — NEW PROJECT (installed from a DevFlow tag, `INSTALL.md`)
 
 Copy, fill the `<...>`, paste as your first message:
 
 ```text
-This project runs on DevFlow (this repo was copied from the starter package).
+This project runs on DevFlow (installed from a DevFlow tag, `INSTALL.md`).
 You are the project's lead agent. I am the owner.
 
 Task: <one sentence — what we are building>
@@ -30,12 +30,14 @@ Do, in order:
    - the read order you actually followed
    - the gates that block, and where each fires (pipeline-schema.html)
    - what Stage 0 found (placeholders, missing pieces)
-   - your proposed first milestone boundary (M1 scope, waves, risk tiers)
+   - heavy: your proposed first milestone boundary (M1 scope, waves, risk tiers); light: the
+     first issues, one per requirement in docs/prd.md
    - every ambiguity you found in my inputs, each with its resolution AND the resolution's
      source: "derived from doc X" vs "needs YOUR decision" (the assumption ledger starts
      HERE, at intake, not at the first wave)
-4. STOP after the echo-back. I review it; then you run `/plan-milestone`, and I approve the M1
-   plan by merging its draft PR. No code before that merge.
+4. STOP after the echo-back. I review it; then, heavy: you run `/plan-milestone`, and I approve the
+   M1 plan by merging its draft PR — no code before that merge; light: `/file-issue` each
+   requirement, then `/triage-issue` each.
 
 Standing rules you must never break: you work on a branch and open a DRAFT pull request -- you never push to the default branch, never mark a PR ready, never merge, never force-push, never `--no-verify`, and never touch `.github/workflows/**`. No AI attribution anywhere. I mark ready and I merge;
 escalate-NOW events (AGENTS.md) interrupt me immediately; ⛔-zone globs force HIGH tier.
@@ -50,8 +52,8 @@ were written for.
 
 Do, in order:
 1. Run `/start-session`: it reads the latest docs/process-log.md entry, the current
-   docs/plans/m{N}-plan.md and the open draft PRs, and establishes what green looks like
-   before anything changes. Then read AGENTS.md and the current milestone's wave-close
+   docs/plans/m{N}-plan.md (heavy) and the open draft PRs, and establishes what green looks like
+   before anything changes. Then read AGENTS.md and, heavy, the current milestone's wave-close
    checklists. If the milestone Quality Gate is on, also the latest docs/closure-report-m{N}.md.
 2. BEFORE touching anything, echo back to me in ≤10 lines:
    - the operating mode and MY touchpoints vs yours

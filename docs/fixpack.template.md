@@ -2,12 +2,12 @@
 record_type: fixpack
 id: fixpack-template
 status: draft
-process_version: v7.1.2
+process_version: v7.2
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
      filename. `check_records.py` reads it; a copy without it fails R1 on the first run. -->
-# Fixpack — {X.Y.Z+1} (Stage 6 Maintenance Loop; THE DEPLOY GATE)
+# Fixpack — {X.Y.Z+1} (Stage 6 Maintenance Loop; the fixpack gate)
 
 > **Copy to `docs/fixpack-{N}.md`. Deploy is BLOCKED until every row is complete.** One page.
 > Heavy: a fix wave is a WAVE — `/close-wave`, the normal wave checklist and the reviews `make

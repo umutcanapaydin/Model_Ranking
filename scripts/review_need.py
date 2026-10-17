@@ -17,10 +17,21 @@ while this script, mode-blind, said `code-reviewer`, and two projects followed e
 contradictions, DevFlow #16). The mode is the brief's `Working mode:` (`make mode`; unset: heavy),
 read as of `--at` when given, so a close is graded by the mode of its own time.
 
+**The brief is read at the range's base, never from the change** (AGENTS.md section 5, base-pinned
+policy; #283). Without `--at`, `Working mode:` and `Paths that make a change HIGH:` are read from the
+brief at the merge-base of the range's two ends: a change that sets `light`, or deletes the mode line,
+or empties the HIGH globs, is judged by the brief it started from. **A range that edits policy** --
+changes the answer of a brief policy field (`Working mode:`, `Paths that make a change HIGH:`,
+`Deploy commands:`) between the base and the range's end, or touches `scripts/review_need.py`,
+`scripts/deploy_gate.py` or `scripts/brief_fields.py` -- needs a security review whatever else it
+holds: `security` in light mode, `code-reviewer+security` in heavy mode (heavy's once-per-milestone
+rule does not take it). A base git cannot read is `CANNOT RUN` (exit 2), never the defaults.
+
 **Heavy mode runs the Security-Reviewer once per milestone** (the owner's ruling of 2026-10-16, v7.1.2):
 on the plan's last wave, over the whole milestone, beside the milestone Tester (`/close-wave`). A wave
 or a fix in heavy mode is never routed to security here; its signals are still printed, for the
-milestone's review to read. Light mode is unchanged: security per change, on these signals.
+milestone's review to read. Light mode (v7.2): security per change only on the declared HIGH
+paths; the other signals are printed for the release review.
 
 MEASURED, not invented (the 2026-09-28 review of three field repositories, 483 commits, 109 security
 findings, 58 pull requests):
@@ -28,7 +39,7 @@ findings, 58 pull requests):
     ~100 lines for 6-10 changed lines of code, and 3 of 4 such fixes got no product change from it.
     Gate and control code is the exception: the one small fix whose reviewer found a real defect
     was a gate script. So: more than 130 product lines, or any gate code -> a Code-Reviewer.
-    **In light mode there is no Code-Reviewer** (AGENTS.md: light runs security only); the product
+    **In light mode there is no Code-Reviewer** (`.agents/rules/issues.md`, "Two working modes"); the product
     lines and the gate paths are still printed, so the owner can see what light mode is not reviewing.
   * **Security follows three signals together**, which matched 56 of 62 real security findings:
     the paths the owner declared HIGH (the brief's `Paths that make a change HIGH:` and a plan's
@@ -56,19 +67,18 @@ Product lines are code and tests: records (`docs/`, Markdown) do not count. Exit
 """
 from __future__ import annotations
 
-import atexit
 import fnmatch
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
 
 PRODUCT_THRESHOLD = 130
+#: The scripts that read the policy fields, or decide from them (#283): a change to one is a policy edit.
+POLICY_SCRIPTS = ("scripts/review_need.py", "scripts/deploy_gate.py", "scripts/brief_fields.py")
 GATE_CODE = re.compile(r"^(scripts/|conformance/|\.claude/|\.githooks/|\.github/|Makefile$|stack\.mk$)")
 RECORDS = re.compile(r"^docs/|\.md$")
 SENSITIVE_PATH = re.compile(
@@ -106,13 +116,33 @@ def default_range() -> str:
 
 
 def brief_root_at(at: str) -> Path:
-    """A throwaway root holding `docs/project-brief.md` as it stood at commit `at` (empty if absent)."""
-    r = subprocess.run(["git", "show", f"{at}:docs/project-brief.md"], capture_output=True, text=True)
-    tmp = Path(tempfile.mkdtemp())
-    atexit.register(shutil.rmtree, tmp, True)
-    (tmp / "docs").mkdir()
-    (tmp / "docs" / "project-brief.md").write_text(r.stdout if r.returncode == 0 else "", encoding="utf-8")
-    return tmp
+    """A throwaway root holding `docs/project-brief.md` as it stood at commit `at` (empty if absent there).
+    RuntimeError when `at` is not a commit git can read: a policy read from nowhere is not the defaults."""
+    return brief_fields.root_at(at)
+
+
+def range_base(rng: str) -> tuple[str, str]:
+    """(the merge-base of the range's two ends, its end) for `A..B` or `A...B`; an empty end is HEAD, as git
+    reads it. RuntimeError when the range is not one, or git cannot find the base (#283: fail closed)."""
+    sep = "..." if "..." in rng else ".." if ".." in rng else ""
+    if not sep:
+        raise RuntimeError(f"the range {rng!r} is not A..B, so it has no base to read the brief's policy at")
+    start, end = (side or "HEAD" for side in rng.split(sep, 1))
+    found = subprocess.run(["git", "merge-base", start, end], capture_output=True, text=True, check=False)
+    base = found.stdout.strip()
+    if found.returncode != 0 or not base:
+        raise RuntimeError(f"no merge-base of {start} and {end}, so the brief's policy fields at the range's "
+                           "base cannot be read")
+    return base, end
+
+
+def policy_edits(base_root: Path, end_root: Path, changed: list[str]) -> list[str]:
+    """What in the range edits policy: each brief policy field whose answer differs between the base and
+    the end, and each policy script the range touches."""
+    before, after = brief_fields.policy(base_root), brief_fields.policy(end_root)
+    edits = [f"the brief's `{name}:` ({before[name] or 'unset'} -> {after[name] or 'unset'})"
+             for name in brief_fields.POLICY_FIELDS if before[name] != after[name]]
+    return edits + [path for path in POLICY_SCRIPTS if path in changed]
 
 
 def declared_globs(root: Path | str, at: str | None = None, plan: str | None = None) -> list[str]:
@@ -137,8 +167,12 @@ def declared_globs(root: Path | str, at: str | None = None, plan: str | None = N
 
 def assess(rng: str, at: str | None = None, plan: str | None = None,
            wave_security: bool = False) -> tuple[str, list[str]]:
-    root: Path | str = brief_root_at(at) if at else "."
+    base, end = range_base(rng)
+    base_root = brief_root_at(base)
+    root: Path = brief_root_at(at) if at else base_root
     mode = brief_fields.mode(root)
+    changed = [p for p in git("diff", "--name-only", "--no-renames", "-z", rng).split("\0") if p]
+    edits = policy_edits(base_root, brief_root_at(end), changed)
     numstat = git("diff", "--numstat", rng)
     product = 0
     gate: list[str] = []
@@ -156,9 +190,11 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
     reasons: list[str] = []
     if mode == "light":
         reasons.append("working mode: light -- no Code-Reviewer in light mode (security only; "
-                       "AGENTS.md, two working modes). Measured anyway, not routed:")
+                       ".agents/rules/issues.md, two working modes). Measured anyway, not routed:")
     else:
         reasons.append("working mode: heavy -- a Code-Reviewer above the size threshold or on gate code")
+    reasons.append(f"brief read at {at} (--at)" if at else
+                   f"brief read at {base[:12]}, the range's merge-base -- not from the change (#283)")
     reasons.append(f"product lines changed: {product} (a Code-Reviewer above {PRODUCT_THRESHOLD})")
     need_cr = (product > PRODUCT_THRESHOLD or bool(gate)) and mode != "light"
     if gate:
@@ -189,6 +225,19 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
     if parsers:
         security.append(f"new parser or fetch of untrusted input: {', '.join(parsers[:5])}")
     reasons += security or ["no security signal"]
+    if edits:
+        reasons.append(f"policy edit: {', '.join(edits[:4])}{' ...' if len(edits) > 4 else ''} -- a security "
+                       f"review whatever the mode{', and a Code-Reviewer' if mode != 'light' else ''} (#283)")
+        need = "security" if mode == "light" else "code-reviewer+security"
+        return need, reasons
+    # Light mode, from v7.2 (the owner's ruling of 2026-10-17): per change only the brief's declared HIGH
+    # paths go to the Security-Reviewer; sensitive names and new parsers are read at the release review.
+    if security and mode == "light":
+        later = [s for s in security if not s.startswith("declared HIGH paths")]
+        if later:
+            reasons.append("light mode: per change only the brief's declared HIGH paths go to the Security-Reviewer; "
+                           "these signals are for the release review (`/going-live`): " + "; ".join(later))
+        security = [s for s in security if s.startswith("declared HIGH paths")]
     if security and mode != "light" and not wave_security:
         reasons.append("heavy mode: security runs once per milestone, on the plan's last wave, over the whole "
                        "milestone (`/close-wave`, docs/reviews/m<N>-security.md) -- these signals are for it, "
@@ -202,6 +251,15 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
 def main(argv: list[str]) -> int:
     try:
         rng = argv[argv.index("--range") + 1] if "--range" in argv else default_range()
+        # A side that is empty or names no commit is not a range: `..HEAD` diffs nothing and would
+        # answer `none` for any change (a merge-base that failed upstream of this script). `A...B` is
+        # split on its three dots: on two, its right side would read `.B`, and no commit is named that.
+        sep = "..." if "..." in rng else ".." if ".." in rng else None
+        sides = rng.split(sep, 1) if sep else ["", ""]
+        for side in sides:
+            if not side.strip() or subprocess.run(["git", "rev-parse", "-q", "--verify", f"{side}^{{commit}}"],
+                                                  capture_output=True).returncode != 0:
+                raise RuntimeError(f"`{rng}` is not a range of two commits")
         at = argv[argv.index("--at") + 1] if "--at" in argv else None
         plan = argv[argv.index("--plan") + 1] if "--plan" in argv else None
         need, reasons = assess(rng, at, plan, wave_security="--wave-security" in argv)

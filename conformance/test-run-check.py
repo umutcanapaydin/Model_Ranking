@@ -10,7 +10,7 @@ file in the tree. This proves the checker by the input it refuses -- for each re
 fixture declares, not only for being thin -- and by the filled fixture it accepts.
 
 HERMETIC (v7.1.1). The checker reads `docs/decisions.md`, the close records and the plans of the tree
-it runs in; in an installation that tree is the project, and model_ranking holds a real `D-999` -- the
+it runs in; in an installation that tree is the project, and Project-J holds a real `D-999` -- the
 id the fixture used as "an ADR no project has". So every case runs in a throwaway tree holding the
 fixtures and a decisions file written here, and the absent ruling is DERIVED: the first id from
 `D-999` up that the tree's decisions file does not hold, written into the copy of the broken fixture.

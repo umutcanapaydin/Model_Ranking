@@ -5,40 +5,34 @@ and the skills follow, never the other way round.
 
 ## The one load-bearing rule
 
-**The agent opens drafts; a human marks them ready and merges.** No exception — not for a
-one-line fix, not for an interactive session with the human watching.
-
-Branch protection on the default branch is what makes this real rather than an honour system.
-The integration lane (AGENTS.md §3, when the owner says not to wait for merges) does not bend it:
-the `integration/<name>` PR is a draft the human merges, and the stacked drafts are its record.
-Everything below is downstream of it: the skills stop where they stop because of it, the label
+**The agent opens drafts; a human marks them ready and merges** (`AGENTS.md` §3, "Git authority",
+is the rule; the integration lane does not bend it). Everything below is downstream of it: the skills stop where they stop because of it, the label
 pipeline exists because a merge is not a verification, and the gates exist because the human
 doing the merging cannot read every line.
 
 ## Two working modes — the brief's `Working mode:`
 
-**Light** (a small product, one person merging): the issue skills run the work — `/file-issue` →
-`/triage-issue` → `/fix-issue` or `/work-enhancement` — each a red test, the change, `make gate`,
-one draft PR. No Code-Reviewer; the Security-Reviewer when `make review-need` says so, and before
-every deploy (the deploy gate); the milestone Tester once per milestone — in light mode the
-milestone closes before a release, on everything merged since the Tester's last verdict
-(`docs/closure-checklist.md` §B.0 and §E.1).
+**Light** (`/setup-project`'s default; a small product, one person merging): the issue skills run the
+work — `/file-issue` → `/triage-issue` → `/fix-issue` or `/work-enhancement` — each a red test, the
+change, `make gate`, one draft PR. **Heavy** (what a brief without a `Working mode:` line reads as):
+the same issue skills, and waves on top. **A wave is one container issue plus its children** —
+`/plan-milestone` opens it, `/close-wave` closes it; `/fix-issue` is a one-issue wave. Several slices
+route to `wave`, never to `/work-enhancement`. `make mode` prints which; the owner chooses it in
+`/setup-project`, and nothing switches it by itself.
 
-**Heavy** (the default): the same issue skills, and waves on top. **A wave is one container issue
-plus its children** — `/plan-milestone` opens it, `/close-wave` closes it with a Code-Reviewer, and on
-the plan's last wave the milestone Security-Reviewer and the milestone Tester, each over the whole
-milestone (security once per milestone, the owner's ruling of 2026-10-16). `/fix-issue` is a one-issue
-wave whose reviews `make review-need` computes. Several slices route to `wave`, never to
-`/work-enhancement`.
+**Who reviews, and when.** This table is the one statement of it; every other file points here.
+`make review-need` computes the per-change rows, and the gates refuse a close or a deploy without the
+rest.
 
-`make mode` prints which. The owner chooses it in `/setup-project`; nothing switches it by itself.
+| Review | Light | Heavy |
+|---|---|---|
+| Code-Reviewer | never | every wave (`/close-wave`) and a fix `make review-need` routes to it; the last wave's also reads the whole milestone |
+| Security-Reviewer, per change | a change touching the brief's declared HIGH paths; its other signals wait for the release review | none — each range's signals are printed for the milestone review |
+| Security-Reviewer, per milestone | — | once, on the plan's last wave, over the whole milestone (`docs/reviews/m<N>-security.md`) |
+| milestone Tester | once per milestone, closed before a release, on everything merged since its last verdict (`docs/reviews/release-tester.md`) | once, on the plan's last wave (`docs/reviews/m<N>-tester.md`) |
+| release and deploy | the Security-Reviewer on the whole release (`/going-live`); before every deploy, a delta since each verdict's reviewed head (the deploy gate) | the same; a current milestone security verdict stands for the release's |
 
-**A run (`/plan-run`), in either mode,** is the owner's unattended lane: heavy, two to five planned
-milestones; light, the triaged queue. Every open question is asked once, up front, with its default;
-the answers become ADRs; then the work goes on one `integration/run-<name>` branch without waiting
-for a merge, and stops only for an Escalate-NOW event, a decision the owner reserved, or a gate that cannot run
-here. Its record is `docs/plans/run-<name>.md` (`make run-check`). Opened only by the owner; outside
-it nothing changes.
+**A run**, in either mode, is the owner's unattended lane, opened only by the owner: `/plan-run`.
 
 ## Where a finding goes — one queue, the issue list
 
@@ -52,7 +46,7 @@ them is a queue, because no lane reads them.
 | outside what you are doing, any time | an issue | `/file-issue` |
 | a failure still red after three attempts | a `bug` listing the three attempts | `.agents/rules/practices.md` → `/file-issue` |
 | a finding still BLOCKING after the reviewer's third round | a `bug` for the reverted slice (wave), or the issue back to triage as `work-issue` (fix); the owner answers with an ADR or a `docs/refusals.md` row | `/close-wave` step 3 · `/fix-issue` step 6 |
-| across the whole milestone, at its close | an issue, or a fix PR | `/repo-review` |
+| across the whole milestone, on its last wave | an issue, or a fix on that wave's branch | the last wave's Code-Reviewer (`/close-wave`) |
 
 **Every filed issue is triaged** before anyone works it: `/file-issue` hands it to
 `/triage-issue`, whose last line — `Triage verdict: …` — is the routing every lane checks.
@@ -94,59 +88,8 @@ component?* — belongs in the diagnosis comment, not in a label nobody maintain
 and green after is its verification — the PR says `Closes #<n>`. In both field projects no one but
 the agent ever set a `qa:` label, so a separate verification step was a step nobody ran.
 
-**On** — a person verifies on a deployed build — the rest of this section and the next hold. **A
-`bug` is not closed by merging its fix.** Merging proves the code changed. It does not prove the
-bug is gone — and where the suite runs against a stub, a green run proves only that the code
-behaves as the stub was *told* to answer.
-
-| Label | Meaning | Who sets it |
-|---|---|---|
-| `dev:done` | the fix is merged. **Not verified.** | `/post-merge`, at merge |
-| `qa:ready` | waiting for a person to verify on a deployed build | us, once a human says it is deployed |
-| `qa:passed` | verified — now it may be closed | the verifier |
-| `qa:failed` | still broken; back to `/triage-issue` | the verifier |
-| `qa:blocked` | could not be tested at all — environment or seed data, not code | the verifier |
-
-- **Nothing is applied when the PR opens.** At draft-PR time neither state is true, and
-  `qa:ready` sends someone after a build that does not exist.
-- **Never infer a deploy from a merge.** An agent has no signal for it. Wait to be told.
-- **Swap, never accumulate.** Each transition removes the one before it:
-  `gh issue edit <n> --remove-label "dev:done" --add-label "qa:ready"`. Two lifecycle labels on
-  one issue reads as two states at once, and a label people cannot trust is worse than none.
-- **The last three are the verifier's**, never the agent's.
-- Enhancements and documentation are **not** in this pipeline. There, the merge closing the issue
-  is correct.
-- **This project (D-178):** on the owner's instruction, a bug whose fix the owner merged in full is
-  closed with `dev:done` and a comment that it is merged and not verified. The verifier's labels and
-  a reopen on `qa:failed` stand.
-
-## With QA on, a bug's PR carries no closing keyword
-
-This is what makes the rule above hold instead of being undone one step later. No
-`Closes`/`Fixes`/`Resolves #<n>` in a bug's PR body or in any of its commit messages. Write
-`Ref #<n>` and say in the body that the issue stays open on purpose.
-
-**Mind the phrasing, then verify it.** GitHub links on any `close`/`fix`/`resolve` immediately
-followed by an issue reference, **whatever the surrounding sentence says** — so
-*"please do not close #12"* creates the very link it warns against. Write
-**"please leave #12 open"**.
-
-Then check rather than assume:
-
-```bash
-gh pr view <pr> --json closingIssuesReferences   # must name no bug
-```
-
-A grep over the body first is fine — `(?i)\b(clos|fix|resolv)[a-z]*\s*:?\s*#[0-9]+` — but
-`closingIssuesReferences` is the **authority**: a body can read clean while the link survives
-from an earlier revision.
-
-**Any PR naming a bug's number can close it** — a docs PR, an unrelated refactor, a comment
-quoting the issue. It does not need the `bug` label itself. That is why the check lives in
-`/pre-merge` and runs on **every** PR, whatever its branch prefix.
+**On** — a person verifies on a deployed build: `.agents/rules/issues-qa.md`, read only then.
 
 ## What a skill never does
 
-No skill merges, marks a draft ready, force-pushes, uses `--no-verify`, touches
-`.github/workflows/**`, or writes AI attribution — no `Co-Authored-By`, no "Generated with", no
-badges — in commits, PR bodies, issue bodies or comments. This holds interactively **and** in CI.
+Anything `AGENTS.md` §3, "Git authority", forbids the agent — interactively **and** in CI.

@@ -40,10 +40,14 @@ def _need(root: pathlib.Path, rel: str) -> str:
     return done.stdout + done.stderr
 
 
-def test_a_product_file_with_a_sensitive_name_needs_security_with_no_high_path_declared(tmp_path: pathlib.Path) -> None:
+def test_a_product_file_with_a_sensitive_name_is_printed_for_the_release_review_with_no_high_path_declared(
+        tmp_path: pathlib.Path) -> None:
+    """D-207 clause 1 (v7.2): in light mode only the declared HIGH paths route a change to security; the
+    sensitive name is still detected and printed for the release review, so the mutant `hit = []` fails here."""
     out = _need(tmp_path, "src/deploy_x.py")
-    assert out.strip().splitlines()[-1] == "review-need: security"
+    assert out.strip().splitlines()[-1] == "review-need: none"
     assert "sensitive path names: src/deploy_x.py" in out
+    assert "for the release review" in out
 
 
 def test_a_test_file_with_a_sensitive_name_alone_needs_nothing(tmp_path: pathlib.Path) -> None:

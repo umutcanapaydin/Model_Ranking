@@ -27,9 +27,13 @@ SCRIPT = ROOT / "scripts" / "session_check.py"
 SID = "0000aaaa-probe-session"
 
 
-def run(cwd: pathlib.Path, sid: str | None = SID) -> tuple[int, str]:
+def run(cwd: pathlib.Path, sid: str | None = SID, ci: bool = False) -> tuple[int, str]:
     env = scrubbed_env({"CLAUDE_CODE_SESSION_ID": sid} if sid else {})
     env.pop("CLAUDE_CODE_SESSION_ID", None) if sid is None else None
+    # The runner this test itself runs on may be GitHub Actions; only the CI case says so.
+    env.pop("GITHUB_ACTIONS", None)
+    if ci:
+        env["GITHUB_ACTIONS"] = "true"
     r = subprocess.run([sys.executable, str(SCRIPT)], cwd=cwd, capture_output=True, text=True, env=env)
     return r.returncode, r.stdout + r.stderr
 
@@ -57,6 +61,8 @@ def main() -> int:
         case("outside Claude Code: nothing to check", run(d, sid=None), 0, "not inside a Claude Code session")
         case("inside Claude Code, not a git work tree: FAIL, closed", run(d), 1, "fail closed",
              "cannot read the git work tree")
+        case("the CI issue agent (GitHub Actions): CI is the enforcement, nothing to check", run(d, ci=True), 0,
+             "in GitHub Actions")
 
     with tempfile.TemporaryDirectory() as tmp:
         d = pathlib.Path(tmp)
@@ -77,7 +83,7 @@ def main() -> int:
         print("test-session-check FAIL (scripts/session_check.py in throwaway directories):")
         print("\n".join(bad))
         return 1
-    print("test-session-check PASS: 5 cases of scripts/session_check.py -- fail closed, both causes named, "
+    print("test-session-check PASS: 6 cases of scripts/session_check.py -- fail closed, both causes named, "
           "the PASS line says what it checked")
     return 0
 

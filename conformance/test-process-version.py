@@ -10,8 +10,8 @@ compared the marker to `docs/decisions.md` -- to one of the stale records -- and
 
 WHY THE SET IS THE MANIFEST'S (v7.1.1). v7.1 graded every `.md` under the package root, and in an
 installation that root is the PROJECT: every upgraded project's own plans, closes and reviews -- graded
-by the version they declare, never by today's -- went red, 109 of 121 in fitness_app and 280 of 292 in
-model_ranking, and both hand-patched this file. A project record the package does not deliver is never
+by the version they declare, never by today's -- went red, 109 of 121 in Project-K and 280 of 292 in
+Project-J, and both hand-patched this file. A project record the package does not deliver is never
 graded here.
 
 DERIVED, not enumerated: the current version is the first `**`vX.Y`**` entry of UPGRADING.md's

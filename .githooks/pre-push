@@ -6,6 +6,10 @@
 # "never started" is easy to read as "failed, retry later". This makes the gate the push's
 # precondition on the developer's own machine.
 #
+# THE GATE STAMP (v7.2). `make gate` records the commit it passed on (`scripts/gate_stamp.py`); when
+# every commit pushed is that commit and the tree is clean, the gate is not run a second time on the
+# same tree. Anything else -- no stamp, another commit, a dirty tree -- runs the gate in full.
+#
 # DELETIONS skip the gate: a push that only deletes refs grades nothing (its local SHA is all
 # zeros). No line read — stdin empty or unreadable — runs the gate, never skips it.
 #
@@ -20,13 +24,19 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 # repositories and must not inherit this one.
 unset $(git rev-parse --local-env-vars)
 
-refs=0 grading=0
+refs=0 grading=0 shas=()
 while read -r local_ref local_sha _remote_ref _remote_sha || [[ -n "${local_ref:-}" ]]; do
   refs=$((refs + 1))
-  [[ "$local_sha" =~ ^0+$ ]] || grading=1
+  [[ "$local_sha" =~ ^0+$ ]] || { grading=1; shas+=("$local_sha"); }
 done
 if (( refs > 0 && grading == 0 )); then
   echo "pre-push: every pushed ref is a deletion — nothing to grade, gate skipped"
+  exit 0
+fi
+
+py=$(command -v python3 || command -v python || true)
+if (( grading == 1 )) && [[ -n "$py" ]] && "$py" scripts/gate_stamp.py check "${shas[@]}"; then
+  echo "pre-push: make gate already passed on this commit and tree -- not run again"
   exit 0
 fi
 

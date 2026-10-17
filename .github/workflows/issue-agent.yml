@@ -1,69 +1,87 @@
 name: Issue agent
 
-# Pipeline v2.0 — Layer 2 (CI-triggered agent) per consortium 3-layer model.
-# Hardened YAML per DevOps lens.
+# Layer 2 (CI-triggered agent) of the issue model in .agents/rules/issues.md. Hardened YAML.
 #
-# IMPORTANT: This workflow ships in SHADOW MODE for the first milestone:
-#   1. Agent only comments on issues (does not open PRs) — manual review of every comment.
-#   2. Graduate to draft-PR mode after 1 full milestone of successful shadow-mode runs.
-#   3. See METHODOLOGY.md §4 (Issue Management) for the rollout sequence.
+# SHIPS SWITCHED OFF (v7.2). In three field projects it ran about 550 times and never once finished:
+# no repository had the ANTHROPIC_API_KEY secret, and its tools did not allow a commit or a push. It now
+# runs only when started by hand (Actions -> Issue agent -> Run workflow, with the issue number and
+# the lane). To switch the label trigger on, add the secret, then uncomment the `issues:` block under
+# `on:` -- an owner's edit, like every workflow change.
 #
-# Safety rails (all consortium-locked):
+# What each label does:
+#   1. `agent:triage` — the agent only comments (triage verdict); no code, no PR.
+#   2. `agent:fix`    — the agent runs /fix-issue and leaves a DRAFT PR. It never merges.
+#   Apply `agent:fix` only once the triage verdict says the fix is safe to automate.
+#   See .agents/rules/issues.md for the lifecycle this follows.
+#
+# Safety rails:
 #   - Label-gated: only fires on agent:triage or agent:fix
 #   - Draft PR only (cannot self-merge; branch protection on main enforces)
 #   - Least-privilege token (contents/issues/pull-requests: write; nothing else)
 #   - Timeout-capped (20 min per run)
 #   - Concurrency cancel (newer event cancels stale runs on same issue)
-#   - Pinned action SHAs (replace @v1-style refs with SHAs before going live)
+#   - Every action pinned to a commit SHA (`bash scripts/pin-actions.sh` to move one)
 
 on:
-  issues:
-    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "the issue number"
+        required: true
+      lane:
+        description: "triage (comment only) or fix (a draft PR)"
+        required: true
+        default: triage
+  # issues:
+  #   types: [opened, labeled]
 
 permissions:
-  # v4.3.2. `AGENTS.md` said "agents NEVER run git" while this file granted commit rights. The
-  # contradiction was real but the resolution is not to revoke this: a CI agent on a draft PR it cannot
-  # merge is a DIFFERENT trust boundary from an agent in the owner's sandbox. What was missing is
-  # ATTRIBUTION -- in the field one agent commit carried the owner's own identity and nothing
-  # distinguished it. GDF solved this with a machine account and required trailers a week earlier;
-  # GP had neither. Both are below.
+  # A CI agent on a draft PR it cannot merge is a different trust boundary from an agent in the
+  # owner's sandbox, so it keeps commit rights -- and it commits as the machine identity below, so
+  # no agent commit can be mistaken for a person's.
   contents: write          # create a fix/issue-* branch + commits; NEVER main (branch protection)
   pull-requests: write     # open a DRAFT PR only -- it cannot merge its own work
   issues: write            # comment + label
   # Explicitly NOT granting: actions, packages, security-events, deployments
 
 concurrency:
-  group: issue-agent-${{ github.event.issue.number }}
+  group: issue-agent-${{ inputs.issue || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   agent:
-    # Gate: only run when a label exists. Default-off prevents firing on every drive-by issue.
-    if: contains(github.event.issue.labels.*.name, 'agent:triage') || contains(github.event.issue.labels.*.name, 'agent:fix')
-    runs-on: ubuntu-latest
+    # Gate: a run started by hand, or (once the label trigger is on) a label. Default-off prevents
+    # firing on every drive-by issue.
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.issue.labels.*.name, 'agent:triage') || contains(github.event.issue.labels.*.name, 'agent:fix')
+    runs-on: ${{ vars.DEVFLOW_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
+    # The machine identity every automated commit carries. `conformance/test-commit-identity.py`
+    # knows it by this address; any other identity on a branch is refused as a stranger's.
     env:
-      GIT_AUTHOR_NAME: gp-issue-agent
-      GIT_AUTHOR_EMAIL: gp-issue-agent@users.noreply.github.com
-      GIT_COMMITTER_NAME: gp-issue-agent
-      GIT_COMMITTER_EMAIL: gp-issue-agent@users.noreply.github.com
+      GIT_AUTHOR_NAME: gp-agent
+      GIT_AUTHOR_EMAIL: gp-agent@users.noreply.github.com
+      GIT_COMMITTER_NAME: gp-agent
+      GIT_COMMITTER_EMAIL: gp-agent@users.noreply.github.com
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
-      # TODO: pin the Claude Code action version to a commit SHA, not @v1
-      #   Get latest tag SHA: gh api repos/anthropics/claude-code-action/git/refs/tags/v1 -q .object.sha
       - uses: anthropics/claude-code-action@9d7150bc8a3dae8149739a88019d192b579ad90c  # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Headless, every tool outside this list is refused: the fix lane needs to commit, push and
+          # open the draft. The Bash guard (.claude/settings.json) still judges each command.
+          claude_args: >-
+            --allowedTools "Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git fetch:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(make:*),Read,Edit,Write,Grep,Glob"
           prompt: |
-            Route by label:
-            - If this issue has label `agent:fix`, run the /fix-issue skill (DevFlow v6.0
-              merged the old prepare and implement skills into it).
-            - Else if `agent:triage`, run the /triage-issue skill (comment only, no code).
+            Route by lane (a run started by hand) or by label:
+            - Lane `fix`, or label `agent:fix`: run the /fix-issue skill. It ends by running
+              /pre-merge and leaves a DRAFT pull request; a human marks it ready and merges.
+            - Lane `triage`, or label `agent:triage`: run the /triage-issue skill (comment only, no code).
 
             Constraints (NON-NEGOTIABLE):
-            - Read .agents/rules/ and permission-matrix.md before any action
+            - Read .agents/rules/issues.md and .agents/rules/practices.md before any action; the skill
+              names anything else it needs
             - Branch naming: fix/issue-<number>-<slug>
             - Never edit main
             - Never force-push
@@ -72,21 +90,25 @@ jobs:
             - PR body MUST cite file:line evidence for each acceptance criterion (per permission-matrix §11)
             - Touch only files relevant to the issue (no scope sprawl)
 
-            Issue number: ${{ github.event.issue.number }}
+            Issue number: ${{ inputs.issue || github.event.issue.number }}
+            Lane: ${{ inputs.lane || 'by label' }}
 
 # Host-side admin TODOs (one-time, requires admin):
 #   1. Add ANTHROPIC_API_KEY to repo secrets (masked + protected)
-#   2. Create labels: gh label create agent:triage --color FFA500 --description "Auto-triage by agent"
-#                     gh label create agent:fix    --color 1F7A4D --description "Auto-fix by agent"
-#                     gh label create auto:fix     --color CADCFC --description "PR opened by agent"
+#   2. Create the label vocabulary once: `make labels` (reads .agents/rules/issues.md, creates
+#      only the missing labels, touches none that exist)
 #   3. Branch protection on main:
-#      - Require status checks: test, secret-scan, dep-audit, install-and-governance  # single source: docs/branch-protection.md
+#      - Require the status checks docs/branch-protection.md lists (the one list)
 #      - Require pull request reviews: 1+ (human required)
 #      - Restrict who can push to matching branches
 #   4. Set 90-day rotation reminder for ANTHROPIC_API_KEY
 #   5. Monthly cost cap monitoring (cost-anomaly alarm at >2x daily baseline)
 
-# Every commit this workflow produces must carry the trailer below. `conformance/test-git-authority.py`
-# asserts it, because a policy that lives only in a comment is a policy nobody enforces.
+# Commits from this workflow carry the machine identity set in the job env and NO AI attribution
+# (no Co-Authored-By, no "Generated with"). `conformance/test-git-authority.py` asserts both.
+#
+# model_ranking (D-155 clause 2, D-161): the owner kept the trailer, so every commit this workflow
+# produces must also carry the trailer below. `conformance/test-git-authority.py` asserts it, because
+# a policy that lives only in a comment is a policy nobody enforces.
 #
 #   GP-Agent: issue-agent (Layer 2, draft PR, cannot merge)
