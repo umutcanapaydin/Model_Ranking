@@ -552,6 +552,56 @@ extension CategoryHints {
             ? generalWords.id : nil
     }
 
+    /// #295 (D-208): a Turkish question whose "yapay zeka" follows a verb clause ("alışveriş yapacak bir yapay
+    /// zeka", "kod yazan yapay zeka") names the task it wants done, so the general words do not hold it on
+    /// `everyday`. The clause is an active participle (`-acak`/`-ecek`, `-an`/`-en`) with a word of its own
+    /// before it: "en son çıkan" or "ücretsiz olan" describes the AI and gives it no task.
+    static func namesTaskBeforeGeneralWords(_ question: String) -> Bool {
+        readings(question).contains { words in
+            words.indices.contains { index in
+                guard words[index] == "yapay", index + 1 < words.count, words[index + 1].hasPrefix("zek") else {
+                    return false
+                }
+                var verb = index - 1
+                if verb >= 0, words[verb] == "bir" { verb -= 1 }
+                guard verb >= 1, isActiveParticiple(words[verb]) else { return false }
+                return !notAClauseObject.contains(words[verb - 1])
+            }
+        }
+    }
+
+    /// #295: the question with its "yapay zeka" taken out, so the embedding reads the task and not the words
+    /// every `everyday` example shares (the issue's attempt 1).
+    static func withoutGeneralWords(_ text: String) -> String {
+        var words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        var index = 0
+        while index + 1 < words.count {
+            if plain(words[index]) == "yapay", plain(words[index + 1]).hasPrefix("zek") {
+                words.removeSubrange(index...(index + 1))
+            } else {
+                index += 1
+            }
+        }
+        return words.joined(separator: " ")
+    }
+
+    private static func isActiveParticiple(_ word: String) -> Bool {
+        guard word.count >= 4, !notAParticiple.contains(word) else { return false }
+        if word.hasSuffix("acak") || word.hasSuffix("ecek") { return true }
+        // "-ebilen" is the ability ("çizebilen", that can draw), not the passive its last letters spell.
+        if word.hasSuffix("bilen") && word.count > 5 { return true }
+        guard word.hasSuffix("an") || word.hasSuffix("en") else { return false }
+        // A passive participle ("kullanılan", "bilinen") describes the AI; it gives it no task.
+        return !(word.count >= 6 && passiveEndings.contains(where: word.hasSuffix))
+    }
+
+    private static let passiveEndings = ["ilan", "ilen", "ulan", "ulen", "inan", "inen", "unan", "unen"]
+    /// #295: words ending as a participle does that are none ("olan" is "that is"), in plain letters.
+    static let notAParticiple: Set<String> = ["olan", "olacak", "zaman", "insan"]
+    /// #295: the words before a participle that make it a description, not a task ("en son çıkan").
+    static let notAClauseObject: Set<String> = ["en", "son", "yeni", "cok", "daha", "bir", "hep", "su", "bu", "simdi",
+                                                "iyi", "gercekten"]
+
     private static func names(_ rule: SurfaceWords, _ readings: [[String]], _ raw: String) -> Bool {
         if readings.contains(where: { words in words.contains(where: rule.unless.contains) }) { return false }
         return rule.marks.contains(where: raw.contains) || readings.contains { words in
@@ -766,7 +816,7 @@ struct SimilarityRouter: QuestionRouter {
     static let turkishBesideModelNames = 0.9
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        let text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var text = question.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !text.isEmpty else { return nil }
         // D-187: a question that names a surface outright goes there, in either language and whether
         // or not the embedding below can load: the matches below need both, and either can be missing.
@@ -783,7 +833,12 @@ struct SimilarityRouter: QuestionRouter {
         // one word that is the task ("gemini mi gpt mi ödev" read as `abstract` in the tuning run).
         let turkish = SimilarityRouter.readsTurkish(text)
         if turkish, named == nil, let general = CategoryHints.generalSurface(question, within: known) {
-            return RoutingOutcome(categoryID: general, tier: .similarity, unmeasured: false)
+            // #295 (D-208): unless a verb clause before its "yapay zeka" names a task; then the examples
+            // read the question without those words.
+            guard CategoryHints.namesTaskBeforeGeneralWords(question) else {
+                return RoutingOutcome(categoryID: general, tier: .similarity, unmeasured: false)
+            }
+            text = CategoryHints.withoutGeneralWords(text)
         }
         let language: NLLanguage = turkish ? .turkish : .english
         let exampleSet = turkish ? CategoryHints.examplesTurkishBothSpellings : CategoryHints.examples
