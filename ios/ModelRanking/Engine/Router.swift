@@ -171,6 +171,12 @@ enum CategoryHints {
     ///
     /// Written as plain questions, none of them copied from a test. A new surface needs its six
     /// here as well as its line in `byID`; `test_router_hints.py` fails on either missing.
+    ///
+    /// **#293 (run golden-night, D-206 clause 1): `assistant`, `factuality` and `search_factuality`
+    /// hold eight**, in both languages. A plain question close to nothing in particular (a request for
+    /// studies with their links, two polite sentences to a boss) settled on `mathematics`, the hub shape
+    /// above: no maths example was near it, only nothing else was nearer. The two added to each give such a
+    /// question somewhere better to land: a short message to write, evidence asked for, studies with links.
     static let examples: [String: [String]] = [
         "coding": ["write a python function that parses a csv file",
                    "why does my javascript code throw a null error",
@@ -184,7 +190,8 @@ enum CategoryHints {
                            "an ai developer that edits files and runs commands by itself"],
         "assistant": ["write a thank you note to my colleague", "help me reply to this text message",
                       "what is the tallest mountain in the world", "explain what inflation means in simple words",
-                      "how do i get red wine out of a carpet", "hi can you help me with something"],
+                      "how do i get red wine out of a carpet", "hi can you help me with something",
+                      "write a short polite message to my landlord", "write two friendly lines for a birthday card"],
         "everyday": ["which ai is best for everyday tasks", "a good all round model for many different things",
                      "which model should i use for general daily use",
                      "the best general purpose ai for a bit of everything", "one model for work, study and home",
@@ -213,7 +220,8 @@ enum CategoryHints {
                      "go through these pages and extract the dates"],
         "factuality": ["is this claim true", "did the model make up this fact",
                        "check whether these figures are correct", "is this citation real or invented",
-                       "verify this historical date", "does this answer contain hallucinations"],
+                       "verify this historical date", "does this answer contain hallucinations",
+                       "is there scientific evidence for this", "what does the research actually say about this"],
         "vision": ["what is in this picture i uploaded", "describe this photo",
                    "read the text in this screenshot", "what does this chart in the image show",
                    "identify the plant in this photo", "explain the diagram in this image"],
@@ -223,11 +231,13 @@ enum CategoryHints {
         "search_factuality": ["find a real source online and cite it", "look it up and quote the page exactly",
                               "give me links to the sources you used",
                               "search and make sure the facts come from real pages",
-                              "find the original article and quote it", "research this online with accurate citations"],
+                              "find the original article and quote it", "research this online with accurate citations",
+                              "find scientific studies on this topic and link them",
+                              "show me the research papers behind this with their links"],
     ]
 
-    /// #222 (the reading wave of 2026-10-14): the same six questions per surface, as a Turkish reader
-    /// types them. The wording tier compares a CONFIDENTLY Turkish question against these, through the
+    /// #222 (the reading wave of 2026-10-14): the same six questions per surface (eight for #293's
+    /// three), as a Turkish reader types them. The wording tier compares a CONFIDENTLY Turkish question against these, through the
     /// same on-device embedding: Apple's contextual embedding for Latin script is one multilingual
     /// model, English and Turkish alike (`NLContextualEmbedding.modelIdentifier`). Before it, every such
     /// question that named no surface fell to "not measured". Written for this wave, never from a
@@ -245,7 +255,9 @@ enum CategoryHints {
                            "dosyaları düzenleyip komutları kendisi çalıştıran bir yapay zeka geliştirici"],
         "assistant": ["iş arkadaşıma bir teşekkür notu yaz", "bu mesaja nasıl cevap vereyim yardım et",
                       "dünyanın en yüksek dağı hangisi", "enflasyonu basit kelimelerle açıkla",
-                      "halıdaki şarap lekesini nasıl çıkarırım", "merhaba bir konuda yardım eder misin"],
+                      "halıdaki şarap lekesini nasıl çıkarırım", "merhaba bir konuda yardım eder misin",
+                      "arkadaşıma davetine gelemeyeceğimi nazikçe söyleyen bir mesaj yaz",
+                      "doğum günü kartı için iki samimi cümle yaz"],
         "everyday": ["günlük işler için en iyi yapay zeka hangisi", "her işe yarayan iyi bir model",
                      "genel günlük kullanım için hangi modeli seçmeliyim",
                      "her şeyden biraz yapan en iyi genel amaçlı yapay zeka", "iş, okul ve ev için tek bir model",
@@ -271,7 +283,8 @@ enum CategoryHints {
                      "bu anlaşmadaki fesih maddesini bul", "bu sayfaları tarayıp tarihleri çıkar"],
         "factuality": ["bu iddia doğru mu", "model bu bilgiyi uydurdu mu",
                        "bu rakamların doğru olup olmadığını kontrol et", "bu kaynak gerçek mi yoksa uydurma mı",
-                       "bu tarihi bilginin doğruluğunu teyit et", "bu cevapta halüsinasyon var mı"],
+                       "bu tarihi bilginin doğruluğunu teyit et", "bu cevapta halüsinasyon var mı",
+                       "bunun bilimsel bir kanıtı var mı", "araştırmalar bu konuda gerçekte ne diyor"],
         "vision": ["yüklediğim fotoğrafta ne var", "bu fotoğrafı anlat", "bu ekran görüntüsündeki yazıyı oku",
                    "resimdeki bu grafik ne gösteriyor", "bu fotoğraftaki bitkiyi tanı", "bu görseldeki şemayı açıkla"],
         "search": ["internette en son haberleri ara", "şu an bitcoin fiyatı ne kadar", "bugünkü hava durumuna bak",
@@ -280,7 +293,9 @@ enum CategoryHints {
         "search_factuality": ["internette gerçek bir kaynak bulup alıntı yap", "araştır ve sayfadan aynen alıntıla",
                               "kullandığın kaynakların linklerini ver",
                               "ara ve bilgilerin gerçek sayfalardan geldiğinden emin ol",
-                              "orijinal makaleyi bulup alıntı yap", "bunu doğru kaynak göstererek internette araştır"],
+                              "orijinal makaleyi bulup alıntı yap", "bunu doğru kaynak göstererek internette araştır",
+                              "bu konudaki bilimsel çalışmaları bul ve linklerini ver",
+                              "bunun arkasındaki araştırma makalelerini bağlantılarıyla göster"],
     ]
 }
 

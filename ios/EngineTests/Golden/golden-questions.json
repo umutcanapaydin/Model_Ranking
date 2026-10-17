@@ -671,7 +671,6 @@
     "expected_surface": "factuality",
     "disputed": false,
     "reason": null,
-    "known_miss": 294,
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
