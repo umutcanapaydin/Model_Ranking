@@ -671,9 +671,8 @@
     "question": "is it true that we only use 10 percent of our brain",
     "language": "en",
     "expected_surface": "factuality",
-    "disputed": false,
-    "reason": null,
-    "known_miss": 294,
+    "disputed": true,
+    "reason": "the question fits two surfaces: it asks whether a claim is true (factuality), and the claim is about the brain (expert); the owner ruled it disputed (D-206 clause 3)",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
