@@ -1,6 +1,6 @@
 ---
 name: close-wave
-description: Use in HEAVY mode when a planned wave's code is written and committed on its wave/m<N>-w<W> branch, before anything else happens to it. Runs the reviews the change needs — a Code-Reviewer always, the Security-Reviewer when make review-need says so, and on the plan's last wave the milestone Tester — files what the wave did not fix, fills the wave-close checklist, runs make wave-check and the gate, and opens the wave's draft PR.
+description: Use in HEAVY mode when a planned wave's code is written and committed on its wave/m<N>-w<W> branch, before anything else happens to it. Runs the reviews the change needs — a Code-Reviewer always, and on the plan's last wave the milestone Security-Reviewer and the milestone Tester, each over the whole milestone — files what the wave did not fix, fills the wave-close checklist, runs make wave-check and the gate, and opens the wave's draft PR.
 ---
 
 **Heavy mode only.** `make mode` prints `light` → stop: a light project has no waves; its work goes
@@ -43,10 +43,14 @@ left a planted fault live in the product.
    (`/log-decision`) or a `docs/refusals.md` row. In the field the loop ran to five and six rounds
    because nothing said what the third one ends with, and a new reviewer per round turned one
    close into ten reviewers and eight and a half hours.
-4. **Security-Reviewer, when step 1's line says `security`** (`.claude/agents/Security-Reviewer.md`),
-   after the Code-Reviewer: the slice, output `docs/reviews/m<N>-wave-<W>-security.md`. The need is
-   computed — declared HIGH paths, sensitive path names, a new parser of untrusted input — and
-   `make wave-check` recomputes it from the range, so it cannot be left out by judgment.
+4. **The plan's last wave only: the milestone Security-Reviewer** (`.claude/agents/Security-Reviewer.md`),
+   after the Code-Reviewer, on the whole milestone — the same range as step 5 — with the security
+   signals `make review-need` prints for that range (declared HIGH paths, sensitive path names, a new
+   parser of untrusted input) as its starting list. Output `docs/reviews/m<N>-security.md`; BLOCKING →
+   fix on this branch, the same reviewer re-verifies. Heavy mode runs no per-wave security review (the
+   owner's ruling of 2026-10-16): `make review-need` prints a wave's signals and routes them here, and
+   `make wave-check` requires this verdict on the last wave. A HIGH-path finding that cannot wait for
+   the milestone's end is an Escalate-NOW event (AGENTS.md §3), not a reason to skip this review.
 5. **The plan's last wave only: the milestone Tester** (`.claude/agents/Tester.md`, subagent type
    `tester`), after the reviews above, on the whole milestone — from the commit the plan merged at
    (in a run: the milestone's `Base` sha in `docs/plans/run-<name>.md`) to `<end>` — with the plan's
@@ -65,8 +69,8 @@ left a planted fault live in the product.
 7. Copy `docs/wave-checklist.template.md` to `docs/plans/m<N>-wave-<W>-close.md` and fill it —
    every row cites evidence from THIS wave's range; `Review need:` is step 1's line, and
    `Last wave of the plan:` says yes or no. `make wave-check FILE=docs/plans/m<N>-wave-<W>-close.md`
-   must PASS: it requires the Code-Reviewer verdict, the security verdict when the range needs one,
-   and the milestone Tester's on the last wave — none BLOCKING, each `**Independent:** yes` — and a
+   must PASS: it requires the Code-Reviewer verdict, and on the last wave the milestone
+   Security-Reviewer's and the milestone Tester's — none BLOCKING, each `**Independent:** yes` — and a
    findings-table row for every id from step 6. If no subagent could review and the author did,
    WAIVE row 3 and add a row for the wave to `docs/control-events.csv`.
 8. `make gate` green. Add the checklist and the reviews by path, commit, push the branch, open the

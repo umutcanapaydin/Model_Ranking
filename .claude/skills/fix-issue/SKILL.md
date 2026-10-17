@@ -33,10 +33,11 @@ description: Use to work one triaged issue on its own branch, in light and heavy
    - `code-reviewer` (**heavy mode only**; light mode runs none) → the Code-Reviewer
      (`.claude/agents/Code-Reviewer.md`) as its own subagent, the issue as its acceptance criterion;
      verdict `docs/reviews/fix-issue-<n>-review.md`.
-   - `security` (**either mode**) → the Security-Reviewer on the slice; verdict
-     `docs/reviews/fix-issue-<n>-security.md`.
-   - `code-reviewer+security` → both, the Code-Reviewer first and one at a time; light mode runs
-     the Security-Reviewer only.
+   - `security` (**light mode**) → the Security-Reviewer on the slice; verdict
+     `docs/reviews/fix-issue-<n>-security.md`. Heavy mode never routes a fix here: its security
+     signals are printed for the milestone Security-Reviewer on the plan's last wave, and a fix after
+     a release meets the deploy gate's security delta before it ships.
+   - `code-reviewer+security` → light mode only, and light runs the Security-Reviewer alone.
    BLOCKING → fix on the same branch, commit, and send the fix diff to the same reviewer to
    re-verify its own items. Each verdict declares `**Independent:** yes`. Commit verdicts by path.
    **The third BLOCKING on the same finding ends the loop:** no fourth round, no new reviewer.

@@ -97,11 +97,12 @@ project, none found by the author. What is owed depends on the branch:
 
 What is owed is what `make review-need` computes for the branch — its last line is in the PR body;
 recompute it and compare:
-- `wave/*` (heavy) — the Code-Reviewer's verdict; the security verdict when the range needs one; on
-  the plan's last wave the milestone Tester's. `make wave-check` refuses the close without them.
+- `wave/*` (heavy) — the Code-Reviewer's verdict; on the plan's last wave the milestone
+  Security-Reviewer's (`m<N>-security.md`) and the milestone Tester's. `make wave-check` refuses the
+  close without them.
 - `fix/issue-<n>-*` — `none`: nothing. `code-reviewer` (heavy only): `docs/reviews/fix-issue-<n>-review.md`.
-  `security` (either mode): `docs/reviews/fix-issue-<n>-security.md`. `code-reviewer+security`:
-  both in heavy mode, the security verdict alone in light. Each PASS or MINOR, each
+  `security` (light only; heavy runs security once per milestone): `docs/reviews/fix-issue-<n>-security.md`.
+  `code-reviewer+security` (light): the security verdict alone. Each PASS or MINOR, each
   `**Independent:** yes`, and each unfixed finding filed or refused. No gate reads these files: you do.
 - `enhancement/*` (light) — `docs/reviews/enhancement-<slug>-security.md` when the branch needs security; no Code-Reviewer, no
   Tester per enhancement — the milestone Tester runs once before the next release (§B.0).

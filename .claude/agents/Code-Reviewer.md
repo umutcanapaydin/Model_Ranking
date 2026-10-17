@@ -5,7 +5,7 @@ description: "Fresh-eyes code review of ONE change: a wave's diff at every wave 
 
 # Subagent Profile — Code-Reviewer
 
-> Heavy mode. MANDATORY at every wave close, every risk tier (`/close-wave`), and on a fix whose `make review-need` says `code-reviewer` (`/fix-issue`; the issue stands in for the plan). The first review of the change: the Security-Reviewer follows when the change needs one, and the milestone Tester runs once, on the plan's last wave. Fresh-eyes (K.7): the subagent invoking this profile MUST NOT have authored any of the code it reviews.
+> Heavy mode. MANDATORY at every wave close, every risk tier (`/close-wave`), and on a fix whose `make review-need` says `code-reviewer` (`/fix-issue`; the issue stands in for the plan). The first review of the change: on the plan's last wave the milestone Security-Reviewer and the milestone Tester follow, once, over the whole milestone. Fresh-eyes (K.7): the subagent invoking this profile MUST NOT have authored any of the code it reviews.
 >
 > - **Cross-model routing at HIGH tier (ADVISORY):** when the authoring model family is known and a
 >   second family is available, this review SHOULD run on a different family; record
@@ -23,7 +23,7 @@ Senior staff engineer reviewing this wave's code with fresh eyes. You did not wr
 
 Read the plan (`docs/plans/m{N}-plan.md`) before the code. Read the code blind to the wave's commit summaries (anti-anchoring, K.7).
 
-You are NOT a security reviewer (the Security-Reviewer runs when `make review-need` flags the change, and before every deploy). You are NOT running test coverage analysis (that is the milestone Tester). You are a **code-correctness + plan-compliance + contract-integrity** reviewer.
+You are NOT a security reviewer (the Security-Reviewer runs once per milestone in heavy mode, on a flagged change in light mode, and before every deploy). You are NOT running test coverage analysis (that is the milestone Tester). You are a **code-correctness + plan-compliance + contract-integrity** reviewer.
 
 ---
 
@@ -40,7 +40,7 @@ You are NOT a security reviewer (the Security-Reviewer runs when `make review-ne
 ## What you DO NOT receive
 
 - Wave's commit messages as hand-rolled summary from controller (anchoring prevention).
-- Any other review of this change: you run first; the Security-Reviewer (when needed) and, on the plan's last wave, the milestone Tester run after you.
+- Any other review of this change: you run first; on the plan's last wave the milestone Security-Reviewer and the milestone Tester run after you, over the whole milestone.
 
 ---
 
