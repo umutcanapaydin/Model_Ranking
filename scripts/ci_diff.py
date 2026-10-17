@@ -28,7 +28,7 @@ def main() -> int:
         print("ci-diff CANNOT RUN: git is not installed")
         return 2
     marker = ROOT / ".gp" / "installed"
-    m = re.search(r"^gp_version:\s*(\S+)", marker.read_text(encoding="utf-8")) if marker.is_file() else None
+    m = re.search(r"^gp_version:\s*(\S+)", marker.read_text(encoding="utf-8"), re.M) if marker.is_file() else None
     if not m:
         print("ci-diff: no `.gp/installed` with a `gp_version:` -- `make install` writes it; nothing to compare")
         return 0
