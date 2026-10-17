@@ -5427,7 +5427,6 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Revisit when:** the next DevFlow release.
 
-<<<<<<< HEAD
 ## D-209 — Run bug-night: what it does, and the owner's answers
 
 **Status:** proposed
@@ -5455,7 +5454,7 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A guard change handed over without its review could open a hole that nothing reports; the bundle is not handed over until the review passes.
 
 **Revisit when:** the owner's morning review.
-=======
+
 ## D-208 — #295: a verb clause right before "yapay zeka" names the question's task
 
 **Status:** proposed
@@ -5473,4 +5472,3 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A general question with a descriptive clause (`en çok kullanılan yapay zeka`, *(translated: the most used AI)*) would leave `everyday`; the fresh set's general rows catch it.
 
 **Revisit when:** the fresh measurement fails the bar, or the on-device model tier is on every supported phone.
->>>>>>> origin/fix/issue-295-task-before-ai
