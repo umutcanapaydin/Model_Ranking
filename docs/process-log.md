@@ -998,3 +998,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - `StandingsStore.keptAnswers()` checked its 8 MiB ceiling after `contents()` had read the whole file. `contents(atMost:)` now reads the file's size from its attributes first, and the store's one read stays the one pinned expression. The client gate's sink list gains the three Foundation names the size check uses (D-209 clause 6). Red first: `tests/unit/test_answers_size_before_read.py`; `KeptAnswerTests` plants a file at and over the ceiling.
 - Lesson: a ceiling bounds the step it sits before; put the check before the read, not before the decode.
+
+## 2026-10-18 · fix/issue-319-policy-scripts — review-need derives its policy scripts
+
+- `POLICY_SCRIPTS` held three scripts by hand, so a change to `scripts/wave_check.py`, the Bash guard, the Makefile's `review-need` recipe or a plan's `security-globs:` line routed to `none` in light mode. A script under `scripts/`, `.claude/hooks/` or `.githooks/` that names a policy module, target, field or `security-globs` at either end of the range is now a policy script; in the Makefile and the plans only a changed line that names one is a policy edit (D-209 clause 5). Red first: `tests/unit/test_review_need_derived_policy.py`.
+- Lesson: derive a gate's scope from what the code names, and keep a hand-kept seed only where the names are the seed.

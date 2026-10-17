@@ -77,8 +77,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
 
 PRODUCT_THRESHOLD = 130
-#: The scripts that read the policy fields, or decide from them (#283): a change to one is a policy edit.
-POLICY_SCRIPTS = ("scripts/review_need.py", "scripts/deploy_gate.py", "scripts/brief_fields.py")
+#: The modules that read the policy fields, or decide from them (#283): a change to one is a policy edit. Each is
+#: also a token below, so a script that names one is a policy reader too (#319).
+POLICY_MODULES = ("review_need", "deploy_gate", "brief_fields")
+POLICY_SCRIPTS = tuple(f"scripts/{name}.py" for name in POLICY_MODULES)
+#: #319 (D-209 clause 5): what names a policy reader -- a policy module, its make target, a plan's
+#: `security-globs:` line or a policy field's label. A script under POLICY_READER_DIRS that names one, at either end
+#: of the range, is a policy script; in LINE_POLICY_PATHS (the Makefile, the plans) only a changed line naming one
+#: is a policy edit, so an unrelated Makefile change is not.
+POLICY_TOKENS = (*POLICY_MODULES, "review-need", "deploy-check", "security-globs", *brief_fields.POLICY_FIELDS)
+POLICY_PATTERN = re.compile("|".join(re.escape(token) for token in POLICY_TOKENS))
+POLICY_READER_DIRS = ("scripts", ".claude/hooks", ".githooks")
+LINE_POLICY_PATHS = ("Makefile", "docs/plans")
 GATE_CODE = re.compile(r"^(scripts/|conformance/|\.claude/|\.githooks/|\.github/|Makefile$|stack\.mk$)")
 RECORDS = re.compile(r"^docs/|\.md$")
 SENSITIVE_PATH = re.compile(
@@ -136,13 +146,44 @@ def range_base(rng: str) -> tuple[str, str]:
     return base, end
 
 
-def policy_edits(base_root: Path, end_root: Path, changed: list[str]) -> list[str]:
+def policy_readers(revs: tuple[str, ...]) -> set[str]:
+    """#319: the scripts that name a policy reader at any of `revs`, with the policy modules themselves.
+    RuntimeError when git cannot search a commit (fail closed: an unsearched tree has no readers to miss)."""
+    found = set(POLICY_SCRIPTS)
+    for rev in revs:
+        grep = subprocess.run(["git", "grep", "-l", "-E", POLICY_PATTERN.pattern, rev, "--", *POLICY_READER_DIRS],
+                              capture_output=True, text=True, check=False)
+        if grep.returncode not in (0, 1):
+            raise RuntimeError(f"git grep cannot search {rev[:12]} for the policy readers: {grep.stderr.strip()}")
+        found |= {line.split(":", 1)[1] for line in grep.stdout.splitlines() if ":" in line}
+    return {path for path in found if not path.endswith(".md")}
+
+
+def policy_lines(rng: str) -> list[str]:
+    """#319: each file under LINE_POLICY_PATHS whose changed lines name a policy reader, in diff order."""
+    hits: list[str] = []
+    current = ""
+    for line in git("diff", "-U0", "--no-renames", rng, "--", *LINE_POLICY_PATHS).splitlines():
+        if line.startswith(("--- a/", "+++ b/")):
+            current = line[6:]
+        elif (line[:1] in "+-" and not line.startswith(("+++", "---")) and POLICY_PATTERN.search(line)
+              and current and current not in hits):
+            hits.append(current)
+    return hits
+
+
+def policy_edits(base_root: Path, end_root: Path, changed: list[str], rng: str = "",
+                 revs: tuple[str, ...] = ()) -> list[str]:
     """What in the range edits policy: each brief policy field whose answer differs between the base and
-    the end, and each policy script the range touches."""
+    the end, each policy script the range touches (#319: derived at `revs`), and each Makefile or plan line
+    that names a policy reader."""
     before, after = brief_fields.policy(base_root), brief_fields.policy(end_root)
     edits = [f"the brief's `{name}:` ({before[name] or 'unset'} -> {after[name] or 'unset'})"
              for name in brief_fields.POLICY_FIELDS if before[name] != after[name]]
-    return edits + [path for path in POLICY_SCRIPTS if path in changed]
+    readers = policy_readers(revs) if revs else set(POLICY_SCRIPTS)
+    scripts = sorted(path for path in changed if path in readers)
+    lines = [path for path in policy_lines(rng) if path not in scripts] if rng else []
+    return edits + scripts + lines
 
 
 def declared_globs(root: Path | str, at: str | None = None, plan: str | None = None) -> list[str]:
@@ -172,7 +213,7 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
     root: Path = brief_root_at(at) if at else base_root
     mode = brief_fields.mode(root)
     changed = [p for p in git("diff", "--name-only", "--no-renames", "-z", rng).split("\0") if p]
-    edits = policy_edits(base_root, brief_root_at(end), changed)
+    edits = policy_edits(base_root, brief_root_at(end), changed, rng, (base, end))
     numstat = git("diff", "--numstat", rng)
     product = 0
     gate: list[str] = []
