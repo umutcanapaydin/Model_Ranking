@@ -978,3 +978,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - `conformance/lib_record.documents()` walked the disk, so a gitignored note under `build/` turned `test-documented-paths` red, though its targets already came from git. It now skips what `git ls-files --others --ignored --exclude-standard` lists; a tracked file under an ignore rule is still graded, and without git the walk stays whole (D-209 clause 5). Red first: `tests/unit/test_documents_skip_ignored.py`.
 - Lesson: a gate's inputs and its targets come from the same source, or scratch on one side breaks it.
+
+## 2026-10-18 · fix/issue-330-next-adr — next-adr reads the run of ids, not its far-off names
+
+- `scripts/next_adr.py` took the highest project id, and this project's D-999 ("the agent opens drafts; a human merges") made `make next-adr` print D-1000 after D-207. It now follows the run of ids and stops at a step wider than 100: D-999 is a name. On this tree it prints the id after D-209. Red first: two cases in `conformance/test-next-adr.py`.
+- Lesson: a number used as a name breaks every "highest plus one" rule; say which numbers are places.
