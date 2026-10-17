@@ -119,6 +119,9 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
         r.write("docs/project-brief.md", brief("light"))
+        # #283: the brief is read at the range's base, and a range that writes it is a policy edit, so the
+        # brief is committed before the range this case measures.
+        r.commit("brief")
         r.write("src/h.go", "package h\n\nfunc load(r io.Reader, v any) error {\n"
                             "\tdec := json.NewDecoder(r)\n\treturn dec.Decode(v)\n}\n")
         r.commit("decoder")

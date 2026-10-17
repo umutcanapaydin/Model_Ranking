@@ -42,6 +42,16 @@ git-based check can see either; `/going-live` reads the brief's declared runtime
 A delta review closes a stale verdict: the reviewer reads `<reviewed head>..HEAD` and writes the new
 head into the same file.
 
+THE BRIEF'S POLICY IS THE BASE'S (AGENTS.md section 5, base-pinned policy; #283). `Working mode:` (which
+Tester verdict) and `Deploy commands:` are read from the brief at the protected base -- the merge-base of
+HEAD with the default branch (`brief_fields.protected_base`) -- not from the tree about to ship:
+  * a deploy is any command the base's brief OR the tree's declares, so a change can add a deploy command
+    but cannot remove one;
+  * the Tester verdict is the one the base's mode names; when the tree's brief names the other mode, the
+    verdicts of both are required, so a change of mode moves no deploy to the verdict it prefers;
+  * a base git cannot read refuses every declared deploy, and `--check` fails: a policy read from nowhere
+    is not the change's own. Matching still reads the tree's brief then, so a non-deploy is never refused.
+
 `--check` prints one line per verdict (security, tester) so the closure checklist and `/going-live`
 can paste them, then `deploy-check PASS` or `deploy-check FAIL: <why>`.
 
@@ -66,7 +76,7 @@ from pathlib import Path
 # that does not ignore it, and the tree about to ship is what this compares.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from brief_fields import listing, mode  # noqa: E402
+from brief_fields import listing, mode, protected_base, root_at  # noqa: E402
 
 #: The Bash guard calls `--judge` only in a gate that carries this line, at the start of a line, exactly:
 #: a gate written before `--judge` existed reads the flag as the command, finds no deploy and exits 0, so
@@ -107,10 +117,24 @@ def is_deploy_record(path: str) -> bool:
     return path.startswith("docs/") or path.endswith(".md")
 
 
-def tester_path(root: Path) -> tuple[Path | None, str]:
+def policy_root(root: Path) -> tuple[Path | None, str]:
+    """(a root holding the brief as the protected base of the repository at `root` holds it, or None when
+    that base cannot be read; the line that says which)."""
+    base = protected_base(root)
+    if base is None:
+        return None, ("no merge-base of HEAD with a default branch (origin/HEAD, origin/main, origin/master, "
+                      "main, master)")
+    try:
+        return root_at(base, root), f"the brief at {base[:12]}, the merge-base of HEAD with the default branch"
+    except RuntimeError as error:
+        return None, str(error)
+
+
+def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
     """(the Tester verdict this tree must carry, its label): `release-tester.md` in light mode, the latest
-    `m<N>-tester.md` in heavy mode; None when heavy mode has none yet."""
-    if mode(root) == "light":
+    `m<N>-tester.md` in heavy mode; None when heavy mode has none yet. The mode is `working_mode`, the
+    tree's brief's when none is given."""
+    if (working_mode or mode(root)) == "light":
         return RELEASE_TESTER, "tester (light mode)"
     reviews = root / "docs" / "reviews"
     found: list[tuple[int, Path]] = []
@@ -180,24 +204,40 @@ def current(root: Path, rel: Path, label: str, independent: bool = False) -> tup
 
 
 def verdicts(root: Path) -> list[tuple[str | None, str]]:
-    """Security first, then the Tester: each (why not current | None, summary line)."""
-    out = [current(root, SECURITY, "security")]
-    tester, label = tester_path(root)
-    if tester is None:
-        out.append((f"there is no milestone Tester verdict (docs/reviews/m<N>-tester.md) in this tree ({label})",
-                    f"{label}: no docs/reviews/m<N>-tester.md"))
+    """The policy's base, then security, then the Tester: each (why not current | None, summary line)."""
+    policy, where = policy_root(root)
+    out: list[tuple[str | None, str]] = []
+    modes = [mode(root)]
+    if policy is None:
+        out.append((f"the brief's policy fields cannot be read at the protected base ({where}); a deploy is "
+                    "judged by the base's brief, never by the change's (#283)", f"policy: unreadable ({where})"))
     else:
-        out.append(current(root, tester, label, independent=True))
+        modes = list(dict.fromkeys([mode(policy), *modes]))
+        out.append((None, f"policy: {where}, working mode {modes[0]}"
+                          + (f"; the tree's brief says {modes[1]}, so both modes' Tester verdicts" if len(modes) > 1
+                             else "")))
+    out.append(current(root, SECURITY, "security"))
+    for working_mode in modes:
+        tester, label = tester_path(root, working_mode)
+        if tester is None:
+            out.append((f"there is no milestone Tester verdict (docs/reviews/m<N>-tester.md) in this tree ({label})",
+                        f"{label}: no docs/reviews/m<N>-tester.md"))
+        else:
+            out.append(current(root, tester, label, independent=True))
     return out
 
 
 # --- matching -------------------------------------------------------------------------------------------
 
 def declared(root: Path) -> list[list[str]]:
-    """The brief's deploy commands, each as lower-cased words. One the shell cannot split is skipped
-    loudly: a declaration nobody can match is not a declaration."""
+    """The deploy commands the protected base's brief or the tree's declares (#283), each as lower-cased
+    words. One the shell cannot split is skipped loudly: a declaration nobody can match is not a declaration."""
+    policy, _ = policy_root(root)
+    texts = listing("Deploy commands", root)
+    if policy is not None:
+        texts += [t for t in listing("Deploy commands", policy) if t not in texts]
     out: list[list[str]] = []
-    for text in listing("Deploy commands", root):
+    for text in texts:
         try:
             words = [w.lower() for w in shlex.split(text)]
         except ValueError:
