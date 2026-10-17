@@ -925,3 +925,14 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   that has the artifact.
 - Lesson: an implementer worktree needs everything the commit hook needs before the work starts. Decide where
   the artifact comes from at dispatch, not when the first green commit fails.
+
+## 2026-10-17 — DevFlow v7.1.2 (D-205) and run golden-night (D-206)
+
+- **The v7.1.2 upgrade (#306).** The guard was ported from v7.1.2 with the project's rules carried over. Its security review ran four rounds:
+  - a redefined `pwd` let `rm -rf "$(pwd)"` through, twice;
+  - all of `/var/folders` counted as scratch.
+
+  The owner applied the `.claude/` half.
+- **The run stacked seven PRs on #308.** They include the golden misses #293 and #292, both measured on a fresh set (m24) and shipping on D-206's bar. #295 stopped after four attempts. The owner-only rows ended as one owner bundle, with the agent half already committed, so that only one owner line is left.
+- **The owner-bundle review found #321:** `bash -c '...' --help` passed the guard unread, on `main` since `64b862a`. It is fixed in the bundle.
+- **Lesson:** every agent's Write or Edit runs the post-edit `make check-fast` in the session's project tree, whatever tree the agent works in. With seven agents writing, those runs overlapped my own commits there and failed them at random. Keep agents' scratch files in their own worktree's `build/`, and expect retries.

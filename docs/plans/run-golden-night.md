@@ -2,7 +2,7 @@
 
 Mode: light
 Started: 2026-10-17
-Ended: open
+Ended: 2026-10-17 — stopped at control-change, nothing independent left
 Integration branch: `integration/run-golden-night` · PR: #308
 Plan PR: #307
 Rulings: D-206
@@ -15,7 +15,7 @@ On 2026-10-17 the owner allowed, in chat, a copy of the gitignored `advisor.db` 
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | 9c0c576 | issues | running |
+| 1 | queue | 9c0c576 | issues | stopped |
 
 ## Waves
 
@@ -58,4 +58,29 @@ On 2026-10-17 the owner allowed, in chat, a copy of the gitignored `advisor.db` 
 
 ## For the owner
 
-The run is open. This section is rewritten with the morning's merge order when it ends.
+The run ended on 2026-10-17. Seven PRs are stacked on #308, and the two release reviews are current. Nothing was deployed and nothing went to TestFlight.
+
+In the morning, in order:
+
+1. **Merge #308**, the integration PR, as a **merge commit, never a squash**. It carries #306 (the DevFlow v7.1.2 upgrade) and #307 (the plan, D-206), and then:
+   - #310 (#294 disputed)
+   - #311 (#279)
+   - #312 (#304)
+   - #313 (#255)
+   - #316 (#293)
+   - #315 (#297)
+   - #324 (#292)
+   - the release Tester's tests
+
+   GitHub marks the PRs merged and `/post-merge` closes their issues. #306's and #307's merges accept D-205 and D-206.
+2. **Apply the owner bundle** with the one line the coordinator gives in chat.
+   - **Where:** it applies the owner half (the guard, the workflow, two skills and a new git hook) on the branch `owner/golden-night-bundle`. That branch already holds the agent half as a declared red commit.
+   - **What it closes:** #321 (`bash -c '...' --help` passed the guard), #284, #285 (most of it), #286, #254, #252, #278, #122, #283, and the `/pre-merge` step for #255.
+   - **Reviewed:** `docs/reviews/` holds no verdict for it yet. The owner-bundle security review (PASS WITH FINDINGS, round 2) is committed on that branch when its PR opens.
+   - **After it:** the coordinator pushes it and opens its draft PR. Merge that PR, then start a new Claude Code session, which loads the new guard.
+3. **Decide #295.** Its three options are in Stops.
+4. **Still open for the guard:** #305 (code-running git config keys) and #287 (variables set in a scope).
+5. **A deploy is possible.** `make deploy-check` passes: the release security review is current at `958458d`, and the release Tester at `9217c6c`. Do this on the first deploy: check the `Fly-Client-IP` trust by hand, as the M20 S5 note says.
+6. **Correct the golden set** (D-202 clause 2). It now reports 40 of 41 asserted questions passing, 1 known miss (#295) and 8 disputed. Then test on the phone: install from Xcode on the iPhone; the build talks to the hosted engine.
+
+New issues tonight: #309, #314, #317–#323, #325 and #326, each triaged. #108 was measured and closed.
