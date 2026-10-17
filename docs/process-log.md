@@ -993,3 +993,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - The merge of #333 into the integration branch left conflict markers in `docs/decisions.md`. The commit gate passed, and the run's bundle agent was the first to see them. `scripts/conflict_markers.py` lists every marker line in a tracked text file (Markdown fences excepted), and `tests/unit/test_conflict_markers.py` holds both polarities and the repository itself, so `make test` and the commit gate refuse one. Red first.
 - Lesson: after a merge with a conflict, read every conflicted path in the merge's output, not only its last lines.
+
+## 2026-10-18 · fix/issue-314-answers-size — the kept answers' file is refused by its size before it is read
+
+- `StandingsStore.keptAnswers()` checked its 8 MiB ceiling after `contents()` had read the whole file. `contents(atMost:)` now reads the file's size from its attributes first, and the store's one read stays the one pinned expression. The client gate's sink list gains the three Foundation names the size check uses (D-209 clause 6). Red first: `tests/unit/test_answers_size_before_read.py`; `KeptAnswerTests` plants a file at and over the ceiling.
+- Lesson: a ceiling bounds the step it sits before; put the check before the read, not before the decode.

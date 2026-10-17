@@ -79,8 +79,10 @@ public struct StandingsStore {
         replaceContents(with: data)
     }
 
-    /// The store's file, or nil when it is absent or empty. The one read in this file.
-    private func contents() -> Data? {
+    /// The store's file, or nil when it is absent or empty. The one read in this file. A file larger than
+    /// `limit` is refused from its size, before a byte of it is read (#314, D-209 clause 6).
+    private func contents(atMost limit: Int = .max) -> Data? {
+        if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize, size > limit { return nil }
         // Security S1: the read below fetches an https address as happily as a file. A store is
         // only ever a file on this device, so anything else is refused before it is touched.
         guard url.isFileURL,
@@ -193,7 +195,7 @@ extension StandingsStore {
     /// Every kept answer, oldest first, or none when nothing usable is kept: an absent, unreadable or
     /// undecodable file is nothing kept, never a crash.
     func keptAnswers() -> [KeptAnswer] {
-        guard let data = answersFile.contents(), data.count <= Self.maxAnswersBytes,
+        guard let data = answersFile.contents(atMost: Self.maxAnswersBytes), data.count <= Self.maxAnswersBytes,
               let kept = try? JSONDecoder().decode([KeptAnswer].self, from: data)
         else { return [] }
         return kept
