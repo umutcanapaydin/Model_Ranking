@@ -16,6 +16,8 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+#: #330: the widest step between two ids in the run; a farther id is a name (D-999), not the next place.
+GAP = 100
 HEADING = re.compile(r"^##[ \t]+([DP])-(\d+)\b(.*)$", re.M)
 
 
@@ -31,7 +33,15 @@ def next_ids(text: str) -> tuple[str, str]:
     if not project or (placeholder and project == [100]):
         d = 100
     else:
-        d = max(project) + 1
+        # #330: an id more than GAP past the one before it is a name, not a place in the run (this project's
+        # D-999, "the agent opens drafts", sat after D-207 and made the next id D-1000).
+        run = sorted(set(project))
+        last = run[0]
+        for n in run[1:]:
+            if n - last > GAP:
+                break
+            last = n
+        d = last + 1
     return f"D-{d}", f"P-{max(process, default=0) + 1:03d}"
 
 

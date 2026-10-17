@@ -152,3 +152,5 @@ ios/EngineTests/TurkishReadingTesterTests.swift  # the reading wave's Tester: as
 ios/EngineTests/Golden/golden-questions.json  # #289 (D-202 clause 2): the golden question set, a third of it Turkish
                                   # as readers type it; the Turkish questions ARE the data the router is checked on
 ios/EngineTests/UnsureLanguageTests.swift  # #273, #218: asserts how questions in other languages (Kurmanji, Albanian) and short Turkish ones are read, by their words, for the reason ReadingTests does
+ios/EngineTests/TaskBeforeGeneralWordsTests.swift # #295 (D-208): asserts Turkish questions by the verb clause before
+                                  # their "yapay zeka"; the Turkish grammar is what the rule reads
