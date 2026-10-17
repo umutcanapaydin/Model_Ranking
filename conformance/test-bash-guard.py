@@ -206,8 +206,12 @@ def main() -> int:
     for c in ("rm -rf \"$TMPDIR\"", "rm -rf \"$TMPDIR\"/", "rm -rf \"$TMPDIR\"/..", "rm -rf \"$TMPDIR\"/../x",
               "rm -rf $TMPDIR/a/../../b", "rm -rf ${TMPDIR}/../x", "TMPDIR=/home/u; rm -rf \"$TMPDIR\"/x",
               "TMPDIR=$X; rm -rf \"$TMPDIR\"/x", "d=$(mktemp -d) && rm -rf \"$d\"/..", "d=$(mktemp -d) && rm -rf \"$d\"/a/../..",
-              "cd \"$TMPDIR\" && rm -rf ..", "rm -rf .claude/worktrees/x/../.."):
+              "rm -rf .claude/worktrees/x/../.."):
         cases.append((f"`{c}` (TMPDIR set)", c, home, env_pkg, True, "destructive command"))
+    # model_ranking (the v7.1.2 upgrade security review's M3): from a checkout under the system temp directory,
+    # where every review seat's lives (D-174), `$TMPDIR/..` holds this repository and is refused as that, so the
+    # case asks for a refusal in either words.
+    cases.append(("`cd \"$TMPDIR\" && rm -rf ..` (TMPDIR set)", "cd \"$TMPDIR\" && rm -rf ..", home, env_pkg, True, ""))
     for c in ("rm -rf \"$TMPDIR\"/x", "rm -rf ${TMPDIR}/x", "rm -rf \"$TMPDIR\"/a/../b",
               f"TMPDIR={t}; rm -rf \"$TMPDIR\"/x", "d=$(mktemp -d) && rm -rf \"$d\"/*", "cd \"$TMPDIR\" && rm -rf x"):
         cases.append((f"`{c}` (TMPDIR set)", c, home, env_pkg, False, ""))

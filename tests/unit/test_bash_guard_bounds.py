@@ -307,6 +307,25 @@ def test_rm_rf_of_a_temp_variables_own_scratch_is_allowed(guard: ModuleType, tem
     assert _bash(guard, command, ungoverned) is None, command
 
 
+@pytest.mark.parametrize("command", [
+    'pwd() { echo ~; }; rm -rf "$(pwd)"', 'function pwd { echo ~; }; rm -rf "$(pwd)"',
+    'pwd() { echo ~; }\nrm -rf "$(pwd)"', "alias pwd='echo ~'\nrm -rf \"$(pwd)\"",
+    'pwd() { echo ~; }; find "$(pwd)" -delete', 'pwd() { echo ~; }; rm -rf "$(pwd)/Desktop"',
+    'mktemp() { echo ~; }; d=$(mktemp -d); rm -rf "$d"', 'function mktemp { echo ~; }; d=$(mktemp -d); rm -rf "$d"',
+    "alias mktemp='echo ~'\nd=$(mktemp -d); rm -rf \"$d\"",
+])
+def test_a_command_that_defines_pwd_or_mktemp_is_not_trusted_on_them(guard: ModuleType, temp_dir: Path,
+                                                                     ungoverned: Path, command: str) -> None:
+    """The v7.1.2 upgrade security review's B1 and M1: from inside scratch, `$(pwd)` is the scratch directory and a
+    `mktemp` result is a new one, unless the same command defines `pwd` or `mktemp`. Then either may print the
+    home directory, so the target is not scratch."""
+    inside = temp_dir / "work"
+    inside.mkdir()
+    why = _bash(guard, command, inside)
+    assert why, command
+    assert _bash(guard, 'rm -rf "$(pwd)"', inside) is None, "the plain `$(pwd)` of scratch stays scratch"
+
+
 @pytest.mark.parametrize(("command", "where"), [
     ("rm -rf .", "."), ("rm -rf .git", "."), ("rm -rf ios", "."), ("rm -rf ./ios ./.git", "."), ("rm -rf ../", "."),
     ("rm -rf ..", "ios"), ("rm -fr ../repo", "ios"), ("find . -delete", "."), ("find ios -delete", "."),
