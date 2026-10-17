@@ -110,3 +110,17 @@ func fixtureDetailBuildsAPath(_ base: URL) -> URL {
 struct FixtureSecondStore {
     @AppStorage("q") var kept = ""
 }
+
+// #297 (the #288 security re-review's R-m1): a surface and a kept answer built from the typed question by their
+// initialisers, and an answer kept from a file that is not the load path's. REFUSED, each.
+func fixtureDetailBuildsASurface(_ typed: String) -> Category {
+    Category(id: typed)
+}
+
+func fixtureDetailBuildsAKeptAnswer(_ typed: String) -> KeptAnswer {
+    KeptAnswer(task: typed, payload: Data(typed.utf8))
+}
+
+func fixtureDetailKeeps(_ list: [Category]) {
+    StandingsStore.onDevice.keep(list)
+}

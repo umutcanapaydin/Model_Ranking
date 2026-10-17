@@ -111,3 +111,13 @@ struct FixtureProcessStateClient {
     func boxed() -> String { fixtureScreenBox as String }
     func shelved() -> Int { FixtureShelf.box.count }
 }
+
+// #297: the engine's answer and its surfaces' list, decoded where the engine client decodes them, which the
+// gate must ALLOW.
+func fixtureClientDecodesAnAnswer(_ data: Data) -> Recommendation? {
+    try? JSONDecoder().decode(Recommendation.self, from: data)
+}
+
+func fixtureClientDecodesTheSurfaces(_ data: Data) -> CategoryList? {
+    try? JSONDecoder().decode(CategoryList.self, from: data)
+}

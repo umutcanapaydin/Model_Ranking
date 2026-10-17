@@ -5134,7 +5134,143 @@
                 (builtin_conformance type="String" protocol="Escapable" synthesized nonisolated)
                 (declref_expr type="String" location=/x/ContentView.swift:318:31 range=[/x/ContentView.swift:318:31 - line:318:31] decl="main.(file).fixtureViewKeepsTheQuestionInDefaults(_:).typed@/x/ContentView.swift:317:46" function_ref=unapplied))))
           (argument label="forKey"
-            (string_literal_expr type="String" location=/x/ContentView.swift:318:46 range=[/x/ContentView.swift:318:46 - line:318:46] encoding=utf8 value="q" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))
+            (string_literal_expr type="String" location=/x/ContentView.swift:318:46 range=[/x/ContentView.swift:318:46 - line:318:46] encoding=utf8 value="q" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))))
+  (extension_decl range=[/x/ContentView.swift:325:1 - line:340:1] "ContentView"
+    (func_decl range=[/x/ContentView.swift:326:5 - line:335:5] "load(_:_:asked:)" interface_type="(ContentView) -> (Recommendation, [Category], String) -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:326:14 - line:326:75]
+        (parameter "answer" interface_type="Recommendation")
+        (parameter "fresh" interface_type="[Category]")
+        (parameter "asked" apiName="asked" interface_type="String"))
+      (brace_stmt range=[/x/ContentView.swift:326:77 - line:335:5]
+        (call_expr type="()" location=/x/ContentView.swift:327:33 range=[/x/ContentView.swift:327:9 - line:327:44] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:327:33 range=[/x/ContentView.swift:327:9 - line:327:33] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:327:33 range=[/x/ContentView.swift:327:33 - line:327:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:327:24 range=[/x/ContentView.swift:327:9 - line:327:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:327:9 range=[/x/ContentView.swift:327:9 - line:327:9] typerepr="StandingsStore")))))
+          (argument_list
+            (argument
+              (declref_expr type="Recommendation" location=/x/ContentView.swift:327:38 range=[/x/ContentView.swift:327:38 - line:327:38] decl="main.(file).ContentView extension.load(_:_:asked:).answer@/x/ContentView.swift:326:17" function_ref=unapplied))))
+        (call_expr type="()" location=/x/ContentView.swift:328:33 range=[/x/ContentView.swift:328:9 - line:328:43] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:328:33 range=[/x/ContentView.swift:328:9 - line:328:33] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:328:33 range=[/x/ContentView.swift:328:33 - line:328:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:328:24 range=[/x/ContentView.swift:328:9 - line:328:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:328:9 range=[/x/ContentView.swift:328:9 - line:328:9] typerepr="StandingsStore")))))
+          (argument_list
+            (argument
+              (declref_expr type="[Category]" location=/x/ContentView.swift:328:38 range=[/x/ContentView.swift:328:38 - line:328:38] decl="main.(file).ContentView extension.load(_:_:asked:).fresh@/x/ContentView.swift:326:43" function_ref=unapplied))))
+        (if_stmt range=[/x/ContentView.swift:329:9 - line:331:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some implicit type="[Category]?"
+                (pattern_binding implicit type="[Category]" kind=let
+                  (pattern_named type="[Category]" "forged")))
+              (optional_try_expr type="[Category]?" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:25 - line:329:90] thrown_error="any Error"
+                (inject_into_optional implicit type="[Category]?" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:30 - line:329:90]
+                  (call_expr type="[Category]" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:30 - line:329:90] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="([Category].Type, Data) throws -> [Category]" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:30 - line:329:44] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> ([Category].Type, Data) throws -> [Category]" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:44 - line:329:44] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> [Category])]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:42] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:30] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:30] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:30] typerepr="JSONDecoder"))))
+                            (argument_list)))))
+                    (argument_list labels="_:from:"
+                      (argument
+                        (dot_self_expr type="[Category].Type" location=/x/ContentView.swift:329:51 range=[/x/ContentView.swift:329:51 - line:329:62]
+                          (type_expr type="[Category].Type" location=/x/ContentView.swift:329:51 range=[/x/ContentView.swift:329:51 - line:329:60] typerepr="[Category]")))
+                      (argument label="from"
+                        (call_expr type="Data" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:89] nothrow isolation_crossing="none"
+                          (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:74] nothrow isolation_crossing="none"
+                            (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:74] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                            (argument_list implicit
+                              (argument
+                                (type_expr type="Data.Type" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:74] typerepr="Data"))))
+                          (argument_list
+                            (argument
+                              (member_ref_expr type="String.UTF8View" location=/x/ContentView.swift:329:85 range=[/x/ContentView.swift:329:79 - line:329:85] decl="Swift.(file).String extension.utf8"
+                                (declref_expr type="String" location=/x/ContentView.swift:329:79 range=[/x/ContentView.swift:329:79 - line:329:79] decl="main.(file).ContentView extension.load(_:_:asked:).asked@/x/ContentView.swift:326:62" function_ref=unapplied))))))))))))
+          (brace_stmt range=[/x/ContentView.swift:329:92 - line:331:9]
+            (call_expr type="()" location=/x/ContentView.swift:330:37 range=[/x/ContentView.swift:330:13 - line:330:48] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:330:37 range=[/x/ContentView.swift:330:13 - line:330:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:330:37 range=[/x/ContentView.swift:330:37 - line:330:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:330:28 range=[/x/ContentView.swift:330:13 - line:330:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:330:13 range=[/x/ContentView.swift:330:13 - line:330:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (declref_expr type="[Category]" location=/x/ContentView.swift:330:42 range=[/x/ContentView.swift:330:42 - line:330:42] decl="main.(file).ContentView extension.load(_:_:asked:).forged@/x/ContentView.swift:329:16" function_ref=unapplied))))))
+        (if_stmt range=[/x/ContentView.swift:332:9 - line:334:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some implicit type="CategoryList?"
+                (pattern_binding implicit type="CategoryList" kind=let
+                  (pattern_named type="CategoryList" "list")))
+              (optional_try_expr type="CategoryList?" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:23 - line:332:90] thrown_error="any Error"
+                (inject_into_optional implicit type="CategoryList?" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:28 - line:332:90]
+                  (call_expr type="CategoryList" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:28 - line:332:90] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="(CategoryList.Type, Data) throws -> CategoryList" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:28 - line:332:42] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> (CategoryList.Type, Data) throws -> CategoryList" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:42 - line:332:42] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> CategoryList)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:40] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:28] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:28] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:28] typerepr="JSONDecoder"))))
+                            (argument_list)))))
+                    (argument_list labels="_:from:"
+                      (argument
+                        (dot_self_expr type="CategoryList.Type" location=/x/ContentView.swift:332:49 range=[/x/ContentView.swift:332:49 - line:332:62]
+                          (type_expr type="CategoryList.Type" location=/x/ContentView.swift:332:49 range=[/x/ContentView.swift:332:49 - line:332:49] typerepr="CategoryList")))
+                      (argument label="from"
+                        (call_expr type="Data" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:89] nothrow isolation_crossing="none"
+                          (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:74] nothrow isolation_crossing="none"
+                            (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:74] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                            (argument_list implicit
+                              (argument
+                                (type_expr type="Data.Type" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:74] typerepr="Data"))))
+                          (argument_list
+                            (argument
+                              (member_ref_expr type="String.UTF8View" location=/x/ContentView.swift:332:85 range=[/x/ContentView.swift:332:79 - line:332:85] decl="Swift.(file).String extension.utf8"
+                                (declref_expr type="String" location=/x/ContentView.swift:332:79 range=[/x/ContentView.swift:332:79 - line:332:79] decl="main.(file).ContentView extension.load(_:_:asked:).asked@/x/ContentView.swift:326:62" function_ref=unapplied))))))))))))
+          (brace_stmt range=[/x/ContentView.swift:332:92 - line:334:9]
+            (call_expr type="()" location=/x/ContentView.swift:333:37 range=[/x/ContentView.swift:333:13 - line:333:57] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:333:37 range=[/x/ContentView.swift:333:13 - line:333:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:333:37 range=[/x/ContentView.swift:333:37 - line:333:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:333:28 range=[/x/ContentView.swift:333:13 - line:333:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:333:13 range=[/x/ContentView.swift:333:13 - line:333:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (member_ref_expr type="[Category]" location=/x/ContentView.swift:333:47 range=[/x/ContentView.swift:333:42 - line:333:47] decl="main.(file).CategoryList.categories@/x/Models.swift:59:9"
+                    (declref_expr type="CategoryList" location=/x/ContentView.swift:333:42 range=[/x/ContentView.swift:333:42 - line:333:42] decl="main.(file).ContentView extension.load(_:_:asked:).list@/x/ContentView.swift:332:16" function_ref=unapplied)))))))))
+    (func_decl range=[/x/ContentView.swift:337:5 - line:339:5] "keepElsewhere(_:)" interface_type="(ContentView) -> (Recommendation) -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:337:23 - line:337:48]
+        (parameter "answer" interface_type="Recommendation"))
+      (brace_stmt range=[/x/ContentView.swift:337:50 - line:339:5]
+        (call_expr type="()" location=/x/ContentView.swift:338:33 range=[/x/ContentView.swift:338:9 - line:338:44] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:338:33 range=[/x/ContentView.swift:338:9 - line:338:33] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:338:33 range=[/x/ContentView.swift:338:33 - line:338:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:338:24 range=[/x/ContentView.swift:338:9 - line:338:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:338:9 range=[/x/ContentView.swift:338:9 - line:338:9] typerepr="StandingsStore")))))
+          (argument_list
+            (argument
+              (declref_expr type="Recommendation" location=/x/ContentView.swift:338:38 range=[/x/ContentView.swift:338:38 - line:338:38] decl="main.(file).ContentView extension.keepElsewhere(_:).answer@/x/ContentView.swift:337:26" function_ref=unapplied))))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")
@@ -6021,7 +6157,60 @@
     (constructor_decl implicit range=[/x/Detail.swift:110:8 - line:110:8] "init(kept:)" interface_type="(FixtureSecondStore.Type) -> (String) -> FixtureSecondStore" access=internal designated
       (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/Detail.swift:110:8 - line:110:8]
-        (parameter "kept" apiName="kept" interface_type="String" default_arg=stored property)))))
+        (parameter "kept" apiName="kept" interface_type="String" default_arg=stored property))))
+  (func_decl range=[/x/Detail.swift:116:1 - line:118:1] "fixtureDetailBuildsASurface(_:)" interface_type="(String) -> Category" access=internal result="Category" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:116:33 - line:116:49]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/Detail.swift:116:63 - line:118:1]
+      (return_stmt implicit range=[/x/Detail.swift:117:5 - line:117:23]
+        (call_expr type="Category" location=/x/Detail.swift:117:5 range=[/x/Detail.swift:117:5 - line:117:23] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="(String) -> Category" location=/x/Detail.swift:117:5 range=[/x/Detail.swift:117:5 - line:117:5] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(Category.Type) -> (String) -> Category" location=/x/Detail.swift:117:5 range=[/x/Detail.swift:117:5 - line:117:5] decl="main.(file).Category.init(id:)@/x/Models.swift:54:8" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="Category.Type" location=/x/Detail.swift:117:5 range=[/x/Detail.swift:117:5 - line:117:5] typerepr="Category"))))
+          (argument_list labels="id:"
+            (argument label="id"
+              (declref_expr type="String" location=/x/Detail.swift:117:18 range=[/x/Detail.swift:117:18 - line:117:18] decl="main.(file).fixtureDetailBuildsASurface(_:).typed@/x/Detail.swift:116:36" function_ref=unapplied)))))))
+  (func_decl range=[/x/Detail.swift:120:1 - line:122:1] "fixtureDetailBuildsAKeptAnswer(_:)" interface_type="(String) -> KeptAnswer" access=internal result="KeptAnswer" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:120:36 - line:120:52]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/Detail.swift:120:68 - line:122:1]
+      (return_stmt implicit range=[/x/Detail.swift:121:5 - line:121:54]
+        (call_expr type="KeptAnswer" location=/x/Detail.swift:121:5 range=[/x/Detail.swift:121:5 - line:121:54] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="(String, Data) -> KeptAnswer" location=/x/Detail.swift:121:5 range=[/x/Detail.swift:121:5 - line:121:5] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(KeptAnswer.Type) -> (String, Data) -> KeptAnswer" location=/x/Detail.swift:121:5 range=[/x/Detail.swift:121:5 - line:121:5] decl="main.(file).KeptAnswer.init(task:payload:)@/x/StandingsStore.swift:48:8" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="KeptAnswer.Type" location=/x/Detail.swift:121:5 range=[/x/Detail.swift:121:5 - line:121:5] typerepr="KeptAnswer"))))
+          (argument_list labels="task:payload:"
+            (argument label="task"
+              (declref_expr type="String" location=/x/Detail.swift:121:22 range=[/x/Detail.swift:121:22 - line:121:22] decl="main.(file).fixtureDetailBuildsAKeptAnswer(_:).typed@/x/Detail.swift:120:39" function_ref=unapplied))
+            (argument label="payload"
+              (call_expr type="Data" location=/x/Detail.swift:121:38 range=[/x/Detail.swift:121:38 - line:121:53] nothrow isolation_crossing="none"
+                (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/Detail.swift:121:38 range=[/x/Detail.swift:121:38 - line:121:38] nothrow isolation_crossing="none"
+                  (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/Detail.swift:121:38 range=[/x/Detail.swift:121:38 - line:121:38] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr type="Data.Type" location=/x/Detail.swift:121:38 range=[/x/Detail.swift:121:38 - line:121:38] typerepr="Data"))))
+                (argument_list
+                  (argument
+                    (member_ref_expr type="String.UTF8View" location=/x/Detail.swift:121:49 range=[/x/Detail.swift:121:43 - line:121:49] decl="Swift.(file).String extension.utf8"
+                      (declref_expr type="String" location=/x/Detail.swift:121:43 range=[/x/Detail.swift:121:43 - line:121:43] decl="main.(file).fixtureDetailBuildsAKeptAnswer(_:).typed@/x/Detail.swift:120:39" function_ref=unapplied)))))))))))
+  (func_decl range=[/x/Detail.swift:124:1 - line:126:1] "fixtureDetailKeeps(_:)" interface_type="([Category]) -> ()" access=internal result="()" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:124:24 - line:124:43]
+      (parameter "list" interface_type="[Category]"))
+    (brace_stmt range=[/x/Detail.swift:124:45 - line:126:1]
+      (call_expr type="()" location=/x/Detail.swift:125:29 range=[/x/Detail.swift:125:5 - line:125:38] nothrow isolation_crossing="none"
+        (dot_syntax_call_expr type="([Category]) -> ()" location=/x/Detail.swift:125:29 range=[/x/Detail.swift:125:5 - line:125:29] nothrow isolation_crossing="none"
+          (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/Detail.swift:125:29 range=[/x/Detail.swift:125:29 - line:125:29] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+          (argument_list implicit
+            (argument
+              (member_ref_expr type="StandingsStore" location=/x/Detail.swift:125:20 range=[/x/Detail.swift:125:5 - line:125:20] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                (type_expr type="StandingsStore.Type" location=/x/Detail.swift:125:5 range=[/x/Detail.swift:125:5 - line:125:5] typerepr="StandingsStore")))))
+        (argument_list
+          (argument
+            (declref_expr type="[Category]" location=/x/Detail.swift:125:34 range=[/x/Detail.swift:125:34 - line:125:34] decl="main.(file).fixtureDetailKeeps(_:).list@/x/Detail.swift:124:27" function_ref=unapplied)))))))
 (source_file "/x/EngineClient.swift"
   (import_decl range=[/x/EngineClient.swift:2:1 - line:2:8] module="Foundation")
   (func_decl range=[/x/EngineClient.swift:4:1 - line:6:1] "fixtureClientFetches(_:)" interface_type="(URL) async throws -> Int64" access=internal result="Int64" thrown_type="<null>"
@@ -6700,7 +6889,57 @@
       (parameter "self") thrown_type="<null>"
       (parameter_list)
       (brace_stmt implicit range=[/x/EngineClient.swift:106:8 - line:106:8]
-        (return_stmt implicit range=[/x/EngineClient.swift:106:8 - line:106:8])))))
+        (return_stmt implicit range=[/x/EngineClient.swift:106:8 - line:106:8]))))
+  (func_decl range=[/x/EngineClient.swift:117:1 - line:119:1] "fixtureClientDecodesAnAnswer(_:)" interface_type="(Data) -> Recommendation?" access=internal result="Recommendation?" thrown_type="<null>"
+    (parameter_list range=[/x/EngineClient.swift:117:34 - line:117:47]
+      (parameter "data" interface_type="Data"))
+    (brace_stmt range=[/x/EngineClient.swift:117:68 - line:119:1]
+      (return_stmt implicit range=[/x/EngineClient.swift:118:5 - line:118:62]
+        (optional_try_expr type="Recommendation?" location=/x/EngineClient.swift:118:24 range=[/x/EngineClient.swift:118:5 - line:118:62] thrown_error="any Error"
+          (inject_into_optional implicit type="Recommendation?" location=/x/EngineClient.swift:118:24 range=[/x/EngineClient.swift:118:10 - line:118:62]
+            (call_expr type="Recommendation" location=/x/EngineClient.swift:118:24 range=[/x/EngineClient.swift:118:10 - line:118:62] throws isolation_crossing="none"
+              (dot_syntax_call_expr type="(Recommendation.Type, Data) throws -> Recommendation" location=/x/EngineClient.swift:118:24 range=[/x/EngineClient.swift:118:10 - line:118:24] nothrow isolation_crossing="none"
+                (declref_expr type="(JSONDecoder) -> (Recommendation.Type, Data) throws -> Recommendation" location=/x/EngineClient.swift:118:24 range=[/x/EngineClient.swift:118:24 - line:118:24] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> Recommendation)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (call_expr type="JSONDecoder" location=/x/EngineClient.swift:118:10 range=[/x/EngineClient.swift:118:10 - line:118:22] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/EngineClient.swift:118:10 range=[/x/EngineClient.swift:118:10 - line:118:10] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/EngineClient.swift:118:10 range=[/x/EngineClient.swift:118:10 - line:118:10] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="JSONDecoder.Type" location=/x/EngineClient.swift:118:10 range=[/x/EngineClient.swift:118:10 - line:118:10] typerepr="JSONDecoder"))))
+                      (argument_list)))))
+              (argument_list labels="_:from:"
+                (argument
+                  (dot_self_expr type="Recommendation.Type" location=/x/EngineClient.swift:118:31 range=[/x/EngineClient.swift:118:31 - line:118:46]
+                    (type_expr type="Recommendation.Type" location=/x/EngineClient.swift:118:31 range=[/x/EngineClient.swift:118:31 - line:118:31] typerepr="Recommendation")))
+                (argument label="from"
+                  (declref_expr type="Data" location=/x/EngineClient.swift:118:58 range=[/x/EngineClient.swift:118:58 - line:118:58] decl="main.(file).fixtureClientDecodesAnAnswer(_:).data@/x/EngineClient.swift:117:37" function_ref=unapplied)))))))))
+  (func_decl range=[/x/EngineClient.swift:121:1 - line:123:1] "fixtureClientDecodesTheSurfaces(_:)" interface_type="(Data) -> CategoryList?" access=internal result="CategoryList?" thrown_type="<null>"
+    (parameter_list range=[/x/EngineClient.swift:121:37 - line:121:50]
+      (parameter "data" interface_type="Data"))
+    (brace_stmt range=[/x/EngineClient.swift:121:69 - line:123:1]
+      (return_stmt implicit range=[/x/EngineClient.swift:122:5 - line:122:60]
+        (optional_try_expr type="CategoryList?" location=/x/EngineClient.swift:122:24 range=[/x/EngineClient.swift:122:5 - line:122:60] thrown_error="any Error"
+          (inject_into_optional implicit type="CategoryList?" location=/x/EngineClient.swift:122:24 range=[/x/EngineClient.swift:122:10 - line:122:60]
+            (call_expr type="CategoryList" location=/x/EngineClient.swift:122:24 range=[/x/EngineClient.swift:122:10 - line:122:60] throws isolation_crossing="none"
+              (dot_syntax_call_expr type="(CategoryList.Type, Data) throws -> CategoryList" location=/x/EngineClient.swift:122:24 range=[/x/EngineClient.swift:122:10 - line:122:24] nothrow isolation_crossing="none"
+                (declref_expr type="(JSONDecoder) -> (CategoryList.Type, Data) throws -> CategoryList" location=/x/EngineClient.swift:122:24 range=[/x/EngineClient.swift:122:24 - line:122:24] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> CategoryList)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (call_expr type="JSONDecoder" location=/x/EngineClient.swift:122:10 range=[/x/EngineClient.swift:122:10 - line:122:22] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/EngineClient.swift:122:10 range=[/x/EngineClient.swift:122:10 - line:122:10] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/EngineClient.swift:122:10 range=[/x/EngineClient.swift:122:10 - line:122:10] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="JSONDecoder.Type" location=/x/EngineClient.swift:122:10 range=[/x/EngineClient.swift:122:10 - line:122:10] typerepr="JSONDecoder"))))
+                      (argument_list)))))
+              (argument_list labels="_:from:"
+                (argument
+                  (dot_self_expr type="CategoryList.Type" location=/x/EngineClient.swift:122:31 range=[/x/EngineClient.swift:122:31 - line:122:44]
+                    (type_expr type="CategoryList.Type" location=/x/EngineClient.swift:122:31 range=[/x/EngineClient.swift:122:31 - line:122:31] typerepr="CategoryList")))
+                (argument label="from"
+                  (declref_expr type="Data" location=/x/EngineClient.swift:122:56 range=[/x/EngineClient.swift:122:56 - line:122:56] decl="main.(file).fixtureClientDecodesTheSurfaces(_:).data@/x/EngineClient.swift:121:40" function_ref=unapplied))))))))))
 (source_file "/x/FrontDoor.swift"
   (import_decl range=[/x/FrontDoor.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/FrontDoor.swift:5:1 - line:9:1] "fixtureStoreLoad(_:)" interface_type="(String) -> Data?" access=internal result="Data?" thrown_type="<null>"
@@ -6907,6 +7146,36 @@
             (argument
               (string_to_pointer implicit type="UnsafePointer<CChar>" location=/x/Imports.swift:11:62 range=[/x/Imports.swift:11:62 - line:11:62]
                 (string_literal_expr type="String" location=/x/Imports.swift:11:62 range=[/x/Imports.swift:11:62 - line:11:62] encoding=utf8 value="fixtureSelector" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+(source_file "/x/KeptAnswers.swift"
+  (import_decl range=[/x/KeptAnswers.swift:3:1 - line:3:8] module="Foundation")
+  (enum_decl range=[/x/KeptAnswers.swift:5:1 - line:9:1] "KeptAnswers" interface_type="KeptAnswers.Type" access=internal non_resilient
+    (func_decl range=[/x/KeptAnswers.swift:6:5 - line:8:5] "categories(_:)" interface_type="(KeptAnswers.Type) -> (KeptAnswer) -> [Category]?" access=internal static
+      (parameter "self") result="[Category]?" thrown_type="<null>"
+      (parameter_list range=[/x/KeptAnswers.swift:6:27 - line:6:47]
+        (parameter "entry" interface_type="KeptAnswer"))
+      (brace_stmt range=[/x/KeptAnswers.swift:6:64 - line:8:5]
+        (return_stmt implicit range=[/x/KeptAnswers.swift:7:9 - line:7:71]
+          (optional_try_expr type="[Category]?" location=/x/KeptAnswers.swift:7:28 range=[/x/KeptAnswers.swift:7:9 - line:7:71] thrown_error="any Error"
+            (inject_into_optional implicit type="[Category]?" location=/x/KeptAnswers.swift:7:28 range=[/x/KeptAnswers.swift:7:14 - line:7:71]
+              (call_expr type="[Category]" location=/x/KeptAnswers.swift:7:28 range=[/x/KeptAnswers.swift:7:14 - line:7:71] throws isolation_crossing="none"
+                (dot_syntax_call_expr type="([Category].Type, Data) throws -> [Category]" location=/x/KeptAnswers.swift:7:28 range=[/x/KeptAnswers.swift:7:14 - line:7:28] nothrow isolation_crossing="none"
+                  (declref_expr type="(JSONDecoder) -> ([Category].Type, Data) throws -> [Category]" location=/x/KeptAnswers.swift:7:28 range=[/x/KeptAnswers.swift:7:28 - line:7:28] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> [Category])]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (call_expr type="JSONDecoder" location=/x/KeptAnswers.swift:7:14 range=[/x/KeptAnswers.swift:7:14 - line:7:26] nothrow isolation_crossing="none"
+                        (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/KeptAnswers.swift:7:14 range=[/x/KeptAnswers.swift:7:14 - line:7:14] nothrow isolation_crossing="none"
+                          (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/KeptAnswers.swift:7:14 range=[/x/KeptAnswers.swift:7:14 - line:7:14] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                          (argument_list implicit
+                            (argument
+                              (type_expr type="JSONDecoder.Type" location=/x/KeptAnswers.swift:7:14 range=[/x/KeptAnswers.swift:7:14 - line:7:14] typerepr="JSONDecoder"))))
+                        (argument_list)))))
+                (argument_list labels="_:from:"
+                  (argument
+                    (dot_self_expr type="[Category].Type" location=/x/KeptAnswers.swift:7:35 range=[/x/KeptAnswers.swift:7:35 - line:7:46]
+                      (type_expr type="[Category].Type" location=/x/KeptAnswers.swift:7:35 range=[/x/KeptAnswers.swift:7:35 - line:7:44] typerepr="[Category]")))
+                  (argument label="from"
+                    (member_ref_expr type="Data" location=/x/KeptAnswers.swift:7:64 range=[/x/KeptAnswers.swift:7:58 - line:7:64] decl="main.(file).KeptAnswer.payload@/x/StandingsStore.swift:50:9"
+                      (declref_expr type="KeptAnswer" location=/x/KeptAnswers.swift:7:58 range=[/x/KeptAnswers.swift:7:58 - line:7:58] decl="main.(file).KeptAnswers.categories(_:).entry@/x/KeptAnswers.swift:6:30" function_ref=unapplied))))))))))))
 (source_file "/x/Models.swift"
   (import_decl range=[/x/Models.swift:3:1 - line:3:8] module="Foundation")
   (struct_decl range=[/x/Models.swift:5:1 - line:10:1] "Standing" interface_type="Standing.Type" access=internal non_resilient inherits="Decodable"
@@ -7716,7 +7985,1092 @@
             (declref_expr implicit type="@lvalue FixtureNoted" location=/x/Models.swift:39:9 range=[/x/Models.swift:39:9 - line:39:9] decl="main.(file).FixtureNoted.init(from:).self@/x/Models.swift:38:5" function_ref=unapplied))
           (load_expr implicit type="String" location=/x/Models.swift:39:16 range=[/x/Models.swift:39:16 - line:39:16]
             (declref_expr type="@lvalue String" location=/x/Models.swift:39:16 range=[/x/Models.swift:39:16 - line:39:16] decl="main.(file).fixtureKeptNote@/x/Models.swift:28:25" function_ref=unapplied)))
-        (return_stmt implicit range=[/x/Models.swift:40:5 - line:40:5])))))
+        (return_stmt implicit range=[/x/Models.swift:40:5 - line:40:5]))))
+  (struct_decl range=[/x/Models.swift:46:1 - line:48:1] "Query" interface_type="Query.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/Models.swift:47:5 - line:47:15]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="String"
+          (pattern_named type="String" "task")
+          (type_unqualified_ident id="String" bind="Swift.(file).String"))))
+    (var_decl range=[/x/Models.swift:47:9 - line:47:9] "task" interface_type="String" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Models.swift:47:9 - line:47:9] <anonymous @ 0x0> interface_type="(Query) -> () -> String" access=internal get for="task"
+        (parameter "self" interface_type="Query") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Models.swift:47:9 - line:47:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).Query.task@/x/Models.swift:47:9" direct_to_storage
+              (declref_expr implicit type="Query" decl="main.(file).Query.<anonymous>.self@/x/Models.swift:47:9" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="Query.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "task" interface_type="(Query.CodingKeys.Type) -> Query.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(Query.CodingKeys.Type) -> (String) -> Query.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="Query.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).Query.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="task" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).Query.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Query.CodingKeys" decl="main.(file).Query.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="Query.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Query.CodingKeys.Type) -> Query.CodingKeys" decl="main.(file).Query.CodingKeys.task" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="Query.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(Query.CodingKeys.Type) -> (Int) -> Query.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(Query.CodingKeys.Type) -> (Query.CodingKeys, Query.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="Query.CodingKeys")
+          (parameter "b" interface_type="Query.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Query.CodingKeys" decl="main.(file).Query.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Query.CodingKeys" element="Query.CodingKeys.task"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Query.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Query.CodingKeys" decl="main.(file).Query.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Query.CodingKeys" element="Query.CodingKeys.task"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Query.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).Query.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).Query.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(Query.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="Query.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Query.CodingKeys" decl="main.(file).Query.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Query.CodingKeys" element="Query.CodingKeys.task"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Query.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).Query.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Query.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Query.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="Query.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Query.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> Query.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="Query.CodingKeys" decl="main.(file).Query.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Query.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Query.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="Query.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="Query.CodingKeys" decl="main.(file).Query.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="Query.CodingKeys" element="Query.CodingKeys.task"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="task" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (func_decl implicit "encode(to:)" interface_type="(Query) -> (any Encoder) throws -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list
+        (parameter "encoder" apiName="to" interface_type="any Encoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).Query.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="Query.CodingKeys.Type" typerepr="CodingKeys")))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).Query.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="Query.CodingKeys.Type" typerepr="CodingKeys")))))))
+        (var_decl implicit "container" interface_type="KeyedEncodingContainer<Query.CodingKeys>" readImpl=stored writeImpl=stored readWriteImpl=stored)
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).Query.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).Query.task@/x/Models.swift:47:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).Query.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).Query.CodingKeys.task"
+                  (type_expr implicit type="Query.CodingKeys.Type" null_typerepr))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(Query.Type) -> (any Decoder) throws -> Query" access=internal designated
+      (parameter "self" interface_type="Query" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<Query.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).Query.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Query.CodingKeys.Type) throws -> KeyedDecodingContainer<Query.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (Query.CodingKeys.Type) throws -> KeyedDecodingContainer<Query.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Query.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="Query.CodingKeys.Type"
+                        (type_expr implicit type="Query.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).Query.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Query.CodingKeys.Type) throws -> KeyedDecodingContainer<Query.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (Query.CodingKeys.Type) throws -> KeyedDecodingContainer<Query.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Query.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="Query.CodingKeys.Type"
+                        (type_expr implicit type="Query.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<Query.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue String" decl="main.(file).Query.task@/x/Models.swift:47:9" direct_to_storage
+            (declref_expr implicit type="@lvalue Query" decl="main.(file).Query.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="String"
+            (call_expr implicit type="String" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(String.Type, Query.CodingKeys) throws -> String" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<Query.CodingKeys>) -> (String.Type, Query.CodingKeys) throws -> String" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K where K : CodingKey> K -> Query.CodingKeys)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<Query.CodingKeys>" decl="main.(file).Query.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="String.Type"
+                    (type_expr implicit type="String.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="Query.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Query.CodingKeys.Type) -> Query.CodingKeys" decl="main.(file).Query.CodingKeys.task" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="Query.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit)))
+    (constructor_decl implicit range=[/x/Models.swift:46:8 - line:46:8] "init(task:)" interface_type="(Query.Type) -> (String) -> Query" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/Models.swift:46:8 - line:46:8]
+        (parameter "task" apiName="task" interface_type="String"))))
+  (struct_decl range=[/x/Models.swift:50:1 - line:52:1] "Recommendation" interface_type="Recommendation.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/Models.swift:51:5 - line:51:16]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="Query"
+          (pattern_named type="Query" "query")
+          (type_unqualified_ident id="Query" bind="main.(file).Query@/x/Models.swift:46:8"))))
+    (var_decl range=[/x/Models.swift:51:9 - line:51:9] "query" interface_type="Query" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Models.swift:51:9 - line:51:9] <anonymous @ 0x0> interface_type="(Recommendation) -> () -> Query" access=internal get for="query"
+        (parameter "self" interface_type="Recommendation") result="Query" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Models.swift:51:9 - line:51:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="Query" decl="main.(file).Recommendation.query@/x/Models.swift:51:9" direct_to_storage
+              (declref_expr implicit type="Recommendation" decl="main.(file).Recommendation.<anonymous>.self@/x/Models.swift:51:9" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="Recommendation.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "query" interface_type="(Recommendation.CodingKeys.Type) -> Recommendation.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(Recommendation.CodingKeys.Type) -> (String) -> Recommendation.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="Recommendation.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).Recommendation.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="query" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).Recommendation.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="Recommendation.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Recommendation.CodingKeys.Type) -> Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.query" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="Recommendation.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(Recommendation.CodingKeys.Type) -> (Int) -> Recommendation.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(Recommendation.CodingKeys.Type) -> (Recommendation.CodingKeys, Recommendation.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="Recommendation.CodingKeys")
+          (parameter "b" interface_type="Recommendation.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Recommendation.CodingKeys" element="Recommendation.CodingKeys.query"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Recommendation.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Recommendation.CodingKeys" element="Recommendation.CodingKeys.query"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Recommendation.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).Recommendation.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).Recommendation.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(Recommendation.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="Recommendation.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Recommendation.CodingKeys" element="Recommendation.CodingKeys.query"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Recommendation.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).Recommendation.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Recommendation.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Recommendation.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="Recommendation.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Recommendation.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> Recommendation.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Recommendation.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Recommendation.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="Recommendation.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="Recommendation.CodingKeys" element="Recommendation.CodingKeys.query"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="query" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (func_decl implicit "encode(to:)" interface_type="(Recommendation) -> (any Encoder) throws -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list
+        (parameter "encoder" apiName="to" interface_type="any Encoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).Recommendation.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="Recommendation.CodingKeys.Type" typerepr="CodingKeys")))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).Recommendation.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="Recommendation.CodingKeys.Type" typerepr="CodingKeys")))))))
+        (var_decl implicit "container" interface_type="KeyedEncodingContainer<Recommendation.CodingKeys>" readImpl=stored writeImpl=stored readWriteImpl=stored)
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).Recommendation.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).Recommendation.query@/x/Models.swift:51:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).Recommendation.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).Recommendation.CodingKeys.query"
+                  (type_expr implicit type="Recommendation.CodingKeys.Type" null_typerepr))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(Recommendation.Type) -> (any Decoder) throws -> Recommendation" access=internal designated
+      (parameter "self" interface_type="Recommendation" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).Recommendation.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Recommendation.CodingKeys.Type) throws -> KeyedDecodingContainer<Recommendation.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (Recommendation.CodingKeys.Type) throws -> KeyedDecodingContainer<Recommendation.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Recommendation.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="Recommendation.CodingKeys.Type"
+                        (type_expr implicit type="Recommendation.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).Recommendation.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Recommendation.CodingKeys.Type) throws -> KeyedDecodingContainer<Recommendation.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (Recommendation.CodingKeys.Type) throws -> KeyedDecodingContainer<Recommendation.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Recommendation.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="Recommendation.CodingKeys.Type"
+                        (type_expr implicit type="Recommendation.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<Recommendation.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue Query" decl="main.(file).Recommendation.query@/x/Models.swift:51:9" direct_to_storage
+            (declref_expr implicit type="@lvalue Recommendation" decl="main.(file).Recommendation.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="Query"
+            (call_expr implicit type="Query" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Query.Type, Recommendation.CodingKeys) throws -> Query" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<Recommendation.CodingKeys>) -> (Query.Type, Recommendation.CodingKeys) throws -> Query" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K, T where K : CodingKey, T : Decodable> K -> Recommendation.CodingKeys T -> Query)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<Recommendation.CodingKeys>" decl="main.(file).Recommendation.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="Query.Type"
+                    (type_expr implicit type="Query.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="Recommendation.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Recommendation.CodingKeys.Type) -> Recommendation.CodingKeys" decl="main.(file).Recommendation.CodingKeys.query" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="Recommendation.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit)))
+    (constructor_decl implicit range=[/x/Models.swift:50:8 - line:50:8] "init(query:)" interface_type="(Recommendation.Type) -> (Query) -> Recommendation" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/Models.swift:50:8 - line:50:8]
+        (parameter "query" apiName="query" interface_type="Query"))))
+  (struct_decl range=[/x/Models.swift:54:1 - line:56:1] "Category" interface_type="Category.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/Models.swift:55:5 - line:55:13]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="String"
+          (pattern_named type="String" "id")
+          (type_unqualified_ident id="String" bind="Swift.(file).String"))))
+    (var_decl range=[/x/Models.swift:55:9 - line:55:9] "id" interface_type="String" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Models.swift:55:9 - line:55:9] <anonymous @ 0x0> interface_type="(Category) -> () -> String" access=internal get for="id"
+        (parameter "self" interface_type="Category") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Models.swift:55:9 - line:55:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).Category.id@/x/Models.swift:55:9" direct_to_storage
+              (declref_expr implicit type="Category" decl="main.(file).Category.<anonymous>.self@/x/Models.swift:55:9" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="Category.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "id" interface_type="(Category.CodingKeys.Type) -> Category.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(Category.CodingKeys.Type) -> (String) -> Category.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="Category.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).Category.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="id" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).Category.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Category.CodingKeys" decl="main.(file).Category.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="Category.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Category.CodingKeys.Type) -> Category.CodingKeys" decl="main.(file).Category.CodingKeys.id" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="Category.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(Category.CodingKeys.Type) -> (Int) -> Category.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(Category.CodingKeys.Type) -> (Category.CodingKeys, Category.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="Category.CodingKeys")
+          (parameter "b" interface_type="Category.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Category.CodingKeys" decl="main.(file).Category.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Category.CodingKeys" element="Category.CodingKeys.id"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Category.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Category.CodingKeys" decl="main.(file).Category.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Category.CodingKeys" element="Category.CodingKeys.id"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Category.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).Category.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).Category.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(Category.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="Category.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="Category.CodingKeys" decl="main.(file).Category.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="Category.CodingKeys" element="Category.CodingKeys.id"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Category.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).Category.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).Category.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Category.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="Category.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Category.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> Category.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="Category.CodingKeys" decl="main.(file).Category.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Category.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(Category.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="Category.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="Category.CodingKeys" decl="main.(file).Category.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="Category.CodingKeys" element="Category.CodingKeys.id"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="id" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (func_decl implicit "encode(to:)" interface_type="(Category) -> (any Encoder) throws -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list
+        (parameter "encoder" apiName="to" interface_type="any Encoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).Category.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="Category.CodingKeys.Type" typerepr="CodingKeys")))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).Category.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="Category.CodingKeys.Type" typerepr="CodingKeys")))))))
+        (var_decl implicit "container" interface_type="KeyedEncodingContainer<Category.CodingKeys>" readImpl=stored writeImpl=stored readWriteImpl=stored)
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).Category.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).Category.id@/x/Models.swift:55:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).Category.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).Category.CodingKeys.id"
+                  (type_expr implicit type="Category.CodingKeys.Type" null_typerepr))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(Category.Type) -> (any Decoder) throws -> Category" access=internal designated
+      (parameter "self" interface_type="Category" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<Category.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).Category.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Category.CodingKeys.Type) throws -> KeyedDecodingContainer<Category.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (Category.CodingKeys.Type) throws -> KeyedDecodingContainer<Category.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Category.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="Category.CodingKeys.Type"
+                        (type_expr implicit type="Category.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).Category.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Category.CodingKeys.Type) throws -> KeyedDecodingContainer<Category.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (Category.CodingKeys.Type) throws -> KeyedDecodingContainer<Category.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> Category.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="Category.CodingKeys.Type"
+                        (type_expr implicit type="Category.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<Category.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue String" decl="main.(file).Category.id@/x/Models.swift:55:9" direct_to_storage
+            (declref_expr implicit type="@lvalue Category" decl="main.(file).Category.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="String"
+            (call_expr implicit type="String" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(String.Type, Category.CodingKeys) throws -> String" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<Category.CodingKeys>) -> (String.Type, Category.CodingKeys) throws -> String" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K where K : CodingKey> K -> Category.CodingKeys)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<Category.CodingKeys>" decl="main.(file).Category.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="String.Type"
+                    (type_expr implicit type="String.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="Category.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Category.CodingKeys.Type) -> Category.CodingKeys" decl="main.(file).Category.CodingKeys.id" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="Category.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit)))
+    (constructor_decl implicit range=[/x/Models.swift:54:8 - line:54:8] "init(id:)" interface_type="(Category.Type) -> (String) -> Category" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/Models.swift:54:8 - line:54:8]
+        (parameter "id" apiName="id" interface_type="String"))))
+  (struct_decl range=[/x/Models.swift:58:1 - line:60:1] "CategoryList" interface_type="CategoryList.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/Models.swift:59:5 - line:59:30]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="[Category]"
+          (pattern_named type="[Category]" "categories")
+          (type_array
+            (type_unqualified_ident id="Category" bind="main.(file).Category@/x/Models.swift:54:8")))))
+    (var_decl range=[/x/Models.swift:59:9 - line:59:9] "categories" interface_type="[Category]" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Models.swift:59:9 - line:59:9] <anonymous @ 0x0> interface_type="(CategoryList) -> () -> [Category]" access=internal get for="categories"
+        (parameter "self" interface_type="CategoryList") result="[Category]" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Models.swift:59:9 - line:59:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="[Category]" decl="main.(file).CategoryList.categories@/x/Models.swift:59:9" direct_to_storage
+              (declref_expr implicit type="CategoryList" decl="main.(file).CategoryList.<anonymous>.self@/x/Models.swift:59:9" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="CategoryList.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "categories" interface_type="(CategoryList.CodingKeys.Type) -> CategoryList.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(CategoryList.CodingKeys.Type) -> (String) -> CategoryList.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="CategoryList.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).CategoryList.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="categories" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).CategoryList.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="CategoryList.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(CategoryList.CodingKeys.Type) -> CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.categories" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="CategoryList.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(CategoryList.CodingKeys.Type) -> (Int) -> CategoryList.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(CategoryList.CodingKeys.Type) -> (CategoryList.CodingKeys, CategoryList.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="CategoryList.CodingKeys")
+          (parameter "b" interface_type="CategoryList.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="CategoryList.CodingKeys" element="CategoryList.CodingKeys.categories"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).CategoryList.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="CategoryList.CodingKeys" element="CategoryList.CodingKeys.categories"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).CategoryList.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).CategoryList.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).CategoryList.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(CategoryList.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="CategoryList.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="CategoryList.CodingKeys" element="CategoryList.CodingKeys.categories"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).CategoryList.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).CategoryList.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).CategoryList.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(CategoryList.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="CategoryList.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(CategoryList.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> CategoryList.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(CategoryList.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(CategoryList.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="CategoryList.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="CategoryList.CodingKeys" element="CategoryList.CodingKeys.categories"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="categories" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (func_decl implicit "encode(to:)" interface_type="(CategoryList) -> (any Encoder) throws -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list
+        (parameter "encoder" apiName="to" interface_type="any Encoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).CategoryList.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="CategoryList.CodingKeys.Type" typerepr="CodingKeys")))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).CategoryList.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="CategoryList.CodingKeys.Type" typerepr="CodingKeys")))))))
+        (var_decl implicit "container" interface_type="KeyedEncodingContainer<CategoryList.CodingKeys>" readImpl=stored writeImpl=stored readWriteImpl=stored)
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).CategoryList.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).CategoryList.categories@/x/Models.swift:59:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).CategoryList.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).CategoryList.CodingKeys.categories"
+                  (type_expr implicit type="CategoryList.CodingKeys.Type" null_typerepr))))))))
+    (constructor_decl implicit range=[/x/Models.swift:58:8 - line:58:8] "init(categories:)" interface_type="(CategoryList.Type) -> ([Category]) -> CategoryList" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/Models.swift:58:8 - line:58:8]
+        (parameter "categories" apiName="categories" interface_type="[Category]")))
+    (constructor_decl implicit "init(from:)" interface_type="(CategoryList.Type) -> (any Decoder) throws -> CategoryList" access=internal designated
+      (parameter "self" interface_type="CategoryList" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).CategoryList.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(CategoryList.CodingKeys.Type) throws -> KeyedDecodingContainer<CategoryList.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (CategoryList.CodingKeys.Type) throws -> KeyedDecodingContainer<CategoryList.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> CategoryList.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="CategoryList.CodingKeys.Type"
+                        (type_expr implicit type="CategoryList.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).CategoryList.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(CategoryList.CodingKeys.Type) throws -> KeyedDecodingContainer<CategoryList.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (CategoryList.CodingKeys.Type) throws -> KeyedDecodingContainer<CategoryList.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> CategoryList.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="CategoryList.CodingKeys.Type"
+                        (type_expr implicit type="CategoryList.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<CategoryList.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue [Category]" decl="main.(file).CategoryList.categories@/x/Models.swift:59:9" direct_to_storage
+            (declref_expr implicit type="@lvalue CategoryList" decl="main.(file).CategoryList.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="[Category]"
+            (call_expr implicit type="[Category]" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="([Category].Type, CategoryList.CodingKeys) throws -> [Category]" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<CategoryList.CodingKeys>) -> ([Category].Type, CategoryList.CodingKeys) throws -> [Category]" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K, T where K : CodingKey, T : Decodable> K -> CategoryList.CodingKeys T -> [Category])]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<CategoryList.CodingKeys>" decl="main.(file).CategoryList.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="[Category].Type"
+                    (type_expr implicit type="[Category].Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="CategoryList.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(CategoryList.CodingKeys.Type) -> CategoryList.CodingKeys" decl="main.(file).CategoryList.CodingKeys.categories" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="CategoryList.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit)))))
 (source_file "/x/Router.swift"
   (import_decl range=[/x/Router.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/Router.swift:5:1 - line:7:1] "priceInPages(_:)" interface_type="(Double) -> Double" access=internal result="Double" thrown_type="<null>"
@@ -7920,4 +9274,442 @@
                                   (declref_expr type="String" location=/x/StandingsStore.swift:43:83 range=[/x/StandingsStore.swift:43:83 - line:43:83] decl="main.(file).fixtureStoreRelays(_:).typed@/x/StandingsStore.swift:42:27" function_ref=unapplied))))))))
                     (argument label="session"
                       (default_argument_expr implicit type="URLSession?" location=/x/StandingsStore.swift:43:17 range=[/x/StandingsStore.swift:43:17 - line:43:17] default_args_owner="main.(file).EngineClient.init(baseURL:session:)@/x/EngineClient.swift:42:5" param=1)))))))
-          (argument_list))))))
+          (argument_list)))))
+  (struct_decl range=[/x/StandingsStore.swift:48:1 - line:51:1] "KeptAnswer" interface_type="KeptAnswer.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/StandingsStore.swift:49:5 - line:49:15]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="String"
+          (pattern_named type="String" "task")
+          (type_unqualified_ident id="String" bind="Swift.(file).String"))))
+    (var_decl range=[/x/StandingsStore.swift:49:9 - line:49:9] "task" interface_type="String" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/StandingsStore.swift:49:9 - line:49:9] <anonymous @ 0x0> interface_type="(KeptAnswer) -> () -> String" access=internal get for="task"
+        (parameter "self" interface_type="KeptAnswer") result="String" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/StandingsStore.swift:49:9 - line:49:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="String" decl="main.(file).KeptAnswer.task@/x/StandingsStore.swift:49:9" direct_to_storage
+              (declref_expr implicit type="KeptAnswer" decl="main.(file).KeptAnswer.<anonymous>.self@/x/StandingsStore.swift:49:9" function_ref=unapplied))))))
+    (pattern_binding_decl range=[/x/StandingsStore.swift:50:5 - line:50:18]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="Data"
+          (pattern_named type="Data" "payload")
+          (type_unqualified_ident id="Data" bind="Foundation.(file).Data"))))
+    (var_decl range=[/x/StandingsStore.swift:50:9 - line:50:9] "payload" interface_type="Data" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/StandingsStore.swift:50:9 - line:50:9] <anonymous @ 0x0> interface_type="(KeptAnswer) -> () -> Data" access=internal get for="payload"
+        (parameter "self" interface_type="KeptAnswer") result="Data" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/StandingsStore.swift:50:9 - line:50:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="Data" decl="main.(file).KeptAnswer.payload@/x/StandingsStore.swift:50:9" direct_to_storage
+              (declref_expr implicit type="KeptAnswer" decl="main.(file).KeptAnswer.<anonymous>.self@/x/StandingsStore.swift:50:9" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="KeptAnswer.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "task" interface_type="(KeptAnswer.CodingKeys.Type) -> KeptAnswer.CodingKeys" access=internal)
+      (enum_element_decl implicit "payload" interface_type="(KeptAnswer.CodingKeys.Type) -> KeptAnswer.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(KeptAnswer.CodingKeys.Type) -> (String) -> KeptAnswer.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="KeptAnswer.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).KeptAnswer.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="task" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).KeptAnswer.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="KeptAnswer.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(KeptAnswer.CodingKeys.Type) -> KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.task" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="KeptAnswer.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="payload" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).KeptAnswer.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="KeptAnswer.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(KeptAnswer.CodingKeys.Type) -> KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.payload" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="KeptAnswer.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(KeptAnswer.CodingKeys.Type) -> (Int) -> KeptAnswer.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(KeptAnswer.CodingKeys.Type) -> (KeptAnswer.CodingKeys, KeptAnswer.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="KeptAnswer.CodingKeys")
+          (parameter "b" interface_type="KeptAnswer.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.task"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.payload"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.task"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.payload"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).KeptAnswer.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(KeptAnswer.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="KeptAnswer.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.task"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))))
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.payload"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).KeptAnswer.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).KeptAnswer.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(KeptAnswer.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="KeptAnswer.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeptAnswer.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> KeptAnswer.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(KeptAnswer.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(KeptAnswer.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="KeptAnswer.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.task"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="task" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="KeptAnswer.CodingKeys" element="KeptAnswer.CodingKeys.payload"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="payload" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (func_decl implicit "encode(to:)" interface_type="(KeptAnswer) -> (any Encoder) throws -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list
+        (parameter "encoder" apiName="to" interface_type="any Encoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).KeptAnswer.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="KeptAnswer.CodingKeys.Type" typerepr="CodingKeys")))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).KeptAnswer.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="KeptAnswer.CodingKeys.Type" typerepr="CodingKeys")))))))
+        (var_decl implicit "container" interface_type="KeyedEncodingContainer<KeptAnswer.CodingKeys>" readImpl=stored writeImpl=stored readWriteImpl=stored)
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).KeptAnswer.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).KeptAnswer.task@/x/StandingsStore.swift:49:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).KeptAnswer.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).KeptAnswer.CodingKeys.task"
+                  (type_expr implicit type="KeptAnswer.CodingKeys.Type" null_typerepr))))))
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).KeptAnswer.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).KeptAnswer.payload@/x/StandingsStore.swift:50:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).KeptAnswer.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).KeptAnswer.CodingKeys.payload"
+                  (type_expr implicit type="KeptAnswer.CodingKeys.Type" null_typerepr))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(KeptAnswer.Type) -> (any Decoder) throws -> KeptAnswer" access=internal designated
+      (parameter "self" interface_type="KeptAnswer" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).KeptAnswer.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(KeptAnswer.CodingKeys.Type) throws -> KeyedDecodingContainer<KeptAnswer.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (KeptAnswer.CodingKeys.Type) throws -> KeyedDecodingContainer<KeptAnswer.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> KeptAnswer.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="KeptAnswer.CodingKeys.Type"
+                        (type_expr implicit type="KeptAnswer.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).KeptAnswer.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(KeptAnswer.CodingKeys.Type) throws -> KeyedDecodingContainer<KeptAnswer.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (KeptAnswer.CodingKeys.Type) throws -> KeyedDecodingContainer<KeptAnswer.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> KeptAnswer.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="KeptAnswer.CodingKeys.Type"
+                        (type_expr implicit type="KeptAnswer.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<KeptAnswer.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue String" decl="main.(file).KeptAnswer.task@/x/StandingsStore.swift:49:9" direct_to_storage
+            (declref_expr implicit type="@lvalue KeptAnswer" decl="main.(file).KeptAnswer.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="String"
+            (call_expr implicit type="String" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(String.Type, KeptAnswer.CodingKeys) throws -> String" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<KeptAnswer.CodingKeys>) -> (String.Type, KeptAnswer.CodingKeys) throws -> String" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K where K : CodingKey> K -> KeptAnswer.CodingKeys)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>" decl="main.(file).KeptAnswer.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="String.Type"
+                    (type_expr implicit type="String.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="KeptAnswer.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(KeptAnswer.CodingKeys.Type) -> KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.task" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="KeptAnswer.CodingKeys.Type" null_typerepr)))))))))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue Data" decl="main.(file).KeptAnswer.payload@/x/StandingsStore.swift:50:9" direct_to_storage
+            (declref_expr implicit type="@lvalue KeptAnswer" decl="main.(file).KeptAnswer.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="Data"
+            (call_expr implicit type="Data" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Data.Type, KeptAnswer.CodingKeys) throws -> Data" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<KeptAnswer.CodingKeys>) -> (Data.Type, KeptAnswer.CodingKeys) throws -> Data" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K, T where K : CodingKey, T : Decodable> K -> KeptAnswer.CodingKeys T -> Data)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<KeptAnswer.CodingKeys>" decl="main.(file).KeptAnswer.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="Data.Type"
+                    (type_expr implicit type="Data.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="KeptAnswer.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(KeptAnswer.CodingKeys.Type) -> KeptAnswer.CodingKeys" decl="main.(file).KeptAnswer.CodingKeys.payload" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="KeptAnswer.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit)))
+    (constructor_decl implicit range=[/x/StandingsStore.swift:48:8 - line:48:8] "init(task:payload:)" interface_type="(KeptAnswer.Type) -> (String, Data) -> KeptAnswer" access=internal designated
+      (parameter "self" interface_type="KeptAnswer") thrown_type="<null>"
+      (parameter_list range=[/x/StandingsStore.swift:48:8 - line:48:8]
+        (parameter "task" apiName="task" interface_type="String")
+        (parameter "payload" apiName="payload" interface_type="Data"))))
+  (extension_decl range=[/x/StandingsStore.swift:53:1 - line:65:1] "StandingsStore"
+    (func_decl range=[/x/StandingsStore.swift:54:5 - line:56:5] "keep(_:)" interface_type="(StandingsStore) -> (Recommendation) -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list range=[/x/StandingsStore.swift:54:14 - line:54:47]
+        (parameter "recommendation" interface_type="Recommendation"))
+      (brace_stmt range=[/x/StandingsStore.swift:54:49 - line:56:5]
+        (assign_expr type="()" location=/x/StandingsStore.swift:55:11 range=[/x/StandingsStore.swift:55:9 - line:55:72]
+          (discard_assignment_expr type="@lvalue KeptAnswer" location=/x/StandingsStore.swift:55:9 range=[/x/StandingsStore.swift:55:9 - line:55:9])
+          (call_expr type="KeptAnswer" location=/x/StandingsStore.swift:55:13 range=[/x/StandingsStore.swift:55:13 - line:55:72] nothrow isolation_crossing="none"
+            (constructor_ref_call_expr type="(String, Data) -> KeptAnswer" location=/x/StandingsStore.swift:55:13 range=[/x/StandingsStore.swift:55:13 - line:55:13] nothrow isolation_crossing="none"
+              (declref_expr implicit type="(KeptAnswer.Type) -> (String, Data) -> KeptAnswer" location=/x/StandingsStore.swift:55:13 range=[/x/StandingsStore.swift:55:13 - line:55:13] decl="main.(file).KeptAnswer.init(task:payload:)@/x/StandingsStore.swift:48:8" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (type_expr type="KeptAnswer.Type" location=/x/StandingsStore.swift:55:13 range=[/x/StandingsStore.swift:55:13 - line:55:13] typerepr="KeptAnswer"))))
+            (argument_list labels="task:payload:"
+              (argument label="task"
+                (member_ref_expr type="String" location=/x/StandingsStore.swift:55:51 range=[/x/StandingsStore.swift:55:30 - line:55:51] decl="main.(file).Query.task@/x/Models.swift:47:9"
+                  (member_ref_expr type="Query" location=/x/StandingsStore.swift:55:45 range=[/x/StandingsStore.swift:55:30 - line:55:45] decl="main.(file).Recommendation.query@/x/Models.swift:51:9"
+                    (declref_expr type="Recommendation" location=/x/StandingsStore.swift:55:30 range=[/x/StandingsStore.swift:55:30 - line:55:30] decl="main.(file).StandingsStore extension.keep(_:).recommendation@/x/StandingsStore.swift:54:17" function_ref=unapplied))))
+              (argument label="payload"
+                (call_expr type="Data" location=/x/StandingsStore.swift:55:66 range=[/x/StandingsStore.swift:55:66 - line:55:71] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="() -> Data" location=/x/StandingsStore.swift:55:66 range=[/x/StandingsStore.swift:55:66 - line:55:66] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Data.Type) -> () -> Data" location=/x/StandingsStore.swift:55:66 range=[/x/StandingsStore.swift:55:66 - line:55:66] decl="Foundation.(file).Data.init()" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr type="Data.Type" location=/x/StandingsStore.swift:55:66 range=[/x/StandingsStore.swift:55:66 - line:55:66] typerepr="Data"))))
+                  (argument_list))))))))
+    (func_decl range=[/x/StandingsStore.swift:58:5 - line:60:5] "keep(_:)" interface_type="(StandingsStore) -> ([Category]) -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list range=[/x/StandingsStore.swift:58:14 - line:58:39]
+        (parameter "categories" interface_type="[Category]"))
+      (brace_stmt range=[/x/StandingsStore.swift:58:41 - line:60:5]
+        (assign_expr type="()" location=/x/StandingsStore.swift:59:11 range=[/x/StandingsStore.swift:59:9 - line:59:13]
+          (discard_assignment_expr type="@lvalue [Category]" location=/x/StandingsStore.swift:59:9 range=[/x/StandingsStore.swift:59:9 - line:59:9])
+          (declref_expr type="[Category]" location=/x/StandingsStore.swift:59:13 range=[/x/StandingsStore.swift:59:13 - line:59:13] decl="main.(file).StandingsStore extension.keep(_:).categories@/x/StandingsStore.swift:58:17" function_ref=unapplied))))
+    (func_decl range=[/x/StandingsStore.swift:62:5 - line:64:5] "keptAnswers()" interface_type="(StandingsStore) -> () -> [KeptAnswer]" access=internal
+      (parameter "self") result="[KeptAnswer]" thrown_type="<null>"
+      (parameter_list range=[/x/StandingsStore.swift:62:21 - line:62:22])
+      (brace_stmt range=[/x/StandingsStore.swift:62:40 - line:64:5]
+        (return_stmt implicit range=[/x/StandingsStore.swift:63:9 - line:63:74]
+          (binary_expr type="[KeptAnswer]" location=/x/StandingsStore.swift:63:70 range=[/x/StandingsStore.swift:63:9 - line:63:74] nothrow isolation_crossing="none"
+            (declref_expr type="(consuming [KeptAnswer]?, @autoclosure () throws -> [KeptAnswer]) throws -> [KeptAnswer]" location=/x/StandingsStore.swift:63:70 range=[/x/StandingsStore.swift:63:70 - line:63:70] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> [KeptAnswer])]" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (paren_expr type="[KeptAnswer]?" location=/x/StandingsStore.swift:63:29 range=[/x/StandingsStore.swift:63:9 - line:63:68]
+                  (optional_try_expr type="[KeptAnswer]?" location=/x/StandingsStore.swift:63:29 range=[/x/StandingsStore.swift:63:10 - line:63:67] thrown_error="any Error"
+                    (inject_into_optional implicit type="[KeptAnswer]?" location=/x/StandingsStore.swift:63:29 range=[/x/StandingsStore.swift:63:15 - line:63:67]
+                      (call_expr type="[KeptAnswer]" location=/x/StandingsStore.swift:63:29 range=[/x/StandingsStore.swift:63:15 - line:63:67] throws isolation_crossing="none"
+                        (dot_syntax_call_expr type="([KeptAnswer].Type, Data) throws -> [KeptAnswer]" location=/x/StandingsStore.swift:63:29 range=[/x/StandingsStore.swift:63:15 - line:63:29] nothrow isolation_crossing="none"
+                          (declref_expr type="(JSONDecoder) -> ([KeptAnswer].Type, Data) throws -> [KeptAnswer]" location=/x/StandingsStore.swift:63:29 range=[/x/StandingsStore.swift:63:29 - line:63:29] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> [KeptAnswer])]" function_ref=single apply)
+                          (argument_list implicit
+                            (argument
+                              (call_expr type="JSONDecoder" location=/x/StandingsStore.swift:63:15 range=[/x/StandingsStore.swift:63:15 - line:63:27] nothrow isolation_crossing="none"
+                                (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/StandingsStore.swift:63:15 range=[/x/StandingsStore.swift:63:15 - line:63:15] nothrow isolation_crossing="none"
+                                  (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/StandingsStore.swift:63:15 range=[/x/StandingsStore.swift:63:15 - line:63:15] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                                  (argument_list implicit
+                                    (argument
+                                      (type_expr type="JSONDecoder.Type" location=/x/StandingsStore.swift:63:15 range=[/x/StandingsStore.swift:63:15 - line:63:15] typerepr="JSONDecoder"))))
+                                (argument_list)))))
+                        (argument_list labels="_:from:"
+                          (argument
+                            (dot_self_expr type="[KeptAnswer].Type" location=/x/StandingsStore.swift:63:36 range=[/x/StandingsStore.swift:63:36 - line:63:49]
+                              (type_expr type="[KeptAnswer].Type" location=/x/StandingsStore.swift:63:36 range=[/x/StandingsStore.swift:63:36 - line:63:47] typerepr="[KeptAnswer]")))
+                          (argument label="from"
+                            (call_expr type="Data" location=/x/StandingsStore.swift:63:61 range=[/x/StandingsStore.swift:63:61 - line:63:66] nothrow isolation_crossing="none"
+                              (constructor_ref_call_expr type="() -> Data" location=/x/StandingsStore.swift:63:61 range=[/x/StandingsStore.swift:63:61 - line:63:61] nothrow isolation_crossing="none"
+                                (declref_expr implicit type="(Data.Type) -> () -> Data" location=/x/StandingsStore.swift:63:61 range=[/x/StandingsStore.swift:63:61 - line:63:61] decl="Foundation.(file).Data.init()" function_ref=single apply)
+                                (argument_list implicit
+                                  (argument
+                                    (type_expr type="Data.Type" location=/x/StandingsStore.swift:63:61 range=[/x/StandingsStore.swift:63:61 - line:63:61] typerepr="Data"))))
+                              (argument_list)))))))))
+              (argument
+                (autoclosure_expr implicit type="() throws -> [KeptAnswer]" location=/x/StandingsStore.swift:63:73 range=[/x/StandingsStore.swift:63:73 - line:63:74] discriminator=0 nonisolated
+                  (parameter_list)
+                  (array_expr type="[KeptAnswer]" location=/x/StandingsStore.swift:63:73 range=[/x/StandingsStore.swift:63:73 - line:63:74] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> KeptAnswer)]"))))))))))

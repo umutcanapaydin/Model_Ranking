@@ -42,3 +42,24 @@ func fixtureStoreRestores(_ data: Data) -> FetchedStandings? {
 func fixtureStoreRelays(_ typed: String) -> URL {
     EngineClient(baseURL: EngineClient.engineURL(from: "http://127.0.0.1:8080/" + typed)).boards()
 }
+
+// #297: the store keeps the two decoded answers and builds a kept answer of its own, and reads back what it
+// kept, which the gate must ALLOW.
+struct KeptAnswer: Codable {
+    let task: String
+    let payload: Data
+}
+
+extension StandingsStore {
+    func keep(_ recommendation: Recommendation) {
+        _ = KeptAnswer(task: recommendation.query.task, payload: Data())
+    }
+
+    func keep(_ categories: [Category]) {
+        _ = categories
+    }
+
+    func keptAnswers() -> [KeptAnswer] {
+        (try? JSONDecoder().decode([KeptAnswer].self, from: Data())) ?? []
+    }
+}
