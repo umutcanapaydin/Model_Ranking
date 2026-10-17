@@ -5426,3 +5426,51 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** If a project rule was lost in the merge, a gate gets looser. The upgrade's security review compares the result with v7.1.2's port.
 
 **Revisit when:** the next DevFlow release.
+
+<<<<<<< HEAD
+## D-209 — Run bug-night: what it does, and the owner's answers
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat, for run bug-night
+**Date:** 2026-10-17 · **Amends:** none.
+
+#295's ruling is its own ADR, on #333, which this run stacks first.
+
+**Context.** The owner opened a light run for the night (translated from Turkish: *"triage what is untriaged, take in as much as one night can run, bugs first, plan it all up front, ask me the questions, then go on without stopping until morning"*). The answers below were given through the chat's choice picker.
+
+**Decision.**
+1. **The queue, in order:** #333 (#295) and #329 (#326) are stacked first. Then the bugs by severity: #331; the guard bugs #256, #287 and #305; then #332, #325, #330 and #328. Then the enhancements: the guard's #317, #318 and #320 with the workflow's #81; then #314, #322, #319 and #309.
+2. **One owner bundle.** The changes to `.claude/`, `.githooks/` and `.github/workflows/` (#256, #287, #305, #317, #318, #320, #81) are prepared as one owner patch, as D-206 clause 9 did. Its guard changes **pass a security review before handover** (the owner's answer: yes).
+3. **#332: `.mcp.json` stays removed.** Every GitHub step runs through `gh`, and an MCP tool has no guard hook here. The staged restore in the upgrade worktree was dropped.
+4. **#331:** the agent runs `make install` once in the main clone, and checks the main clone for any other state left from before v7.2 (the owner's answer: *"if anything is left over from before, update it, of course"*, translated).
+5. **#325, #319 and #322:** approved as gate changes. #325 grades no gitignored document; #319 derives `POLICY_SCRIPTS` instead of keeping it by hand; #322 closes the kept-answer rule's gaps.
+6. **#314:** the app refuses an answers file over 8 MiB before reading it; the client gate's sink allowance changes with it.
+7. **#323 is declined:** `answers.json` keeps the platform's default protection. The issue closes with this ruling.
+8. **#309:** the network observer covers the whole test invocation, set-up and tear-down included, in one place.
+9. **#115 and #243 close.** #115: a device build talks to the hosted engine, so the local-network prompt shows only with an override. #243: a macOS CI runner costs about ten times a Linux one, and the pre-push gate runs the compiled client gate on the owner's Mac.
+10. **Not tonight:** #242 (several slices and an ADR first), #265 (needs the owner's Hugging Face token), #190 (a GitHub ruleset, the owner's setting).
+
+**Rationale:** Bugs first, as the owner asked. Every reserved decision was answered before the run, so nothing waits on the owner overnight except the owner-only files.
+
+**Mitigation if violated:** A guard change handed over without its review could open a hole that nothing reports; the bundle is not handed over until the review passes.
+
+**Revisit when:** the owner's morning review.
+=======
+## D-208 — #295: a verb clause right before "yapay zeka" names the question's task
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat (option (a) of run golden-night's stop row for #295).
+**Date:** 2026-10-17 · **Amends:** none.
+
+**Context.** #222's general-words rule keeps a confident Turkish question that says "yapay zeka" on `everyday` before its examples are compared, so a question that names its task in words no rule lists (the golden question `tarayıcımda benim yerime alışveriş yapacak bir yapay zeka var mı`, *(translated: is there an AI that will shop for me in my browser)*, expected `computer-use`) gets the general list. Four attempts in run golden-night could not fix it without sending general questions off `everyday` (D-206).
+
+**Decision.**
+1. **A grammar rule:** in a Turkish question, a verb clause that ends right before "yapay zeka" (a participle such as `yapacak`, `yazan`, `kullanan`) names a task, and the general-words rule does not hold the question on `everyday`; the question is then read by its examples as any other.
+2. **Measured as D-202 clause 6 as amended by D-206:** on a fresh held-out set written by an independent seat, it ships when it turns no row from right to wrong and fixes the golden question.
+
+**Rationale:** The owner chose the rule that reads the question's own grammar over shipping attempt 3 (about one general question in six leaving `everyday`) or leaving it to the on-device model, which older phones do not have.
+
+**Mitigation if violated:** A general question with a descriptive clause (`en çok kullanılan yapay zeka`, *(translated: the most used AI)*) would leave `everyday`; the fresh set's general rows catch it.
+
+**Revisit when:** the fresh measurement fails the bar, or the on-device model tier is on every supported phone.
+>>>>>>> origin/fix/issue-295-task-before-ai
