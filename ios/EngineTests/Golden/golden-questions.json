@@ -822,7 +822,6 @@
     "expected_surface": "computer-use",
     "disputed": false,
     "reason": null,
-    "known_miss": 295,
     "expected_top3": [
       "claude-fable-5.1",
       "claude-opus5.5",

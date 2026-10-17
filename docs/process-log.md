@@ -943,3 +943,26 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scrubbed_env` now drops the outer make's MAKEFLAGS: under v7.2 the post-edit hook was red after every edit.
 - The owner waived the guard-change security review (one bypass row in `docs/control-events.csv`).
 - **Lesson:** a dry run of the owner patch is the only place an upgrade's agent half can be proven green; run it before calling the half done.
+
+## 2026-10-17 — plan/run-bug-night
+
+- The owner opened run bug-night (light). The queue was re-triaged on fe35bc3 after #308: nine issues closed as fixed, the rest re-verdicted, and #331 and #332 triaged.
+- Every reserved decision was asked once, through the chat's choice picker, and is D-209. #115, #243 and #323 closed on the owner's ruling.
+- **Lesson:** a decisions message reads faster as a picker with a reasoned default than as a numbered list; the owner answered nine questions in two rounds.
+## 2026-10-17 — fix/issue-295-task-before-ai
+
+- The owner chose option (a) for #295 (D-208): a Turkish active participle with its own object right before "yapay zeka" names the task, and the question is read by the examples without those two words.
+- Red first (82efabc: the golden known_miss removed). The golden set passes 41 of 41. On m24 a measuring seat counted 83 of 173 against main's 82: one gained, none lost.
+- `make next-adr` printed D-1000, because it counts the historical D-999; the ADR is D-208 (filed).
+- **Lesson:** where a score cannot separate two kinds of question, the question's grammar can; gate the reading on it rather than on a margin.
+## 2026-10-17 — fix/issue-326-encoded-ref
+
+- The release security review's N1: `_in_submissions` judged the decoded path while httpx sends the raw one, so `%2e%2e` as the ref passed. It now refuses any `%` in the raw path; two parametrized cases went red first (25829bc).
+- The same session re-triaged the open queue after #308: nine issues closed as fixed, 22 re-verdicted.
+- **Lesson:** a URL allowlist judges the bytes that are sent, not a decoded view of them.
+
+## 2026-10-18 — fix/issue-331-main-clone-marker
+
+- The main clone's `.gp/installed` said v6.6: every upgrade since 2026-09-23 ran `make install` in a temporary worktree only. `make install` ran once in the main clone (D-209 clause 4); its marker reads v7.2 and `make install-check` passes there. Its missing `environment.md` was copied in.
+- On the way: `scripts/ci_diff.py` anchored `^gp_version:` at the file's start, so under the real marker's comment lines `make ci-diff` always answered "no `.gp/installed`". Fixed with `re.M`; the conformance test now writes the marker as the installer does (red at 3c0c0cb).
+- **Lesson:** a fixture that writes a simpler file than the producer does tests the simpler file; write it as the producer does.
