@@ -955,3 +955,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red first (82efabc: the golden known_miss removed). The golden set passes 41 of 41. On m24 a measuring seat counted 83 of 173 against main's 82: one gained, none lost.
 - `make next-adr` printed D-1000, because it counts the historical D-999; the ADR is D-208 (filed).
 - **Lesson:** where a score cannot separate two kinds of question, the question's grammar can; gate the reading on it rather than on a margin.
+## 2026-10-17 — fix/issue-326-encoded-ref
+
+- The release security review's N1: `_in_submissions` judged the decoded path while httpx sends the raw one, so `%2e%2e` as the ref passed. It now refuses any `%` in the raw path; two parametrized cases went red first (25829bc).
+- The same session re-triaged the open queue after #308: nine issues closed as fixed, 22 re-verdicted.
+- **Lesson:** a URL allowlist judges the bytes that are sent, not a decoded view of them.
