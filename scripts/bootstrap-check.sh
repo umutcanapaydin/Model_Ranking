@@ -221,8 +221,10 @@ elif [ ! -f docs/project-brief.md ]; then
   fail "docs/project-brief.md absent -- run /setup-project: it asks the setup questions and writes
        the brief. Until then nobody can tell whether this project wraps an OSS engine, which
        decides whether a license review applies"
-elif grep -qiE '^\s*-\s*\[[xX]\].*(wrap|fork)' docs/project-brief.md 2>/dev/null; then
+elif grep -qiE '^\s*[-*]\s*\[[xX]\].*(wrap|fork)' docs/project-brief.md 2>/dev/null; then
   fail "project wraps/forks an OSS engine but docs/license-review.md is absent (AGPL/GPL/SSPL => wrap-not-fork + legal sign-off)"
+elif grep -qiE '^\s*[-*]\s*\[ \]\s*Wraps / forks an OSS engine' docs/project-brief.md 2>/dev/null; then
+  ok "the brief's 'Wraps / forks an OSS engine' box is unticked: no license review owed while that stays true"
 else
   warn "no docs/license-review.md -- required only if you wrap/fork an OSS engine (seed F.10); confirm N/A"
 fi
@@ -448,6 +450,21 @@ else
     "ci-liveness: ok"*)   ok "$live" ;;
     *)                    say "  [info] ${live:-ci-liveness: printed nothing}" ;;
   esac
+fi
+
+# --- C13: CI tests the product's stack (ADVISORY: a [warn] at most) -----------------------------
+# One field project's CI ran ruff, mypy and pytest over DevFlow's Python scaffold while the product was
+# Swift: CI green meant "the records are valid". On another stack, CI must call the stack-aware legs.
+say "[C13] CI tests the product's stack (advisory)"
+STACK=
+[ -f .devflow-stack ] && STACK=$(tr -d '[:space:]' < .devflow-stack)
+STACK=${STACK:-python}
+if [ "$STACK" = python ]; then
+  ok "stack python: CI's test job runs ruff, mypy and pytest on it"
+elif grep -qE 'make[[:space:]]+(lint|typecheck|test)([[:space:]]|$)|STACK_TEST' .github/workflows/*.yml 2>/dev/null; then
+  ok "stack $STACK: a workflow runs the stack-aware make legs"
+else
+  warn "the product's stack is $STACK and no workflow runs \`make lint/typecheck/test\` -- CI tests DevFlow's Python scaffold, not the product. The owner's step: docs/owner-actions.md"
 fi
 
 # --- verdict -----------------------------------------------------------------------------------

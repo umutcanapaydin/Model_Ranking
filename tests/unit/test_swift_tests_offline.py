@@ -94,6 +94,27 @@ def test_the_base_fails_a_test_whose_requests_it_recorded() -> None:
         "the base no longer fails a test that reached for the network")
 
 
+def test_an_observer_fails_a_test_whatever_its_subclass_does_with_tear_down() -> None:
+    """#279 (D-206 clause 7, beside the tearDown check above): the tripwire's once-per-process install
+    registers an `XCTestObservation`, which adds a teardown block to each test as it starts, and the
+    block fails a test whose drained requests are not empty. XCTest runs a test's teardown blocks
+    itself, so a subclass whose `tearDown` skips `super` is still checked. The Swift half is
+    `OfflineGuardTests.testASubclassWhoseTearDownSkipsTheBaseIsStillFailedForTheRequestItMade`."""
+    base = _code((TESTS / BASE).read_text(encoding="utf-8"))  # M1: the base's own lines are required, so read as built
+    installed = re.search(r"static let installed: Void = \{(.*?)\n    \}\(\)", base, re.S)
+    assert installed, "the tripwire has no once-per-process install"
+    registered = re.search(r"XCTestObservationCenter\.shared\.addTestObserver\(\s*(\w+)\(\)\s*\)", installed.group(1))
+    assert registered, "the install registers no test observer"
+    observer = re.search(rf"class {registered.group(1)}\s*:[^{{]*\bXCTestObservation\b[^{{]*\{{(.*?)\n\}}", base, re.S)
+    assert observer, f"{registered.group(1)} is not an XCTestObservation in the base's file"
+    will_start = re.search(r"func testCaseWillStart\(_ (\w+): XCTestCase\) \{(.*?)\n    \}", observer.group(1), re.S)
+    assert will_start, "the observer does nothing as a test starts"
+    block = re.search(rf"\b{will_start.group(1)}\.addTeardownBlock\s*\{{(.*?)\n        \}}", will_start.group(2), re.S)
+    assert block, "the observer adds no teardown block to the test"
+    assert re.search(r"XCTAssertEqual\(\s*OfflineGuard\.drain\(\)\s*,\s*\[\]", block.group(1)), (
+        "the observer's block no longer fails a test that reached for the network")
+
+
 def test_a_bare_session_configuration_is_refused_in_both_of_its_spellings() -> None:
     """#108: `URLSessionConfiguration()` trapped an xctest process under the tripwire (signal 5). Read
     without trapping a process on the owner's Mac: its `init` is `[super init]`, an uninitialised base

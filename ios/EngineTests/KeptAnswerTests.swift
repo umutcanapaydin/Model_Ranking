@@ -217,6 +217,16 @@ final class KeptAnswerTests: OfflineTestCase {
         XCTAssertNil(KeptAnswers.categories(store().keptAnswers(), now: entry.fetchedAt.addingTimeInterval(KeptAnswers.maxAge)))
     }
 
+    /// #288, the release Tester's fault G02: an empty surfaces' list is nothing kept. The load path keeps
+    /// only a list with surfaces in it, so an empty one can come only from an older build or a planted file;
+    /// shown, it would stand in for the surfaces with none.
+    func testAnEmptySurfacesListIsNothingKept() throws {
+        let none: [ModelRankingEngine.Category] = []
+        store().keep(none)
+        XCTAssertEqual(store().keptAnswers().count, 1, "the empty list was not written, so nothing was tested")
+        XCTAssertNil(KeptAnswers.categories(store().keptAnswers(), now: Date()), "an empty surfaces' list stood in")
+    }
+
     func testKeepingAnAnswerNeverTouchesTheStandingsFile() throws {
         // INV-66: nothing derived from the question reaches the standings file. The answers live in a
         // file of their own beside it.

@@ -22,7 +22,7 @@ Refuses:
     control's count -- the rows before it stay in the file -- and its reason MUST cite the
     decision, an ADR (`D-<n>`, `P-<n>`) or a `docs/refusals.md` row (`R-<n>`); a review row that
     cites nothing counts nothing and fails the close. Every row's `kind` is validated against the
-    legend table in `docs/warnings.ledger.template.md` (the single source: `skip`, `bypass`,
+    legend table in `docs/warnings.ledger.md` (the single source: `skip`, `bypass`,
     `review`) and its `wave` column against the shapes the legend lists; a legend that cannot be
     read fails the close (closed, not open). Three field projects wrote `rejected`, `ruling` and
     `within-scope` rows and free-form waves, and nothing counted them
@@ -40,8 +40,15 @@ Refuses:
     `m{N}-tester.md`. No per-wave Tester: it was the costliest review per real defect in the field.
     The milestone Tester is required on the last wave in light mode too (the owner's ruling of
     2026-10-13 on DevFlow #16); the output names the mode it read from the brief.
+  * from `v7.1.2`, in heavy mode, the milestone Security-Reviewer's verdict `m{N}-security.md` on the
+    plan's last wave, and no per-wave security verdict: heavy mode runs security once per milestone
+    (the owner's ruling of 2026-10-16). A close declaring an earlier version is graded with security
+    routed per wave, as it was written
+  * from `v7.1.1`, a close that declares no `process_version` and is dated on or after the
+    installation (`.gp/installed`'s `installed_on`), or undated where that marker exists
 The footprint fields and the review files are graded by the `process_version` the record declares;
-a record that declares none is history (see below). Exit 0 pass · 1 fail · 2 usage.
+a record that declares none is history only if it predates the installation (see below).
+Exit 0 pass · 1 fail · 2 usage.
 """
 import csv
 import fnmatch
@@ -62,7 +69,8 @@ FAIL_STATUSES = {"FAIL", "BLOCKED", "❌"}
 HEADER_CELLS = {"check", "gate", "item", "#", "no", "step"}
 PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
 LEDGER = pathlib.Path("docs/control-events.csv")
-LEGEND = pathlib.Path("docs/warnings.ledger.template.md")   # the row-kind legend, one table, one source
+LEGEND = pathlib.Path("docs/warnings.ledger.md")   # the row-kind legend, one table, one source
+INSTALL_MARKER = pathlib.Path(".gp/installed")   # `installed_on:` dates the installation (write_install_marker.py)
 WAVE_SHAPE = re.compile(r"^(m\d+-w\d+|issue-\d+|release|upgrade-v\d+(?:\.\d+)*|setup)$")
 WAVE_SHAPES = "m<N>-w<W>, issue-<n>, release, upgrade-v<X.Y> or setup"
 DECISION_REF = re.compile(r"\b(?:D|P|R)-\d+\b")
@@ -402,7 +410,7 @@ CODE_DIRS = ("src/", "ios/", "scripts/", ".claude/", ".githooks/")
 def _git(root: pathlib.Path, *args: str) -> str | None:
     """git's output, or None when the command fails (no repository, an unknown ref)."""
     try:
-        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60,  # noqa: S603, S607
+        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60,
                               check=False)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -656,7 +664,7 @@ def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str
     back.
 
     DevFlow v7.1 took over the rest of what this function checked: a row's kind is validated against the legend
-    in `docs/warnings.ledger.template.md` (`ledger_kinds`), and the three-row count restarts at a `review` row
+    in `docs/warnings.ledger.md` (`ledger_kinds`), and the three-row count restarts at a `review` row
     citing a decision (`ledger_findings`). The project's `ruling` and `within-scope` kinds, and its own count
     (`ledger_strikes`), were retired with that upgrade: a kind outside the legend is now a finding."""
     import datetime as dt
@@ -817,11 +825,12 @@ def skip_ledger_problems(text: str, wave_id: str, ledger: list[list[str]], root:
     return problems
 
 
-def review_need_of(text: str, p: pathlib.Path, recompute: bool = True) -> str:
+def review_need_of(text: str, p: pathlib.Path, recompute: bool = True, wave_security: bool = False) -> str:
     """This wave's review need: recomputed from its commit range when git can read it, else the
     `Review need:` line the checklist recorded. A recomputed need the line under-states fails.
     `recompute` is False for a record written under earlier signals (a `v7.0` close): today's
-    `review_need.py` knows parsers v7.0 did not, and a close is graded by the rules it declares."""
+    `review_need.py` knows parsers v7.0 did not, and a close is graded by the rules it declares.
+    `wave_security` asks for the routing before v7.1.2, when heavy mode ran security per wave."""
     rec = re.search(r"^\s*Review need:\s*`?(?:review-need:\s*)?([a-z+-]+)", text, re.M | re.I)
     recorded = rec.group(1).lower() if rec else ""
     rng = re.search(r"commit range:\s*`?([0-9a-f]{7,40})\.\.([0-9a-f]{7,40})", text, re.I)
@@ -832,7 +841,8 @@ def review_need_of(text: str, p: pathlib.Path, recompute: bool = True) -> str:
         mplan = re.match(r"(m\d+)-wave-", p.name)
         plan = f"docs/plans/{mplan.group(1)}-plan.md" if mplan else None
         cmd = [sys.executable, str(script), "--range", f"{rng.group(1)}..{rng.group(2)}", "--at", rng.group(2)]
-        r = subprocess.run(cmd + (["--plan", plan] if plan else []), capture_output=True, text=True, cwd=root)  # noqa: S603
+        cmd += ["--wave-security"] if wave_security else []
+        r = subprocess.run(cmd + (["--plan", plan] if plan else []), capture_output=True, text=True, cwd=root)
         if r.returncode == 0:
             got = r.stdout.strip().splitlines()[-1].split(":", 1)[1].strip()
             if "security" in got and "security" not in recorded:
@@ -842,9 +852,27 @@ def review_need_of(text: str, p: pathlib.Path, recompute: bool = True) -> str:
     return recorded
 
 
+def waves_declared(plan_file: pathlib.Path, close_text: str) -> re.Match | None:
+    """The plan's `waves: <n>` as it stood at the close's own head (its `commit range:` end): a wave
+    is graded by the plan of its time, so amending the plan later (a mini-fix wave) never turns a
+    merged close red. Without a readable range or commit, the plan in the tree. An amended plan
+    appends a new line: the LAST `waves:` line is the plan's."""
+    import subprocess
+    body = None
+    rng = re.search(r"commit range:\s*`?[0-9a-f]{7,40}\.\.([0-9a-f]{7,40})", close_text, re.I)
+    if rng and plan_file.parent.is_dir():
+        r = subprocess.run(["git", "show", f"{rng.group(1)}:./{plan_file.name}"], cwd=plan_file.parent,
+                           capture_output=True, encoding="utf-8", errors="replace")
+        body = r.stdout if r.returncode == 0 else None
+    if body is None and plan_file.is_file():
+        body = plan_file.read_text(encoding="utf-8", errors="replace")
+    found = list(re.finditer(r"^\s*waves:\s*`?(\d+)`?\s*$", body or "", re.M))
+    return found[-1] if found else None
+
+
 def ledger_kinds(legend: pathlib.Path = LEGEND) -> dict[str, str] | None:
     """The row kinds the ledger may carry, read from the legend table (`| kind | means | ... |`) in
-    `docs/warnings.ledger.template.md`. None when the file or the table is missing: the caller
+    `docs/warnings.ledger.md`. None when the file or the table is missing: the caller
     fails closed, because a check that cannot read its vocabulary cannot validate a row."""
     if not legend.is_file():
         return None
@@ -913,6 +941,37 @@ def ledger_findings(text: str, legend: pathlib.Path = LEGEND) -> list[str]:
     return bad
 
 
+def close_date(text: str) -> str | None:
+    """The close's date: its frontmatter `date:`, else the sign-off's `Date:`; None when neither reads."""
+    fm = re.match(r"^---\s*\n(.*?)\n---", text, re.S)
+    d = re.search(r"^date:\s*`?(\d{4}-\d{2}-\d{2})", fm.group(1), re.M) if fm else None
+    if not d:
+        d = re.search(r"Filled by:.*?Date:\s*`?(\d{4}-\d{2}-\d{2})", text, re.I)
+    return d.group(1) if d else None
+
+
+def unversioned_after_install(text: str) -> str | None:
+    """Why a close that declares no process_version cannot be history here, or None when it can.
+
+    History only if it predates this installation: `installed_on` in `.gp/installed`. No marker, no
+    date to compare -- history, as before. A marker whose date cannot be read fails closed."""
+    if not INSTALL_MARKER.is_file():
+        return None
+    m = re.search(r"^installed_on:\s*(\d{4}-\d{2}-\d{2})\s*$",
+                  INSTALL_MARKER.read_text(encoding="utf-8", errors="replace"), re.M)
+    if not m:
+        return (f"declares no process_version, and {INSTALL_MARKER} carries no readable `installed_on:` "
+                "-- nothing can show this close predates the installation, so it cannot be graded as "
+                "history (fail closed; `make install` rewrites the marker)")
+    dated = close_date(text)
+    if dated is not None and dated < m.group(1):
+        return None
+    return (f"declares no process_version and is {'undated' if dated is None else 'dated ' + dated}, "
+            f"and DevFlow was installed here on {m.group(1)} ({INSTALL_MARKER}): a close written after "
+            "DevFlow was installed declares process_version -- the template writes it; without it "
+            "the close would be graded as history and skip every rule written since")
+
+
 def main(argv: list[str]) -> int:
     for stream in (sys.stdout, sys.stderr):    # a console that cannot encode a character prints `?`
         reconfigure = getattr(stream, "reconfigure", None)
@@ -951,14 +1010,18 @@ def main(argv: list[str]) -> int:
     #
     # Graded by the version the RECORD declares, never by today's template: a wave close is
     # append-only evidence, and grading an earlier close by rules written later turns every one of
-    # them red after an upgrade (UPGRADING.md). What this gives up: a NEW record could declare an old version to skip a rule; the
-    # template and `/close-wave` write the current version, and a backdated one shows in the diff.
+    # them red after an upgrade (UPGRADING.md). What this gives up: a NEW record could declare an
+    # old version to skip a rule; the template and `/close-wave` write the current version, and a
+    # backdated one shows in the diff.
     #
-    # A record that declares NO version is history, graded only by the rules that predate versions.
-    # Until v6.7 it got today's rules, which turned every pre-version close in a field project red
-    # after its upgrade -- and that project took `closes` out of `make check` to get green again.
-    # The template has always written the version, so a missing one is an old record; the note
-    # below says so on every run rather than letting it pass unremarked.
+    # A record that declares NO version is history -- graded only by the rules that predate
+    # versions -- when it predates this installation. Until v6.7 it got today's rules, which turned
+    # every pre-version close in a field project red after its upgrade, and that project took
+    # `closes` out of `make check`. But "no version" alone is also how a NEW hand-written close
+    # skips every versioned rule (v7.1.1; Project-J's D-161 refuses it locally): so a close
+    # dated on or after `.gp/installed`'s `installed_on` (`scripts/write_install_marker.py`), or one
+    # with no readable date where a marker exists, is refused. With no marker (the package itself)
+    # nothing can date the installation, and an unversioned close stays history.
     vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
     version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None
     # model_ranking (D-155 adoption review MINOR-1, D-161; v6.6 upgrade review MAJOR-1/2): the
@@ -974,17 +1037,21 @@ def main(argv: list[str]) -> int:
                    f"after {DEVFLOW_ADOPTED} declares v{'.'.join(map(str, CURRENT_AT_ADOPTION))} or "
                    "later -- an older stamp would skip the rules written since (D-161)")
     if version is None:
-        print(f"NOTE [wave-check]: {p.name} declares no process_version -- graded as history: "
-              "frontmatter, table, statuses and sign-off only")
+        refused = unversioned_after_install(text)
+        if refused:
+            bad.append(refused)
         # model_ranking (D-161), on DevFlow v7.1's history grading: a close with no version that is
         # undated, or dated after the adoption, would skip every versioned rule by leaving the line
         # out. The hole D-161 closed for an old stamp is closed for a missing one the same way, by
         # refusing it (`wave_check_all` already refuses such a record as "without the stamp").
-        if dated is None or dated.group(1) > DEVFLOW_ADOPTED:
+        elif dated is None or dated.group(1) > DEVFLOW_ADOPTED:
             bad.append(f"declares no process_version and is "
                        f"{'undated' if dated is None else 'dated ' + dated.group(1)}: a close written "
                        f"after {DEVFLOW_ADOPTED} declares v{'.'.join(map(str, CURRENT_AT_ADOPTION))} or "
                        "later -- a missing stamp would skip the rules written since (D-161)")
+        else:
+            print(f"NOTE [wave-check]: {p.name} declares no process_version -- graded as history: "
+                  "frontmatter, table, statuses and sign-off only")
 
     def since(*v: int) -> bool:
         return version is not None and version >= v
@@ -1163,19 +1230,41 @@ def main(argv: list[str]) -> int:
         stem = p.name[: -len("-close.md")]
         required = [("review", "Code-Reviewer", reviews / f"{stem}-review.md")]
         if since(7, 0):
-            need = review_need_of(text, p, recompute=since(7, 1))
+            need = review_need_of(text, p, recompute=since(7, 1), wave_security=not since(7, 1, 2))
             if need.startswith("FAIL:"):
                 bad.append(need[5:])
             elif "security" in need:
                 required.append(("security", "Security-Reviewer", reviews / f"{stem}-security.md"))
             last = re.search(r"^\s*Last wave of the plan:\s*(\S+)", text, re.M | re.I)
-            if last and last.group(1).strip("`*").lower().startswith("y") and ids:
+            is_last = bool(last and last.group(1).strip("`*").lower().startswith("y"))
+            # From v7.2 the plan says how many waves it has (`waves: <n>`, docs/plan.template.md), and
+            # "the last wave" is derived from it: a wave that called itself not the last once skipped the
+            # milestone Tester and Security-Reviewer with nothing to notice.
+            plan_file = p.resolve().parent / f"m{ids.group(1)}-plan.md" if ids else None
+            declared = waves_declared(plan_file, text) if plan_file else None
+            if declared and since(7, 2):
+                n_waves, this = int(declared.group(1)), int(ids.group(2))
+                if this > n_waves:
+                    bad.append(f"this is wave {this} and `{plan_file.name}` says `waves: {n_waves}` -- amend the "
+                               "plan (an appended amendment row and the new `waves:` line) before closing it")
+                elif (this == n_waves) != is_last:
+                    bad.append(f"`{plan_file.name}` says `waves: {n_waves}`, so this wave {'is' if this == n_waves else 'is not'} "
+                               f"the plan's last, and the checklist says `Last wave of the plan: "
+                               f"{'yes' if is_last else 'no'}`")
+                is_last = this == n_waves
+            elif since(7, 2) and plan_file is not None:
+                print(f"NOTE [wave-check]: `{plan_file.name}` has no `waves: <n>` line -- the last wave is taken "
+                      "from the checklist's own word (docs/plan.template.md carries the line)")
+            if is_last and ids:
                 required.append(("tester", "milestone Tester", reviews / f"m{ids.group(1)}-tester.md"))
                 # The mode is read, and does not exempt: in light mode too (owner ruling 2026-10-13).
                 mode = brief_fields.mode()
                 print(f"NOTE [wave-check]: working mode: {mode} -- the plan's last wave carries the "
-                      f"milestone Tester's verdict (`reviews/m{ids.group(1)}-tester.md`) in light "
-                      "mode too")
+                      f"milestone Tester's verdict (`reviews/m{ids.group(1)}-tester.md`)")
+                # From v7.1.2 heavy mode runs security once per milestone, here (owner ruling 2026-10-16).
+                security = reviews / f"m{ids.group(1)}-security.md"
+                if since(7, 1, 2) and mode != "light" and all(f != security for _, _, f in required):
+                    required.append(("security", "milestone Security-Reviewer", security))
         else:
             required.append(("tester", "Tester", reviews / f"{stem}-tester.md"))
         for kind, who, f in required:

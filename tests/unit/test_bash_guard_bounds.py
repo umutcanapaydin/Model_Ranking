@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -71,13 +72,16 @@ def guard() -> ModuleType:
 
 
 @pytest.fixture
-def ungoverned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A directory outside any repository, and a `$CLAUDE_PROJECT_DIR` with no brief: no deploy gate. (The
-    deploy gate is the project root's own since the v7.1 upgrade security review's MAJOR-2, so an unset
-    `$CLAUDE_PROJECT_DIR` would make the guard's own checkout, which has a brief, the project root.)"""
+def ungoverned(guard: ModuleType, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory,
+               monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A directory outside any repository, a `$CLAUDE_PROJECT_DIR` with no brief, and a guard checkout with no
+    brief: no deploy gate. Since DevFlow v7.1.2 (D-205) the gate is always the guard's own checkout's (`OWN`,
+    the v7.1 upgrade security review's MAJOR-2 as DevFlow closed it), and that checkout's brief judges a call
+    from any directory, so `OWN` is pointed at an empty directory beside the test's own."""
     where = tmp_path / "elsewhere"
     where.mkdir()
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(where))
+    monkeypatch.setattr(guard, "OWN", str(tmp_path_factory.mktemp("own")))
     return where
 
 
@@ -304,25 +308,69 @@ def test_rm_rf_of_a_temp_variables_own_scratch_is_allowed(guard: ModuleType, tem
     assert _bash(guard, command, ungoverned) is None, command
 
 
+@pytest.mark.parametrize("command", [
+    'rm -rf "$(pwd)"', 'rm -rf "$(pwd -P)"', 'rm -rf "$( pwd )"',
+    'pwd() { echo ~; }; rm -rf "$(pwd)"', 'function pwd { echo ~; }; rm -rf "$(pwd)"',
+    'pwd() { echo ~; }\nrm -rf "$(pwd)"', "alias pwd='echo ~'\nrm -rf \"$(pwd)\"",
+    'pwd() { echo ~; }; find "$(pwd)" -delete', 'pwd() { echo ~; }; rm -rf "$(pwd)/Desktop"',
+    'p""wd() { echo ~; }; rm -rf "$(pwd)"', "'pwd'() { echo ~; }; rm -rf \"$(pwd)\"",
+    "alias p''wd='echo ~'\nrm -rf \"$(pwd)\"", 'eval "p""wd() { echo ~; }"; rm -rf "$(pwd)"',
+    'f=pwd; eval "$f() { echo ~; }"; rm -rf "$(pwd)"', "eval \"$(printf 'p%sd() { echo ~; }' w)\"; rm -rf \"$(pwd)\"",
+    'enable -n pwd; PATH=/tmp/evil:$PATH; rm -rf "$(pwd)"', 'enable -n pwd; hash -p /tmp/evil/pwd pwd; rm -rf "$(pwd)"',
+    'disable pwd; PATH=/tmp/evil:$PATH; rm -rf "$(pwd)"', "functions[pwd]='echo ~'; rm -rf \"$(pwd)\"",
+    'mktemp() { echo ~; }; d=$(mktemp -d); rm -rf "$d"', 'function mktemp { echo ~; }; d=$(mktemp -d); rm -rf "$d"',
+    "alias mktemp='echo ~'\nd=$(mktemp -d); rm -rf \"$d\"",
+])
+def test_pwd_is_never_read_as_scratch_and_a_redefined_mktemp_is_not_trusted(guard: ModuleType, temp_dir: Path,
+                                                                            ungoverned: Path, command: str) -> None:
+    """The v7.1.2 upgrade security review's B1, B1-R and M1. v7.1.2 read `$(pwd)` as the directory the command
+    runs in, and a command can redefine `pwd` in more ways than any pattern lists (a quoted name, `eval`,
+    `enable -n`, zsh's `functions[pwd]=`), so `$(pwd)` stays a substitution the guard cannot name, as it was before
+    v7.1.2, even from inside scratch. A `mktemp` result is a new directory unless the same command defines
+    `mktemp`."""
+    inside = temp_dir / "work"
+    inside.mkdir()
+    assert _bash(guard, command, inside), command
+    assert _bash(guard, "rm -rf .", inside) is None, "the scratch directory itself, by `.`, stays scratch"
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf /var/folders/zz", "rm -rf /private/var/folders/zz/x", "find /var/folders/zz -delete",
+    "rm -r /var/folders/qf/abc/C", "rm -rf /var/folders",
+])
+def test_the_rest_of_var_folders_is_not_scratch(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    """The v7.1.2 upgrade security review's M4: v7.1.2 counted all of `/var/folders` as scratch, and beside each
+    user's `T/` it holds macOS's per-user state and caches. Only `$TMPDIR` and the interpreter's own temp directory
+    there are scratch."""
+    why = _bash(guard, command, ungoverned)
+    assert why, command
+
+
 @pytest.mark.parametrize(("command", "where"), [
     ("rm -rf .", "."), ("rm -rf .git", "."), ("rm -rf ios", "."), ("rm -rf ./ios ./.git", "."), ("rm -rf ../", "."),
     ("rm -rf ..", "ios"), ("rm -fr ../repo", "ios"), ("find . -delete", "."), ("find ios -delete", "."),
+    # DevFlow v7.1.2: `rm -r` without `-f` meets the scratch rule too -- Claude Code runs Bash with no terminal,
+    # so it never prompts and removes what `rm -rf` removes (it was allowed below through v7.1.1).
+    ("rm -r ios", "."),
 ])
 def test_rm_rf_in_above_or_of_a_work_tree_under_the_temp_directory_is_refused(guard: ModuleType, repo: Path,
                                                                               command: str, where: str) -> None:
     """The v7.1 upgrade security review's MAJOR-1 (round 1's M2): this project's work trees and review seats
-    live under the system temp directory, so "under a temp directory" let `rm -rf .` remove one."""
+    live under the system temp directory, so "under a temp directory" let `rm -rf .` remove one. DevFlow v7.1.2
+    refuses a target that is or holds a work tree in words of its own (HOLDS_REPO)."""
     why = _bash(guard, command, repo / where)
-    assert why and ("destructive" in why or "#282" in why), (command, why)
+    assert why and any(w in why for w in ("destructive", "#282", "holds a git work tree")), (command, why)
 
 
 def test_rm_rf_of_a_temp_directory_that_holds_work_trees_is_refused(guard: ModuleType, repo: Path,
                                                                     ungoverned: Path) -> None:
-    """`rm -rf /private/tmp/claude-501` held every session's tree; here the directory holding `repo`."""
+    """`rm -rf /private/tmp/claude-501` held every session's tree; here the directory holding `repo`. DevFlow
+    v7.1.2 refuses a scratch target that holds a work tree in words of its own (HOLDS_REPO)."""
+    held = ("destructive", "holds a git work tree")
     why = _bash(guard, f"rm -rf {repo.parent}", ungoverned)
-    assert why and "destructive" in why, why
+    assert why and any(w in why for w in held), why
     why = _bash(guard, f"rm -rf {repo.parent}/elsewhere {repo}", ungoverned)
-    assert why and "destructive" in why, why
+    assert why and any(w in why for w in held), why
 
 
 @pytest.mark.parametrize(("command", "where"), [
@@ -351,7 +399,7 @@ def seat(repo: Path) -> Path:
 @pytest.mark.parametrize("command", [
     "rm -rf .claude/worktrees/seat", "rm -r .claude/worktrees/seat", "rm -rf .claude/worktrees/seat/src",
     "git worktree remove .claude/worktrees/seat", "git worktree remove --force .claude/worktrees/seat",
-    "rm -r ios", "mv ios/a ios/b", "git rm -r ios", "git mv ios mobile", "rm file.txt", "mv -t . ios/a",
+    "mv ios/a ios/b", "git rm -r ios", "git mv ios mobile", "rm file.txt", "mv -t . ios/a",
     "git rm -r --cached .",
 ])
 def test_a_throwaway_worktree_and_ordinary_paths_may_still_be_removed(guard: ModuleType, repo: Path, seat: Path,
@@ -401,7 +449,7 @@ def test_rm_rf_of_scratch_too_large_to_walk_is_refused(guard: ModuleType, temp_d
     assert _bash(guard, f"rm -rf {big}", ungoverned) is None
     monkeypatch.setattr(guard, "MAX_WALK", 2)
     why = _bash(guard, f"rm -rf {big}", ungoverned)
-    assert why and "destructive" in why, why
+    assert why and ("destructive" in why or "more files than this guard looks through" in why), why
 
 
 def _git_init(where: Path) -> None:
@@ -422,11 +470,12 @@ def foreign(ungoverned: Path) -> Path:
 
 
 @pytest.fixture
-def gated(ungoverned: Path) -> Path:
-    """The project root (`$CLAUDE_PROJECT_DIR`) with its own deploy gate."""
+def gated(guard: ModuleType, ungoverned: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The project root (`$CLAUDE_PROJECT_DIR`, and the guard's own checkout, `OWN`) with its own deploy gate."""
     (ungoverned / "scripts").mkdir()
     for name in ("deploy_gate.py", "brief_fields.py"):
         (ungoverned / "scripts" / name).write_bytes((ROOT / "scripts" / name).read_bytes())
+    monkeypatch.setattr(guard, "OWN", str(ungoverned))
     return ungoverned
 
 
@@ -444,15 +493,17 @@ def test_another_repositorys_deploy_gate_never_runs_with_no_project_dir(guard: M
                                                                         monkeypatch: pytest.MonkeyPatch) -> None:
     """With `$CLAUDE_PROJECT_DIR` unset, the project root is the checkout the guard file lives in."""
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    monkeypatch.setattr(guard, "OWN", str(GUARD.resolve().parents[2]))
     assert _bash(guard, "ls", foreign) is None
     assert not (foreign / "scripts" / "RAN").exists()
 
 
 def test_a_project_whose_gate_is_missing_refuses_even_from_another_repository(guard: ModuleType, foreign: Path,
                                                                               ungoverned: Path) -> None:
-    """Fails closed: a brief declares deploys and the project root has no gate; another tree's is no stand-in."""
+    """Fails closed: a brief declares deploys and the project root has no gate; another tree's is no stand-in.
+    Since DevFlow v7.1.2 the project root whose gate runs is the guard's own checkout (`OWN`)."""
     why = _bash(guard, "ls", foreign)
-    assert why and "has no scripts/deploy_gate.py" in why and str(ungoverned) in why, why
+    assert why and "has no scripts/deploy_gate.py" in why and str(guard.OWN) in why, why
     assert not (foreign / "scripts" / "RAN").exists()
 
 
@@ -479,3 +530,270 @@ def test_a_git_alias_and_an_ssh_command_are_judged_by_what_they_run(guard: Modul
 ])
 def test_a_harmless_git_alias_and_ssh_command_are_allowed(guard: ModuleType, ungoverned: Path, command: str) -> None:
     assert _bash(guard, command, ungoverned) is None, command
+
+
+# --- the owner's guard patch of run golden-night (D-206 clause 9): #284, #285 and #286 --------------------------
+
+@pytest.mark.parametrize("command", [
+    "scripts/install_engine_service.sh", "./scripts/install_engine_service.sh --lan",
+    "scripts/install_engine_service.sh --no-lan", "bash scripts/install_engine_service.sh",
+    "scripts/install_engine_service.sh --deploy-only /tmp/x --no-venv", "scripts/install_engine_service.sh --dry-run --lan",
+    "scripts/install_engine_service.sh --lan --print-plist", "scripts/install_engine_service.sh --print-plist --print-wrapper",
+    "source scripts/install_engine_service.sh", "sudo scripts/install_engine_service.sh",
+    "bash -c 'scripts/install_engine_service.sh'", "echo x | xargs scripts/install_engine_service.sh --dry-run",
+    "scripts/install_engine_service.sh --dry-run && scripts/install_engine_service.sh",
+    "MODEL_RANKING_REPO=/x /abs/scripts/install_engine_service.sh", "a=scripts/install_engine_service.sh; $a",
+    "scripts/remove_engine_service.sh", "scripts/remove_engine_service.sh --dry-run", "bash scripts/remove_engine_service.sh",
+    "./remove_engine_service.sh --print-plist", "eval 'scripts/remove_engine_service.sh'",
+])
+def test_the_launchd_deploy_and_its_removal_are_refused(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    """#284: `scripts/install_engine_service.sh` deploys `origin/main` to the owner's launchd service and
+    `scripts/remove_engine_service.sh` takes it off; both change the owner's machine. The installer has no
+    `--dry-run` (it prints its usage and exits 2), so only that and its two printing modes pass, each alone. The
+    remover reads no argument, so `--dry-run` would take the service off: it is refused whatever it is given."""
+    why = _bash(guard, command, ungoverned)
+    assert why and "#284" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "scripts/install_engine_service.sh --dry-run", "scripts/install_engine_service.sh --print-plist",
+    "bash scripts/install_engine_service.sh --print-wrapper", "grep -n install_engine_service.sh scripts/README.md",
+    "cat scripts/remove_engine_service.sh", "git log --oneline -- scripts/remove_engine_service.sh",
+    "git commit -m 'run scripts/install_engine_service.sh after the merge'",
+])
+def test_the_launchd_scripts_print_modes_and_mentions_are_allowed(guard: ModuleType, ungoverned: Path,
+                                                                  command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
+
+
+@pytest.mark.parametrize(("command", "where"), [
+    ("git config --edit", "."), ("git config -e", "."), ("git config --global --edit", "."), ("git config edit", "."),
+    ("git config --ed", "."), ("git config --edit=x", "."), ("git config -le", "."),
+    ("git config --file .git/config -e", "."), ("git config --global edit", "."),
+    ("git -c alias.x='config --edit' x", "."), ("GIT_EDITOR=true git config --edit", "."),
+    ("bash -c 'git config -e'", "."), ("git -C ios config --edit", "."),
+    ("echo '[core] hooksPath = /dev/null' >> .git/config", "."), ("printf x > .git/hooks/pre-commit", "."),
+    ("echo x >| .git/config", "."), ("echo x &> .git/hooks/pre-push", "."), ("echo x > ./.git/../.git/config", "."),
+    ("tee -a .git/config < x", "."), ("cat x | tee .git/hooks/commit-msg", "."), ("cp x .git/hooks/pre-push", "."),
+    ("cp -t .git/hooks x", "."), ("mv x .git/config", "."), ("install -m 755 x .git/hooks/pre-push", "."),
+    ("ln -s /tmp/x .git/hooks/pre-commit", "."), ("chmod +x .git/hooks/pre-push", "."),
+    ("touch .git/hooks/post-checkout", "."), ("dd if=x of=.git/config", "."),
+    ("sed -i '' 's/a/b/' .git/config", "."), ("perl -pi -e 's/a/b/' .git/config", "."),
+    ("echo x > .GIT/CONFIG", "."), ("echo x > .git/config.worktree", "."),
+    ("echo x > .git/worktrees/w/config.worktree", "."), ("cd ios && echo x >> ../.git/config", "."),
+    ("echo x >> ../.git/config", "ios"), ("bash -c 'echo x >> .git/config'", "."), ("d=.git; echo x > $d/config", "."),
+    ("cp x ~/.gitconfig", "."), ("echo x >> ~/.gitconfig", "."), ("cat x | tee -a ~/.gitconfig", "."),
+    ("mv x $HOME/.gitconfig", "."), ("echo x > ~/.config/git/config", "."),
+    ("echo x >> /elsewhere/clone/.git/config", "."), ("cp -r myhooks/hooks .git/", "."), ("mv x .git", "."),
+    ("rsync -a hooks/ .git/hooks/", "."), ("cp -r myhooks/hooks /elsewhere/clone/.git/", "."),
+])
+def test_git_config_edit_and_a_write_into_gits_config_or_hooks_are_refused(guard: ModuleType, repo: Path,
+                                                                           command: str, where: str) -> None:
+    """#285: the guard read `git config <key> <value>` (core.hooksPath, aliases, keys git runs) but not an editor
+    git opens on the config, nor a file written straight into `.git/config`, `.git/hooks/` or `~/.gitconfig`:
+    either sets `core.hooksPath` or a hook, switching the commit and push gates off for every later command."""
+    why = _bash(guard, command, repo / where)
+    assert why and "#285" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git config user.name x", "git config --get core.hooksPath", "git config --list", "git config -l",
+    "git config --get-regexp edit", "git config user.email e@x", "cat .git/config", "grep url .git/config",
+    "cp .git/config /tmp/config.bak", "cp ~/.gitconfig /tmp/gitconfig.bak", "rm -f .git/index.lock",
+    "echo x > notes/git-config.md", "git commit -m 'git config --edit and .git/config'", "ls .git/hooks",
+])
+def test_reading_gits_config_and_hooks_is_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+def test_a_git_directory_not_named_dot_git_is_held_too(guard: ModuleType, ungoverned: Path) -> None:
+    """`git init --separate-git-dir`: the work tree's `.git` is a file naming a git directory of another name, whose
+    `config` and `hooks/` git reads as it reads `.git/config`."""
+    tree, gitdir = ungoverned.parent / "sep", ungoverned.parent / "sepgit"
+    tree.mkdir()
+    (gitdir / "hooks").mkdir(parents=True)
+    (tree / ".git").write_text("gitdir: ../sepgit\n", encoding="utf-8")
+    for command in ("echo x >> ../sepgit/config", "cp x ../sepgit/hooks/pre-commit", "cp -r h ../sepgit/"):
+        why = _bash(guard, command, tree)
+        assert why and "#285" in why, (command, why)
+
+
+def test_core_hooks_path_set_by_git_config_stays_refused(guard: ModuleType, repo: Path) -> None:
+    for command in ("git config core.hooksPath /dev/null", "git config --global core.hooksPath x",
+                    "git config --unset core.hooksPath"):
+        why = _bash(guard, command, repo)
+        assert why and "--no-verify" in why, (command, why)
+
+
+def _git(where: Path, *args: str) -> str:
+    """git as a test runs it: none of a hook's `GIT_*` (a commit-msg hook exports `GIT_DIR`), a fixed identity."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    done = subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false", *args],
+                          cwd=where, env=env, capture_output=True, text=True, timeout=60, check=False)
+    assert done.returncode == 0, (args, done.stderr)
+    return done.stdout
+
+
+@pytest.fixture
+def live(ungoverned: Path) -> Path:
+    """A real repository with a clean, live worktree at `.claude/worktrees/w` (its `.git` file names a gitdir that
+    exists), a nested one at `w/.claude/worktrees/n`, and `.claude/worktrees/` ignored, as Claude Code leaves it."""
+    tree = ungoverned.parent / "live"
+    (tree / "ios").mkdir(parents=True)
+    _git(tree, "init", "-q")
+    (tree / ".gitignore").write_text(".claude/worktrees/\n", encoding="utf-8")
+    (tree / "a.txt").write_text("a\n", encoding="utf-8")
+    (tree / "ios" / "b.txt").write_text("b\n", encoding="utf-8")
+    _git(tree, "add", "-A")
+    _git(tree, "commit", "-qm", "base")
+    _git(tree, "worktree", "add", "-q", str(tree / ".claude" / "worktrees" / "w"), "-b", "w")
+    _git(tree, "worktree", "add", "-q", str(tree / ".claude" / "worktrees" / "w" / ".claude" / "worktrees" / "n"), "-b", "n")
+    return tree
+
+
+#: The ways to remove `.claude/worktrees/w`, each from the repository's root.
+REMOVALS = [
+    "rm -rf .claude/worktrees/w", "rm -r .claude/worktrees/w", "rm -R -f .claude/worktrees/w/",
+    "git worktree remove .claude/worktrees/w", "git worktree remove --force .claude/worktrees/w",
+    "git worktree remove -f -f .claude/worktrees/w", "git worktree remove --force w",
+    "git -C ios worktree remove --force ../.claude/worktrees/w", "cd .claude && rm -rf worktrees/w",
+    "rm -rf $PWD/.claude/worktrees/w", "find .claude/worktrees/w -delete",
+]
+
+
+@pytest.mark.parametrize("dirt", ["untracked", "modified", "staged"])
+@pytest.mark.parametrize("command", [*REMOVALS, "rm -rf .claude/worktrees/w/ios",
+                                     "git -c alias.wr='worktree remove' wr -f w"])
+def test_removing_a_worktree_with_uncommitted_work_is_refused(guard: ModuleType, live: Path, command: str,
+                                                              dirt: str) -> None:
+    """#286: `.claude/worktrees/<name>` is scratch, and `rm -r`, `find -delete` and `git worktree remove --force`
+    deleted one holding uncommitted work -- every review seat and implementer works in one (D-174)."""
+    w = live / ".claude" / "worktrees" / "w"
+    if dirt == "untracked":
+        (w / "review.md").write_text("findings\n", encoding="utf-8")
+    else:
+        (w / "a.txt").write_text("changed\n", encoding="utf-8")
+        if dirt == "staged":
+            _git(w, "add", "a.txt")
+    why = _bash(guard, command, live)
+    assert why and "#286" in why and "uncommitted work" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", REMOVALS)
+def test_removing_a_clean_worktree_is_allowed(guard: ModuleType, live: Path, command: str) -> None:
+    assert _bash(guard, command, live) is None, command
+
+
+def test_a_dirty_worktree_nested_below_the_one_removed_is_refused(guard: ModuleType, live: Path) -> None:
+    nested = live / ".claude" / "worktrees" / "w" / ".claude" / "worktrees" / "n"
+    (nested / "work.txt").write_text("x\n", encoding="utf-8")
+    for command in ("rm -rf .claude/worktrees/w", "git worktree remove --force .claude/worktrees/w"):
+        why = _bash(guard, command, live)
+        assert why and "#286" in why and str(nested.resolve()) in why, (command, why)
+
+
+def test_a_dirty_worktree_is_refused_by_its_absolute_path_from_anywhere(guard: ModuleType, live: Path,
+                                                                        ungoverned: Path) -> None:
+    w = (live / ".claude" / "worktrees" / "w").resolve()
+    (w / "review.md").write_text("findings\n", encoding="utf-8")
+    for command in (f"rm -rf {w}", f"git -C {live} worktree remove --force {w}"):
+        why = _bash(guard, command, ungoverned)
+        assert why and "#286" in why, (command, why)
+
+
+def test_a_dirty_worktree_outside_claude_worktrees_is_not_force_removed(guard: ModuleType, live: Path,
+                                                                        ungoverned: Path) -> None:
+    other = ungoverned.parent / "other-wt"
+    _git(live, "worktree", "add", "-q", str(other), "-b", "other")
+    assert _bash(guard, f"git worktree remove --force {other}", live) is None
+    (other / "new.txt").write_text("x\n", encoding="utf-8")
+    why = _bash(guard, f"git worktree remove --force {other}", live)
+    assert why and "#286" in why, why
+    why = _bash(guard, "git worktree remove --force other-wt", live)
+    assert why and "#286" in why, why
+
+
+@pytest.mark.parametrize("how", ["no budget", "no git"])
+def test_a_live_worktree_whose_status_cannot_be_measured_is_not_removed(guard: ModuleType, live: Path,
+                                                                        monkeypatch: pytest.MonkeyPatch,
+                                                                        how: str) -> None:
+    if how == "no budget":
+        monkeypatch.setattr(guard, "STATUS_S", 0.0)
+    else:
+        monkeypatch.setenv("PATH", str(live / "ios"))
+    for command in ("rm -rf .claude/worktrees/w", "git worktree remove --force .claude/worktrees/w"):
+        why = _bash(guard, command, live)
+        assert why and "#286" in why and "could not" in why, (command, why)
+
+
+def test_a_worktree_whose_git_file_cannot_be_read_is_not_removed(guard: ModuleType, live: Path) -> None:
+    odd = live / ".claude" / "worktrees" / "odd"
+    odd.mkdir()
+    (odd / ".git").write_text("not a gitdir line\n", encoding="utf-8")
+    why = _bash(guard, "rm -rf .claude/worktrees/odd", live)
+    assert why and "#286" in why, why
+
+
+@pytest.mark.parametrize("command", [
+    "rm -rf .claude/worktrees/gone", "git worktree remove --force .claude/worktrees/gone", "rm -rf .claude/worktrees/none",
+    "rm -rf .claude/worktrees/plain",
+])
+def test_a_worktree_whose_gitdir_is_gone_or_a_plain_directory_is_removed_as_before(guard: ModuleType, live: Path,
+                                                                                   command: str) -> None:
+    """A `.git` file naming a gitdir that does not exist is no live worktree (the `seat` fixture above), and a
+    directory with no `.git` holds no git work: both stay scratch."""
+    gone = live / ".claude" / "worktrees" / "gone"
+    gone.mkdir()
+    (gone / ".git").write_text("gitdir: /nowhere/.git/worktrees/gone\n", encoding="utf-8")
+    (gone / "left.txt").write_text("x\n", encoding="utf-8")
+    (live / ".claude" / "worktrees" / "plain" / "build").mkdir(parents=True)
+    assert _bash(guard, command, live) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "git worktree remove --force \"$W\"", "git worktree remove --force .claude/worktrees/*",
+    "echo .claude/worktrees/w | xargs git worktree remove --force",
+])
+def test_a_worktree_removal_whose_path_this_cannot_read_is_refused(guard: ModuleType, live: Path, command: str) -> None:
+    why = _bash(guard, command, live)
+    assert why and "#286" in why, (command, why)
+
+
+# --- the owner-bundle security review of run golden-night: P1, M1 and M2 ---------------------------------------
+@pytest.mark.parametrize("command", [
+    "bash -c 'rm -rf ~' --help", "sh -c 'git push --force origin main' --version", "bash -c 'fly deploy' --help",
+    "bash scripts/remove_engine_service.sh --help", "zsh -c 'rm -rf ~' --version --help",
+    "bash --help -c 'rm -rf ~'", "bash -c 'git config --edit' --help",
+])
+def test_a_shell_given_help_or_version_beside_a_command_still_has_the_command_read(guard: ModuleType,
+                                                                                  ungoverned: Path,
+                                                                                  command: str) -> None:
+    """P1: `--help` or `--version` anywhere in a shell's words let the call through unread, while bash runs
+    `bash -c 'echo RAN' --help` (`--help` is its $0). Only a shell asked for nothing but its help or version is
+    let through."""
+    assert _bash(guard, command, ungoverned), command
+
+
+@pytest.mark.parametrize("command", ["bash --help", "sh --version", "zsh --version --help"])
+def test_a_shell_asked_only_for_its_help_or_version_is_allowed(guard: ModuleType, ungoverned: Path,
+                                                               command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "scripts/DEPLOY_HOSTED_ENGINE.sh", "SCRIPTS/REMOVE_ENGINE_SERVICE.SH", "scripts/Install_Engine_Service.sh",
+    "bash scripts/Deploy_Hosted_Engine.sh --dry-run --force",
+])
+def test_the_deploy_scripts_are_named_whatever_their_case(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    """M1: the owner's disk is case-insensitive, so a script named in another case is the same script."""
+    assert _bash(guard, command, ungoverned), command
+
+
+def test_untracked_work_counts_even_when_the_repository_hides_untracked_files(guard: ModuleType, live: Path) -> None:
+    """M2: `status.showUntrackedFiles=no`, which an agent may set, hid a worktree's new files from the check."""
+    w = live / ".claude" / "worktrees" / "w"
+    _git(w, "config", "status.showUntrackedFiles", "no")
+    (w / "review.md").write_text("findings\n", encoding="utf-8")
+    for command in ("rm -rf .claude/worktrees/w", "git worktree remove --force .claude/worktrees/w"):
+        why = _bash(guard, command, live)
+        assert why and "#286" in why, (command, why)

@@ -1,12 +1,13 @@
 # Tool Suitability Matrix
 
 > Single-page filter for routing tasks: what's appropriate to delegate to an AI coding agent vs. what requires human judgment / senior review. Reference in `m{N}-plan.md` when scoping waves and choosing risk tier. It reflects published guidance from OpenAI, Anthropic and academic studies.
+> Which review runs when, in each mode: `.agents/rules/issues.md`, "Two working modes" — this file sets the depth, not the routing.
 
 ---
 
 ## Strong fit — Delegate freely (Risk tier LOW)
 
-Tasks where AI agents perform reliably with light review. The per-wave Code-Reviewer, and the milestone Tester, are sufficient. The Quality Gate (Stage 4.1), when on, runs standard checks; the release Security review (Stage 5.1) is light at this tier.
+Tasks where AI agents perform reliably with light review. The reviews `make review-need` computes are sufficient. The Quality Gate (Stage 4.1), when on, runs standard checks; the release Security review (Stage 5.1) is light at this tier.
 
 - Test generation (unit + integration)
 - Documentation updates (README, changelog, inline comments, ADR drafts via `/log-decision`)
@@ -25,7 +26,7 @@ Tasks where AI agents perform reliably with light review. The per-wave Code-Revi
 
 ## Medium fit — Delegate with stronger spec + review (Risk tier MEDIUM)
 
-Tasks where AI agents work but human oversight matters. The per-wave Code-Reviewer and the milestone Tester are necessary. The Quality Gate, when on, must be thorough. The release Security review (Stage 5.1) runs SAST opportunistically; a security-touching wave may pull a security pass forward (HIGH-risk trigger).
+Tasks where AI agents work but human oversight matters. The reviews `make review-need` computes are necessary. The Quality Gate, when on, must be thorough. The release Security review (Stage 5.1) runs SAST opportunistically; a security-touching change gets its security review at the moment its mode sets.
 
 - Multi-file feature implementation (>2 files, cross-module)
 - Performance improvements (require profiling validation)
@@ -41,7 +42,7 @@ Tasks where AI agents work but human oversight matters. The per-wave Code-Review
 
 ## Weak fit — Senior human review mandatory (Risk tier HIGH)
 
-Tasks where AI agents have known high failure rate. The per-wave Code-Reviewer, the milestone Tester and the Security-Reviewer on every flagged slice and deploy (plus the Quality Gate, when on) are necessary but **not sufficient**. Per permission-matrix §11, ANY change in these categories without senior human review is automatic BLOCKING.
+Tasks where AI agents have known high failure rate. Every review the mode runs (plus the Quality Gate, when on) is necessary but **not sufficient**. Per permission-matrix §11, ANY change in these categories without senior human review is automatic BLOCKING; the senior human reviewer the brief names (default: the owner) signs it through the merge of the PR that carries it — their own, or the owner's on their approval recorded in the PR — written as a `**Senior review:**` line in the security verdict.
 
 - **Authentication / authorization logic.** Lovable CVE-2025-48757 lesson; Veracode 45% finding.
 - **Cryptography.** Hand-rolled crypto is almost always wrong; AI doubles the risk.
@@ -54,7 +55,7 @@ Tasks where AI agents have known high failure rate. The per-wave Code-Reviewer, 
 - **Large refactors** (>10 files) without architecture constraints.
 
 Risk tier HIGH milestone gates:
-- A security-touching wave pulls a security pass forward into Stage 3 (HIGH-risk trigger); the release Security review (Stage 5.1) still runs and is BLOCKING before deploy
+- A security-touching change meets the Security-Reviewer when its mode says; the release Security review (Stage 5.1) still runs and is BLOCKING before deploy
 - Security-Reviewer runs full SAST scan (bandit + semgrep OR Veracode-class if budgeted via F.5)
 - Mandatory senior human review appended after Stage 3 / at the release review
 - All BLOCKING/MINOR findings tracked through to milestone closure
@@ -70,7 +71,7 @@ Risk tier HIGH milestone gates:
 ### Stage 1 (every milestone plan)
 - For each REQ-ID, classify Strong / Medium / Weak fit.
 - Milestone overall risk tier = highest task in it.
-- Risk tier and `make review-need` drive the reviews (Code-Reviewer per wave, Tester per milestone, security by signal) + the Stage 5.1 release Security-Reviewer scan depth + senior-review gate.
+- Risk tier and `make review-need` drive the reviews + the Stage 5.1 release Security-Reviewer scan depth + senior-review gate.
 
 ### When ambiguous
 - Default UP. "Medium-but-could-be-Weak" → Weak.

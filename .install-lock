@@ -3,7 +3,7 @@
 # install, and unlike a byte threshold a count cannot be satisfied by a placeholder.
 .claude/agents	4
 .claude/skills	17
-conformance	57
+conformance	66
 docs/plans	0
 docs/reviews	0
 src	6

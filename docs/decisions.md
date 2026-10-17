@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v7.1
+process_version: v7.2
 date: 2026-08-11
 ---
 # Decisions
@@ -18,7 +18,8 @@ date: 2026-08-11
 > - IDs are immutable; deletion leaves a gap (seed B.5).
 >
 > **Status legend** (the `**Status:**` line of an ADR, not the frontmatter above):
-> `proposed` — captured, not yet ratified.
+> `proposed` — captured, not yet ratified: on its branch until the owner merges the PR that carries it.
+> That merge ratifies it — an ADR on the default branch is accepted, and no status line is edited for it.
 > `accepted` — locked. Changing requires `superseded by`.
 > `superseded by D-NNN` — old; do not follow.
 
@@ -64,6 +65,8 @@ date: 2026-08-11
 
 **Revisit when:** Multi-week milestones consistently need more than 150 lines of navigation.
 
+**Amended at `v7.2`** (the body above is kept as written): the template ships at ≤140 lines, as `AGENTS.md` and the brief state.
+
 ---
 
 ## D-004 — Permission matrix default-deny (UNIVERSAL)
@@ -90,11 +93,17 @@ date: 2026-08-11
 
 **Mitigation:** `make wave-check` refuses a wave close without both verdict files in `docs/reviews/`, or with a BLOCKING one. No deploy step in `docs/closure-checklist.md` §E.2 runs before §E.1 passes.
 
+**Amended at `v7.1.2`** (the owner's ruling of 2026-10-16; the body above is kept as written): in heavy mode the **Security-Reviewer** runs once per milestone, on the plan's last wave, over the whole milestone, writing `docs/reviews/m{N}-security.md` (required by `make wave-check` and `closure_check.py`); no wave or fix in heavy mode is routed to security, and `make review-need` prints each range's signals for that review. Light mode, the deploy gate and Stage 5.1 are unchanged.
+
 **Revisit when:** A release is harmed by late security feedback — then move a security pass earlier for that risk class.
 
 **Amended at `v7.1`** (DevFlow v7.1's text for this record, mandatory subagent profiles: reviews computed from the change; kept as an amendment so the body above stays as written, B.2): **Decision:** Reviews are fresh-eyes subagents (`.claude/agents/`) and `make review-need` computes which a change gets. Heavy mode: every wave the **Code-Reviewer**; the **Tester** once per milestone, on the plan's last wave. Both modes: the **Security-Reviewer** on a slice the signals flag, before every deploy (the deploy gate), and on the whole release at Stage 5.1, writing `docs/reviews/release-security.md` with its reviewed head. The read-only Explorer is used for exploration. Other profiles are project-specific and graduate per `docs/subagents.md`. **Rationale:** Fresh-eyes review (seed K.7) catches what an author cannot. Measured across two field projects: the per-wave Tester was the costliest review per real defect (41M–57M tokens against 1.9M–5.2M for the Code-Reviewer) and security the cheapest and highest-yield; three deploys in one project went out unreviewed while the rule was prose. **Mitigation:** `make wave-check` refuses a wave close without the verdicts its range needs (recomputed), or with a BLOCKING one. The deploy gate refuses a deploy command while code changed after the reviewed head.
 
 **Amended at `v7.1`** (the owner's ruling of 2026-10-13, DevFlow #16 D8; the body above is kept as written): the milestone **Tester** runs at every milestone close in both modes — in light mode once before each release, on everything merged since its last verdict, writing `docs/reviews/release-tester.md` with its reviewed head, which the deploy gate reads.
+
+**Amended at `v7.2`** (the owner's ruling of 2026-10-17; the body above is kept as written): in light mode the Security-Reviewer runs per change only on the brief's declared HIGH paths; `make review-need` prints its other signals for the release review. Heavy mode is unchanged.
+
+**Revisit amended at `v7.2`** (the line above is kept as written): since `v7.1.2` heavy mode's security pass is the milestone's; revisit when a milestone's late security finding costs more than the per-wave passes it replaced.
 
 ---
 
@@ -140,6 +149,8 @@ The full `make gate` runs before every push (`make hooks`) and at `/pre-merge`. 
 **Revisit when:** A milestone surfaces a recurrent rule violation that would benefit from another hook.
 
 **Amended at `v7.1`** (the body above is kept as written): the shipped set is five hooks — SessionStart (the session marker `make session-check` reads); PreToolUse Write/Edit (`.env`, `.env.*`, `<x>.env`, `.envrc`); PreToolUse Bash, the pinned `.claude/hooks/bash_guard.py` (destructive git, `rm -rf` and `find -delete` outside scratch, a skipped hook, a moved protected ref, a shell write to a secrets file, `gh pr merge`/`ready`, the deploy gate); PostToolUse (`make check-fast`). Every hook sets `timeout` and `onFailure: block`, so one that cannot run blocks too.
+
+**Amended at `v7.2`** (the line above is kept as written): that set was four hooks, the four it names; `v7.2` adds a fifth, PreToolUse on the PowerShell tool, which refuses every command but the read-only listings `permissions.allow` names for it — the Bash guard never saw a PowerShell call (the owner's ruling of 2026-10-17).
 
 ---
 
@@ -5206,6 +5217,8 @@ the milestone Tester that `make deploy-check` now asks for.
 
 **Amended by D-201 (2026-10-16)**: clause 1 -- the project runs in light mode.
 
+**Amended by D-205 (2026-10-17)**: the project runs on DevFlow v7.1.2, in light mode; the guard is v7.1.2's file with the project's rules ported onto it.
+
 ## D-200 — The three-row count takes v7.1's reset, and one wave's skip row covers that wave only
 
 **Status:** accepted -- the owner's choices of 2026-10-15, in session, on the v7.1 upgrade review
@@ -5255,6 +5268,8 @@ decision that exists.
 
 **Revisit when:** a light-mode change reaches the owner broken in a way a code review would have caught, or the owner turns heavy mode back on.
 
+**Status:** accepted -- 2026-10-17, the owner merged the plan PR #290 (run product-night)
+
 ## D-202 — The product run: the right models for the right question, on the owner's iPhone
 
 **Status:** proposed
@@ -5280,6 +5295,10 @@ Defaults the agent took, because the owner was asleep (run rule: an unanswered q
 
 **Amended by D-204 (2026-10-17)**: clause 6 -- the owner ships #273, #218 and #301 although each scored the same as the shipped rule on the fresh set.
 
+**Status:** accepted -- 2026-10-17, the owner merged the plan PR #290 (run product-night)
+
+**Amended by D-206 (2026-10-17)**: clause 6 -- a reading rule ships when it turns no fresh held-out row from right to wrong and fixes the golden question it was written for.
+
 ## D-203 — The wording tier holds small talk, text with no meaning and a dictated answer (#66)
 
 **Status:** proposed -- the agent's, in run product-night under D-202 clause 6, for the owner's review
@@ -5297,6 +5316,8 @@ The on-device model's schema, `RoutingOutcome` and every gate are unchanged.
 **Mitigation if violated:** A real model search phrased like small talk gets the note instead of a ranking. "Change" on the screen still lets the reader pick a surface. The fresh set had no such case.
 
 **Revisit when:** a genuine search is reported held, or the next fresh set shows the gain does not carry. The margin was one row, in English only. 61 of 72 non-searches are still ranked on the wording tier, so D-169 clause 6's 80 % bar stays the on-device model's.
+
+**Status:** accepted -- 2026-10-17, approved by the owner (D-204 clause 3) and merged in #291
 
 ## D-204 — The owner's answers to run product-night's stops and open questions
 
@@ -5319,3 +5340,89 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** If a shipped rule turns out worse, the next fresh held-out set shows it, and D-202's "Revisit when" reopens it.
 
 **Revisit when:** the next fresh held-out set is written, or DevFlow 7.1.2 lands.
+
+**Status:** accepted -- 2026-10-17, the owner's ruling, merged in #291
+
+## D-205 — The project runs on DevFlow v7.1.2, in light mode
+
+**Status:** proposed -- the owner asked for the upgrade on 2026-10-17 (translated from Turkish: *"take 7.1.2 from DevFlow and finish the upgrade; we will go on in light mode"*)
+**Date:** 2026-10-17 · **Amends:** D-199.
+
+**Context.** DevFlow moved from v7.1 to v7.1.2 through v7.1.1. Both are patches: no record changes shape and no stage changes. Most of the difference is the Bash guard. v7.1.1 follows `cd`, refuses more ways of skipping a hook, and treats `$TMPDIR` as scratch only when it is set. v7.1.2 refuses `rm -r` and `mv` of a work tree or of `.git`, git aliases to writing commands, code-running config keys, and a deploy declared in another repository. The deploy gate goes to `JUDGE_PROTOCOL = 2`. Two of v7.1.1's conformance fixes were already taken in #281 (`ab8686f`). Nothing in `.github/workflows/` changed.
+
+**Decision.**
+1. **Light mode stays** (D-201). v7.1.2 moves heavy mode's security review to the milestone's end; light mode is unchanged apart from the guard.
+2. **`git diff v7.1 v7.1.2` is applied three-way.** `.github/workflows/` is left out, since it did not change. `.claude/` and `.githooks/` are left out of the agent's apply, because they are the owner's to write (AGENTS.md §5). The agent prepares that half as one patch, and the owner applies it, re-pins the guard (`make guard-pin`) and commits.
+3. **The guard is v7.1.2's file, with the project's rules ported onto it**: the M21 bounds that D-199 clause 3 carried, and the two owner patches of #281 (`b4dc1f3`, `b39bbe8`). `tests/unit/test_bash_guard_bounds.py` holds them. Each of #282–#287 is closed where v7.1.2 or the port covers it, with the test that shows it, and kept open where it does not.
+
+**Rationale:** The owner wants the guard fixes taken from DevFlow rather than written by hand (D-204 clause 6), and v7.1.2 is the version that carries them.
+
+**Mitigation if violated:** If a project rule is lost in the port, a command the project refused passes again. The bounds test and `conformance/test-bash-guard.py` both run against the new file before the owner pins it.
+
+**Revisit when:** the next DevFlow release, or a guard finding that v7.1.2 does not cover.
+
+**Amended by D-207 (2026-10-17)**: the project runs on DevFlow v7.2, the stable release, in light mode.
+
+## D-206 — Run golden-night: what it does, and when a reading rule ships
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat, for run golden-night
+**Date:** 2026-10-17 · **Amends:** D-202 (clause 6).
+
+**Decision:** The owner's answers (translated from Turkish):
+1. **Reading rules (#293, #295, #292).** Before any rule is written, an independent seat writes one fresh held-out set, m24. The designs are the agent's defaults:
+   - #293: more example sentences first.
+   - #295: the general "yapay zeka" rule gives way when another surface's example scores confidently.
+   - #292: an agent with its own coding verb reads as agentic coding.
+2. **When a reading rule ships (amends D-202 clause 6).** A rule goes into the integration PR when two things hold: it turns no row of the fresh held-out set from right to wrong, and it fixes the golden question it was written for. Beating the shipped rule on the fresh set is not required. This is D-204's ruling, made general.
+3. **#294 is `disputed`.** "is it true that we only use 10 percent of our brain" fits `factuality` and `expert` alike. The golden set marks it disputed with that reason, and #294 closes.
+4. **#297 is approved, gate change included.** `scripts/client_decl_gate.py` limits `StandingsStore.keep` to the load path, and INV-73 is reworded for the hosted engine. It gets a security review.
+5. **#304: the gate is fixed.** L1 in `scripts/check_records.py` skips what git ignores and does not track, and the `ios/.build/` entry leaves `.language-allow`.
+6. **#255: an advisory make target.** It lists every issue a range's commit messages would close. It is not a leg of `make check`. Wiring it into `/pre-merge` is a skill patch for the owner.
+7. **#279: the additive form.** An `XCTestObservation` is registered beside the `tearDown` check, and no invariant test changes.
+8. **#265 is skipped tonight.** The licensed dataset needs the owner's Hugging Face token.
+9. **Owner-only files, prepared as one patch.** The agent prepares the changes to `.claude/`, `.githooks/` and `.github/workflows/` as one owner patch, and the owner applies it in the morning with one line. It covers #252, #254, #278 with #122, #283, #284, #305, and the guard holes #285–#287 that D-204 clause 6 sends after the v7.1.2 upgrade. A guard change in it passes a security review before it is handed over.
+10. **The run ends with the release reviews.** The milestone Tester (`docs/reviews/release-tester.md`) and the release security review (`docs/reviews/release-security.md`) run on the integration head, so `make deploy-check` can be green. Nothing deploys.
+
+**Rationale:** The owner wants the misses the golden set found fixed, and the process items cleared in one morning merge, with nothing that only the owner can do left half-done.
+
+**Mitigation if violated:** A rule that holds the fresh set level but is wrong on questions nobody wrote yet ships. The next fresh set and the golden set are where that shows.
+
+**Revisit when:** a shipped rule loses a row on a later fresh set, or the owner corrects the golden set.
+
+## D-207 — The project runs on DevFlow v7.2, the stable release, in light mode
+
+**Status:** proposed -- the owner asked for it on 2026-10-17 (translated from Turkish: *"upgrade to the DevFlow 7.2 stable version first, then we look at the work"*)
+**Date:** 2026-10-17 · **Amends:** D-205.
+
+**Context.** v7.2 is a whole-process audit. No record changes shape. It changes these:
+- the post-edit hook runs in the edited file's work tree, and only the records leg after a document edit;
+- the gate stamp (`make gate-ok`);
+- a PowerShell guard;
+- in light mode, a change goes to the Security-Reviewer only when it touches the brief's declared HIGH paths;
+- the ledger's legend moves into `docs/warnings.ledger.md`;
+- the brief gains `Rollback command:`;
+- `ci.yml` drops `make falsify`, and `issue-agent.yml` runs only when started by hand;
+- an ADR is accepted when the PR carrying it merges.
+
+**Decision.**
+1. **Light mode stays** (D-201). The project's `Paths that make a change HIGH:` is `none`, so under v7.2 a light change goes to no per-change security review. Its signals are read at the release review, which this project runs before every deploy (the deploy gate).
+2. **`git diff v7.1.2 v7.2` is applied three-way on top of run golden-night's integration branch.** The owner's files (`.claude/`, `.githooks/`, `.github/workflows/`) are left out. Run golden-night's owner bundle (D-206 clause 9) is folded into one owner patch with v7.2's changes to those files, so the owner applies one line, not two. The bundle's agent half is on this branch as `9575aef`.
+3. **The project's own rules are kept where v7.2 meets them.**
+   - **`deps`** still audits every lock under `requirements/` (D-177), and is not cached: v7.2's `net_cache.py` hashes no lock file.
+   - **The deploy gate** reads the brief's policy at the protected base (#283), and a milestone security verdict stands for the release only when neither the base's nor the tree's brief says light.
+   - **`make closes`** stays out of `make check` (D-161, D-199).
+   - **`.path-refs-allow`** keeps its exact rows (D-155); it does not take back v7.2's `docs/plans/*` and `docs/reviews/*` wildcards.
+   - **The closure checklist** keeps PASS or MINOR.
+   - **The wave checklist's row 8** keeps `Session started in the repository:` (#202).
+   - **`docs/security-invariants.md`** is the project's register, and v7.2's empty template is not taken.
+   - **D-178** moves with the QA section into `.agents/rules/issues-qa.md`.
+4. **`schemas/record.schema.json` and `scripts/gen_schema.py` stay.** v7.2 removed them, but the project changed both, and `scripts/check_records.py` reads the schema. **`docs/feature-catalog.md` stays too**: v7.2 removes it, and `tests/unit/test_security_invariants.py` reads it among the live records; a change to that test is the owner's (AGENTS.md, Escalate NOW).
+5. **The brief's `Rollback command:` is `none`.** The owner rolls a failed deploy back by hand.
+6. **ADRs.** Every ADR on `main` that still says `proposed` now reads as accepted, by v7.2's rule. Each one listed in the upgrade PR is in force, so none is superseded.
+
+**Rationale:** The owner asked for the stable release. v7.2 also removes the night run's main friction: the post-edit hook ran every agent's edit in the project tree.
+
+**Mitigation if violated:** If a project rule was lost in the merge, a gate gets looser. The upgrade's security review compares the result with v7.1.2's port.
+
+**Revisit when:** the next DevFlow release.

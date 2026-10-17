@@ -1,449 +1,109 @@
 ---
 record_type: review
 id: release-security
-status: ratified
+status: draft
 seat: independent
-process_version: v6.6
-date: 2026-10-07
+process_version: v7.1.2
+date: 2026-10-17
 ---
-# Release Security Review: the first release (the engine on Fly.io, the app on TestFlight)
+# Security Review — release (run golden-night head, Stage 5.1)
 
-**Reviewer:** Security-Reviewer subagent (`.claude/agents/Security-Reviewer.md`), Stage 5.1
-**Independent:** yes. I wrote none of this release's code, tests, records or earlier reviews.
-**Date:** 2026-10-07
-**Release range:** `3426ff3..81af5ba`. `3426ff3` is `main` (the merge of #184), which already holds
-M19's W1, W2 and W3. `81af5ba` is the head of the M19 closure branch (`enhancement/m19-closure`). It
-carries W4 (#196, head `bd60265`) and W5 (#197, head `2d117d0`), both draft pull requests, and the
-closure's own commits. That is 83 commits, 74 of them not merges.
-**Risk tier:** HIGH (W5, `docs/plans/m19-plan.md` §2: the serving image, the launcher, the guard and a
-public surface).
+**Reviewer:** Security-Reviewer subagent (`.claude/agents/Security-Reviewer.md`), Stage 5.1, light mode (D-206 clause 10)
+**Independent:** yes. I wrote none of this range's code, tests, records or earlier reviews.
+**Date:** 2026-10-17
+**Release range:** `81af5ba..958458d` (589 commits). `81af5ba` is the head the previous release verdict reviewed; `958458d` is `integration/run-golden-night`.
+**Reviewed head:** 958458d0f2166dce4ddf4b530314231e618f7f0f
+**Risk tier:** HIGH. The range touches the serving surface (`src/app/adapter/main.py`: rate limiter, `/v1/categories` fields), the deploy surface (`fly.toml`, `scripts/deploy_hosted_engine.sh`, `scripts/deploy_gate.py`), the app's transport and engine address (`ios/Config/*`, `EngineClient.swift`), an on-device store (`answers.json`), and new parsers of untrusted input (#268).
 
-> **What this record is.** The release's verdict of record, in the file the release rules name
-> (`AGENTS.md:114`, `docs/closure-checklist.md:111`, `permission-matrix.md:90`). This closes the M19
-> repo review's M7. It builds on two earlier records and does not redo them:
-> - `docs/reviews/m19-closure-security-review.md`: the release's first Stage 5.1 review, on
->   `0198eb3..7fde40d`. Verdict MAJOR, findings S1 to S16.
-> - `docs/reviews/m19-release-security-reread.md`: its re-read, on `7fde40d..6c98dd7`. Verdict MINOR,
->   findings N1 to N8. It said yes to the deploy, on one condition: any later change to the release
->   surface needs the same short read.
->
-> The M19 repo review (`docs/reviews/m19-repo-review.md`, M2) found that condition unmet: `0a80b65`,
-> `fdf6701` and `fb2040d` changed the surface after `6c98dd7`, and no seat read them. **This record is
-> that read**, for everything in `6c98dd7..81af5ba` (23 commits, 6 merges). It also confirms where
-> each earlier finding stands at `81af5ba`.
->
-> Nothing has been deployed. The only repository file I write is this one, and I do not commit it.
+> **This record replaces** the verdict of the first release, `3426ff3..81af5ba`, MINOR, dated 2026-10-07, which named no reviewed head. Its text is kept in git: `git show a16cbf4:docs/reviews/release-security.md` (first written in `8084c23`).
 
 ## Verdict
-MINOR
+PASS WITH FINDINGS: BLOCKING 0 · MAJOR 0 · MINOR 1 · NIT 1.
 
-## Summary
+Shipped as it stands, the release has no exploitable defect that I could find. The engine still serves five GET routes and has no mutating route. It answers only to its Host list, keeps CORS off unless an allowlist is set, refuses to boot strict on a bad config, and returns generic errors. The hosted engine sets its rate limit, and the limiter fails open. The app reaches the hosted engine over HTTPS only: a Release build cannot be pointed anywhere else. The run product-night and golden-night changes that `review-need` routed to `none` are on-device classifiers, test-only changes, and two development scripts. None of them adds a network path, a file sink, a log of the typed question, or a code-execution path.
 
-Nothing is BLOCKING. I found **2 MINOR** (RS1, RS2) and **3 INFO** (RS3 to RS5).
+The one MINOR is about coverage, not a defect. #268 (licensed sources) added three ingestion parsers of untrusted input. `make review-need` routes that range to `security` today, but it merged with no security verdict. I reviewed it here (M1), and the only thing I found in it is the NIT (N1).
 
-- **What changed since the re-read holds.** The public artifact now drops the `access` rows of a
-  left-out source as well. The build context leaves out database files. The runbook now says what
-  Fly can and cannot do, and it names this file as the condition for the deploy. Two new tests read
-  the image's health check and the build context the way Docker reads them. W4's reading fixes still
-  end in a surface id the engine serves, so no new request path exists.
-- **RS1 (MINOR).** The guard change `fb2040d`, which the owner approves by merging, reopens four
-  spellings of `git push --mirror` that were blocked at `6c98dd7`. Its new count of `--dry-run` runs
-  can still be fooled by a mention in a comment or an `echo`. I checked a two-regex fix in memory: it
-  closes all seven spellings and passes all 45 conformance cases.
-- **RS2 (MINOR).** INV-86 says the hosted engine runs as non-root and cannot write its artifact. The
-  test holds this only as the Dockerfile's text spells it today. `user root` in lower case, `USER 00`,
-  and a lower-case `run chmod 666` each pass the full suite. Docker accepts instructions in any case.
-  The shipped Dockerfile is correct.
-- **Every earlier finding is fixed, filed or left with the owner** (the table below). S1, the earlier
-  MAJOR, still holds fixed, and a new test now also refuses an address set on the app target itself.
-- **Gates at `81af5ba`, all green:** `make check-fast`, `make secrets`, `make deps`, `make slopsquat`
-  and `conformance/test-hook-claims.py`. This is the first seat to run `make deps` and
-  `make slopsquat` on the release.
+## How this review was split (what earlier verdicts cover)
+
+| Part of the range | Verdict of record | Read here |
+|---|---|---|
+| M20 waves (`bd273bc...d005135`), M21 waves (`closure/m20...9cbba60`) | `m20-closure-security-review.md`, `m21-closure-security-review.md` (MINOR) | findings read; S5 carried as R1 |
+| DevFlow v7.1 / v7.1.2 (process, guard) | `devflow-v7.1-upgrade-security*.md`, `devflow-v7.1.2-upgrade-security.md` | not redone |
+| #288 (phone → hosted engine, kept answers) | `enhancement-issue-288-phone-security*.md` | re-walked as shipped (baseline below) |
+| #289 golden set, product-night combination (`7bdb7c5..d953ca5`), #297 | `enhancement-issue-289-golden-security.md`, `integration-run-product-night-security.md`, `fix-issue-297-security.md` | not redone |
+| **#298, #299, #300, #303, #310, #311, #312, #313, #316, #324, `9217c6c`, the golden-night stacking merges** | **none: reviewed here (Focus a)** | full diff |
+| **#207 (`45d72e8..bd273bc`), #259, #263, #268, #270, #277** | **none found: no `*-security*.md` names these ranges** | full product diff (M1) |
 
 ## Findings
 
 ### BLOCKING
-
-None.
-
-The permission matrix §11 human-review trigger does not fire. No auth, PII, payment or migration path
-is in the range. The hosted engine still receives only a surface id and a budget (INV-64), and no
-route mutates (INV-30, measured below). The deploy surfaces (`Dockerfile`, `fly.toml`,
-`.claude/settings.json`) are the owner's to review under K.10 and AGENTS.md §3. He reviews them when
-he merges #197 and the closure pull request.
+- none
 
 ### MINOR
+- **M1** `src/app/clients/terminalbench.py:1-161`, `src/app/clients/models_dev.py:1-104`, `src/app/clients/arc_prize.py:1-96` (merge `9d2bbfc`, #268). Three new parsers of fetched input merged with no security verdict. On that range, `make review-need RANGE=51b2ee2..9d2bbfc` prints `new parser or fetch of untrusted input: httpx., json.loads` and `review-need: security`. The issue-265 records are code and Tester reviews only. **Not exploitable as shipped:** every fetch goes through the unchanged `fetch_bounded`, with its size bound and host list (`protocols.py:232`). Every field is type-checked and range-checked before it becomes a row: finite scores in 0–100, efforts from a closed set, positive prices only, and a 250-file ceiling. No input reaches a path, a shell or an evaluator. Ingestion runs only on the owner's Mac, and the serving image does not carry it (`nightly.py:106-117` refuses the switch on a strict engine). **Disposition:** covered by this review. No re-review needed. The routing gap is not a regression: the range merged before `review-need` ran in light mode on every change.
 
-**RS1 (MINOR): `fb2040d` reopens four spellings of `git push --mirror`, and its dry-run count can be
-fooled by a mention of the flag.**
+### NIT
+- **N1** `src/app/clients/terminalbench.py:34,74-85`. `_in_submissions` matches the **decoded** `httpx.URL.path`, but the request sends the raw path. A `download_url` with `%2e%2e` as its ref segment passes the check. Measured here, offline:
+  `_in_submissions(".../harbor-framework/terminal-bench/%2e%2e/leaderboard/submissions/a.json")` → `True`, with path `'/harbor-framework/terminal-bench/../leaderboard/submissions/a.json'` and `raw_path b'.../%2e%2e/...'`. The regex allows one segment there, so at most the request leaves the repository for the `harbor-framework` organisation, on the same host. Only whoever controls GitHub's listing for that repository could plant such a link, and they control its submissions anyway. So this is a NIT, but it is a gap in the #265 review's M2 fix. The test `tests/unit/test_terminalbench_4.py:154` plants only literal `..`. **Remedy:** refuse a `%` in `url.raw_path`, or match the regex against `raw_path.decode()`, and add `%2e%2e` to that parametrised test.
 
-- **Where.** `.claude/settings.json:49`, the Bash guard. `fb2040d` ("OWNER APPROVAL") changed two
-  rules:
-  - The `--mirror` rule now needs whitespace right before `--mi`. This was so that a branch named
-    `fix--mi` is not read as a mirror push.
-  - The deploy rule now counts runs of the script against runs of `deploy_hosted_engine.sh --dry-run`.
-    Before, the whole line was exempt if it held a dry run.
-- **Measured.** I ran the hook's own command from each commit on JSON payloads with `/bin/sh`, as
-  Claude Code does. Exit 2 means blocked; exit 0 means allowed.
+### PASS — the uncovered changes, read in full (Focus a)
+- **#298, #299** (`Router.swift:677` `readsEnglish`, `:751` `turkishBesideModelNames`): `NLLanguageRecognizer` on the device, pure functions of the typed text. Nothing stored, sent or logged.
+- **#300** (`Reading.swift:136,184`): adds instruction-to-the-app phrases (`"write nothing else"`, `"başka bir şey yazma"`) and `noMeaning`. These only add to the "not a search" signals. No signal was removed or weakened.
+- **#303** (`Router.swift:427`), **#316** (example sentences), **#324** (`Router.swift:484,584`): word lists, plus bounded index arithmetic in `agentThatCodes`. `words.indices.contains` guards every index, and `(verb-3...verb-1)` is a valid closed range for every `verb >= 0`. No unbounded work.
+- **#310**, **`9217c6c`**: test data and tests only. They contain no network call, environment read, secret or path. The `db01bdf` conflict was resolved by keeping #294's `disputed` mark, in test data. Every other golden-night merge (`9dd9a77`, `22c1429`, `7aa43ee`, `2fc953e`, `af99318`, `958458d`) is exactly the tree `git merge-tree` writes. `5b0acf9` differs only by adding the #297 security record.
+- **#311** (`OfflineTestCase.swift:66`): INV-6 is strengthened. An `XCTestObservation` adds a teardown check. The INV-6 row gains two tests and loses none. What it still cannot see is filed as #309.
+- **#312** (`check_records.py:1453`): L1 now skips only what git ignores **and** does not track (`--others --ignored`). When git fails, the skip set is empty, so the gate gets noisier, never quieter. L1 is not a security control.
+- **#313** (`scripts/closing_keywords.py:62`): advisory only, not in `check`. It runs `git` with a literal argument vector and no shell, and fails closed (exit 2) on an empty or unreadable range.
 
-  | Payload | `6c98dd7` | `81af5ba` |
-  |---|---|---|
-  | `git push origin \--mirror` | blocked | **allowed** |
-  | `git push origin $'--mirror'` | blocked | **allowed** |
-  | `git push origin ''--mirror` | blocked | **allowed** |
-  | `git push origin ""--mirror` | blocked | **allowed** |
-  | `git push origin fix--mi` (the false positive it fixes) | blocked | allowed |
-  | `scripts/deploy_hosted_engine.sh --dry-run && scripts/deploy_hosted_engine.sh` | allowed | **blocked** |
-  | the same with `\|`, `;`, a newline or `; bash …` | allowed | **blocked** |
-  | `scripts/deploy_hosted_engine.sh # deploy_hosted_engine.sh --dry-run` | allowed | allowed |
-  | `scripts/deploy_hosted_engine.sh; echo deploy_hosted_engine.sh --dry-run` | allowed | allowed |
-  | `echo deploy_hosted_engine.sh --dry-run; scripts/deploy_hosted_engine.sh` | allowed | allowed |
+### PASS — the other uncovered segments (part of M1's sweep)
+- **#207** (`public.py:31`, `LEFT_OUT = {}`): the hosted artifact now carries every source, on the owner's ruling D-186. That is a licence matter, not an exposure: R2. Its Router keyword tier is on-device word matching.
+- **#259** (`nightly.py`, `built_by_another`): a startup catch-up on the owner's Mac only. The hosted engine refuses the refresh switch (`nightly.py:114-116`).
+- **#263** (credits): static publisher data. Links are selectable `Text`, and there is no `openURL` anywhere in `ios/ModelRanking`. `credits_for` raises on a missing credit, which gives a generic 500.
+- **#270**, **#277**: registry rules, refresh reporting, licence notices. No new sink, route or fetch.
 
-  The shell turns each of the first four into `--mirror` before git sees it.
-  - The last three run a real deploy with no argument, because the script refuses any argument except
-    exactly `--dry-run` (`scripts/deploy_hosted_engine.sh:28-32`). They passed before `fb2040d` too.
-    The dry-run count matches the flag anywhere on the line, not only where a run of the script begins.
-  - So the commit message's claim, that every run must be "exactly `--dry-run`", is wider than the
-    rule.
-- **A fix, checked in memory.** I made the two changes below to the hook's text in a Python string,
-  never in the file. The result kept all 45 cases in `conformance/test-hook-claims.py` (27 blocked,
-  18 allowed). It blocked all seven spellings above and still allowed `fix--mi`, `wave/m19--minor`,
-  `scripts/deploy_hosted_engine.sh --dry-run` and `bash scripts/deploy_hosted_engine.sh --dry-run`.
-  1. Bound `--mi` by "not after a letter or digit", not by "after whitespace": `(^|[^[:alnum:]])--mi…`.
-  2. Count a dry run only where a run of the script begins. Give the `--dry-run` count the same prefix
-     as the run count, `(^|[;&|][[:space:]]*)((bash|sh|zsh|env)[[:space:]]+)?([^[:space:];&|]*/)?`.
+## Baseline walk (`origin/main:docs/security-baseline.md`, against the head)
 
-  Add the seven spellings to the conformance lists.
-- **Why MINOR.** The guard is a best effort over text, and G-7 says so (`docs/security-invariants.md:183`,
-  #189).
-  - `main` is held on GitHub. I read it with `gh`: `enforce_admins` is on, force pushes and deletions
-    are off, and reviews are required. A mirror push can rewrite only branches that are not protected.
-    No wave branch has a rule (N6, #190).
-  - `\+x` and `''+x` already pass for force pushes. #189 lists those.
-  - The guard did not load in any M19 session (`docs/control-events.csv`, row `repository-hooks`).
-  - A deploy through a hole also needs the owner's Fly login on the Mac (N1).
-  - Still, this is a guard that got weaker on the release surface, at the exact commit the owner
-    approves by merging. He should know before he merges #197.
-- **Disposition (the owner's: a hook change, AGENTS.md §3).** Either the two regex changes above, with
-  their conformance cases, in the closure pull request for his approval, or a comment on #189 that
-  adds these seven spellings.
-
-**RS2 (MINOR): INV-86's two promises, a non-root engine and an artifact it cannot write, are held only
-as the Dockerfile's text spells them. A lower-case instruction or a numeric root passes every gate.**
-
-- **Where.** `tests/unit/test_hosted_engine.py:116-118` (`_user`), `:129`, `:130` and `:139`.
-  - They match `USER`, `COPY ` and `RUN ` only in upper case.
-  - They refuse a user only when its name, before any `:`, is the literal `root` or `0`.
-  - The re-read's N3 fix (`0a80b65`) added the `:` split.
-- **Measured.** Each mutant ran against the cited tests, then against the full Python suite inside
-  `scripts/offline.sb` (2171 passed, 25 skipped each time):
-  - K8: `user root` appended to the `hosted` stage. **Survived.** The public engine would run as root.
-  - K7: `USER 00` appended to the `hosted` stage. **Survived.** Docker's reference: "Numeric IDs don't
-    require this lookup", so `00` is uid 0. I did not build the image to confirm it.
-  - K10: `user root`, `run chmod 666 /srv/advisor.db`, `user appuser` appended. **Survived.** The engine
-    is non-root but can now write the file it serves.
-  - Docker's reference (docs.docker.com/reference/dockerfile, read for this seat): "The instruction is
-    not case-sensitive."
-  - Upper-case `USER root:root` (K5), `USER 0:0` (K6), and a lower-case `copy --chown` (K9) were killed.
-- **Why MINOR.** Each one needs a change to the Dockerfile. The shipped file is right:
-  - `Dockerfile:46-47` creates `appuser` and switches to it.
-  - `:65-67` has the hosted stage copy the artifact as root, with no `--chown`, and run nothing.
-  - `public.py:101` makes the file 0644.
-
-  It is the same class as N3, which the re-read rated MINOR.
-- **Fix (tests only; it belongs in the closure pull request, or file it).**
-  - Read every instruction case-insensitively.
-  - Refuse a user whose name is `root`, whose part before `:` is all digits and equals 0, or that holds
-    `$`.
-  - Refuse `RUN` and `COPY --chown`/`--chmod` in the `hosted` stage in any case.
-  - INV-86's row needs no new wording.
-
-### INFO (checked; no action unless stated)
-
-**RS3: the `access` third of the survivor check has no test of its own (P9).**
-- The check is `src/app/workflows/public.py:58`. If I make it a no-op, the full suite still passes.
-- The `access` DELETE that it double-checks is held: P8, the DELETE removed, is killed by
-  `tests/unit/test_public_artifact.py:312`.
-- This is defence in depth, the same class as the re-read's N4.
-- The survivor check also names its three tables by hand. Measured on the real artifact, only `scores`,
-  `pricing` and `access` have a `source` column. `plan_models` and `plans` are emptied whole.
-- If a table is added later, building the survivor query from `sqlite_master` at run time would cover
-  it without a list to keep.
-
-**RS4: the runbook is safe to follow as written.** I read `docs/release-testflight.md` at `81af5ba`
-step by step:
-- **Step 1.1** reinstalls the Mac's service. The reinstall keeps the home-network mode it finds
-  (INV-28). Then the owner waits a night for a refresh. So the Fly login (step 1.2) comes after the
-  wait, and the token sits on disk only around the deploy.
-- **Steps 1.3 and 3** send a rename, or the fallback to a TCP check, through a pull request. A by-hand
-  `fly deploy` would skip the build stamp, and production refuses to boot without it.
-- **Step 1.4** publishes the container on `127.0.0.1` only (R4, first review).
-- **Step 1.5** runs `--dry-run` first, then the real deploy. Each is its own command.
-- **Lines 44-49** say there is no billing cap, and to run `fly auth logout` after each deploy.
-- **Step 2.1** says a local `ENGINE_URL` reaches Debug only, and that holds (S1, below).
-- **Step 2.3** has the owner read back `EngineURL` from the signed archive before upload.
-
-Two small gaps, neither a hole:
-- **S10's advice is written nowhere the owner reads.** Never destroy the Fly app while TestFlight builds
-  are installed, or anyone can claim the name and answer every installed build. One line in §3 of the
-  runbook would carry it.
-- **#187's body still asks for a billing alert.** A comment corrects it, but bodies are live documents
-  (`.agents/rules/practices.md:193`).
-
-**RS5: the closure's records on the release path.**
-- `docs/closure-checklist.md:111` and `:124` now let a MINOR verdict, with each finding fixed or filed,
-  proceed to Stage 5.2. That matches the profile (`.claude/agents/Security-Reviewer.md:132`), so it
-  does not weaken the gate.
-- The runbook's precondition (`docs/release-testflight.md:12-14`) names this file.
-- `docs/control-events.csv` now records the skipped `make cold-start`, `make journey` and signed
-  archive, and the sessions that ran without hooks.
-- Not security: the profile does not itself say "each fixed or filed", although the checklist cites it
-  for that.
-
-### PASS (observations)
-
-- **`fdf6701` closes the W5 Tester's M3.** `access` rows of a left-out source are deleted
-  (`public.py:45`), and the survivor check reads all three tables (`:55-59`, `:89-91`). On the real
-  artifact, no table with a `source` column holds a left-out source, and no byte of one is in the file
-  (below).
-- **`0a80b65` keeps database files under `src/` out of the build context.** It adds `**/*.db` and
-  `**/*.sqlite*` (`.dockerignore:15-16`), and the hosted artifact is still re-included last (`:17`).
-  I6, the line dropped, is killed. I7, `!src/**` appended to bring secrets back, is killed by the new
-  test, which reads the list the way Docker does (`tests/unit/test_deploy_hosted.py:283`).
-- **The Tester's new deploy tests hold real gaps.**
-  - An untracked file stops the deploy (`:196`). D11, `--untracked-files=no`, is killed.
-  - A failed derivation never ships an older artifact (`:209`).
-  - The build runs on Fly's builder (`:234`).
-- **`tests/unit/test_hosted_engine.py:176` runs the image's own `HEALTHCHECK` code** against a
-  stand-in `urlopen`, and checks that it asks with the deployment's Host.
-- **`tests/unit/test_testflight_ready.py:134` refuses an `ENGINE_URL` set on the app target.** That is
-  an override the xcconfig tests could not see. X10, an `ENGINE_URL[sdk=iphoneos*]` planted in the
-  Release target configuration, is killed.
-- **`tests/unit/test_journey.py:78`** runs the Stage 5.2 journey in process on a derived public
-  artifact. This closes the repo review's M16.
-- **W4's three later fixes** (`d324669`, `3697d64`, `b38819b`; `Reading.swift`, `Router.swift`) narrow
-  the image rule back to `vision`. They add no request path. The outcome is still the tier's surface
-  id or the unmeasured fallback, and `client-decls` passes in all four build configurations.
-- **No secret is in the range, and no dependency changed in it.** `pyproject.toml` and
-  `requirements/` are unchanged in `3426ff3..81af5ba`.
-
-## The change since the re-read, read (`6c98dd7..81af5ba`, on the re-read's surface list)
-
-| Where | Commit | Judgement |
-|---|---|---|
-| `.claude/settings.json:49` (Bash guard) | `fb2040d` | Tighter on chained deploys, looser on four `--mirror` spellings (RS1) |
-| `conformance/test-hook-claims.py` | `73a8624` | Adds the two chained deploys to the blocked list and `fix--mi` to the allowed list. G5 and G6 (each half of `fb2040d` reverted) are killed |
-| `.dockerignore:15-16` | `0a80b65` | Tighter (PASS) |
-| `Dockerfile:1-2`, `fly.toml:1-2` | `47da19a` | Comments only. They now point at AGENTS.md §5, not at an empty CODEOWNERS file |
-| `src/app/workflows/public.py` | `fdf6701` | Tighter (PASS); RS3 |
-| `scripts/deploy_hosted_engine.sh`, `scripts/engine_service.sh`, `ios/Config/` | none | Unchanged since `6c98dd7` |
-| `ios/ModelRanking/Engine/{Reading,Router}.swift` | W4 fixes | Reading rules only; no request path (PASS) |
-| `docs/release-testflight.md` | `0a80b65`, `47da19a` | Safe to follow (RS4) |
-| `docs/security-invariants.md` | `0a80b65`, `fdf6701`, `fb2040d` | INV-86 and INV-87 cite the new tests. G-7 says "best effort" and cites #189. RS2 is a gap INV-86's tests do not see |
-| `tests/` (eight files) | several | Each adds checks. No Python test was skipped. The one assert replaced (`test_hosted_engine.py:129`) is stronger. The Swift test changes follow W4's narrower image rule. The one new `exec` runs the image's health-check code in a test (`:176`), outside INV-1's `src/` and `scripts/` |
-| `docs/closure-checklist.md`, `AGENTS.md`, `README.md`, `docs/control-events.csv` | `47da19a` | RS5 |
-
-## The earlier findings, at `81af5ba`
-
-| Finding | State | Evidence |
-|---|---|---|
-| S1 (MAJOR) | **Fixed**, holds | `ios/Config/Engine.xcconfig:12`, `:17`, unchanged in the range. `test_testflight_ready.py:92`, `:115`, `:134` (X10 killed). Runbook readback, `docs/release-testflight.md:71-75` |
-| S2 | **Filed**, #188 (open) | The budget argument |
-| S3 | **Filed**, #187 (open) | No rate limit. The runbook states there is no cap (`:44-46`) |
-| S4 | **Fixed** | INV-86 and INV-87 rows (`docs/security-invariants.md:166-167`). D2 to D4, P4 and P5 killed (re-read). RS2 is a narrower remainder |
-| S5 | **Narrowed**, #142 and #189 (open) | `main` is held on GitHub (read). RS1 |
-| S6 | **Partly fixed**, #189 and #190 (open) | Plain `fly deploy`/`destroy` blocked. Runbook logout habit (`:48-49`) |
-| S7 | **Fixed** | `scripts/deploy_hosted_engine.sh:42-46`, unchanged. `test_deploy_hosted.py:180` |
-| S8 | Holds | Re-measured below |
-| S9 | **Fixed** | `openrouter` is in no answer and in no byte of the file (below) |
-| S10 | **Left with the owner** | Not written in the runbook (RS4) |
-| S11 | Holds | No `FORWARDED_ALLOW_IPS` and no proxy-header setting in `Dockerfile`, `fly.toml`, `scripts/` or `src/` (grep) |
-| S12 | **Closed** | W4: review of record MINOR (`c372e23`), Tester MINOR (`0bd4353`). W5: review MINOR, Tester MINOR (`ab0a8f3`). The short read it asked for is this record |
-| S13 | **Fixed** | `--ha=false`, `scripts/deploy_hosted_engine.sh:62`. `test_deploy_hosted.py:115` |
-| S14 | **Fixed** | `.dockerignore:10-16`; I4 and I6 killed |
-| S15 | **Closed** | `make deps` and `make slopsquat` green at `81af5ba` (this seat) |
-| S16 | Carried | G-1 #172; G-2 #171, #173; CI's half of #122; #81; M18's S13 (a Debug build on the owner's phone) |
-| N1 | **Left with the owner**, #190 (open) | The `make …:*` allow entries are unchanged (`.claude/settings.json:14-19`). `make lint PY='fly apps destroy … #'` still passes the guard (measured). Runbook logout habit |
-| N2 | **Fixed** | Runbook `:44-46`. #187 has a correcting comment (RS4) |
-| N3 | **Fixed** | `test_hosted_engine.py:129`; K5 and K6 killed. RS2 is what is left |
-| N4 | **Fixed** | P6 killed by `test_public_artifact.py:166` and `:194[pricing]`. A4 killed by `:181`, `:226` |
-| N5 | **Fixed** | `docs/security-invariants.md:183` |
-| N6 | **Left with the owner**, #190 | GitHub rules for `wave/m19-w5`: 0 (read) |
-| N7 | **Fixed** | Runbook step 1.3 (`:28-32`) |
-| N8 | **Narrowed** | `*.db` and `*.sqlite*` are left out. Other ignored files under `src/` (`notes/`, `*.local.md`) still reach Fly's builder, never the image |
-| Repo review M2 | **Closed by this record** | — |
-| Repo review M3 | **Filed**, #198; runbook step 1.1 (`:18-23`) | The stamp names the code and the data's digest, not the release that built the data |
-| Repo review M4 | **Fixed** | The fallback goes through a pull request (`:87-92`). Step 1.3 is ordered. The runbook is listed in `README.md` |
-| Repo review M7 | **Closed by this record** | — |
-
-## What goes public, measured at `81af5ba`
-
-- **The served artifact** (the worktree's copy) was only read. Its sha256 was `dac97873…9344` before
-  and after.
-- **The public artifact** was derived into my scratch folder with `public.derive`, inside
-  `scripts/offline.sb`.
-  - Removed: 815 score rows, 439 OpenRouter prices, 456 `openrouter/` alias prices, 40 plan links and
-    10 plans. There were 0 `access` rows of a left-out source to remove.
-  - The file: 6,524,928 bytes, mode 0644, journal `delete`, freelist 0.
-  - Tables with a `source` column: `scores` (no left-out source), `pricing` (`litellm` only) and
-    `access` (`epoch_access` only).
-  - None of these is in the file's bytes, in any case: each `LEFT_OUT` id, `arc-agi`, `arc prize`,
-    `deepswe`, `terminalbench`, `terminal-bench`, `webdev arena`, `mmlu`, `openrouter`, `/users/`,
-    `.local`, `192.168`, `swebench.com`, `arcprize`.
-- **Served in process** in the hosted configuration: `APP_ENV=production`, Host list
-  `model-ranking.fly.dev`, bind `0.0.0.0`, a build stamp, and no CORS list.
-  - `/health` answers 200 with only `build`, `evidence`, `refresh` (`off`), `status` and `version`.
-  - Any other Host gets 400, loopback included.
-  - POST, PUT, DELETE and PATCH get 405.
-  - The routes are exactly the five declared GETs.
-  - `/v1/boards` is 502,108 bytes without gzip. A cross-origin request gets no CORS header. Every
-    response carries `nosniff`.
-  - All 14 tasks × 3 budgets answer 200. No answer names OpenRouter, a left-out source id, a local
-    path or a LAN address.
-  - A 5,000-character budget gets a 156-byte 400.
-
-## Mutants
-
-Each mutant was one exact, single-match edit. The method:
-1. Save the file's bytes and sha256.
-2. Run the cited tests inside `scripts/offline.sb`, with no coverage floor.
-3. Run every survivor again against the full Python suite.
-4. Restore the bytes in a `finally` and assert the sha256.
-
-Every restore matched, and `git status --porcelain` was empty after each batch. My first run of G5 used
-the system Python 3.9, which cannot import the conformance library. That result was void, and I re-ran
-G5 and G6 under Python 3.14.
-
-| # | The edit | Result | Killed by |
+| # | Item | At the head | Evidence |
 |---|---|---|---|
-| K5 | `USER appuser` → `USER root:root` | KILLED | `test_hosted_engine.py::test_the_hosted_engine_runs_as_no_root_and_cannot_write_its_artifact` |
-| K6 | `USER 0:0` after the hosted stage's `ENV` | KILLED | same |
-| K7 | `USER 00` after the hosted stage's `ENV` | **SURVIVED** (full suite) | none (RS2) |
-| K8 | `user root` after the hosted stage's `ENV` | **SURVIVED** (full suite) | none (RS2) |
-| K9 | the hosted `COPY` → `copy --chown=10001 …` | KILLED | `::test_the_hosted_image_carries_the_artifact_the_deployment_serves`, and the no-root test |
-| K10 | `user root`, `run chmod 666 /srv/advisor.db`, `user appuser` | **SURVIVED** (full suite) | none (RS2) |
-| P6 | the pricing third of `_SURVIVORS` made a no-op | KILLED | `test_public_artifact.py::test_a_left_out_price_that_survives_stops_the_derivation` |
-| P8 | the `access` DELETE removed | KILLED | `::test_no_table_keeps_a_row_of_a_left_out_source` |
-| P9 | the `access` third of `_SURVIVORS` made a no-op | **SURVIVED** (full suite) | none (RS3) |
-| A4 | `pricing_sources` defaults to `None` | KILLED | `::test_a_priced_credit_must_say_which_prices_it_serves` |
-| I6 | `**/*.db` dropped from `.dockerignore` | KILLED | `test_deploy_hosted.py::test_the_build_context_leaves_out_what_git_ignores_under_src` |
-| I7 | `!src/**` appended to `.dockerignore` | KILLED | `::test_the_build_context_holds_what_the_image_copies_and_no_secret` |
-| D11 | `git status --porcelain --untracked-files=no` | KILLED | `::test_an_untracked_file_is_refused_before_anything_is_built` |
-| X10 | `ENGINE_URL[sdk=iphoneos*]` set on the app target's Release configuration | KILLED | `test_testflight_ready.py::test_no_target_setting_overrides_what_the_engine_config_or_the_local_file_sets` |
-| G5 | the guard's `--mi` bound reverted | KILLED | `conformance/test-hook-claims.py` (`fix--mi` blocked) |
-| G6 | the guard's dry-run count reverted to the whole-line exemption | KILLED | same (the chained deploys allowed) |
+| 1 | No plaintext creds / default admin | No credential exists: the surface is public read-only data. gitleaks is clean over the tree and over the range's history. | `make secrets` green; gitleaks over `81af5ba..HEAD` with project and default rules: no leaks |
+| 2 | Server-side authz on mutating routes | No mutating route: five GETs (`main.py:1381,1470,1536,1579,1623`). The FastAPI docs, redoc and openapi routes are off (`main.py:773-775`). | `tests/unit/test_api_v1.py:517` `test_no_mutating_route_exists` (INV-30) |
+| 3 | CORS allowlist, never `*` + credentials | Off unless `MODEL_RANKING_CORS_ORIGINS` is set. `fly.toml` does not set it. `*` is refused at boot (`main.py:404`). `allow_credentials=False` and GET only (`main.py:809-810`). | `tests/unit/test_api_config.py:35,109` (INV-31) |
+| 4 | Validate config at startup, fail prod | Unset or unknown `APP_ENV` is strict. Missing database, missing build stamp, a bind beyond loopback with no Host list, the refresh switch and an unreadable rate limit each refuse boot (`main.py:635-729`). | `tests/unit/test_api_config.py:72,82`, `tests/unit/test_nightly_refresh.py:448`, `tests/unit/test_rate_limit.py:186` (INV-32) |
+| 5 | Creds/PII encrypted at rest | The engine stores no PII. The app keeps the typed question only in the gap register (complete protection, INV-67). `answers.json` holds the decoded answers and nothing the reader typed (`StandingsStore.swift` `keep`). Its default protection class is #323, open. | INV-66/67; `fix-issue-297-security.md` |
+| 6 | Generic client errors | The 500 handler drops the exception text (`main.py:869`). Every error is JSON with `nosniff`. | `tests/unit/test_stage40_minors.py:143`, `tests/unit/test_api_v1.py:627` (INV-34) |
+| — | Host list / DNS rebinding | Fly answers only `model-ranking.fly.dev` (`fly.toml:26`). The Host check runs before the limiter, so a refused Host is never counted. | `tests/unit/test_engine_host.py:46,117` (INV-26) |
+| — | Fail direction | The rate limiter (fairness) **fails open** and warns once a minute (`main.py:816-842`). Host, CORS and startup (safety) **fail closed**. | `tests/unit/test_rate_limit.py:40,67,98` (INV-88) |
+| — | Built ≠ wired | The limiter and Host check are `@app.middleware` on the live app and are tested through `TestClient`. The phone's address is chosen in `EngineClient.address` (`EngineClient.swift:221-224`), and `ENGINE_URL[config=Release]` comes after the local include (`Engine.xcconfig`, last line). | `ios/EngineTests/EngineClientTests.swift:810,820,844` (INV-73) |
+| — | Transport | The Release build uses `https://model-ranking.fly.dev`, with `force_https` at Fly. The only ATS exception is `NSAllowsLocalNetworking`, which no Release address uses. `KeptAnswers.standsIn` (`KeptAnswers.swift:25`) does not cover `.insecureTransport`, so a cleartext refusal is never hidden behind an old answer. | `ios/EngineTests/KeptAnswerTests.swift:155,316-319` |
 
-**Score:** 16 mutants, 12 killed, 4 survived. Each survivor is in a finding.
+`docs/security-invariants.md`: compared with `origin/main`, the head changes three rows: INV-6 (tests added), INV-67 (rules added) and INV-73 (reworded for #288/#297, reviewed in `fix-issue-297-security.md`). None of them drops a negative test. The negative suite is green at the head (below).
 
 ## Gates passed
+- [x] Secret scan green (`make secrets` on the head; gitleaks over the range's history, project config and default-only config: 0 findings)
+- [x] `make deps` (pip-audit, every lock): "No known vulnerabilities found". No lock changes in the range.
+- [x] `make slopsquat`: PASS, 20 declared, 0 suspect. `pyproject.toml` changes only ruff per-file ignores. No new `import` of a third-party package in `src/`.
+- [x] Default-deny preserved for new external surfaces: no new route. The only new fields on `/v1/categories` are `boards` and `refined_board`, both static data.
+- [x] Permission matrix not violated: no destructive op, no `.claude/`/`.githooks/`/workflow change in product commits.
+- [x] Prompt-injection hygiene: fetched text is parsed as JSON, type-checked and never followed. The on-device model's verdict is one input to deterministic code (`Reading.swift`).
+- [x] Auth/PII checks: no auth, payment or migration path in the range, so the §11 trigger does not fire. The PII sink is filed (#323, #314).
+- [x] SAST: bandit 1.8.6 cannot parse under Python 3.14, so I ran its rule set through ruff (`ruff --select S`) on `src/` and the new scripts. Only S101 asserts used for type narrowing (`nightly.py:300`, `arena_slices.py:187`) and the reviewed `git` subprocess calls in `check_records.py`.
 
-- [x] Secret scan green. `make secrets` on the tree: no leaks. `gitleaks detect --log-opts` on
-  `3426ff3..81af5ba` and on `6c98dd7..81af5ba`, and the range's diff through `gitleaks stdin`: no
-  leaks. A random `ghp_` token fires, so the scan is live.
-- [x] `make deps` (pip-audit over all four locks): "No known vulnerabilities found".
-- [x] `make slopsquat`: 20 declared dependencies, 0 suspect. No dependency changed in the range.
-- [x] Default deny preserved for new external surfaces. No new route. Host list, HTTPS and the boot
-  refusal hold (INV-86 and measured).
-- [x] Permission matrix not violated by the code. §3 (cloud services) rests on the owner's habit and
-  the guard's best effort (N1, RS1). The owner holds the decision.
-- [x] Prompt-injection hygiene. The engine has no model (INV-77). The phone's reading ends in a closed
-  set of surface ids (INV-69, INV-70).
-- [x] Auth and PII: the §11 trigger does not fire (above).
-- [x] SAST stand-in. `ruff check --select S,BLE src scripts`: 18, the same 18 as both earlier seats.
-  bandit and semgrep are not installed.
-- [x] `make check-fast` at `81af5ba`, with the stand-ins first on `PATH`: all six legs PASS.
-  - pytest: 2171 passed, 25 skipped.
-  - `swift-test`: 496 tests, exactly the manifest.
-  - `client-decls`: 19 files in 4 configurations.
-  - The records leg ran conformance.
-- [x] `python3 conformance/test-hook-claims.py`: PASS, 2 claims, 18 legs, 0 unbacked.
+## Acceptance criteria evidence
+- REQ-API-001 / INV-30 (read-only `/v1`) → `src/app/adapter/main.py:1381-1623`; `tests/unit/test_api_v1.py:517`
+- INV-31 (CORS) → `src/app/adapter/main.py:387-415,809`; `tests/unit/test_api_config.py:35`
+- INV-32 (strict boot) → `src/app/adapter/main.py:635-729`; `tests/unit/test_api_config.py:72,82`
+- INV-34 (generic errors) → `src/app/adapter/main.py:869`; `tests/unit/test_stage40_minors.py:143`
+- INV-26 (Host list) → `fly.toml:26`; `tests/unit/test_engine_host.py:46,117`
+- INV-88 (#187 rate limit, fails open) → `src/app/adapter/main.py:279,816`; `tests/unit/test_rate_limit.py:40,67,98`
+- INV-73 (#288 hosted over HTTPS) → `ios/ModelRanking/Engine/EngineClient.swift:208,221`; `ios/EngineTests/EngineClientTests.swift:810,844`
+- D-202 cl. 5 (#288 kept answers stand in for unreachability only) → `ios/ModelRanking/Engine/KeptAnswers.swift:25`; `ios/EngineTests/KeptAnswerTests.swift:155,316`
+- INV-6 (#279/#311 offline tests) → `ios/EngineTests/OfflineTestCase.swift:66`; `ios/EngineTests/OfflineTestCase.swift:201`
 
-## Acceptance criteria evidence (file:line)
-
-- **D-185 cl. 1 / #94** (fails closed, one Host, the health check names it):
-  `tests/unit/test_hosted_engine.py:64`, `:71`, `:92`, `:156`, `:176`.
-- **INV-86** (non-root, cannot write its artifact): `tests/unit/test_hosted_engine.py:121`, `:134`,
-  `:145`, with RS2's gap.
-- **D-185 cl. 3 / #88 / INV-87** (the public artifact): `tests/unit/test_public_artifact.py:33`, `:89`,
-  `:122`, `:138`, `:166`, `:194`, `:257`, `:312`, and the measurement above.
-- **D-185 cl. 4** (a Release build reaches HTTPS): `tests/unit/test_testflight_ready.py:77`, `:92`,
-  `:102`, `:115`, `:134`.
-- **D-185 cl. 5 and S7** (the owner deploys `main`'s tip only, stamped, checked):
-  - `tests/unit/test_deploy_hosted.py:64`, `:80`, `:86`, `:171`, `:180`, `:196`, `:209`;
-  - `.claude/settings.json:49`, with RS1.
-- **Build context:** `tests/unit/test_deploy_hosted.py:104`, `:161`, `:283`.
-- **Stage 5.2 gates:** `tests/unit/test_release_gates.py:52`, `:86`, `:99`, `:112`;
-  `tests/unit/test_journey.py:78`, `:84`.
+## What I ran (own worktree at `958458d`, own venv, `advisor.db` copied as allowed)
+`make install`; `make secrets`; `make deps`; `make slopsquat`; `gitleaks git --log-opts=81af5ba..HEAD` with project and default configs; `make test` (3245 passed, 27 skipped); `make swift-test` (694 tests PASS); `make client-decls` (PASS, 4 configurations); `make review-need RANGE=...` on the uncovered segments; `ruff --select S`; an offline probe of `_in_submissions`; `git merge-tree` on every golden-night merge. I sent no request to the owner's launchd engine or to the hosted engine.
 
 ## Risks queued
-
-- **RS1** for the owner: the two regex changes, or a comment on #189.
-- **RS2**: tests only. Fix it in the closure pull request, or file it.
-- **RS3 and RS4**: small follow-ups. The S10 line in the runbook; #187's body.
-- **Open and filed:**
-  - #187: rate limit and cost. This is the real control before external testers.
-  - #188: the budget argument.
-  - #189: guard spellings.
-  - #190: allow list and wave rules, the owner's.
-  - #198: which release built the data.
-  - #142: the guard loads only in a session started in the repository.
-  - #172, #171, #173: G-1 and G-2.
-  - #122: CI's child processes.
-  - #81: CI workflows.
-
-## Skip ledger
-
-| Check | Why it did not run | Consequence |
-|---|---|---|
-| Image build, `make cold-start`, a container run | Docker is off limits to this seat | The Dockerfile was read and mutated as text. K7's uid reading rests on Docker's reference, not on a built image. Runbook step 1.4 has the owner run `make cold-start` |
-| `fly`, the deploy, a probe of `model-ranking.fly.dev` | Out of bounds | Fly's behaviour as the earlier seats read it in Fly's documentation |
-| `xcodebuild`, a signed archive | Stubbed | The owner's `plutil` readback (runbook step 2.3) is the check of record |
-| `make ui-test` | Needs the simulator | W4's UI fix (`bd60265`) is test-only. No screen ran |
-| The guard in a live Claude Code session | It would mean running the payloads | Judged by running the hook's command on JSON, as Claude Code invokes it |
-
-**Network.** I made only these calls:
-- `gh` reads: issues #81, #122, #142, #171 to #173, #187 to #190, #198, #202; PRs #196 and #197;
-  branch protection and branch rules.
-- `make deps` and `make slopsquat`, which query PyPI's public metadata, as the dispatch asked.
-- Docker's Dockerfile reference page.
-
-No product upstream was contacted. Every test ran inside `scripts/offline.sb`. No process of mine is
-still running, and none ended in SIGABRT.
-
-## May the owner deploy to Fly.io and upload to TestFlight once the release's pull requests are merged and the owner's account steps are done?
-
-**Yes.** Nothing in the release is BLOCKING. Every earlier finding is fixed, filed or left with the
-owner by name. The verdict of record is MINOR, which the release rules accept.
-
-The conditions:
-1. **Merge first, then deploy.** Merge #196 (W4), #197 (W5) and the M19 closure pull request. Then
-   follow `docs/release-testflight.md` in order. The deploy script ships only the tip of `origin/main`.
-   This read covers the release surface as it is at `81af5ba`. If anything on that surface changes
-   before the merge, the change needs the same short read. There are two exceptions: RS1's two regex
-   changes (checked in memory here) and test-only fixes for RS2 do not need one.
-2. **Before merging #197,** the owner should know that `fb2040d` reopens four `--mirror` spellings
-   (RS1). Taking the fix or leaving it under #189 is his call. Either way it does not block the deploy.
-3. **Keep the habits from the re-read** until #190 and #187 are done:
-   - run `fly auth logout` after each deploy;
-   - Fly has no billing alert or cap, so look at the usage page while people are testing;
-   - `fly scale count 0` stops the engine, and its cost, at once.
-4. **TestFlight.**
-   - Archive only after the deploy script has succeeded. Its `/health` check proves that he holds
-     `model-ranking.fly.dev`.
-   - Run the runbook's `plutil` readback (step 2.3) on his own signed archive before uploading. It must
-     say `https://model-ranking.fly.dev`.
-   - Never destroy the Fly app while TestFlight builds are installed (S10).
-5. **Before external testers** (Beta App Review), treat #187, a rate limit, as the cost control that
-   is still owed.
-
-## Dispositions, at the closure
-
-Added by the lead agent after the seat closed; the record above is as the seat wrote it.
-
-| finding | disposition |
-|---|---|
-| RS1 | the owner's (a hook change, AGENTS.md §3): the seven spellings and the seat's two-regex fix are on #189, and #197's description names `fb2040d`'s regression before its merge |
-| RS2 | fixed `55e39b8` (red) and `b77ec21`: INV-86's checks read an instruction in any case and a numeric or variable root |
-| RS3 | no action (INFO): a backstop; the delete it double-checks is held by `test_public_artifact.py` |
-| RS4 | fixed in this closure: the runbook's S10 line (never destroy the Fly app while builds are installed; `fly scale count 0` to stop it); #187's body corrected |
-| RS5 | no action (INFO) |
+- **R1** `src/app/adapter/main.py:279-296`: the limiter trusts `Fly-Client-IP`, and that trust is checked only by the runbook's manual check after the deploy (M20 closure S5; INV-88 "Partial"). Carried, not new: run that check on the first deploy of this release.
+- **R2** `src/app/workflows/public.py:31`: under D-186 the hosted engine serves every source, CC BY-NC and unlicensed boards included, while the app is on TestFlight. D-186 settles the licences before production, and #265 is open. Before the app ships beyond TestFlight, that ruling must hold. Nothing gates it.
+- **R3**: open and filed, context only, not re-filed: #314 and #323 (`answers.json` size check before the read; protection class), #322 (client-decls gaps), #309 (observer gap), and the guard and process items #283–#287, #305, #317–#321.

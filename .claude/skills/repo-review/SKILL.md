@@ -1,13 +1,14 @@
 ---
 name: repo-review
-description: Use in HEAVY mode at every milestone close, across the whole milestone's diff (docs/closure-checklist.md §B.0) — the one review that sees across waves — and whenever asked to review, check over, or sanity-check a change. Grades the diff against THIS repository's documented practices, not generic advice. A review from memory is an opinion.
+description: Use whenever asked to review, check over or sanity-check a change here — prefer it over a built-in review — it grades the diff against this repository's documented practices.
 ---
 
 1. **Load `.agents/rules/practices.md` and `.agents/rules/issues.md` first**, and any seed in
    `playbook-seeds.md` a rule you apply cites. The review is grounded in this repo's rules or it is
    grounded in best practices in general, and those are different reviews.
 2. `git diff <base>...HEAD` for the full set of changes on this branch. Read the PR's real base
-   rather than assuming the default branch. **At milestone close** the range is the whole
+   rather than assuming the default branch. **Across a milestone** (only when the owner asks — the
+   last wave's Code-Reviewer already reads it, `/close-wave` step 2) the range is the whole
    milestone: from the base of its first wave to the default branch after its last merge — in a
    run, to `integration/run-<name>`, from the milestone's `Base` sha in its run file. That
    is the one review that sees across waves — each wave was already reviewed on its own.
@@ -27,7 +28,7 @@ spent the reviewer's attention on the cheapest thing in the diff.
 
 ## Where the findings go
 
-At milestone close, write the review to `docs/reviews/m{N}-repo-review.md`, each finding with an
+Across a milestone (on the owner's request), write the review to `docs/reviews/m{N}-repo-review.md`, each finding with an
 id (`**M1**`). Then each one is fixed (a PR) or filed with `/file-issue` — a defect as `bug`, an
 improvement as `enhancement` — and the file names the fix or the issue beside its id. A review
 whose findings live only in the review is a list nobody queries.

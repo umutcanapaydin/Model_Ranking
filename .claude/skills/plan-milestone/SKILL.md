@@ -1,6 +1,6 @@
 ---
 name: plan-milestone
-description: Use in HEAVY mode at the start of every milestone (Stage 1), when designs or requirements arrive and the work must be split into waves and tracked as issues. Writes docs/plans/m<N>-plan.md, gives every wave one container issue that holds its plan, and joins the open queue's issues to the waves as children — reusing an existing issue untouched, creating one only when none exists.
+description: Use in HEAVY mode at the start of every milestone, when designs or requirements arrive and the work must be split into waves and tracked as issues.
 ---
 
 **Heavy mode only.** `make mode` prints `light` → stop: a light project plans in its issues, one
@@ -14,8 +14,11 @@ queue part of the plan.
 
 1. Read `docs/prd.md` (the REQ-IDs), the design notes you were given, `docs/decisions.md` and the
    latest `docs/process-log.md` entry. Ask for what is missing rather than inventing it.
-2. Write `docs/plans/m<N>-plan.md` with these sections: goal, REQ-ID acceptance criteria, risk
-   tier, spike check (does any part need a throwaway `spike-*` branch?), **waves** (each wave: its
+2. Copy `docs/plan.template.md` to `docs/plans/m<N>-plan.md` and fill it — its `waves: <n>` line is how
+   `make wave-check` knows the plan's last wave. Its sections: goal, REQ-ID acceptance criteria, risk
+   tier, spike check (does any part need a throwaway `spike-*` branch? It is exempt from every gate but
+   secrets scanning and NEVER merged — `docs/closure-checklist.md` §B.2 checks `git log`; to keep
+   its result, rebuild it through the pipeline), **waves** (each wave: its
    REQ-IDs, its risk tier, tasks of ≤5 minutes of subagent scope), K.8 contracts with pasted
    `grep -n` output, token budget, issue inventory, closure tasks, and the security globs as one
    machine-readable line — `security-globs: <glob>, <glob>` or `security-globs: none` —
@@ -34,8 +37,10 @@ queue part of the plan.
 5. **One issue per unit of work, never two.** For each row of the issue inventory, search first,
    open and closed:
    `gh issue list --state all --search '<key words> in:title' --json number,title,state,milestone`
-   - **A match exists** → write its number into the inventory and **leave the issue exactly as it
-     is**: no edited body, no new label, no milestone change, no comment. If it looks wrong for
+   - **A match exists** → write its number into the inventory and **leave the issue as it is** — no
+     edited body, no new label, no milestone change — with one comment, its new routing:
+     `Triage verdict: wave (M<N>-W<W>, #<container>)`, so `/fix-issue` and the CI agent leave it to its
+     wave (the last verdict line wins). If it looks wrong for
      this plan, say so to the owner; do not fix it yourself.
    - **Nothing matches** → create it:
      `gh issue create --title '<title>' --body '<REQ-IDs · wave · acceptance criteria>' --milestone 'M<N>: <goal>' --label enhancement`
@@ -53,7 +58,7 @@ queue part of the plan.
    amendment is an appended row in the plan and, for a new unit, a new child in its container.
 7. Branch `plan/m<N>`, commit the plan (`git add` the plan file by path), push the branch, open a
    **draft** PR. **The owner approves the plan by merging it** — no wave is dispatched before
-   that. No AI attribution.
+   that. No AI attribution. Run `/pre-merge` (a plan PR owes no review: §5).
 8. After the merge: each wave runs on its own `wave/m<N>-w<W>` branch from the default branch and
    ends with `/close-wave`.
 9. **Inside a run** (`/plan-run`, only when the owner opened one): steps 1–6 per milestone, two to

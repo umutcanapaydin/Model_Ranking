@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v7.1
+process_version: v7.2
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -32,7 +32,7 @@ date: 2026-09-23
 
 1. **Where are we starting:** `<new | upgrade | adopted>` *(default derived from §1: a recorded
    install version means **upgrade**, follow `UPGRADING.md` and nothing else from this list until it
-   is done; code beyond the starter means **adopted**, and `docs/codex-audit.md` records what exists
+   is done; code beyond the starter means **adopted**, and `docs/adoption-audit.md` records what exists
    before any wave changes it; otherwise **new**)*
 2. **Milestone Quality Gate:** `<off (default) | on>` *(on: every milestone close also writes
    `docs/closure-report-m{N}.md` with the REQ-ID trace, coverage delta and token cost, `make closes`
@@ -42,8 +42,9 @@ date: 2026-09-23
    release, with the milestone Tester)*
 3. **Retrospective when the work is done:** `<no (default) | yes>` *(one short file at the very end,
    `/cycle-close`, Stage 5.3 — never during the work)*
-4. **HIGH-risk areas this project touches:** *(default: none, until the first one appears; a wave
-   touching one is HIGH: it also gets a security pass, and the senior reviewer in 5 reviews it)*
+4. **HIGH-risk areas this project touches:** *(default: none, until the first one appears; a change
+   touching one is HIGH: light mode sends it to the Security-Reviewer, heavy mode names its signals to the
+   milestone Security-Reviewer on the plan's last wave, and the senior reviewer in 5 reviews it)*
    - [ ] Authentication / authorization
    - [ ] Payments / financial transactions
    - [ ] Personal data (real customer data, not synthetic fixtures)
@@ -53,14 +54,17 @@ date: 2026-09-23
    - [ ] Production deploy automation
    - [ ] Wraps / forks an OSS engine *(not a question of its own: a ticked box makes
          `docs/license-review.md` required, and `make bootstrap-check` reads this line)*
-   - Paths that make a change HIGH: `<none | comma-separated globs>` *(`make review-need` sends a
-     change touching one to the Security-Reviewer, in either mode)*
+   - Paths that make a change HIGH: `<none | comma-separated globs>` *(`make review-need` reads them:
+     light mode sends a change touching one to the Security-Reviewer; heavy mode prints its signals for
+     the milestone Security-Reviewer)*
 5. **Senior human reviewer for those areas:** `<name + contact>` *(default: the owner)*
 6. **Does the work end in a deploy, and where:** `<yes: target environment | no>` *(default: decided
    at the first release; it decides whether Stage 5 — security review, then `/going-live` — applies
    and what it checks against)*
    - Deploy commands: `<none | comma-separated commands>` *(the deploy gate refuses each until a
      security review, and the milestone Tester, have seen every code change since their reviewed heads)*
+   - Rollback command: `<none: why | the command that puts the previous build back>` *(`/going-live` runs
+     it when a deploy fails)*
    - Runtime config files: `<none | comma-separated paths>` *(what the deploy reads that git does
      not track — a gitignored plist, `.env.production`, a signing profile; `/going-live` opens each
      one before a deploy, since no git-based gate can see it)*
@@ -80,13 +84,16 @@ date: 2026-09-23
    - Paths that hold that copy: `<none | the paths>` *(the repository stays English; each path goes
      into `.language-allow` with its reason — design files, localisation strings)*
 
-10. **Working mode:** `<heavy (default) | light>` *(light: issues only — file, triage, fix; no
+10. **Working mode:** `<light (default) | heavy>` *(light: issues only — file, triage, fix; no
     Code-Reviewer; the milestone Tester once before each release, on everything merged since its
     last verdict; heavy: waves as well — a Code-Reviewer per wave, the Tester once per milestone, on
-    the plan's last wave. The Security-Reviewer runs in both when a change needs it and before every
-    deploy. `make mode` reads this line)*
+    the plan's last wave, and the Security-Reviewer beside it, once per milestone. In light mode the
+    Security-Reviewer runs when a change needs it; in both, before every deploy. `make mode` reads
+    this line)*
 11. **QA verification:** `<off (default) | on>` *(off: a bug closes when its fix merges; on: a person
     verifies on a deployed build and the `qa:` labels track it)*
+12. **Reviewer model:** `<the session's (default) | a model name, and which reviewers>` *(written as `model:`
+    in those `.claude/agents/*.md` profiles)*
 
 ## 2.1 Repositories — every tree that ships something a customer can reach
 

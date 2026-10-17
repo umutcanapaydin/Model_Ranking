@@ -22,11 +22,9 @@ directory (`conformance/falsify.py` inside `conformance/`) is still withheld fro
 
 ### Control surface — the files that make the rules real
 ```
-scripts/gen_schema.py
 conformance/lib_record.py
 conformance/test-commit-identity.py
 conformance/test-agents-cap.py
-conformance/test-schema-sync.py
 docs/control-events.csv
 conformance/test-action-pins.py
 scripts/pin-actions.sh
@@ -51,8 +49,10 @@ CLAUDE.md                      (one line, @AGENTS.md; a symlink to AGENTS.md als
 permission-matrix.md
 .agents/rules/README.md
 .agents/rules/issues.md
+.agents/rules/issues-qa.md
 .agents/rules/practices.md
 .agents/rules/playbook-seeds.md
+.agents/rules/two-tools.md
 .agents/rules/environment.md.template
 .claude/settings.json
 .claude/hooks/bash_guard.py     (the Bash guard; settings.json pins its sha256)
@@ -78,9 +78,13 @@ scripts/session_check.py
 scripts/bootstrap-check.sh
 scripts/check_records.py
 scripts/run_check.py
+scripts/gate_stamp.py
+scripts/post_edit_scope.py
+scripts/net_cache.py
+scripts/ci_diff.py
+scripts/next_adr.py
 scripts/standup.sh
 scripts/README.md
-schemas/record.schema.json
 conformance/
 .github/workflows/ci.yml
 .github/workflows/issue-agent.yml
@@ -88,7 +92,6 @@ conformance/
 .gitleaks.toml
 .gitignore
 .gitattributes
-.mcp.json
 .language-allow
 .placeholder-allow
 .skill-refs-allow
@@ -113,7 +116,9 @@ docs/architecture.md
 docs/prd.md
 docs/decisions.md
 docs/deliverables-plan.md
-docs/feature-catalog.md
+docs/release.template.md
+docs/owner-actions.md
+docs/security-invariants.md
 docs/process-log.md
 docs/security-baseline.md
 docs/closure-checklist.md
@@ -121,16 +126,16 @@ docs/autonomy-protocol.md
 docs/refusals.md
 docs/tool-suitability.md
 docs/subagents.md
-docs/codex-audit.md
-docs/EXPERIENCE.template.md
+docs/adoption-audit.template.md
+docs/EXPERIENCE.md
 docs/wave-checklist.template.md
-docs/warnings.ledger.template.md
 docs/warnings.ledger.md
 docs/closure-report.template.md
 docs/fixpack.template.md
 docs/license-review.template.md
 docs/project-brief.template.md
 docs/run.template.md
+docs/plan.template.md
 docs/plans/
 docs/reviews/
 INSTALL-MANIFEST.md
@@ -156,7 +161,6 @@ conformance/nonzero-budget.txt
 scripts/export_project.py
 scripts/provenance_check.py
 docs/project-aliases.md
-docs/practices-cut.md
 .gp/installed
 .gp-distribution
 pipeline-design.md

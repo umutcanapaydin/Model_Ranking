@@ -6,7 +6,7 @@
 # Three rows naming the same control turn the next wave-check RED: the CONTROL goes under review
 # (fix it, re-scope it, or refuse it in docs/refusals.md), not the people. A row that exists in one
 # run and vanishes in the next is a finding.
-# kind: skip | bypass | review -- the legend is the table in docs/warnings.ledger.template.md, which
+# kind: skip | bypass | review -- the legend is the table in docs/warnings.ledger.md, which
 # `make wave-check` reads; a `review` row restarts the control's count and must cite an ADR or a refusal.
 # wave: m<N>-w<W> | issue-<n> | release | upgrade-v<X.Y> | setup (the shapes the legend lists)
 # date: YYYY-MM-DD, never later than the day the row is written (make wave-check allows a day past UTC's date)
@@ -38,3 +38,4 @@ commit-after-check-fast,m21-w4,review,"the agent's application of the owner's ru
 repository-hooks,m21-w4,review,"the owner, 2026-10-10 (translated from Turkish): fix -- start each session in the repository (cd ~/Desktop/ILGAR/model_ranking && claude), so the Claude Code hooks load, and run make hooks once, so the git-level gates run (#142) [rewritten at the DevFlow v7.1 upgrade, D-199: wave was `m21-closure`; kind was `ruling`; cites D-199]",2026-10-10
 commit-after-check-fast,m21-w4,bypass,"cd563f5 (the guard, OWNER APPROVAL) was committed without its own tree passing make check-fast: check-fast ran on the tree holding it and 42b62aa (the settings' new pin) together, and alone the pin refuses the changed guard, so conformance/test-hook-claims.py fails at cd563f5 (measured at the closure); a guard change and its re-pin belong in one commit [rewritten at the DevFlow v7.1 upgrade, D-199: wave was `m21-closure`]",2026-10-10
 commit-after-check-fast,m21-w4,bypass,"85f80e3 (the commit gate, scripts/commit_gate.py) was committed without its own tree passing make check-fast: it removed .githooks/pre-commit, and the commit-msg hook its tests read came only in a024244 (OWNER APPROVAL), so tests/unit/test_commit_gate.py fails 6 tests at 85f80e3 (measured by the fixes review, round 2, M2); check-fast ran on the tree holding both; a change and the change its tests need belong in one commit [rewritten at the DevFlow v7.1 upgrade, D-199: wave was `m21-closure`]",2026-10-10
+guard-change-security-review,upgrade-v7.2,bypass,"PRESSURE: the owner, 2026-10-17 (translated from Turkish): no security review is needed, go on -- the v7.2 owner patch (bash_guard.py +405 lines: the gate stamp and PowerShell rules; settings.json; skills; hooks; ci.yml and issue-agent.yml) is handed over without the guard-change review D-206 clause 9 asks for",2026-10-17

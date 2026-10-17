@@ -12,7 +12,9 @@ go stale. The entries reach awk through the environment, never through `awk -v`:
 `-v` value holding a newline, and an awk that dies there prints nothing, which would read as clean.
 
 Each case builds a throwaway tree holding a copy of the script and its own docs, runs it there (the
-script grades the tree it sits in), and reads only the `[C1]` and `[C3]` sections of its output.
+script grades the tree it sits in), and reads only the `[C1]` and `[C3]` sections of its output. The
+"as shipped" case takes the allowlist's comment header only: an installation's own entries name its
+own records, which the throwaway tree does not hold. The package's file must be that header alone.
 
 Exit: 0 every case behaves - 1 one does not - 2 bash cannot run here.
 """
@@ -66,6 +68,17 @@ def docs(prd: str = PRD, decisions: str = DECISIONS, allow: str | None = None) -
     return files
 
 
+def shipped_header() -> str:
+    """The comment lines of `.placeholder-allow` -- the file as the package ships it. In an installation
+    the file also holds the project's entries, which name the project's own records and are stale in
+    a throwaway tree that does not hold them (Project-K's four, v7.1.1)."""
+    p = ROOT / ".placeholder-allow"
+    if not p.is_file():
+        return ""
+    return "".join(ln for ln in p.read_text(encoding="utf-8").splitlines(keepends=True)
+                   if not ln.strip() or ln.lstrip().startswith("#"))
+
+
 def fails(lines: list[str], *words: str) -> bool:
     return any("[FAIL]" in ln and all(w in ln for w in words) for ln in lines)
 
@@ -109,7 +122,7 @@ CASES = [
      docs(allow="src/other.md: <checkout> -- not graded here\n"),
      lambda ls: fails(ls, ".placeholder-allow", "src/other.md")),
     ("a comment-only allowlist, as shipped, exempts nothing and fails nothing",
-     docs(allow=(ROOT / ".placeholder-allow").read_text(encoding="utf-8")), clean),
+     docs(allow=shipped_header()), clean),
 ]
 
 
@@ -120,6 +133,15 @@ def main() -> int:
     if not (ROOT / ".placeholder-allow").is_file():
         print("test-placeholder-allow FAIL: .placeholder-allow is missing -- the shipped allowlist is "
               "the named-exception file the check reads")
+        return 1
+    if (ROOT / ".gp-distribution").is_file() and shipped_header() != (ROOT / ".placeholder-allow").read_text(
+            encoding="utf-8"):
+        print("test-placeholder-allow FAIL: the package's .placeholder-allow carries entries -- it ships "
+              "comment-only, and an entry here would reach every project")
+        return 1
+    if not shipped_header().strip():
+        print("test-placeholder-allow FAIL: .placeholder-allow has no comment header -- the as-shipped case "
+              "has nothing to grade (an empty derived set is a failure)")
         return 1
     bash, why = runnable_bash("run scripts/bootstrap-check.sh in throwaway trees")
     if not bash:

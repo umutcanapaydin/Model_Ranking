@@ -18,6 +18,8 @@
 //    falling through to the real stack (W5 review M1).
 //  The tripwire answers every request it sees with "not connected" and records it; the base's
 //  tearDown fails the test that made it. Nothing leaves the machine, and nothing crashes.
+//  #279: a test observer fails it too, from a teardown block XCTest runs whatever a subclass does
+//  with `tearDown` (`OfflineObserver`, below).
 
 import Foundation
 import XCTest
@@ -61,6 +63,7 @@ enum OfflineGuard {
         exchange("defaultSessionConfiguration", "offlineDefault", classMethod: true)
         exchange("ephemeralSessionConfiguration", "offlineEphemeral", classMethod: true)
         exchange("setProtocolClasses:", "offlineSetProtocolClasses:", classMethod: false)
+        XCTestObservationCenter.shared.addTestObserver(OfflineObserver())
     }()
 
     private static func exchange(_ original: String, _ replacement: String, classMethod: Bool) {
@@ -96,6 +99,22 @@ extension URLSessionConfiguration {
             list.append(OfflineGuard.Tripwire.self)
         }
         offlineSetProtocolClasses(list)
+    }
+}
+
+/// #279: the check that holds whatever a subclass does with `tearDown`, registered once per process
+/// by the tripwire's install. As each test starts it adds a teardown block, and XCTest runs a test's
+/// teardown blocks itself, before `tearDown()`, so a subclass whose `tearDown` skips `super` is still
+/// failed for a request its test made. The block runs first and drains, so the base's `tearDown`
+/// check below then sees only what a subclass's own `tearDown` reached for; it stays (D-206 clause 7).
+/// Not from `testCaseDidFinish`, as #279 first proposed: measured with Xcode's XCTest on macOS 26, an
+/// issue recorded there throws "Invalid attempt to record a failure for a test run that has already
+/// been stopped", and the process dies on signal 6.
+final class OfflineObserver: NSObject, XCTestObservation {
+    func testCaseWillStart(_ testCase: XCTestCase) {
+        testCase.addTeardownBlock {
+            XCTAssertEqual(OfflineGuard.drain(), [], "this test reached for the network; route it to a stub (#59, #279)")
+        }
     }
 }
 
@@ -175,9 +194,37 @@ final class OfflineGuardTests: OfflineTestCase {
         _ = try? Data(contentsOf: address)
         XCTAssertEqual(OfflineGuard.drain(), [address.absoluteString, address.absoluteString])
     }
+
+    /// #279: a subclass whose `tearDown` never reaches the base's, and whose test makes one request, is
+    /// still failed for it. The planted test is run here by hand, so its failure is counted on its own
+    /// run and not on this one; this test fails when the planted one passes.
+    func testASubclassWhoseTearDownSkipsTheBaseIsStillFailedForTheRequestItMade() {
+        let planted = SkipsTheBaseTearDown(selector: #selector(SkipsTheBaseTearDown.reachForTheNetwork))
+        planted.run()
+        XCTAssertTrue(planted.tornDownWithoutTheBase, "the planted tearDown did not run")
+        XCTAssertEqual(planted.testRun?.failureCount, 1,
+                       "a test that reached for the network passed because its tearDown skipped the base (#279)")
+        XCTAssertEqual(OfflineGuard.drain(), [], "the planted test's request was left for the next test to fail")
+    }
 }
 
 /// A stub that answers nothing: every request falls past it.
 final class DecliningStub: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool { false }
+}
+
+/// #279: a subclass whose `tearDown` does not call `super`, so the base's `tearDown` check never runs
+/// for it. It is not a test XCTest discovers (its one method is not named `test…`, and the manifest
+/// does not list it): `OfflineGuardTests` builds it by selector and runs it by hand. It lives in the
+/// base's file because `tests/unit/test_swift_tests_offline.py` refuses such an override everywhere else.
+final class SkipsTheBaseTearDown: OfflineTestCase {
+    nonisolated(unsafe) var tornDownWithoutTheBase = false
+
+    override func tearDown() {
+        tornDownWithoutTheBase = true
+    }
+
+    @objc func reachForTheNetwork() {
+        _ = try? Data(contentsOf: URL(string: "https://example.invalid/279")!)
+    }
 }

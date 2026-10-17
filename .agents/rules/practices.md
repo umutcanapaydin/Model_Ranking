@@ -1,29 +1,10 @@
 # Engineering practices
 
-**How this file was chosen.** Every rule that stood here was scored against nine projects, and a
-rule survived only if the failure it prevents was **observed in two or more of them**. 128 rules
-went in; **47 cleared that bar**. The bar is the owner's: *"to get into this methodology a problem
-has to have been produced again and again in different projects, so that we can write the thing
-that prevents it."* The full table — every rule, its count, the projects and the citing line — is kept in the
-methodology's own repository, because a rule removed without a record is a rule someone re-derives next
-quarter.
-
-**49 rules stand below.** The arithmetic, since it does not add up on its own:
-
-| | |
-|---|---|
-| cleared the bar (2+ projects) | 47 |
-| dropped anyway, as stale or superseded | −5 |
-| kept below the bar, because a gate in this package refuses the change | +6 |
-| added by owner ruling, with the gate that reads it | +1 |
-
-The five dropped despite clearing the bar were not dropped for lack of evidence. Two described a git
-cadence that was later replaced, one pointed at a `make` target that no longer exists, one was a
-candidate block that never got its second ecosystem, and one restated the go-live rules three lines
-below where they already appear. Each is named with its reason in that register.
-
-The six kept below the bar, and the one added by ruling, say so on their own line. Deleting the
-prose while the gate still runs leaves an error message nobody can explain.
+**How this file was chosen.** A rule stands here only if the failure it prevents was observed in two or
+more projects, or a gate in this package refuses the change. The register of every rule considered —
+its count, the projects, the citing line — is kept by the DevFlow maintainers. The few rules kept
+below that bar, because a gate reads them, say so on their own line: deleting the prose while the gate
+still runs leaves an error message nobody can explain.
 
 **This file holds rules that live nowhere else.** Where another file is the authority — the security
 baseline, the permission matrix, the issue rules — this one points and stops. Of the rules dropped, most
@@ -62,7 +43,7 @@ projects.
   inject the version-only-missing names (`datetime.UTC`, `StrEnum`) via `sitecustomize.py` and run
   the WHOLE suite; keep the one behaviour-version-dependent test `skip`-marked for the real target.
   *(2)*
-- **Hermetic gate (C.6):** trust a verdict only from a reproducible environment — clean venv
+- **Hermetic gate:** trust a verdict only from a reproducible environment — clean venv
   built solely from the manifest, dev tools pinned (not `>=`-floored), stale bytecode cleared, ONE
   designated authoritative gate host. A permissive dev sandbox passes code the real gate fails. *(2)*
 
@@ -77,12 +58,9 @@ projects.
   footprint's `Stopped at three attempts:` names the issue; a reviewer's third BLOCKING verdict on
   the same finding counts the same way (`/close-wave` step 3). On a `/fix-issue` branch the three
   attempts go on the issue as a comment, and the issue goes back to `/triage-issue`. A fourth try
-  at the same idea is how an afternoon disappears into one test. The reviewer's third BLOCKING
-  ends the review loop the same way: no fourth round, no new reviewer; the slice is reverted in
-  place and filed, and a finding the author still disputes goes to the owner as `work-issue`,
-  answered by an ADR or a `docs/refusals.md` row — never by a fourth attempt. In the field the
-  loop ran to five and six rounds because nothing said what the third one ends with. *(owner
-  ruling — below the bar; `make wave-check` requires the footprint line)*
+  at the same idea is how an afternoon disappears into one test. A reviewer's third BLOCKING on
+  one finding ends the review loop the same way — `/close-wave` step 3 and `/fix-issue` step 6 say
+  what ending means. *(owner ruling — below the bar; `make wave-check` requires the footprint line)*
 
 ## Security
 
@@ -163,28 +141,20 @@ present is not working.* Six occurrences in one project alone.
 
 ## Git
 
-- **Branch and draft PR.** The agent works on its own branch, commits there, pushes **that branch**
-  and opens a DRAFT pull request. It never pushes the protected branch, never marks a PR ready,
-  never merges. The property this protects — **no commit may be mistaken for the owner's** — is
-  carried by the branch, the draft state and the ban on AI attribution. *Below the bar (0 projects,
-  because it is new); kept because it is the load-bearing rule of this methodology and
-  `conformance/test-git-authority.py` and `test-commit-identity.py` both enforce it.*
-- **No AI attribution anywhere** — not `Co-Authored-By`, not "Generated with", not a badge, in
-  commits, PR bodies, issues or comments. *This reverses an earlier rule that required exactly
-  such a trailer (2 projects). The evidence behind both is the same — twelve commits in one project
-  carrying the owner's name — and the branch now carries what the trailer used to.*
+- **Branch, draft PR, no AI attribution** — the rule is `AGENTS.md` §3, "Git authority"; the Bash
+  guard enforces its destructive half (`permission-matrix.md` §5), and `conformance/test-git-authority.py`
+  and `test-commit-identity.py` grade the rest. What it protects: no commit may be mistaken for the
+  owner's.
 - **In-place revert.** `git checkout <file>` and `git restore` revert to the last COMMIT — on
-  uncommitted work they destroy everything since. Revert experimental edits in place and verify
-  byte-identical. *Below the bar (1 project); kept because the worktree guard in the PreToolUse hook
-  blocks `git checkout -- <path>`, `git checkout .` and `git restore` without `--staged`, and in that project a reviewer undoing a deliberate fault injection with
-  `git checkout` clobbered work that was not theirs.*
+  uncommitted work they destroy everything since (the guard blocks both). Revert an experimental
+  edit in place and verify it byte-identical.
 
 ## Decisions and capture
 
 - **Open the capture file BEFORE the work starts**, not after (G.1). *(3)*
-- **process-log per session** — three to ten lines, ending with a `Lesson:` tag. In one project two
-  days of demo-building produced zero entries. One sequence of ids, across every agent tool that
-  writes here: claim the next `S<n>` before writing (AGENTS.md §2a). *(3)*
+- **process-log per pull request** — three to ten lines on the PR's branch, ending with a `Lesson:`
+  tag, headed by date and branch (`/pre-merge`). In one project two days of demo-building produced
+  zero entries; in another, numbered entries from parallel branches collided at every merge. *(3)*
 - **Capture every assumption as an ADR** (seed B.1) — use the `log-decision` skill. *(2)*
 - **Supersede, never edit** (seed B.2) — the old ADR keeps its body and is marked
   `superseded by D-NNN`. *Below the bar (0 projects); kept because it is the invariant every
@@ -223,7 +193,7 @@ present is not working.* Six occurrences in one project alone.
 
 - `docs/security-baseline.md` — the web/API security baseline, in full
 - `permission-matrix.md` — the default-deny matrix and the BLOCKING taxonomy
-- `.agents/rules/issues.md` — issues, labels, and the verification pipeline
+- `.agents/rules/issues.md` — issues and labels; `issues-qa.md` — the verification pipeline, when QA is on
 - `.agents/rules/playbook-seeds.md` — the seed index, searched as needed
 - the pruning register — every one of the 128 rules, its count, the projects it was seen in and the
   line that cites it. It is **GP-INTERNAL**: it is built by reading nine projects' private

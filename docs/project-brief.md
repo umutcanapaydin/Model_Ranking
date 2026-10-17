@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief
 status: ratified
-process_version: v7.1
+process_version: v7.2
 date: 2026-08-06
 ---
 # Project Brief — model_ranking
@@ -105,6 +105,7 @@ The questions DevFlow v7.0 and v7.1 added, answered at the upgrade from v6.6.
 
 - **Working mode:** `light` *(issues only, no Code-Reviewer; security when `make review-need` says so; the milestone Tester once before a release -- D-201)*
 - **Deploy commands:** `fly deploy`, `scripts/deploy_hosted_engine.sh` *(the deploy gate refuses each until the release security review and the milestone Tester have seen every code change since their reviewed heads)*
+- **Rollback command:** `none: the owner rolls a failed deploy back by hand -- the hosted engine to its previous Fly release (D-185), the Mac's service to its previous release (D-170)` *(v7.2; `/going-live` reads it when a deploy fails)*
 - **Runtime config files:** `none` *(the engine's secrets live in Fly, set by the owner)*
 - **Paths that make a change HIGH:** `none` *(as section 4 says; the security seat runs at each milestone's closure and on the whole release, D-172)*
 - **QA verification:** `off` *(a bug closes when its fix merges)*

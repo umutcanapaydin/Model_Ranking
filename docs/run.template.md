@@ -27,7 +27,7 @@ Rulings: <D-<n>, D-<n> | none>
 | 1 | M<N> | none | docs/plans/m<N>-plan.md | queued |
 
 <!-- Base: the integration-branch sha the milestone's first wave was cut from (`none` until it
-     starts); the milestone Tester and `/repo-review` take their range from it. Status: `queued` ·
+     starts); the milestone Tester and the last wave's cross-wave review take their range from it. Status: `queued` ·
      `running` · `closed` (every wave stacked; heavy: the milestone Tester's verdict beside the last
      wave's close and Stage 4 Capture done on the integration branch) · `stopped` (a wave of it
      stopped and no independent wave of it remains). Light mode: one row, Milestone `queue`, Plan

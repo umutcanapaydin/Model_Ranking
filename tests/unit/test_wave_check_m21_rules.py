@@ -776,7 +776,7 @@ def _findings(*rows: str) -> list[str]:
     """`ledger_findings` (DevFlow v7.1) on a ledger of these rows, read against the repository's legend."""
     check = _module("wave_check")
     text = "control,wave,kind,reason,date\n" + "".join(row + "\n" for row in rows)
-    return check.ledger_findings(text, ROOT / "docs" / "warnings.ledger.template.md")
+    return check.ledger_findings(text, ROOT / "docs" / "warnings.ledger.md")
 
 
 def _strikes(*rows: str) -> list[str]:
@@ -956,7 +956,7 @@ def test_rows_count_by_their_place_after_the_last_review_not_their_date(tmp_path
 
 def test_a_kind_outside_the_legend_is_refused(tmp_path: Path) -> None:
     """Round 2, M3: `bypassed` or `by-pass` counted nothing and raised nothing. From DevFlow v7.1 the kinds are
-    the legend's (`docs/warnings.ledger.template.md`: skip, bypass, review), in any case."""
+    the legend's (`docs/warnings.ledger.md`: skip, bypass, review), in any case."""
     for kind in ("bypassed", "by-pass", "Ruling-ish", "", "ruling", "within-scope"):
         found = _findings(f"c,m1-w1,{kind},x (D-1),2026-10-01")
         assert any("not in the legend" in p for p in found), (kind, found)

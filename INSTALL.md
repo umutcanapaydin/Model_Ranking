@@ -39,8 +39,9 @@ nobody watches — an unattended run (`/plan-run`) — needs a mode that does no
 auto mode, or `--dangerously-skip-permissions` inside a sandbox. In such a session the hooks are the
 only guard, which is why they fail closed.
 
-**`.mcp.json`** names GitHub's remote MCP server (`https://api.githubcopilot.com/mcp/`): Claude Code
-asks you to sign in to it once; nothing is installed for it, and no Node is needed.
+**No MCP server ships.** Every skill speaks `gh`, which the Bash guard reads word by word. A project that
+adds an MCP server adds tools no hook sees — a GitHub one can merge as the owner — so it
+adds a PreToolUse hook for them in the same change.
 
 ## Windows
 
@@ -136,7 +137,9 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
 
 1. **Get the files.** An existing repository: follow
    [Installing into an existing repository](#installing-into-an-existing-repository) below, then
-   come back to step 2. A brand-new project — `<tag>` is the DevFlow version you install:
+   come back to step 2. A brand-new project — `<tag>` is the DevFlow version you install;
+   the current stable release is the GitHub Release marked **Latest**
+   (https://github.com/SADCAIVibe/DevFlow/releases); `main` may move ahead of it:
 
    ```bash
    git init -b main my-project && cd my-project     # or clone your new, empty repository
@@ -176,13 +179,12 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
    `.agents/rules/issues.md`, and a fresh repository has none of them. Without `gh` it prints the
    table of labels to create and exits 2: create them by hand on the repository's Labels page.
 7. **`/setup-project`**, in a Claude Code session started in the repository root — a session that
-   begins after step 4, so the hooks it loads are the ones you committed. Eleven questions, each
-   with its reason and default. It writes `docs/project-brief.md`, copies `docs/EXPERIENCE.md` from
-   its template, writes the product's stack to `.devflow-stack` and, for a product in another
+   begins after step 4, so the hooks it loads are the ones you committed. Twelve questions, each
+   with its reason and default. It writes `docs/project-brief.md`, fills the header of `docs/EXPERIENCE.md`, writes the product's stack to `.devflow-stack` and, for a product in another
    language, the paths you name to `.language-allow`. It commits them on a branch and opens a draft
    pull request; without `gh`, it pushes the branch and hands you the compare URL to open the draft
    yourself. Merging it is you signing the choices. An adopted codebase also gets its
-   `docs/codex-audit.md` here (question 1).
+   `docs/adoption-audit.md` here (question 1).
 8. A stack other than `python`: bind its legs in `stack.mk`
    ([Binding another stack](#binding-another-stack), below).
 9. Branch protection on the default branch (`docs/branch-protection.md`), if the brief says the
@@ -195,7 +197,12 @@ In Git Bash (Windows) or a terminal (macOS, Linux), at the repository root.
    behave alike. Where GitHub-hosted runners start no job (a billing limit), this is how CI runs.
 10. `make check-fast`, then `make check` — both green. `check-fast` runs the legs of `check` side by
     side and names every one that fails; `check` runs them in order and is the merge gate.
-11. `make bootstrap-check` until it is green — it is the end of Stage 0, not its start — then the first work: `/plan-milestone` in heavy mode;
+11. Fill the project's own files, which `make bootstrap-check` C1/C3 read: `AGENTS.md` §1–§2, `docs/prd.md`
+    (the requirements with their REQ-IDs), `docs/architecture.md`, the README's title, the `app` title in
+    `src/app/adapter/main.py`, `.github/CODEOWNERS` (a one-person repository removes the lines naming
+    other roles), and the `D-100` stub in `docs/decisions.md` (fill it or delete it). They ride on the
+    setup branch.
+12. `make bootstrap-check` until it is green — it is the end of Stage 0, not its start — then the first work: `/plan-milestone` in heavy mode;
     in light mode, `/file-issue` one issue per requirement in `docs/prd.md`, `/triage-issue` each, then the skill each verdict names.
 
 ## Installing into an existing repository
@@ -236,13 +243,13 @@ For each colliding path, `git show <tag>:<path>` prints DevFlow's copy.
 | `.install-lock` | **Take DevFlow's, unchanged — never regenerate it from your tree.** It records how many files each DevFlow directory shipped with; your own files only add to those counts, and `make install-check` fails only on fewer. A `.install-lock` already in your repository means DevFlow is installed here: this is an upgrade — stop, and follow `UPGRADING.md`. |
 | `docs/decisions.md` | **DevFlow's universal decisions first, yours after them.** `make bootstrap-check` requires D-001..D-007; your own ADRs keep their ids, by the reconciliation recipe in its P-001. |
 | `Makefile`, `pyproject.toml` | **Take DevFlow's, then carry yours over.** They are the gate and its tooling. Your make targets go into `stack.mk` (the Makefile includes it) or into the Makefile; a Python project's `[project]` table and dependencies go into DevFlow's `pyproject.toml`, keeping its `dev` extra and its `[tool.*]` sections. |
-| `.github/workflows/` | **A human's part** — an agent never edits workflows. Keep yours; a human adds DevFlow's `ci.yml` and `issue-agent.yml` beside them (both are in the manifest, and `make install-check` counts them), under other names if yours are taken. |
+| `.github/workflows/` | **A human's part** — an agent never edits workflows. Keep yours; a human adds DevFlow's `ci.yml` and `issue-agent.yml` (which ships switched off: it runs only when started by hand until its secret and label trigger are set) beside them (both are in the manifest, and `make install-check` counts them), under other names if yours are taken. |
 | anything else | Keep yours, read DevFlow's, merge by hand. |
 
 A file of yours at a path that `INSTALL-MANIFEST.md` lists as GP-INTERNAL fails `make install-check`
 (M2): rename yours. Then commit on `setup/devflow` — the new files and each merged one, by path —
 and continue at step 2 of the common steps. `/setup-project` derives *adopted* from the code already
-in the tree, and `docs/codex-audit.md` records what exists before any wave changes it.
+in the tree, and `docs/adoption-audit.md` records what exists before any wave changes it.
 
 ## Binding another stack
 

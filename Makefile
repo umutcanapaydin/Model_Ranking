@@ -63,7 +63,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need deploy-check guard-pin
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need closing-keywords deploy-check guard-pin ci-diff gate-ok next-adr review-need-branch
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -218,7 +218,7 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 
 
 check-fast: install  ## `make check`'s legs side by side -- what the post-edit hook runs; `make check` stays the merge gate
-	@$(PY) scripts/check_fast.py --make "$(MAKE)"
+	@$(PY) scripts/check_fast.py --make "$(MAKE)" $(CHECK_FAST_ARGS)
 
 # The owner's ruling of 2026-10-10 on commit-after-check-fast, as the M21 closure applies it: the gates the
 # commit-msg hook runs (scripts/commit_gate.py) besides check-fast.
@@ -287,6 +287,9 @@ check-fast-config:  ## the two check-fast settings, CHECK_FAST_OWN_LEGS and CHEC
 # ADVISORY, and deliberately not reachable from `gate`: it asks GitHub about runs that already
 # happened, so it can say CI has stopped starting (a billing or runner limit) but cannot stop a push.
 # It always exits 0. `/start-session` and bootstrap-check C12 run it and report its one line.
+ci-diff:  ## ADVISORY: DevFlow's workflows (the installed tag) against this repository's, and the owner's one command to apply them
+	@$(SYS_PY) scripts/ci_diff.py
+
 ci-liveness:  ## ADVISORY, never a gate leg: did the latest CI runs start any step? (gh; always exits 0)
 	@$(SYS_PY) scripts/ci_liveness.py
 
@@ -295,6 +298,10 @@ ci-liveness:  ## ADVISORY, never a gate leg: did the latest CI runs start any st
 # the same legs step by step. A control that is not reachable from here is not claimed anywhere.
 gate: check conformance falsify secrets deps slopsquat  ## THE gate -- everything the documents claim, actually wired
 	@echo "gate PASS: $^"
+	@$(SYS_PY) scripts/gate_stamp.py write $(MAKEFILE_LIST)
+
+gate-ok:  ## PASS while HEAD is the commit `make gate` last passed on and the tree is clean (pre-push, /pre-merge)
+	@$(SYS_PY) scripts/gate_stamp.py check $(SHAS)
 
 harvest-context-check:  ## v5.2 (16-2): fail if HARVEST-CONTEXT.md is stale against the controls
 # Distribution-side, like `falsify`. An installation has no roster to keep current and no
@@ -305,6 +312,7 @@ falsify:  ## break every control on purpose; one that cannot be broken is not a 
 # In an installation there is no `.gp-distribution` and no falsification registry, so this SAYS it
 # skipped rather than failing on a file the project never had. It is never silent: silence is how a
 # leg leaves a gate unnoticed.
+# ci: none -- an installation has no registry to break; DevFlow's own repository runs it in its CI
 	@if [ -f .gp-distribution ]; then $(SYS_PY) conformance/falsify.py; else \
 	  echo "falsify SKIPPED: this is an installation, not the distribution package."; \
 	  echo "  The falsification registry proves the pipeline's own controls before a package ships."; \
@@ -323,8 +331,21 @@ shell-dialect:  ## every shipped .sh parses and declares one dialect
 mode:  ## this project's working mode, light or heavy (docs/project-brief.md `Working mode:`; unset: heavy)
 	@$(SYS_PY) scripts/brief_fields.py mode
 
+next-adr:  ## the next free ADR ids (D- and P-) in docs/decisions.md -- /log-decision asks this instead of reading the file
+# ci: none -- a number for the session writing an ADR; CI writes none
+	@$(SYS_PY) scripts/next_adr.py
+
 review-need:  ## which review a change needs: none, code-reviewer, security, or both (make review-need [RANGE=A..B])
 	@$(SYS_PY) scripts/review_need.py $(if $(RANGE),--range $(RANGE))
+
+# #255 (D-206 clause 6): GitHub closes an issue that a closing keyword precedes in a commit message once the
+# commit reaches the default branch, whatever the PR body says, and `closingIssuesReferences` reads only the
+# body. Advisory, NOT a leg of `check`: exit 1 when the range would close any issue, 2 when no range is given
+# or it is empty or unreadable -- never a pass. `/pre-merge` asks it.
+closing-keywords:  ## which issues the commit messages in a range would close on merge; advisory, not in check (make closing-keywords RANGE=A..B)
+	@$(SYS_PY) scripts/closing_keywords.py $(if $(RANGE),--range $(RANGE))
+review-need-branch:  ## review-need over this branch since it left the default branch -- no argument, so the allow list matches it exactly
+	@$(SYS_PY) scripts/review_need.py
 
 # The deploy gate without a command, for the deploys the Bash guard never sees -- the owner's own
 # terminal, a dashboard, a TestFlight upload. The Bash guard runs the same check (scripts/deploy_gate.py)
@@ -354,13 +375,17 @@ deps: install  ## every LOCKED dependency, as it installs (D-177), against known
 # The M18 repo review's M3. This audited `.`, and pip-audit reads only `[project].dependencies` from
 # a pyproject.toml, so pyarrow left the audit when W6 moved it to the `ingest` extra. The locks are
 # what every install takes, extras included. No lock fails closed: an audit of nothing would pass.
-# CI runs the same audit once the owner applies the patch on #81.
+# CI runs the same audit once the owner applies the patch on #81. Not cached locally (v7.2's net_cache.py
+# hashes pyproject.toml and requirements*.txt, not these locks, so a cached pass could outlive a lock change).
+# ci: job dep-audit
 	@test -n "$(LOCKS)" || { echo "FAIL [deps]: no lock under requirements/ -- the audit would read nothing"; exit 1; }
 	$(PY) -m pip_audit --strict --disable-pip $(addprefix -r ,$(LOCKS))
 	$(if $(ON_PYTHON),,$(call bound,STACK_DEPS))
 
 slopsquat:  ## seed F.8: DECLARED deps exist on PyPI and are not brand new (offline = non-zero, never clean)
-	@$(SYS_PY) scripts/slopsquat_check.py
+# net_cache.py is local only, as for deps; CI's job runs the check itself, fresh, every time.
+# ci: job install-and-governance
+	@$(SYS_PY) scripts/net_cache.py fresh slopsquat || { $(SYS_PY) scripts/slopsquat_check.py && $(SYS_PY) scripts/net_cache.py record slopsquat; }
 
 
 ui-test: install  ## D-175: the iOS UI tests on the simulator, against a local engine (not in check, gate or CI)
@@ -436,14 +461,19 @@ closes:  ## every filled wave-close checklist, closure report and run record in 
 # 2026-10-07 had per-wave Testers (D-172), not a milestone Tester. `wave-check-all` grades the wave closes;
 # a closure report is checked at its own closure with `make closure-check FILE=...`; the deploy gate
 # (`make deploy-check`) holds the milestone Tester's verdict for the next release.
-	@n=0; rc=0; for f in docs/plans/m*-wave-*-close.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
+# v7.2: with CLOSES_CHANGED set (check-fast), only the close records changed on the branch are graded.
+	@n=0; rc=0; only=; if [ -n "$$CLOSES_CHANGED" ]; then \
+	  only=$$(git diff --name-only $$(git merge-base HEAD origin/HEAD 2>/dev/null || echo HEAD) 2>/dev/null; \
+	    git ls-files -o --exclude-standard 2>/dev/null); fi; \
+	pick() { [ -f "$$1" ] && { [ -z "$$CLOSES_CHANGED" ] || printf '%s\n' "$$only" | grep -qxF "$$1"; }; }; \
+	for f in docs/plans/m*-wave-*-close.md; do pick "$$f" || continue; n=$$((n+1)); \
 	  $(SYS_PY) scripts/wave_check.py "$$f" || rc=1; done; \
-	for f in docs/closure-report-m*.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
+	for f in docs/closure-report-m*.md; do pick "$$f" || continue; n=$$((n+1)); \
 	  $(SYS_PY) scripts/closure_check.py "$$f" || rc=1; done; \
-	for f in docs/plans/run-*.md; do [ -f "$$f" ] || continue; n=$$((n+1)); \
+	for f in docs/plans/run-*.md; do pick "$$f" || continue; n=$$((n+1)); \
 	  $(SYS_PY) scripts/run_check.py "$$f" || rc=1; done; \
 	$(SYS_PY) scripts/closure_check.py --release-records || rc=1; \
-	echo "closes: $$n close record(s) checked"; exit $$rc
+	echo "closes: $$n close record(s) checked$${CLOSES_CHANGED:+ (changed since the merge-base only)}"; exit $$rc
 
 closure-check:  ## check one filled milestone closure report (make closure-check FILE=docs/closure-report-mN.md)
 # Written only when the milestone Quality Gate is on. A report whose criteria cite no test, or are
