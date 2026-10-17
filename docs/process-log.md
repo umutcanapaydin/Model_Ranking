@@ -973,3 +973,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Correction to D-207: its "Mitigation if violated" names the upgrade's security review, but that review was waived by the owner (the `guard-change-security-review` bypass row in `docs/control-events.csv`, 2026-10-17). Run bug-night's owner bundle is reviewed before handover (D-209 clause 2).
 - Correction to the format: the entries headed `## 2026-10-17 — upgrade/devflow-v7.2: …` and later in this file use `—` where v7.2's format is `## <date> · <branch> — <what it did>` (`/pre-merge` §8). The entries stay as written; this one and the run's later ones use the format.
 - Lesson: an upgrade that removes a file the project added (here `.mcp.json`) says so in its PR, so the owner decides before the file is gone.
+
+## 2026-10-18 · fix/issue-325-ignored-documents — documents() grades no ignored, untracked scratch
+
+- `conformance/lib_record.documents()` walked the disk, so a gitignored note under `build/` turned `test-documented-paths` red, though its targets already came from git. It now skips what `git ls-files --others --ignored --exclude-standard` lists; a tracked file under an ignore rule is still graded, and without git the walk stays whole (D-209 clause 5). Red first: `tests/unit/test_documents_skip_ignored.py`.
+- Lesson: a gate's inputs and its targets come from the same source, or scratch on one side breaks it.

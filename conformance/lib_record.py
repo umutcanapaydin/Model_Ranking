@@ -186,14 +186,34 @@ DOC_SUFFIXES = {".md", ".html"}
 _CODE_TAG = re.compile(r"<code>(.*?)</code>", re.S | re.I)
 
 
+def _ignored_untracked(root) -> tuple[set[str], tuple[str, ...]] | None:
+    """#325: the paths git ignores and does not track, as files and directory prefixes, or None without
+    git. Scratch under `build/` is not a shipped document; a tracked file under an ignore rule still is."""
+    try:
+        r = subprocess.run(["git", "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"],
+                           cwd=root, capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    names = [n for n in r.stdout.decode("utf-8", errors="replace").split("\0") if n]
+    return {n for n in names if not n.endswith("/")}, tuple(n for n in names if n.endswith("/"))
+
+
 def documents(root, skip=None):
-    """Every shipped document under `root`, markdown and HTML alike, sorted, symlinks excluded."""
+    """Every shipped document under `root`, markdown and HTML alike, sorted, symlinks excluded. A path git
+    ignores and does not track is no shipped document (#325); without git, every path is read."""
     out = []
+    ignored = _ignored_untracked(root)
     for p in sorted(root.rglob("*")):
         if not p.is_file() or p.is_symlink() or p.suffix not in DOC_SUFFIXES:
             continue
         if any(part in {".git", "__pycache__", ".venv"} for part in p.parts):
             continue
+        if ignored is not None:
+            rel = p.relative_to(root).as_posix()
+            if rel in ignored[0] or rel.startswith(ignored[1]):
+                continue
         if skip and skip(p):
             continue
         out.append(p)
