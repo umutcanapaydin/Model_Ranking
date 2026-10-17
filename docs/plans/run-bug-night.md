@@ -27,7 +27,7 @@ The queue in order (D-209): the two drafts already open (#333, #329), then the b
 | issue-305 | owner/bug-night-bundle | none | none | queued |
 | issue-332 | fix/issue-332-mcp-json | #337 | none | stacked |
 | issue-325 | fix/issue-325-ignored-documents | #338 | none | stacked |
-| issue-330 | fix/issue-330-next-adr | none | none | queued |
+| issue-330 | fix/issue-330-next-adr | #339 | none | stacked |
 | issue-328 | fix/issue-328-guard-test-timeout | none | none | queued |
 | issue-317 | owner/bug-night-bundle | none | none | queued |
 | issue-318 | owner/bug-night-bundle | none | none | queued |
