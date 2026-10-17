@@ -1,9 +1,9 @@
 ---
 name: post-merge
-description: Use immediately after a human has merged a PR — to clean up the branch, move the issue to the right lifecycle state, and hand off to verification. Also when asked what happened to a merged change or whether something is ready to verify. Never merges a pull request itself.
+description: Use immediately after a human has merged a PR, and when asked what happened to a merged change or whether it is ready to verify. Never merges anything itself.
 ---
 
-Runs **only after a human merges.** Read `.agents/rules/issues.md` first.
+Runs **only after a human merges.** `.agents/rules/issues.md` (read at `/start-session`; open it again only after a compaction or in a new session).
 
 ## 1 · Confirm the merge before deleting anything
 
@@ -27,6 +27,12 @@ A squash also drops the head a review verdict names: the milestone Tester's `**R
 the plan's last wave is now unreachable, and `make deploy-check` fails closed until the Tester
 runs again. Tell the owner; `docs/branch-protection.md` asks for merge commits for this reason.
 
+## 2b · A plan PR (`plan/m<N>`)
+
+The owner approved the plan. Start wave 1 now: branch `wave/m<N>-w1` from the default branch, work its
+container issue's tasks (the dev-test loop, AGENTS.md §4), then `/close-wave`. Nothing else starts a
+wave.
+
 ## 2a · An integration PR (`integration/<name>`)
 
 Step 1 on the integration PR. Then, for each PR its body says it carries:
@@ -46,12 +52,12 @@ not closed here.
 
 A run's integration PR (`integration/run-<name>`, `/plan-run`): the same, and §7 already ran
 inside the run, on the integration branch, for every milestone it closed — verify the records
-exist (`docs/reviews/m<N>-tester.md`, `docs/reviews/m<N>-repo-review.md`, the Capture entries,
+exist (`docs/reviews/m<N>-tester.md`, the `## Across the milestone` section of the last wave's review, the Capture entries,
 `docs/plans/run-<name>.md` with its `Ended:` filled and `make run-check` green) rather than
 running them again. A stop row in the run file is an open question for the owner: its answer is an
 ADR, and the stopped wave goes to the next run or to `/fix-issue`. The plan PR's merge is the
-owner's signature on the run's rulings: append `**Status:** accepted` to each ADR on the run
-file's `Rulings:` line (a new line, never an edit — `/log-decision`).
+owner's signature on the run's rulings: they are accepted as they stand, like every ADR the default
+branch carries — no status line is added.
 
 ## 3 · Route the issue by what it actually is
 
@@ -61,7 +67,7 @@ Read its state and labels, and the brief's `QA verification:` (`off` unless it s
   one comment on each naming the merged PR and the test that went red, then green. If one is still
   open, close it with that comment. That is the whole step.
 
-**QA on:**
+**QA on** (`.agents/rules/issues-qa.md`):
 
 - **`bug`** → stays open, gets `dev:done`, one comment linking the
   merged PR. **Do not set `qa:ready`** — merged is not deployed, and you have no signal for a
@@ -99,6 +105,8 @@ label — it is that the state is not real yet.
 ## 7 · The plan's last wave (heavy mode)
 
 The merged PR was a `wave/*` branch whose close says `Last wave of the plan: yes` → every wave of
-the milestone has merged, and the milestone closes now: walk `docs/closure-checklist.md` §B —
-`/repo-review` across the whole milestone, the capture, and the Quality Gate if the brief turns it
-on. Nothing deploys at a milestone close.
+the milestone has merged, and with it the milestone close (`/close-wave` step 7 ran it on that
+branch): verify it arrived — the `## Across the milestone` section of the last wave's review, the
+Capture entries, the closure report when the Quality Gate is on — rather than running it again. A
+wave closed before `v7.2` has none of it on its branch: walk `docs/closure-checklist.md` §B now, on a
+`close/m<N>` branch with its own draft PR. Nothing deploys at a milestone close.

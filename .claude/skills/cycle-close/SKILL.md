@@ -1,6 +1,6 @@
 ---
 name: cycle-close
-description: Use once, when the work is done — at the end of the project or of a release (Stage 5.3), and only if the owner wants it. A short retrospective of what went right, where we got stuck, and which of our own controls and skills earned their place. Never during the work: no per-milestone retrospective, no handover.
+description: Use once, when the work is done — at the end of the project or a release, and only if the owner wants a retrospective. Never during the work.
 ---
 Optional, and once (owner ruling, from experience: retrospectives written during the work tire the
 people doing it). It writes one file, `docs/retrospective.md`, opening with its record header
@@ -19,8 +19,10 @@ cost us time, and whether a control could have caught it earlier.
 Count the controls, the gates, the hooks and the skills. Then, for each one, ask the only
 question that matters: **has it fired?**
 
-- A skill that has not been invoked in 90 days is retired. Not archived, not "kept just in case"
-  — retired, with its evidence, so it can come back if the failure recurs.
+- A skill this project wrote that has not been invoked in 90 days is retired. Not archived, not
+  "kept just in case" — retired, with its evidence and a `docs/watchlist.md` row, so it can come back
+  if the failure recurs. A skill or profile DevFlow ships is never deleted here (`make install-check`
+  counts them): report it upstream in the retrospective instead.
 - A gate that has never been shown to refuse anything is not a gate.
 - A rule proposed twice and never built is either built before the next release or withdrawn.
 

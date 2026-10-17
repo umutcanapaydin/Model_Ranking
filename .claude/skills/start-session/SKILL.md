@@ -1,6 +1,6 @@
 ---
 name: start-session
-description: Use at the start of any session in an unfamiliar or resumed repository, and whenever asked where things stand, what happened last, or what to pick up. Also before touching anything in a repo you have not run today. Orients from files rather than memory, and establishes what green looks like here BEFORE changing anything.
+description: Use at the start of every session — new, resumed, or after a compaction — before any change, and whenever asked where things stand, what happened last, what waits for the owner, or what to pick up.
 ---
 
 **Continuity is a property of files, not of sessions.** Nothing carries between sessions except
@@ -19,22 +19,30 @@ what is written down. Treat that literally: do not reconstruct state, read it.
    your machine, not the project's). Then
    `make mode`, and say it: **light** runs issues only; **heavy** runs waves as well
    (`.agents/rules/issues.md`, "Two working modes"). Every lane below follows it.
-1. **Read where the work stands** — the latest `docs/process-log.md` entry, the current
+1. **Read where the work stands** — `make standup` first (one call: the latest process-log entry, the
+   ADRs awaiting a merge, the plans, the hooks, the git state); then the open rows of `docs/owner-actions.md` (say which wait for the
+   owner), the latest `docs/process-log.md` entry, the current
    `docs/plans/m{N}-plan.md` (heavy; light has none — the triaged queue is its plan), the open
    draft PRs (`gh pr list --state open`), and `make deploy-check`: in light mode a `FAIL` on the
-   Tester line says a release is owed its milestone Tester before it ships. **A run file
+   Tester line says a release is owed its milestone Tester before it ships. Before the first release
+   (no `docs/reviews/release-security.md` yet) it fails in either mode: report "no release yet", not a
+   defect. **A run file
    `docs/plans/run-*.md` whose `Ended:` is `open` means a run is in progress:** `make run-check
    FILE=<that file>`, then resume it (`/plan-run` §3.4): the `running` row names the wave branch —
    check it out, it exists, with the commits so far — unless the owner is here and says otherwise. Nothing else
    carries between sessions; if the process log is silent about the last session, that is the
    first thing this session is missing.
+   **Merged but not cleaned up:** `gh pr list --state merged --author @me --limit 20 --json
+   number,headRefName` — a PR whose branch still exists on origin was merged with nobody told: run
+   `/post-merge` for it now (a plan's first wave, a milestone close or a release may wait behind it).
 2. **Confirm which tree you are in.** Stale clones of the same remotes exist and their histories
    diverge; one project had two, whose decision log stopped eighteen entries behind the live one.
    Read an archive as an archive; never commit in it.
-3. **Read the rules** — `.agents/rules/practices.md` and `issues.md`, then the entry document for
-   the stack and its traps. `playbook-seeds.md` is reference: open it when a rule cites a seed. From the files, not from what you remember about this project.
+3. **Read the rules** — `.agents/rules/practices.md` and `issues.md`, then the stack's own notes
+   if the project keeps them (the brief or `environment.md` names them). `playbook-seeds.md` is reference: open it when a rule cites a seed. From the files, not from what you remember about this project.
 4. **`git status` and the last ten commits.** The default branch should be clean.
-5. **Run `make check` once, before changing anything** (`make gate` if you will open a PR today). This is the step that gets skipped and it is
+5. **Run `make check` once, before changing anything** — not the full gate: its network legs grade the
+   manifest, not your change, and the push runs them. This is the step that gets skipped and it is
    the one that pays: you cannot tell "I broke this" from "this was already red" unless you looked
    first. Run them by name and keep the output. Then `make ci-liveness`, and report its one line
    as it is. It is advisory and never fails. A `WARN` means the latest CI runs started no step (a

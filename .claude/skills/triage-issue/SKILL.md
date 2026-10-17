@@ -1,9 +1,9 @@
 ---
 name: triage-issue
-description: Use when an issue arrives or is filed — /file-issue and /close-wave hand every new issue here — is reopened, comes back failed from verification, or needs re-reading before anyone works it. Reads one issue, reproduces it, labels by ACTUAL root cause, posts a diagnosis, and ends with the routing decision the rest of the flow keys on. Writes no code, opens no PR, closes nothing.
+description: Use when an issue is filed, arrives, is reopened, comes back failed from verification, or needs re-reading before anyone works it. Ends with the routing verdict every lane keys on; writes no code.
 ---
 
-Read `.agents/rules/issues.md` first — the vocabulary and the pipeline live there.
+`.agents/rules/issues.md` holds the vocabulary and the pipeline (read at `/start-session`; open it again only after a compaction or in a new session).
 
 1. **Reproduce it.** If there is no local runtime, reproduce through the stack or in the test
    image; how you run things is a property of your machine and belongs in
@@ -16,7 +16,8 @@ Read `.agents/rules/issues.md` first — the vocabulary and the pipeline live th
    **is this safe to automate?**
    - yes → `/fix-issue`
    - no, because it needs design judgment, touches a sensitive area, or its scope is not pinned
-     down → `/fix-issue` with a human in the loop (verdict `work-issue`)
+     down → `/fix-issue` with a human in the loop (verdict `work-issue` — no skill carries that
+     name: the verdict means `/fix-issue`, interactively)
    - larger than one fix → **light mode** `/work-enhancement`; **heavy mode** `wave`: it joins a
      wave as a child of the wave's container issue, at the next `/plan-milestone` or by a plan
      amendment. (`make mode` says which.) In the field every wave issue that triage routed got an

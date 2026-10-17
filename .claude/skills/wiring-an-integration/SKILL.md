@@ -1,6 +1,6 @@
 ---
 name: wiring-an-integration
-description: Use when connecting this codebase to anything it does not own — an external API, a model provider, a gateway, a queue, a database, a cache, a webhook, an auth provider, a payment processor, another team's service. Also when writing or changing a mock, stub, fake client or test double for such a thing, and when a dependency "is configured" and you are about to call it done.
+description: Use when connecting this codebase to anything it does not own — an API, a model provider, a gateway, a queue, a database, a cache, a webhook, an auth or payment provider — when writing or changing its mock or test double, and before calling a dependency "configured" done.
 ---
 
 Four rules. All four come from integrations that passed every local check and failed the moment
