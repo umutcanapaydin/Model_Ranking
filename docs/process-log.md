@@ -943,3 +943,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scrubbed_env` now drops the outer make's MAKEFLAGS: under v7.2 the post-edit hook was red after every edit.
 - The owner waived the guard-change security review (one bypass row in `docs/control-events.csv`).
 - **Lesson:** a dry run of the owner patch is the only place an upgrade's agent half can be proven green; run it before calling the half done.
+
+## 2026-10-17 — fix/issue-326-encoded-ref
+
+- The release security review's N1: `_in_submissions` judged the decoded path while httpx sends the raw one, so `%2e%2e` as the ref passed. It now refuses any `%` in the raw path; two parametrized cases went red first (25829bc).
+- The same session re-triaged the open queue after #308: nine issues closed as fixed, 22 re-verdicted.
+- **Lesson:** a URL allowlist judges the bytes that are sent, not a decoded view of them.
