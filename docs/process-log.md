@@ -943,3 +943,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scrubbed_env` now drops the outer make's MAKEFLAGS: under v7.2 the post-edit hook was red after every edit.
 - The owner waived the guard-change security review (one bypass row in `docs/control-events.csv`).
 - **Lesson:** a dry run of the owner patch is the only place an upgrade's agent half can be proven green; run it before calling the half done.
+
+## 2026-10-17 — fix/issue-295-task-before-ai
+
+- The owner chose option (a) for #295 (D-208): a Turkish active participle with its own object right before "yapay zeka" names the task, and the question is read by the examples without those two words.
+- Red first (82efabc: the golden known_miss removed). The golden set passes 41 of 41. On m24 a measuring seat counted 83 of 173 against main's 82: one gained, none lost.
+- `make next-adr` printed D-1000, because it counts the historical D-999; the ADR is D-208 (filed).
+- **Lesson:** where a score cannot separate two kinds of question, the question's grammar can; gate the reading on it rather than on a margin.
