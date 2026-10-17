@@ -3,8 +3,8 @@
 Mode: light
 Started: 2026-10-17
 Ended: open
-Integration branch: none · PR: none
-Plan PR: none
+Integration branch: `integration/run-golden-night` · PR: #308
+Plan PR: #307
 Rulings: D-206
 
 The queue in order (D-206). It is built on the DevFlow v7.1.2 upgrade (`upgrade/devflow-v7.1.2`, D-205), which the owner merges first. The reading rules come first: an independent seat writes the fresh held-out set m24 before #293's rule is written, and all three rules are measured on it (D-206 clauses 1 and 2). The owner-only rows end as one patch for the owner (D-206 clause 9). The run closes with the release Tester and the release security review (clause 10).
@@ -13,7 +13,7 @@ The queue in order (D-206). It is built on the DevFlow v7.1.2 upgrade (`upgrade/
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | 9c0c576 | issues | running |
 
 ## Waves
 
