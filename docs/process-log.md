@@ -966,3 +966,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The main clone's `.gp/installed` said v6.6: every upgrade since 2026-09-23 ran `make install` in a temporary worktree only. `make install` ran once in the main clone (D-209 clause 4); its marker reads v7.2 and `make install-check` passes there. Its missing `environment.md` was copied in.
 - On the way: `scripts/ci_diff.py` anchored `^gp_version:` at the file's start, so under the real marker's comment lines `make ci-diff` always answered "no `.gp/installed`". Fixed with `re.M`; the conformance test now writes the marker as the installer does (red at 3c0c0cb).
 - **Lesson:** a fixture that writes a simpler file than the producer does tests the simpler file; write it as the producer does.
+
+## 2026-10-18 · fix/issue-332-mcp-json — `.mcp.json` stays removed; two record corrections
+
+- `.mcp.json` left `main` with the v7.2 apply (`7c45a5b`). Its restore stayed staged in the upgrade worktree and made every push there report `gate stamp: none`. The owner chose to keep it removed (D-209 clause 3): every GitHub step runs through `gh`, and no guard hook covers MCP tools. The staged restore was dropped.
+- Correction to D-207: its "Mitigation if violated" names the upgrade's security review, but that review was waived by the owner (the `guard-change-security-review` bypass row in `docs/control-events.csv`, 2026-10-17). Run bug-night's owner bundle is reviewed before handover (D-209 clause 2).
+- Correction to the format: the entries headed `## 2026-10-17 — upgrade/devflow-v7.2: …` and later in this file use `—` where v7.2's format is `## <date> · <branch> — <what it did>` (`/pre-merge` §8). The entries stay as written; this one and the run's later ones use the format.
+- Lesson: an upgrade that removes a file the project added (here `.mcp.json`) says so in its PR, so the owner decides before the file is gone.
