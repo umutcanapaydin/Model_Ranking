@@ -601,8 +601,12 @@ def main() -> int:
             for k, v in extra.items():
                 if not v:
                     env.pop(k, None)
-            r = subprocess.run([bash, "-c", hook], input=payload(command, cwd).encode("utf-8"), capture_output=True,
-                               env=env, cwd=cwd, timeout=120)
+            try:
+                r = subprocess.run([bash, "-c", hook], input=payload(command, cwd).encode("utf-8"), capture_output=True,
+                                   env=env, cwd=cwd, timeout=120)
+            except subprocess.TimeoutExpired:
+                # #328: one slow call killed the whole test with nothing on stdout; it is a finding of its own.
+                return f"the Bash guard timed out after 120 s on {label}"
             err = r.stderr.decode("utf-8", errors="replace").strip().splitlines()
             first = err[0] if err else ""
             if r.returncode not in (0, 2) or (r.returncode == 2) != want_block:
