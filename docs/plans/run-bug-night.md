@@ -21,7 +21,7 @@ The queue in order (D-209): the two drafts already open (#333, #329), then the b
 |---|---|---|---|---|
 | issue-295 | fix/issue-295-task-before-ai | #333 | none | stacked |
 | issue-326 | fix/issue-326-encoded-ref | #329 | none | stacked |
-| issue-331 | fix/issue-331-main-clone-marker | none | none | queued |
+| issue-331 | fix/issue-331-main-clone-marker | #336 | none | stacked |
 | issue-256 | owner/bug-night-bundle | none | none | queued |
 | issue-287 | owner/bug-night-bundle | none | none | queued |
 | issue-305 | owner/bug-night-bundle | none | none | queued |
