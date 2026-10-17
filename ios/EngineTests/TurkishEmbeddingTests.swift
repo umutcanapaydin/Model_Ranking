@@ -167,3 +167,60 @@ final class TurkishEmbeddingTests: OfflineTestCase {
         XCTAssertEqual(CategoryHints.unmeasuredHintsTurkish.count, CategoryHints.unmeasuredHints.count)
     }
 }
+
+/// #293 (run golden-night, D-206 clause 1): a plain question that names no surface, and that is close to
+/// nothing in particular, is read by the example sentences. Before #293 such a question could settle on
+/// `mathematics` or another surface it had nothing to do with; the search-with-sources, factuality and
+/// assistant examples now give it somewhere better to land. Every question here is made up for this test,
+/// none is from the golden set or a held-out set. Turkish letters are escapes, so this file stays ASCII.
+final class PlainRequestReadingTests: OfflineTestCase {
+    private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
+                         "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
+                         "search", "search_factuality"]
+
+    /// Where the assets do not load, these tests fail rather than pass asserting nothing.
+    private func requireTheEmbedding() throws {
+        struct NoEmbedding: Error {}
+        guard NLContextualEmbedding(language: .english)?.hasAvailableAssets ?? false,
+              NLContextualEmbedding(language: .turkish)?.hasAvailableAssets ?? false else {
+            XCTFail("the embedding's assets are not on this machine, so #293's routing is not measured here")
+            throw NoEmbedding()
+        }
+    }
+
+    private func assertRoutes(_ question: String, to surface: String, file: StaticString = #filePath,
+                              line: UInt = #line) async {
+        XCTAssertNil(CategoryHints.namedSurface(question, within: known), "no keyword: \(question)", file: file, line: line)
+        let outcome = await TieredRouter(model: nil).route(question, within: known)
+        XCTAssertEqual(outcome.categoryID, surface, question, file: file, line: line)
+        XCTAssertFalse(outcome.unmeasured, question, file: file, line: line)
+        XCTAssertEqual(outcome.tier, .similarity, question, file: file, line: line)
+    }
+
+    /// An English request for studies with their sources is a search that must cite real pages.
+    func testAnEnglishRequestForStudiesWithTheirSourcesIsASearchWithSources() async throws {
+        try requireTheEmbedding()
+        await assertRoutes("show me published papers on how screen time affects kids, with the sources",
+                           to: "search_factuality")
+    }
+
+    /// A Turkish request for a few polite sentences to someone is a short message to write: `assistant`.
+    func testATurkishRequestForAFewPoliteSentencesIsAMessageToWrite() async throws {
+        try requireTheEmbedding()
+        for question in [
+            "ev arkada\u{015F}\u{0131}ma bu ak\u{015F}am ge\u{00E7} gelece\u{011F}imi nazik\u{00E7}e s\u{00F6}yleyen iki c\u{00FC}mle",
+            "\u{00F6}\u{011F}retmenime \u{00F6}devi yar\u{0131}n teslim edece\u{011F}imi kibarca anlatan \u{00FC}\u{00E7} c\u{00FC}mle",
+        ] {
+            XCTAssertTrue(SimilarityRouter.readsTurkish(question.lowercased()), question)
+            await assertRoutes(question, to: "assistant")
+        }
+    }
+
+    /// What stays: a question that really is maths, with number words in it, is still read as maths.
+    func testAMathsQuestionWithNumberWordsIsStillMaths() async throws {
+        try requireTheEmbedding()
+        await assertRoutes("solve for x in two x plus three equals eleven", to: "mathematics")
+        await assertRoutes("iki say\u{0131}n\u{0131}n toplam\u{0131} on ise ve fark\u{0131} iki ise say\u{0131}lar ka\u{00E7}",
+                           to: "mathematics")
+    }
+}

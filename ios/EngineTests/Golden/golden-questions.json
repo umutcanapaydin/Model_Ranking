@@ -500,7 +500,6 @@
     "expected_surface": "assistant",
     "disputed": false,
     "reason": null,
-    "known_miss": 293,
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -634,7 +633,6 @@
     "expected_surface": "search_factuality",
     "disputed": false,
     "reason": null,
-    "known_miss": 293,
     "expected_top3": [
       "claude-4.6-opus",
       "gpt-5.5",
