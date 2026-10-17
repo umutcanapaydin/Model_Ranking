@@ -22,7 +22,7 @@ Refuses:
     control's count -- the rows before it stay in the file -- and its reason MUST cite the
     decision, an ADR (`D-<n>`, `P-<n>`) or a `docs/refusals.md` row (`R-<n>`); a review row that
     cites nothing counts nothing and fails the close. Every row's `kind` is validated against the
-    legend table in `docs/warnings.ledger.template.md` (the single source: `skip`, `bypass`,
+    legend table in `docs/warnings.ledger.md` (the single source: `skip`, `bypass`,
     `review`) and its `wave` column against the shapes the legend lists; a legend that cannot be
     read fails the close (closed, not open). Three field projects wrote `rejected`, `ruling` and
     `within-scope` rows and free-form waves, and nothing counted them
@@ -69,7 +69,7 @@ FAIL_STATUSES = {"FAIL", "BLOCKED", "❌"}
 HEADER_CELLS = {"check", "gate", "item", "#", "no", "step"}
 PLACEHOLDER = re.compile(r"<[A-Za-z][A-Za-z0-9 _/-]{2,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
 LEDGER = pathlib.Path("docs/control-events.csv")
-LEGEND = pathlib.Path("docs/warnings.ledger.template.md")   # the row-kind legend, one table, one source
+LEGEND = pathlib.Path("docs/warnings.ledger.md")   # the row-kind legend, one table, one source
 INSTALL_MARKER = pathlib.Path(".gp/installed")   # `installed_on:` dates the installation (write_install_marker.py)
 WAVE_SHAPE = re.compile(r"^(m\d+-w\d+|issue-\d+|release|upgrade-v\d+(?:\.\d+)*|setup)$")
 WAVE_SHAPES = "m<N>-w<W>, issue-<n>, release, upgrade-v<X.Y> or setup"
@@ -410,7 +410,7 @@ CODE_DIRS = ("src/", "ios/", "scripts/", ".claude/", ".githooks/")
 def _git(root: pathlib.Path, *args: str) -> str | None:
     """git's output, or None when the command fails (no repository, an unknown ref)."""
     try:
-        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60,  # noqa: S603, S607
+        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=60,
                               check=False)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -842,7 +842,7 @@ def review_need_of(text: str, p: pathlib.Path, recompute: bool = True, wave_secu
         plan = f"docs/plans/{mplan.group(1)}-plan.md" if mplan else None
         cmd = [sys.executable, str(script), "--range", f"{rng.group(1)}..{rng.group(2)}", "--at", rng.group(2)]
         cmd += ["--wave-security"] if wave_security else []
-        r = subprocess.run(cmd + (["--plan", plan] if plan else []), capture_output=True, text=True, cwd=root)  # noqa: S603
+        r = subprocess.run(cmd + (["--plan", plan] if plan else []), capture_output=True, text=True, cwd=root)
         if r.returncode == 0:
             got = r.stdout.strip().splitlines()[-1].split(":", 1)[1].strip()
             if "security" in got and "security" not in recorded:
@@ -852,9 +852,27 @@ def review_need_of(text: str, p: pathlib.Path, recompute: bool = True, wave_secu
     return recorded
 
 
+def waves_declared(plan_file: pathlib.Path, close_text: str) -> re.Match | None:
+    """The plan's `waves: <n>` as it stood at the close's own head (its `commit range:` end): a wave
+    is graded by the plan of its time, so amending the plan later (a mini-fix wave) never turns a
+    merged close red. Without a readable range or commit, the plan in the tree. An amended plan
+    appends a new line: the LAST `waves:` line is the plan's."""
+    import subprocess
+    body = None
+    rng = re.search(r"commit range:\s*`?[0-9a-f]{7,40}\.\.([0-9a-f]{7,40})", close_text, re.I)
+    if rng and plan_file.parent.is_dir():
+        r = subprocess.run(["git", "show", f"{rng.group(1)}:./{plan_file.name}"], cwd=plan_file.parent,
+                           capture_output=True, encoding="utf-8", errors="replace")
+        body = r.stdout if r.returncode == 0 else None
+    if body is None and plan_file.is_file():
+        body = plan_file.read_text(encoding="utf-8", errors="replace")
+    found = list(re.finditer(r"^\s*waves:\s*`?(\d+)`?\s*$", body or "", re.M))
+    return found[-1] if found else None
+
+
 def ledger_kinds(legend: pathlib.Path = LEGEND) -> dict[str, str] | None:
     """The row kinds the ledger may carry, read from the legend table (`| kind | means | ... |`) in
-    `docs/warnings.ledger.template.md`. None when the file or the table is missing: the caller
+    `docs/warnings.ledger.md`. None when the file or the table is missing: the caller
     fails closed, because a check that cannot read its vocabulary cannot validate a row."""
     if not legend.is_file():
         return None
@@ -1000,7 +1018,7 @@ def main(argv: list[str]) -> int:
     # versions -- when it predates this installation. Until v6.7 it got today's rules, which turned
     # every pre-version close in a field project red after its upgrade, and that project took
     # `closes` out of `make check`. But "no version" alone is also how a NEW hand-written close
-    # skips every versioned rule (v7.1.1; model_ranking's D-161 refuses it locally): so a close
+    # skips every versioned rule (v7.1.1; Project-J's D-161 refuses it locally): so a close
     # dated on or after `.gp/installed`'s `installed_on` (`scripts/write_install_marker.py`), or one
     # with no readable date where a marker exists, is refused. With no marker (the package itself)
     # nothing can date the installation, and an unversioned close stays history.
@@ -1218,13 +1236,31 @@ def main(argv: list[str]) -> int:
             elif "security" in need:
                 required.append(("security", "Security-Reviewer", reviews / f"{stem}-security.md"))
             last = re.search(r"^\s*Last wave of the plan:\s*(\S+)", text, re.M | re.I)
-            if last and last.group(1).strip("`*").lower().startswith("y") and ids:
+            is_last = bool(last and last.group(1).strip("`*").lower().startswith("y"))
+            # From v7.2 the plan says how many waves it has (`waves: <n>`, docs/plan.template.md), and
+            # "the last wave" is derived from it: a wave that called itself not the last once skipped the
+            # milestone Tester and Security-Reviewer with nothing to notice.
+            plan_file = p.resolve().parent / f"m{ids.group(1)}-plan.md" if ids else None
+            declared = waves_declared(plan_file, text) if plan_file else None
+            if declared and since(7, 2):
+                n_waves, this = int(declared.group(1)), int(ids.group(2))
+                if this > n_waves:
+                    bad.append(f"this is wave {this} and `{plan_file.name}` says `waves: {n_waves}` -- amend the "
+                               "plan (an appended amendment row and the new `waves:` line) before closing it")
+                elif (this == n_waves) != is_last:
+                    bad.append(f"`{plan_file.name}` says `waves: {n_waves}`, so this wave {'is' if this == n_waves else 'is not'} "
+                               f"the plan's last, and the checklist says `Last wave of the plan: "
+                               f"{'yes' if is_last else 'no'}`")
+                is_last = this == n_waves
+            elif since(7, 2) and plan_file is not None:
+                print(f"NOTE [wave-check]: `{plan_file.name}` has no `waves: <n>` line -- the last wave is taken "
+                      "from the checklist's own word (docs/plan.template.md carries the line)")
+            if is_last and ids:
                 required.append(("tester", "milestone Tester", reviews / f"m{ids.group(1)}-tester.md"))
                 # The mode is read, and does not exempt: in light mode too (owner ruling 2026-10-13).
                 mode = brief_fields.mode()
                 print(f"NOTE [wave-check]: working mode: {mode} -- the plan's last wave carries the "
-                      f"milestone Tester's verdict (`reviews/m{ids.group(1)}-tester.md`) in light "
-                      "mode too")
+                      f"milestone Tester's verdict (`reviews/m{ids.group(1)}-tester.md`)")
                 # From v7.1.2 heavy mode runs security once per milestone, here (owner ruling 2026-10-16).
                 security = reviews / f"m{ids.group(1)}-security.md"
                 if since(7, 1, 2) and mode != "light" and all(f != security for _, _, f in required):

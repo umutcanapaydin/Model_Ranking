@@ -112,8 +112,9 @@
   <h1>From a design to a merged change, and every gate on the way</h1>
   <p>Two working modes, chosen by the owner. <strong>Light</strong>: issues only — file, triage,
   fix; a red test, the change, the gate, one draft PR; no Code-Reviewer; the milestone Tester before a release. <strong>Heavy</strong>:
-  the seven stops below, where a wave is one container issue plus its children. In both, the
-  Security-Reviewer runs when a change needs it and before every deploy. A red signal is a stop that
+  the seven stops below, where a wave is one container issue plus its children. The
+  Security-Reviewer runs before every deploy in both modes; light mode also runs it on a change that touches a declared HIGH
+  path, heavy mode once per milestone, on the plan's last wave. A red signal is a stop that
   refuses — a check that blocks, or a person who has to approve. An amber one reports straight back
   to the agent.</p>
   <div class="rule-strip">
@@ -187,7 +188,7 @@
       <div class="station-head"><h2>Close the wave</h2><span class="who"><code>/close-wave</code> · heavy mode · the reviews <code>make review-need</code> computes</span></div>
       <div class="pair">
         <div class="agent"><strong>1 · code-reviewer</strong>every wave, fresh eyes · <code>.claude/agents/Code-Reviewer.md</code> · writes <code>docs/reviews/m{N}-wave-{W}-review.md</code></div>
-        <div class="agent"><strong>2 · security · tester</strong>security when the range touches HIGH paths or parses untrusted input · the Tester once per milestone — heavy on the last wave, light before a release · <code>-security.md</code> · <code>m{N}-tester.md</code> / <code>docs/reviews/release-tester.md</code></div>
+        <div class="agent"><strong>2 · security · tester</strong>on the plan's last wave, over the whole milestone: the milestone Security-Reviewer and the milestone Tester — heavy on the last wave, light before a release · <code>m{N}-security.md</code> · <code>m{N}-tester.md</code> (light, before a release: <code>docs/reviews/release-tester.md</code>)</div>
       </div>
       <div class="cols">
         <ul>
@@ -211,13 +212,13 @@
       <div class="cols">
         <ul>
           <li><strong>Capture:</strong> process log, decisions via <code>/log-decision</code>, seeds, the EXPERIENCE entry, the AGENTS.md diet.</li>
-          <li><code>/repo-review</code> across the whole milestone — what no single wave could see; each finding fixed or filed.</li>
+          <li>The last wave's Code-Reviewer across the whole milestone — what no single wave could see; each finding fixed or filed, on that wave's branch.</li>
           <li>No retrospective and no handover during the work.</li>
           <li><strong>Quality Gate — optional, off by default.</strong> The owner turns it on in the brief; then the closure report <code>docs/closure-report-m{N}.md</code> is written.</li>
         </ul>
         <div class="signals">
           <div class="sig block"><i></i><span>Every wave in the plan merged</span></div>
-          <div class="sig warn"><i></i><span>If the Quality Gate is on: <code>make closes</code> refuses a criterion with no citing test, or not ✅</span></div>
+          <div class="sig warn"><i></i><span><code>make closes</code> (every <code>make check</code>) grades wave closes, run and release records; with the Quality Gate on it also refuses a closure report's criterion with no citing test, or not ✅</span></div>
         </div>
       </div>
     </div>
@@ -291,7 +292,7 @@
       <tr><td class="when">before a PR is handed over</td><td><code>/pre-merge</code> → <code>make gate</code></td><td><span class="pill b">blocks</span> + secret scan, dependency CVEs, slopsquat, a PR that could close a bug</td></tr>
       <tr><td class="when">every pull request</td><td>CI — <code>.github/workflows/ci.yml</code></td><td><span class="pill b">blocks the merge</span> the jobs <code>docs/branch-protection.md</code> lists, when branch protection requires them</td></tr>
       <tr><td class="when">session start</td><td><code>make ci-liveness</code> — from <code>/start-session</code> and <code>make bootstrap-check</code> (C12)</td><td><span class="pill w">advisory, never blocks</span> CI whose latest runs started no step (a billing or runner limit): one line, always exit 0, not reachable from <code>make gate</code></td></tr>
-      <tr><td class="when">milestone close</td><td><code>make closes</code> — if the Quality Gate is on</td><td><span class="pill b">blocks</span> a criterion without a citing test, or not ✅</td></tr>
+      <tr><td class="when">milestone close</td><td><code>make closes</code> — every <code>make check</code>; closure reports when the Quality Gate is on</td><td><span class="pill b">blocks</span> a criterion without a citing test, or not ✅</td></tr>
       <tr><td class="when">release</td><td>security review</td><td><span class="pill b">blocks</span> any deploy until it passes</td></tr>
       <tr><td class="when">go-live</td><td><code>/going-live</code> · <code>make cold-start</code> · <code>make smoke-deps</code> · <code>make journey</code></td><td><span class="pill b">blocks</span> "the build passed" standing in for "the thing running is right"</td></tr>
     </tbody>
@@ -311,7 +312,8 @@
 ├── .claude/
 │   ├── settings.json   <span class="d">guards (fail closed) + post-edit make check-fast</span>
 │   ├── agents/         <span class="d">code-reviewer · tester · security-reviewer · explorer</span>
-│   └── skills/         <span class="d">16 skills, from /setup-project to /cycle-close</span>
+│   ├── hooks/          <span class="d">the Bash guard and its pin</span>
+│   └── skills/         <span class="d">17 skills, from /setup-project to /cycle-close</span>
 ├── .agents/rules/      <span class="d">practices · issues · playbook seeds (reference)</span>
 ├── .github/workflows/  <span class="d">ci · issue-agent</span>
 ├── docs/               <span class="d">prd · decisions · plans/ · reviews/ · templates</span>

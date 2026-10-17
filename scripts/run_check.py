@@ -201,7 +201,7 @@ def main(argv: list[str]) -> int:
             bad.append(f"line {n}: milestone `{ms}` base `{base[:20]}` is neither `none` nor a sha")
         if status in ("running", "closed", "stopped") and base == "none":
             bad.append(f"line {n}: milestone `{ms}` is {status} and names no `Base` sha -- the integration "
-                       "head its first wave was cut from is what the Tester and /repo-review range from")
+                       "head its first wave was cut from is what the Tester and the cross-wave review range from")
         if not MILESTONE_SHAPE.match(ms):
             bad.append(f"line {n}: milestone `{ms}` is not `M<N>` (heavy) or `queue` (light)")
         if status not in MILESTONE_STATUS:

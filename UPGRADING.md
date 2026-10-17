@@ -6,6 +6,10 @@ silently overwrites any file of yours that the new version happens to ship under
 Apply the *difference* between the version you installed and the new one, three-way, so your
 changes survive and every collision is shown to you.
 
+**Upgrade to a stable release.** The new tag is the GitHub Release marked **Latest**
+(https://github.com/SADCAIVibe/DevFlow/releases); `main` may move ahead of it. **A light project**
+reads everything below except what names waves, milestone plans, closure reports or the Quality Gate.
+
 ## 0 · Read before the first command — what bites in every upgrade
 
 What the field hit, in order of when it bites (two projects upgraded to `v7.1` on 2026-10-14/15,
@@ -37,8 +41,8 @@ agent doing the upgrade meets them first.
 5. **The ledger goes red on rows in other spellings** (`v7.1` below): `docs/control-events.csv`
    accepts `skip`, `bypass`, `review`, and a `review` row must cite `D-<n>`, `P-<n>` or `R-<n>`.
    Rewrite `rejected`, `ruling`, `within-scope` rows in place; a control that already holds three
-   skips gets one `review` row citing the ADR that reviewed it. Keep
-   `docs/warnings.ledger.template.md`: the legend is read from it. **Ask the owner before the
+   skips gets one `review` row citing the ADR that reviewed it. The legend is read from
+   `docs/warnings.ledger.md` (from `v7.2`; before, from the template of that name). **Ask the owner before the
    rewrite:** Claude Code's auto mode refuses an in-place edit of the ledger as audit tampering. A
    row that recorded something that never ran has no kind of its own: say so in its reason when you
    give it one.
@@ -46,9 +50,12 @@ agent doing the upgrade meets them first.
    `docs/reviews/release-security.md` with no `docs/reviews/release-tester.md` beside it is refused
    (`closure_check.py --release-records`). Run the release Tester inside the upgrade PR before
    pushing it, not after CI fails.
-7. **The first deploy after the upgrade needs fresh verdicts.** The deploy gate counts `.claude/`,
-   `scripts/`, `conformance/` and the `Makefile` as code, so the upgrade itself makes the security
-   verdict stale: plan a security delta over it. A heavy project's `docs/reviews/m<N>-tester.md`
+7. **The first deploy after the upgrade.** From `v7.2` the deploy gate does not count a file
+   byte-identical to the installed DevFlow tag as code — keep the tag fetched (`git fetch devflow
+   --tags`) — so an upgrade that only took DevFlow's files leaves the verdicts current; the guard,
+   `.claude/settings.json`, `scripts/deploy_gate.py` and `scripts/brief_fields.py` still count, and
+   so does any shipped file the project changed: plan a security delta over those. Before `v7.2`, the
+   whole upgrade made the security verdict stale. A heavy project's `docs/reviews/m<N>-tester.md`
    written under `v7.0` has no `**Reviewed head:**`, and a project from `v6.6` or older has no
    milestone Tester verdict at all: `make deploy-check` and the deploy gate refuse every declared
    deploy until the Tester runs on the milestone and records its head. Plan both runs before the
@@ -59,7 +66,7 @@ agent doing the upgrade meets them first.
    which one: run `gh repo set-default <owner>/<repo>` once, or the owner's next `gh pr merge` fails.
 10. **A guard the project added rules to does not take a patch by `git apply -3`.** The shipped
    `.claude/hooks/bash_guard.py` changes in most releases; a project copy carrying its own rules
-   conflicts in dozens of hunks (model_ranking's ran to twice the shipped length). Take the shipped
+   conflicts in dozens of hunks (Project-J's ran to twice the shipped length). Take the shipped
    file, port the project's rules onto it, keep the shipped guard tests, and ask the owner to re-pin
    it (`make guard-pin`). The shipped tests set `TMPDIR` themselves: a CI runner has none, and a
    project's own guard test that leaned on macOS's `TMPDIR` passed on the laptop and failed in CI.
@@ -101,7 +108,8 @@ git diff FETCH_HEAD~1 FETCH_HEAD | git apply -3 --exclude='.github/workflows/*'
 
 **Workflow files are a human's part.** An agent never edits `.github/workflows/`, so the commands
 above leave it out. A human applies it the same way, limited to that path:
-`git diff <your-tag> <new-tag> -- .github/workflows | git apply -3`.
+`git diff <your-tag> <new-tag> -- .github/workflows | git apply -3`. After the upgrade, `make ci-diff`
+prints whatever still differs from the installed tag, with the same one command.
 
 ## 3 · Resolve what git shows you
 
@@ -169,6 +177,109 @@ version and no brief — that is not another upgrade; answer the questions.
 
 Read every entry newer than the version you had. Older than `v6.0.1`: compare the old and the new
 `AGENTS.md` side by side after the upgrade.
+
+**`v7.2`** — a whole-process audit (2026-10-17): every step of both modes walked in a fresh
+install, every file's references checked, the field projects' use measured, the running cost timed.
+What it changed is what could not run as written, and what was slow; no record changes shape. From
+`v7.1.2`:
+
+```bash
+git diff v7.1.2 v7.2 | git apply -3 --exclude='.github/workflows/*' \
+  --exclude=docs/EXPERIENCE.md --exclude=docs/process-log.md --exclude=docs/adoption-audit.template.md
+```
+
+then the three renamed records by hand (below), the records' `process_version:` to `v7.2` (§4), `make
+install`, and a new session (§5). The workflows are the owner's step: `make ci-diff` prints them —
+`ci.yml` drops its `make falsify` step, and `issue-agent.yml` now runs only when started by hand (a
+project whose label trigger was on keeps it until the owner applies this).
+- **The ledger's legend moved into `docs/warnings.ledger.md`** and its template is gone: where the
+  apply conflicts in your ledger, keep your rows and take the new rule and legend sections above them.
+- **Your records stay yours.** `docs/EXPERIENCE.md` and `docs/process-log.md` now ship in place (the
+  first as a header to fill, the second empty with its format in a comment); the excludes above keep
+  your own. Excluding them also drops the renames, so by hand: `git rm docs/EXPERIENCE.template.md`
+  (and `git checkout v7.2 -- docs/EXPERIENCE.md` only if you never made one). The adoption audit's
+  template is now `docs/adoption-audit.template.md` and the documents point at
+  `docs/adoption-audit.md`: a `docs/codex-audit.md` you filled →
+  `git mv docs/codex-audit.md docs/adoption-audit.md`; one still as shipped → `git rm` it. Then
+  `git checkout v7.2 -- docs/adoption-audit.template.md`.
+- **Stage 0 closes as written.** INSTALL step 11 and `/setup-project` name the files `make
+  bootstrap-check` reads (AGENTS §1–§2, `docs/prd.md`, `docs/architecture.md`, the README title,
+  `main.py`'s title, CODEOWNERS, the `D-100` stub) and the brief's repositories row; a copied
+  `docs/EXPERIENCE.md` gets its own `id:`; C6 says ok when the brief's OSS box is unticked.
+- **A release on a `make deploy-check` FAIL:** the Tester first (it may add tests, and tests are
+  code), then the Security-Reviewer at the Tester's head; commit both verdicts together.
+  `/going-live` names `make smoke-deps`, `make journey` and `make cold-start` where they belong.
+- **Verdict files:** a re-verification rewrites the file's `## Verdict` line (the gates read that
+  line) and appends the round below it; the milestone Tester's `**Reviewed head:**` is the head after
+  the last fix it verified, its own tests included.
+- **The wave checklist:** row 3 no longer asks for a countersign no reviewer can give; row 5 has an
+  N/A for a milestone with no HIGH wave; row 9b no longer asks for the PR number before the PR
+  exists. A close written from the old template still passes.
+- **Speed:** conformance tests, falsify recipes and slopsquat lookups run side by side
+  (`DEVFLOW_JOBS=1` runs them one at a time); the post-edit hook prints the end of its log when it is
+  red, so the agent sees why.
+- **The stable release** is the GitHub Release marked Latest; take upgrades from it.
+- **The owner's rulings of 2026-10-17:**
+  - *Heavy mode is slimmer.* The last wave's Code-Reviewer also reads the whole milestone across
+    waves (`## Across the milestone`), so `/repo-review` no longer runs after the merge; it and the
+    Security-Reviewer run side by side, the Tester after them; the milestone close (Capture, the
+    closure report) runs on the last wave's branch, before its PR. The deploy gate accepts a current
+    `m<N>-security.md` as the release's security verdict. A milestone open across the upgrade: close
+    it as its first waves began; `/post-merge` §7 says how. `/setup-project` now defaults to light; a
+    brief that names its mode keeps it.
+  - *The gate stamp.* `make gate` records the commit it passed on (`<git dir>/devflow-gate-ok-<commit>`); the
+    pre-push hook and `/pre-merge` (`make gate-ok`) do not run it again on that commit and tree. Only
+    `make gate` writes it: the guards refuse the ways an agent would write it, `make` options that skip
+    or ignore legs, and variables set on its command line. Like the pre-push hook itself, it stops
+    mistakes, not an agent set on evading it; CI still grades every push.
+  - *Two guards for tools outside Bash.* A PreToolUse hook on the PowerShell tool lets through only
+    its read-only allow list; `.mcp.json` (GitHub's MCP server) is no longer shipped — a project
+    that keeps one adds its hook. The Bash guard's pin changes: re-pin (`make guard-pin`) if your
+    guard carries project rules.
+  - *The merge is the signature.* The closure report's sign-off line reads `pending — the owner's
+    merge … signs it`; a HIGH-path security verdict carries a `**Senior review:**` line the merge
+    signs; an ADR is accepted when the PR carrying it merges (`make standup` lists only the ones not
+    merged yet). So every `proposed` ADR already on your default branch now reads as accepted: one
+    that is not, supersede it (`/log-decision`) in the upgrade PR.
+  - *Faster, same verdicts:* a green gate prints one line per conformance test (`DEVFLOW_VERBOSE=1`
+    lists each); in an installation the pinned guard's two tests and the network legs (`make deps`,
+    `make slopsquat`, 12 hours on the same manifest) are remembered locally, never in CI
+    (`DEVFLOW_FRESH=1` runs them); `make check-fast` grades only the close records changed on the
+    branch and caps pytest at four workers; the post-edit hook runs in the edited file's work tree,
+    only the records leg after a document edit; `/start-session` runs `make check`, not the gate.
+  - *Light mode's security:* a change goes to the Security-Reviewer only when it touches the brief's
+    declared HIGH paths; its other signals are read at the release review. Heavy mode is unchanged.
+  - *The plan decides its last wave:* `docs/plan.template.md` carries `waves: <n>` and
+    `security-globs:`; `make wave-check` reads the last wave from it. A plan without the line keeps the
+    old reading, with a note.
+  - *The CI issue agent ships switched off:* `issue-agent.yml` runs only when started by hand; the
+    label trigger is a commented block the owner enables once `ANTHROPIC_API_KEY` is set.
+  - *Releases and the owner's queue:* `/going-live` ends with `docs/releases/<version>.md` (from
+    `docs/release.template.md`, which replaces the feature catalog — delete yours if it is the shipped one) on a `release/<version>`
+    branch, has one hotfix recipe and an "if the deploy fails" section reading the brief's new
+    `Rollback command:` line — add that line to your brief. Steps only a human can take go in
+    `docs/owner-actions.md`, one command each; `make ci-diff` prints the workflow change.
+  - *The flows hand over:* the SessionStart hook names `/start-session`, which sweeps merged PRs
+    nobody cleaned up; a plan PR's merge starts wave 1; an untriaged issue is triaged before
+    `/fix-issue`; no per-PR fault injection (the red-test commit is the proof in light mode, the
+    milestone Tester in heavy); `make review-need-branch` needs no argument.
+  - *One process-log entry per PR,* on its branch before the push, headed
+    `## <date> · <branch> — <what>`; older `## S<n>` entries stay.
+  - *Homes for named artifacts:* `docs/security-invariants.md` (the invariants with their negative
+    tests, and the fail-direction table) ships; token figures are the owner's or `n/a`.
+  - *Setup asks the reviewers' model* (question 12; default: the session's own), written to the
+    profiles' `model:` line and the brief's `Reviewer model:`. `make bootstrap-check` warns (C13) when
+    the product's stack is not python and no workflow runs its make legs.
+  - *Fewer tokens per session:* `AGENTS.md`'s situational blocks are one-line pointers to the skill
+    that runs them; the second-tool section is `.agents/rules/two-tools.md`; the QA-on half of
+    `issues.md` is `.agents/rules/issues-qa.md`; who reviews when is one table in `issues.md`; skill
+    descriptions are triggers only; the reviewer profiles name the sections they read; `make next-adr`
+    gives `/log-decision` its id. A project that edited `AGENTS.md` §1–§2 only takes the rest as is; one
+    that kept the old §2a deletes it (the new file replaces it).
+  - *What was cut, because nothing could use it:* the record schema (`schemas/`, its generator and
+    its test), the warning-ledger template (its legend is in the ledger, above), and the
+    `make falsify` step of `ci.yml` — in a project it only ever printed SKIPPED; the target stays.
+    The apply deletes the files; the owner drops the workflow step (`make ci-diff` shows it).
 
 **`v7.1.2`** — PATCH: the guard holes a heavy project's security review found, and heavy mode's
 security review moved to the milestone's end (2026-10-16). No record changes shape and no stage
@@ -246,14 +357,14 @@ shape in two places; no stage changes.
   bypass rows, the review the threshold demands is recorded as one `review` row whose reason cites
   the decision — an ADR (`D-<n>`, `P-<n>`) or a `docs/refusals.md` row (`R-<n>`) — and it restarts
   that control's count. A review row that cites nothing counts nothing, and fails the close. Every
-  row's `kind` is validated against the legend in `docs/warnings.ledger.template.md` (`skip`,
+  row's `kind` is validated against the legend of the warning ledger's template (`skip`,
   `bypass`, `review`), and the `wave` column against its shapes (`m<N>-w<W>`, `issue-<n>`,
   `release`, `upgrade-v<X.Y>`, `setup`): rows written in other spellings are findings at the next
   `make wave-check`. Rewrite them in place — the ledger's rows are the one record `git blame` keeps.
   A control that already has three skip or bypass rows, reviewed under `v7.0` as an ADR and not as
-  a row, turns every wave close red until one `review` row citing that ADR is appended. Keep
-  `docs/warnings.ledger.template.md` in the tree: the legend `make wave-check` validates against is
-  read from it, and a tree without it fails closed.
+  a row, turns every wave close red until one `review` row citing that ADR is appended. Keep the
+  legend in the tree (the ledger's template then; `docs/warnings.ledger.md` from `v7.2`): `make
+  wave-check` validates against it, and a tree without it fails closed.
 - **The milestone Tester runs at every milestone close, in light mode too.** Heavy: unchanged,
   `docs/reviews/m<N>-tester.md` on the plan's last wave — now with a `**Reviewed head:**` line,
   which the deploy gate and `make deploy-check` read in heavy mode too: a `v7.0` verdict without one

@@ -65,7 +65,7 @@ PIN_ALTERED = "is not the guard the settings pin"
 PIN_MISSING = "is missing"
 UNREADABLE = "BLOCKED: this guard cannot read the tool call"
 POST_GREEN = "POST-EDIT CHECK: make check-fast GREEN"
-POST_FAILED = "POST-EDIT CHECK: make check-fast FAILED (exit 7) -- fix before the next edit"
+POST_FAILED = "POST-EDIT CHECK: make check-fast FAILED (exit 7) -- the lines above end .claude/last-check.log; fix before the next edit"
 POST_NO_MAKE = "POST-EDIT CHECK CANNOT RUN: make is not installed (see INSTALL.md)"
 # What the Windows Store alias does when Python is not installed: prints, and exits non-zero.
 BROKEN_PYTHON = ("#!/bin/sh\necho 'Python was not found; run without arguments to install from "
@@ -505,6 +505,13 @@ def main() -> int:
                        "prompt; allow the exact target instead")
     env_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
                      if h.get("matcher", "").startswith("Write")), None)
+    # The PowerShell tool runs commands the Bash guard never sees: its own hook lets through only the
+    # read-only commands `permissions.allow` names for it (v7.2, B-F1 of the process audit).
+    ps_hook = next((h["hooks"][0]["command"] for h in hooks.get("PreToolUse", [])
+                    if h.get("matcher") == "PowerShell"), None)
+    if any(r.startswith("PowerShell(") for r in allow) and ps_hook is None:
+        bad.append("permissions.allow names PowerShell commands and no PreToolUse hook matches the PowerShell "
+                   "tool -- every Bash-guard rule is bypassed through it")
     post = [h["hooks"][0]["command"] for h in hooks.get("PostToolUse", [])]
     if bash_hook is None:
         bad.append("no PreToolUse Bash hook at all, and permission-matrix.md S5 says one blocks "
@@ -577,6 +584,7 @@ def main() -> int:
                 (pathlib.Path(tmp) / "hooks-link").symlink_to(root / ".githooks")
                 cases += [("Write", f"a write to `{f}`", fpath(f), want, None, {})
                           for f, want in ((".env", True), ("cfg/.env.prod", True), ("prod.env", True),
+                                          (".git/devflow-gate-ok", True), (".git/DEVFLOW-GATE-OK", True),
                                           ("src/app.py", False), ("README.md", False),
                                           # v7.1: a secrets file by its name, and only by its name.
                                           (".envrc", True), (".env.example", False), ("src/config.env.py", False),
@@ -712,15 +720,33 @@ def main() -> int:
                 r = run_hook(bash, env_hook, fpath("cfg/.env"), None, {}, cwd=planted)
                 if r.returncode != 2:
                     bad.append(f"the Write hook did not block a .env write with a json.py where it runs (exit {r.returncode})")
-            for kind in [k for k, h in (("Bash", bash_hook), ("Write", env_hook)) if h]:
+            if ps_hook:
+                cases += [("PowerShell", f"`{c}`", cmd(c), want, None, {})
+                          for c, want in (("git status", False), ("git log -m --oneline", False),
+                                          ("git branch -a", False), ("gh pr view 12", False),
+                                          ("Get-ChildItem docs", False), ("git push origin main", True),
+                                          ("git branch -D main", True), ("gh pr merge 3", True),
+                                          ("git status; Remove-Item -Recurse ~", True),
+                                          ("git diff --output=x", True), ("Remove-Item x", True),
+                                          # the review of 2026-10-17: PowerShell evaluates these inside an
+                                          # allowed command's arguments, strips quotes, and git takes
+                                          # abbreviated options
+                                          ("Test-Path (Remove-Item x)", True), ("Get-ChildItem @(Remove-Item x)", True),
+                                          ("git branch '-D' main", True), ("git branch --del main", True),
+                                          ("git diff --outp=x", True), ("Get-ChildItem x | Remove-Item -Recurse", True),
+                                          ("git branch newbranch", True), ("git branch --list fix/*", False),
+                                          ("git branch --sort=refname newbranch", True),
+                                          ("Get-ChildItem //host/share", True), ("Get-ChildItem Env:", True))]
+            for kind in [k for k, h in (("Bash", bash_hook), ("Write", env_hook), ("PowerShell", ps_hook)) if h]:
                 ok_payload, bad_payload = ((cmd("git status"), cmd("git push origin main"))
-                                           if kind == "Bash" else
+                                           if kind in ("Bash", "PowerShell") else
                                            (fpath("README.md"), fpath("cfg/.env")))
                 cases += [
                     # "The field is empty" is a call the guard has nothing to object to; "the call
                     # could not be read" is one it cannot vouch for. The first allows, the second
                     # blocks -- they were once the same empty string, and both allowed.
-                    (kind, "an empty tool_input", '{"tool_input": {}}', False, None, {}),
+                    # (PowerShell: a call with no command at all is one it cannot read, so it blocks)
+                    (kind, "an empty tool_input", '{"tool_input": {}}', kind == "PowerShell", None, {}),
                     (kind, "a payload that is not JSON", "not json {", True, None, {}),
                     # The Windows Store alias: `python3` prints an error and exits non-zero. With
                     # a real `python` behind it the guard must work exactly as with python3.
@@ -730,10 +756,12 @@ def main() -> int:
                      paths["broken-python3"], {}),
                     # A non-UTF-8 console (cp1254) must not crash the parse into a verdict.
                     (kind, "a non-ASCII call on a cp1254 console",
-                     cmd("echo \u2192 done") if kind == "Bash" else fpath("docs/\u2192.md"), False,
+                     # (PowerShell refuses any non-ASCII text by design: an ASCII call on that console)
+                     cmd("git log --grep=\u2192") if kind == "Bash" else cmd("git log --oneline")
+                     if kind == "PowerShell" else fpath("docs/\u2192.md"), False,
                      None, {"PYTHONIOENCODING": "cp1254"}),
                 ]
-            hook_of = {"Bash": bash_hook, "Write": env_hook}
+            hook_of = {"Bash": bash_hook, "Write": env_hook, "PowerShell": ps_hook}
             for kind, label, payload, want_block, path, extra in cases:
                 r = run_hook(bash, hook_of[kind], payload, path, extra)
                 if (r.returncode == 2) != want_block or r.returncode not in (0, 2):
@@ -817,6 +845,21 @@ def main() -> int:
                             r.stdout.decode("utf-8", errors="replace"):
                         bad.append("the PostToolUse hook does not call `make check-fast` after an edit")
 
+    # v7.2 (B-I1): the SessionStart hook names /start-session in the session's context -- no hook named a
+    # skill, and "skills are not called" was the field's complaint.
+    start = [h["hooks"][0]["command"] for h in hooks.get("SessionStart", [])]
+    if bash and start:
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = pathlib.Path(tmp)
+            (proj / "docs").mkdir()
+            (proj / "docs" / "project-brief.md").write_text("- **Working mode:** `light`\n", encoding="utf-8")
+            subprocess.run(["git", "init", "-q", str(proj)], capture_output=True)
+            r = run_hook(bash, start[0], json.dumps({"session_id": "abcd1234-probe"}), None,
+                         {"CLAUDE_PROJECT_DIR": str(proj)})
+            out = r.stdout.decode("utf-8", errors="replace")
+            if r.returncode != 0 or "/start-session" not in out or "working mode light" not in out:
+                bad.append(f"the SessionStart hook does not name /start-session and the mode (exit {r.returncode}: "
+                           f"`{out.strip()[:120]}`)")
     for b in bad:
         print(f"  FAIL {b}")
     for u in unevaluable:

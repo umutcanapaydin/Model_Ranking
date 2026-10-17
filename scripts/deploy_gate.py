@@ -88,6 +88,9 @@ JUDGE_PROTOCOL = 2
 SECURITY = Path("docs/reviews/release-security.md")
 RELEASE_TESTER = Path("docs/reviews/release-tester.md")
 MILESTONE_TESTER = re.compile(r"^m(\d+)-tester\.md$")
+#: Heavy mode, from v7.2 (the owner's ruling of 2026-10-17): the latest milestone security verdict, when
+#: it is current for this tree, stands for the release's -- the same code was reviewed once already.
+MILESTONE_SECURITY = re.compile(r"^m(\d+)-security\.md$")
 #: Code whatever the extension: what guards and gates the tree is part of what ships.
 CODE_DIRS = (".claude/", ".githooks/", "scripts/", "conformance/", ".github/")
 CODE_FILES = {"Makefile"}
@@ -114,7 +117,16 @@ def is_deploy_record(path: str) -> bool:
     classification lives; `closure_check.py` reads the same rule."""
     if path in CODE_FILES or path.startswith(CODE_DIRS):
         return False
-    return path.startswith("docs/") or path.endswith(".md")
+    # `.gp/installed` is the install's measurement (`make install` writes it), not the product.
+    return path.startswith("docs/") or path.endswith(".md") or path == ".gp/installed"
+
+
+def latest_milestone(root: Path, pattern: re.Pattern) -> Path | None:
+    """The highest-numbered `docs/reviews/m<N>-...` verdict the pattern names, or None."""
+    reviews = root / "docs" / "reviews"
+    found = [(int(m.group(1)), Path("docs/reviews") / p.name) for p in (reviews.iterdir() if reviews.is_dir() else [])
+             if (m := pattern.match(p.name))]
+    return max(found)[1] if found else None
 
 
 def policy_root(root: Path) -> tuple[Path | None, str]:
@@ -167,7 +179,40 @@ def changed_since(root: Path, head: str) -> list[str] | None:
     except (OSError, subprocess.SubprocessError):
         return None
     paths = [p.strip() for p in out if p.strip()]
-    return [p for p in paths if not p.endswith("/") and not is_deploy_record(p)]
+    code = [p for p in paths if not p.endswith("/") and not is_deploy_record(p)]
+    return [p for p in code if not shipped_unchanged(root, p)]
+
+
+#: Where DevFlow's own tooling lives. Only a file here can be "DevFlow's, unchanged": the product scaffold
+#: the package also ships (`src/`, `tests/`, `pyproject.toml`) is the product's code from the first commit.
+DEVFLOW_TOOLING = (".claude/", ".githooks/", "scripts/", "conformance/", ".agents/", ".github/")
+DEVFLOW_TOOLING_FILES = {"Makefile"}
+
+#: Always code, even byte-identical to DevFlow's tag: the guard, its settings and the gate are the safety
+#: surface the verdicts stand on.
+SAFETY_SURFACE = {".claude/hooks/bash_guard.py", ".claude/settings.json", "scripts/deploy_gate.py",
+                  "scripts/brief_fields.py"}
+
+
+def shipped_unchanged(root: Path, rel: str) -> bool:
+    """Whether `rel` is a file DevFlow shipped, byte for byte as the installed tag (`.gp/installed`) has
+    it -- DevFlow's own tooling after an upgrade, which is not this product's code (v7.2, the owner's
+    ruling of 2026-10-17: every upgrade made both release verdicts stale). False without the tag in this
+    clone, for the safety surface, and for anything the project changed."""
+    if rel in SAFETY_SURFACE or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
+        return False
+    marker = root / ".gp" / "installed"
+    m = re.search(r"^gp_version:\s*(\S+)", marker.read_text(encoding="utf-8", errors="replace"), re.M) \
+        if marker.is_file() else None
+    target = root / rel
+    if not m or not target.is_file():
+        return False
+    try:
+        shipped = subprocess.run(["git", "-C", str(root), "cat-file", "-p", f"refs/tags/{m.group(1)}:{rel}"],
+                                 capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return shipped.returncode == 0 and shipped.stdout == target.read_bytes()
 
 
 def current(root: Path, rel: Path, label: str, independent: bool = False) -> tuple[str | None, str]:
@@ -204,7 +249,10 @@ def current(root: Path, rel: Path, label: str, independent: bool = False) -> tup
 
 
 def verdicts(root: Path) -> list[tuple[str | None, str]]:
-    """The policy's base, then security, then the Tester: each (why not current | None, summary line)."""
+    """The policy's base, then security, then the Tester: each (why not current | None, summary line). In
+    heavy mode a current `m<N>-security.md` of the latest milestone stands for `release-security.md` (v7.2);
+    model_ranking (#283) reads the mode at the protected base as well as in the tree, and lets the milestone
+    verdict stand only when neither says light."""
     policy, where = policy_root(root)
     out: list[tuple[str | None, str]] = []
     modes = [mode(root)]
@@ -216,7 +264,17 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
         out.append((None, f"policy: {where}, working mode {modes[0]}"
                           + (f"; the tree's brief says {modes[1]}, so both modes' Tester verdicts" if len(modes) > 1
                              else "")))
-    out.append(current(root, SECURITY, "security"))
+    security = current(root, SECURITY, "security")
+    # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
+    blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
+    if security[0] and not blocking and policy is not None and "light" not in modes:
+        milestone = latest_milestone(root, MILESTONE_SECURITY)
+        if milestone is not None:
+            alternative = current(root, milestone, "security (heavy mode: the milestone's)", independent=True)
+            security = alternative if alternative[0] is None else (
+                f"{security[0]}; and the latest milestone verdict does not stand for it: {alternative[0]}",
+                security[1])
+    out.append(security)
     for working_mode in modes:
         tester, label = tester_path(root, working_mode)
         if tester is None:

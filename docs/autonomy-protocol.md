@@ -47,7 +47,8 @@ reassert it at any time without cause.
 ## 3. What replaces a mid-loop question
 
 - **The assumption ledger:** where a question is reversible, wave-local and outside a ⛔ zone, the
-  agent takes the most conservative interpretation, logs it in `docs/plans/m{N}-assumptions.md`, and
+  agent takes the most conservative interpretation, logs it in `docs/plans/m{N}-assumptions.md` (a light run, which has no `{N}`:
+  `docs/plans/assumptions-<name>.md`), and
   surfaces every assumption in the wave's PR (and in the closure report §1b when the Quality Gate is
   on). **Not assumable — HALT instead:** any question touching a ⛔ zone, or the *meaning* of an
   acceptance criterion.

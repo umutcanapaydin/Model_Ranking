@@ -48,7 +48,7 @@ def main() -> int:
     expect("wave_check(closure-checklist) must REJECT",
            run([py, str(wave), "docs/closure-checklist.md"]), False)
     # The fixtures run in a throwaway tree: wave_check reads the ledger, the brief and the install
-    # marker of the tree it runs in, and in an installation that is the project's. fitness_app's eight
+    # marker of the tree it runs in, and in an installation that is the project's. Project-K's eight
     # free-form ledger rows were reported here as "gate not proven" (v7.1.1). The tree carries the
     # fixtures, their verdicts, the row-kind legend this package delivers and a header-only ledger.
     import shutil as _shutil
@@ -57,7 +57,7 @@ def main() -> int:
         for sub in ("wave", "reviews"):
             _shutil.copytree(ROOT / "conformance" / sub, tree / "conformance" / sub)
         (tree / "docs").mkdir()
-        _shutil.copy(ROOT / "docs" / "warnings.ledger.template.md", tree / "docs")
+        _shutil.copy(ROOT / "docs" / "warnings.ledger.md", tree / "docs")
         (tree / "docs" / "control-events.csv").write_text("control,wave,kind,reason,date\n",
                                                           encoding="utf-8")
         rc, out = output([py, str(wave), "conformance/wave/m901-wave-3-close.md"], cwd=tree)
@@ -122,7 +122,7 @@ def main() -> int:
                run([py, str(cr), "--install", "."]), False)
     else:
         # M1, M2 and M4 only: the record rules run on an empty root. `--install .` alone also graded
-        # the project's own records, and fitness_app's duplicate process-log session (S1) read as
+        # the project's own records, and Project-K's duplicate process-log session (S1) read as
         # "install-check not proven" (v7.1.1); `make check-records` is the leg that grades those.
         with tempfile.TemporaryDirectory() as d:
             rc, out = output([py, str(cr), "--root", d, "--install", str(ROOT)])

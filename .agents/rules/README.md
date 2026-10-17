@@ -11,6 +11,8 @@
 |---|---|---|
 | `practices.md` | committed | Portable engineering rules across machines / developers |
 | `issues.md` | committed | Issues, labels and the verification pipeline — the skills implement it |
+| `issues-qa.md` | committed | The verification pipeline and the closing-keyword rule — read only when the brief says `QA verification: on` |
+| `two-tools.md` | committed | Read only while a second agent tool (Codex, or another) works here: what changes for it |
 | `playbook-seeds.md` | committed | Index of the seeds (A.1, C.9, L.7 …) that rules cite |
 | `environment.md.template` | committed | Template for your own `environment.md` |
 | `environment.md` | **gitignored** | YOUR machine specifics (shell, language runtime, paths) — generate on first session |

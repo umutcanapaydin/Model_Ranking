@@ -16,6 +16,7 @@ control that reports clean because it could not run is a false pass.
 
 Exit: 0 clean · 1 findings · 2 could not run (network, no manifest).
 """
+import concurrent.futures
 import datetime
 import json
 import pathlib
@@ -105,8 +106,11 @@ def main() -> int:
         return 2
 
     bad, unreachable = [], []
-    for n in names:
-        verdict, detail = pypi(n)
+    # One GET per name, side by side: the index answers each on its own, and the verdicts are read
+    # in the declared order below.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        answers = list(pool.map(pypi, names))
+    for n, (verdict, detail) in zip(names, answers, strict=True):
         if verdict == "unreachable":
             unreachable.append(f"{n} ({detail})")
         elif verdict != "ok":

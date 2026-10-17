@@ -59,6 +59,11 @@ def resolved(path: str, base: str) -> str | None:
 
 def main() -> int:
     sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        # The CI issue agent runs Claude Code in a fresh checkout: no SessionStart marker and no
+        # `make hooks` were ever possible there, and CI itself is the enforcement (v7.2).
+        print("session-check: in GitHub Actions -- CI is the enforcement here, nothing to check")
+        return 0
     if not sid:
         print("session-check: not inside a Claude Code session -- nothing to check")
         return 0

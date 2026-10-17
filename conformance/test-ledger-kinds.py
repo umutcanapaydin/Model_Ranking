@@ -9,7 +9,7 @@ and the script counted none of them. The rule's own text says the control "goes 
 it, re-scope it, or refuse it)": the clearing act is a DECISION. So the review is one row of kind
 `review` whose reason cites the ADR or the refusal, and a row that cites nothing counts nothing.
 
-The legend is the `| kind |` table in `docs/warnings.ledger.template.md` -- read by the script, and
+The legend is the `| kind |` table in `docs/warnings.ledger.md` -- read by the script, and
 read here too, so the kinds this test uses are the kinds the legend declares (one source). The
 cases call `wave_check.ledger_findings(text, legend)` directly, in both directions: three skips
 fail; a cited review clears them; an uncited review clears nothing and is itself a finding; three
@@ -25,7 +25,7 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "wave_check.py"
-LEGEND = ROOT / "docs" / "warnings.ledger.template.md"
+LEGEND = ROOT / "docs" / "warnings.ledger.md"
 HEAD = "control,wave,kind,reason,date\n"
 SKIP = 'session-check,issue-{0},skip,"NO-ENVIRONMENT: a reason, with a comma",2026-10-0{0}\n'
 REVIEW = 'session-check,issue-9,review,"REVIEWED: the control is right; the cause is fixed -- D-120",2026-10-06\n'

@@ -254,7 +254,7 @@ def main() -> int:
               "git push origin --delete fix/x", "git push \"$remote\" --delete fix/x", "git push origin \"$src:fix/y\""):
         cases.append((f"`{c}`", c, home, env_pkg, False, ""))
 
-    # v7.1.2: what a heavy project's security review of its own upgrade walked through v7.1.1 (model_ranking,
+    # v7.1.2: what a heavy project's security review of its own upgrade walked through v7.1.1 (Project-J,
     # 2026-10-15). An alias is the command it names; ssh's words run there; a prefix assignment sets
     # nothing for later words; `${X:-/}`, `"${d}x"` and a second command in the mktemp substitution are not
     # scratch; the repository itself is not moved or removed, forced or not.
@@ -324,7 +324,25 @@ def main() -> int:
               "mapfile -C 'rm -rf ~' -c 1 a < /etc/hosts", "source <(echo 'git push origin main')",
               "source =(echo 'git push origin main')", "bash <(echo 'git push origin main') x",
               "export GIT_EDITOR='$HOME/bin/ed'; HOME='/bin/rm -rf ~ ' git commit",
-              "export GIT_PAGER=\"$HOME/x\"; eval 'HO''ME=\"rm -rf ~ \"'; git log"):
+              "export GIT_PAGER=\"$HOME/x\"; eval 'HO''ME=\"rm -rf ~ \"'; git log",
+              # v7.2: the gate stamp is written only by `make gate`
+              "git rev-parse HEAD > .git/devflow-gate-ok", "echo x > \"$(git rev-parse --git-dir)/devflow-gate-ok\"",
+              "touch .git/devflow-gate-o'k'", "cp /tmp/x .git/devflow\\-gate-ok",
+              # the review of 2026-10-17: the script, make told to skip or ignore legs, case and expansion
+              "python3 scripts/gate_stamp.py write", "make -i gate", "make gate -o check -o conformance",
+              "make --ignore-errors gate", "MAKEFLAGS=i make gate", "export MAKEFLAGS=-i",
+              "git rev-parse HEAD > .git/DEVFLOW-GATE-OK", "tee .git/devflow-gate-{ok,x} < /dev/null",
+              "echo x > .git/devflow-gate-o$'\\x6b'", "make -W check gate", "make -t gate",
+              # its second round: a pattern for the script, abbreviated long options, -e
+              "python3 scripts/gate_stam?.py write", "python3 scripts/gate_*.py write",
+              "python3 scripts/gate_s[t]amp.py write", "python3 scripts/gate_s{t,}amp.py write",
+              "make --assume-o=check gate", "make --old=check gate", "make --ignore-err gate",
+              "PY=/usr/bin/true make -e gate",
+              # its third round: a three-letter option, ANSI-C quoting, short patterns run or written to
+              "make --o=check gate", "make --eval=x gate", "git rev-parse HEAD > .git/devflow$'\\055'gate-ok",
+              "python3 scripts/gat*.py write",
+              # its fourth round: a script passed off as make
+              "MAKELEVEL=1 python3 - write Makefile", "export MAKELEVEL=1"):
         cases.append((f"`{c}`", c, home, env_pkg, True, ""))
     for c in ("git config alias.st status", "git config alias.lg 'log --oneline --graph'", "git -c alias.l='log -1' l",
               "git config user.name x", "git config --get alias.st", "git config --unset alias.st", "git config alias.st",
@@ -336,7 +354,12 @@ def main() -> int:
               "env -u FOO make test", "git config alias.st status && git st", "GIT_EDITOR=true git rebase --continue",
               "GIT_PAGER= git log", "export EDITOR='code --wait'", "git -c alias.x='!echo hi' x",
               "EDITOR=\"$HOME/bin/ed\" git commit", "GIT_SSH_COMMAND=\"ssh -i $HOME/.ssh/k\" git fetch",
-              "grep -rn GIT_PAGER .claude/hooks", "trap - EXIT", "d=$(mktemp -d); trap 'rm -rf \"$d\"' EXIT",
+              "grep -rn GIT_PAGER .claude/hooks", "trap - EXIT", "make gate", "make gate-ok", "make -j4 test", "make -C sub check", "make -n gate", "ls scripts/*.py", "make --jobs=4 test", "ls scripts/*gate*", "find . -name '*gate*'",
+              "git add scripts/*gate*.py", "rg -g '*gate*' make", "ls *flow*",
+              # the stamp is named by its commit, so a pattern over it creates nothing for HEAD
+              "git rev-parse HEAD > .git/dev*", "cp /tmp/x .git/devflow-*",
+              "cp scripts/*.py /tmp/backup/", "mv scripts/*.py /tmp/x/", "cp -r src/* /tmp/x",
+              "touch src/*.py", "ln -s ../tests/*.py .", "d=$(mktemp -d); trap 'rm -rf \"$d\"' EXIT",
               "alias ll='ls -la'", ": ${X:=1}", "print -v x hello", "diff <(sort a) <(sort b)",
               "declare -n r=arr; r=(1 2)", "export GIT_PAGER=\"${HOME}/bin/less\"",
               "git -c core.pager=cat log", "ssh host -p 22 ls", "ssh -t host top", "mv -t dest a b", "mv --target-directory=dest a",

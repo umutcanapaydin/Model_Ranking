@@ -49,14 +49,13 @@ and is held only to its filename and its id. Until v6.7 every report was graded 
 template, and a field project whose fifteen older reports could never pass took `closes` out of
 `make check` to get green again (field report, 2026-09-23). Until v7.1.1 the front-matter rule ran
 before the version was read, so a report written before closure front matter existed
-(`record_type: ratification`) stayed red as history and `closes` stayed out (model_ranking, twelve
+(`record_type: ratification`) stayed red as history and `closes` stayed out (Project-J, twelve
 reports): history is decided first.
 
 Exit: 0 pass · 1 fail · 2 usage.
 """
 import pathlib
 import re
-import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -65,10 +64,10 @@ import brief_fields  # noqa: E402
 NAME_RE = re.compile(r"^closure-report-m\d+\.md$")
 # The deploy gate's notion of a record: everything else is code, and code changed after the reviewed
 # head means the Tester did not see what ships (`scripts/deploy_gate.py`, same rule).
-# What counts as code after a verdict's reviewed head is decided in ONE place, `deploy_gate.is_deploy_record`
+# What counts as code after a verdict's reviewed head is decided in ONE place, `deploy_gate.changed_since`
 # (`.claude/`, `.githooks/`, `scripts/`, `conformance/`, `.github/` and the Makefile are code whatever
 # their extension; `docs/` and other `.md` are records). A second copy here would drift.
-from deploy_gate import is_deploy_record  # noqa: E402
+from deploy_gate import changed_since  # noqa: E402
 PLACEHOLDER = re.compile(r"<[^<>\n]{3,}>|\bTBD\b|\bTODO\b|\bFIXME\b")
 SECTIONS = [
     (r"^##\s*1\.\s", "§1 What shipped -- the criteria this milestone claims"),
@@ -77,7 +76,7 @@ SECTIONS = [
     (r"^##\s*2\.\s", "§2 Git record"),
     (r"^##\s*3\.\s", "§3 Trust telemetry -- computed, not asserted"),
     (r"^##\s*4\.\s", "§4 Security & invariants -- the invariants table and ⛔-zone touches "
-                     "(the release security review is Stage 5.1, not a milestone)"),
+                     "(the milestone security verdict is m{N}-security.md in heavy mode; the release review is Stage 5.1)"),
     (r"^##\s*5\.\s", "§5 Ledgers -- nothing silent"),
     (r"^##\s*6\.\s", "§6 Architecture delta -- the one section a human writes"),
 ]
@@ -86,15 +85,9 @@ LINE_CAP = 150
 
 def code_changed_since(head: str) -> list[str] | None:
     """Files that are not records and differ from `head` in the WORKING TREE (committed, uncommitted
-    or untracked) -- the deploy gate's currency rule. None when git cannot answer."""
-    try:
-        changed = subprocess.run(["git", "diff", "--name-only", head], capture_output=True, text=True,
-                                 check=True).stdout.split()
-        changed += subprocess.run(["git", "ls-files", "--others", "--exclude-standard"], capture_output=True,
-                                  text=True, check=True).stdout.split()
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    return [f for f in changed if not is_deploy_record(f)]
+    or untracked) -- the deploy gate's currency rule itself, DevFlow's unchanged files included, so the
+    two never disagree about one verdict. None when git cannot answer."""
+    return changed_since(pathlib.Path.cwd(), head)
 
 
 def milestone_security(p: pathlib.Path) -> list[str]:
@@ -246,7 +239,7 @@ def main(argv: list[str]) -> int:
 
     # History is decided FIRST. v6.7 demanded `record_type: closure` before it asked the version, so
     # a report written before closure front matter existed (`record_type: ratification`, or none)
-    # stayed red as history -- model_ranking's twelve, and `make closes` stayed out of its
+    # stayed red as history -- Project-J's twelve, and `make closes` stayed out of its
     # `make check`, so `--release-records` never ran there (v7.1.1).
     vm = re.search(r"^process_version:\s*v?(\d+(?:\.\d+)*)\s*$", text, re.M)
     version = tuple(int(x) for x in vm.group(1).split(".")) if vm else None

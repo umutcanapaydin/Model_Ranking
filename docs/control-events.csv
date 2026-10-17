@@ -6,7 +6,7 @@
 # Three rows naming the same control turn the next wave-check RED: the CONTROL goes under review
 # (fix it, re-scope it, or refuse it in docs/refusals.md), not the people. A row that exists in one
 # run and vanishes in the next is a finding.
-# kind: skip | bypass | review -- the legend is the table in docs/warnings.ledger.template.md, which
+# kind: skip | bypass | review -- the legend is the table in docs/warnings.ledger.md, which
 # `make wave-check` reads; a `review` row restarts the control's count and must cite an ADR or a refusal.
 # wave: m<N>-w<W> | issue-<n> | release | upgrade-v<X.Y> | setup (the shapes the legend lists)
 # date: YYYY-MM-DD, never later than the day the row is written (make wave-check allows a day past UTC's date)

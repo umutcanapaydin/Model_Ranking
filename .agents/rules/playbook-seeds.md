@@ -26,7 +26,7 @@
 |---|---|---|
 | B.1 | Lock a question that cannot be resolved upstream as an ADR — status, rationale, mitigation, revisit-when — before it ossifies in code (`/log-decision`). | Agents invent contradictory assumptions; nobody can audit why the code looks as it does. |
 | B.2 | Supersede, never edit: mark the old ADR `superseded by D-NNN` and write a new one. | The reason for the change is lost and the discarded reasoning comes back. |
-| B.3 | Decisions are the expensive part, code the cheap part: at small scale, regenerate code from fresh decisions instead of patching old code toward them (`docs/codex-audit.md`). | Sunk-cost patching toward the stack you wish you had started with. |
+| B.3 | Decisions are the expensive part, code the cheap part: at small scale, regenerate code from fresh decisions instead of patching old code toward them (`docs/adoption-audit.md`). | Sunk-cost patching toward the stack you wish you had started with. |
 | B.4 | Snapshot a customer-facing artifact before each review iteration (`<name>_pre-<event>-<YYYY-MM-DD>.<ext>`). | "What changed since the customer last saw it?" needs git archaeology. |
 | B.5 | IDs are immutable: a deleted or hidden item leaves a gap, and nothing is renumbered. | Every citation of the ID drifts silently to the wrong item. |
 | B.6 | Keep ADR ranges apart: process ADRs `P-00x`, project ADRs from `D-100`, `D-001..D-099` reserved; an inherited project keeps its own IDs and writes down the mapping at Stage 0. | ID collisions and ambiguous citations. |
@@ -51,7 +51,7 @@
 
 | ID | Principle | Risk if ignored |
 |---|---|---|
-| D.1 | Separate design IP from code IP: first extract and judge the decisions a prior agent made, then keep far less of its code than seems reasonable (`docs/codex-audit.md`). | Working-but-misaligned code is carried forward and patched around forever. |
+| D.1 | Separate design IP from code IP: first extract and judge the decisions a prior agent made, then keep far less of its code than seems reasonable (`docs/adoption-audit.md`). | Working-but-misaligned code is carried forward and patched around forever. |
 
 ## E — Verification
 

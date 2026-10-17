@@ -71,7 +71,7 @@ def docs(prd: str = PRD, decisions: str = DECISIONS, allow: str | None = None) -
 def shipped_header() -> str:
     """The comment lines of `.placeholder-allow` -- the file as the package ships it. In an installation
     the file also holds the project's entries, which name the project's own records and are stale in
-    a throwaway tree that does not hold them (fitness_app's four, v7.1.1)."""
+    a throwaway tree that does not hold them (Project-K's four, v7.1.1)."""
     p = ROOT / ".placeholder-allow"
     if not p.is_file():
         return ""

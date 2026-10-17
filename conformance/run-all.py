@@ -23,6 +23,8 @@ FAILURE. A vacuous pass is the shape of every defect a suite like this exists to
 Exit: 0 all pass - 1 any fail.
 """
 import ast
+import concurrent.futures
+import hashlib
 import os
 import pathlib
 import re
@@ -263,6 +265,49 @@ def caller_liveness() -> list[str]:
     return problems
 
 
+VERBOSE = bool(os.environ.get("DEVFLOW_VERBOSE"))
+#: Tests whose verdict depends only on these files (plus the test itself): in an installation, outside CI,
+#: a pass is remembered by their content and not run again while none changed (v7.2, the owner's ruling
+#: of 2026-10-17 -- they re-proved the pinned Bash guard on every push, about 60 s).
+CACHEABLE = {
+    # Every file a hook or the guard can reach, and every script a claim may name as its enforcer: a
+    # wider key costs one extra run after an edit; a narrower one keeps a pass for a deleted script.
+    "test-bash-guard.py": (".claude/hooks/**/*", ".claude/settings.json", "scripts/**/*", "conformance/lib_record.py", ".devflow-stack",
+                           "docs/project-brief.md"),
+    "test-hook-claims.py": (".claude/hooks/**/*", ".claude/settings.json", "scripts/**/*", ".githooks/*", "Makefile", "stack.mk",
+                            ".devflow-stack", "conformance/lib_record.py", "AGENTS.md", "README.md",
+                            "permission-matrix.md", "docs/**/*.md", ".agents/**/*.md", ".github/workflows/*.yml"),
+}
+CACHE_DIR = PKG / "build" / "conformance-cache"
+
+
+def cache_key(script: str) -> str | None:
+    """The content of the test and its inputs; None where nothing may be cached (CI, the distribution)."""
+    if script not in CACHEABLE or os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS") \
+            or os.environ.get("DEVFLOW_FRESH") or (PKG / ".gp-distribution").is_file():
+        return None
+    h = hashlib.sha256((HERE / script).read_bytes())
+    for pattern in CACHEABLE[script]:
+        for f in sorted(PKG.glob(pattern)):
+            if f.is_file() and "__pycache__" not in f.parts:
+                h.update(str(f.relative_to(PKG)).encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def cached(script: str) -> str:
+    key = cache_key(script)
+    entry = CACHE_DIR / script
+    if key and entry.is_file() and entry.read_text(encoding="utf-8").strip() == key:
+        return f"CACHED {script}: passed on these exact inputs before -- not run again (DEVFLOW_FRESH=1 runs it)"
+    return ""
+
+
+def remember(script: str) -> None:
+    if (key := cache_key(script)):
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        (CACHE_DIR / script).write_text(key + "\n", encoding="utf-8")
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")    # a console that cannot show a character gets `?`
@@ -273,21 +318,41 @@ def main() -> int:
         return 1
 
     fails = []
+    not_evaluable: list[str] = []
+    # Each test builds its own throwaway trees, so they run side by side; the report keeps the
+    # discovery order. DEVFLOW_JOBS=1 runs them one at a time.
+    def run(script: str) -> subprocess.CompletedProcess:
+        if (hit := cached(script)):
+            return subprocess.CompletedProcess([], 0, stdout=hit, stderr="")
+        result = subprocess.run([PY, str(HERE / script)], capture_output=True, encoding="utf-8",
+                                errors="replace", env=CHILD_ENV)
+        if result.returncode == 0:
+            remember(script)
+        return result
+    try:
+        jobs = max(1, int(os.environ.get("DEVFLOW_JOBS") or min(8, os.cpu_count() or 1)))
+    except ValueError:
+        jobs = 1    # an unreadable DEVFLOW_JOBS runs one at a time
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
+        results = {script: pool.submit(run, script) for script, why in tests if not why.startswith("!!")}
     for script, why in tests:
         if why.startswith("!!"):
             print(f"  [FAIL      ] {script:26s} {why}")
             fails.append(script)
             continue
-        path = HERE / script
-        result = subprocess.run([PY, str(path)], capture_output=True, encoding="utf-8",
-                                errors="replace", env=CHILD_ENV)
+        result = results[script].result()
         tail = (result.stdout.strip().splitlines() or ["(no output)"])[-1]
         # Named verdicts, because did-not-run and ran-and-failed are different facts:
         # 0 PASS · 1 FAIL · 2 NOT-EVALUABLE. NOT-EVALUABLE is printed loudly and does not fail the
         # suite -- the test could not evaluate here and says so (for example, no git history to
         # attest). Any other exit is FAIL: an unknown exit is not a verdict.
         verdict = {0: "PASS", 1: "FAIL", 2: "NOT-EVALUABLE"}.get(result.returncode, "FAIL")
-        print(f"  [{verdict:10}] {script:26s} {tail}  (exit {result.returncode})")
+        # A green test is one line in a summary unless DEVFLOW_VERBOSE asks for each (v7.2: a green gate
+        # printed 11.6 KB, read three to five times per change).
+        if verdict != "PASS" or VERBOSE:
+            print(f"  [{verdict:10}] {script:26s} {tail}  (exit {result.returncode})")
+        if verdict == "NOT-EVALUABLE":
+            not_evaluable.append(script)
         if verdict == "FAIL":
             fails.append(script)
             for line in result.stdout.strip().splitlines()[:-1]:
@@ -298,6 +363,12 @@ def main() -> int:
         print(f"  [FAIL      ] {line}")
 
     total = len(fails) + len(liveness)
+    hits = [s for s, f in results.items() if f.result().stdout.startswith("CACHED ")]
+    if hits:
+        print(f"  cached (inputs unchanged since their last pass; CI and the distribution always run them): "
+              f"{', '.join(hits)}")
+    if not VERBOSE:
+        print(f"  {len(tests) - len(fails) - len(not_evaluable)} test(s) passed; DEVFLOW_VERBOSE=1 lists each")
     print(f"conformance {'FAIL' if total else 'PASS'}: {len(tests)} test(s) derived from "
           f"{HERE.name}/, {len(fails)} failing, {len(liveness)} caller-liveness finding(s) "
           f"[graded against {scope_note()}]")
