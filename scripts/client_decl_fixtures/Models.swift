@@ -39,3 +39,22 @@ struct FixtureNoted: Decodable {
         note = fixtureKeptNote
     }
 }
+
+// #297 (D-206 clause 4): the types a kept answer is, declared as the app declares them. Only a decode builds
+// one, in the engine client or in the kept answers' read-back; the synthesised decoders here run only inside
+// such a decode, which the gate must ALLOW.
+struct Query: Codable {
+    let task: String
+}
+
+struct Recommendation: Codable {
+    let query: Query
+}
+
+struct Category: Codable {
+    let id: String
+}
+
+struct CategoryList: Codable {
+    let categories: [Category]
+}

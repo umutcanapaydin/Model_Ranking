@@ -46,6 +46,10 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   (G-13, #276).
   `StandingsStore.swift` is a privacy sink, so a Foundation declaration off `SINK_FOUNDATION_ALLOWED`
   is refused there, and any other form is not held (G-1).
+- The kept answers' file (#297, INV-67): `StandingsStore.keep` is refused outside `ContentView.load()`, and a
+  kept answer's type outside its files when a decode's generic substitution gives a `Decodable` parameter
+  that type, or when its initialiser is called. A decode through a helper whose parameter is constrained
+  only by a protocol of the app's own that refines `Decodable` prints no `Decodable`, and is not held.
 - It does not see arguments, and some of the check lives in the text gate for that reason:
   `Text("[report](https://…)")` is a `LocalizedStringKey` literal, not an `AttributedString`, so a
   markdown link written as a literal passes here and dies there (B10); a key built at run time is
@@ -319,8 +323,43 @@ PROVENANCE_BY_TYPE: dict[str, tuple[set[str], str]] = {
     "RoutingOutcome.init(": (
         {"Router.swift", "AnswerPlan.swift"},
         "only the router and the answer plan build a routed outcome; its surface is what the engine is asked"),
+    # #297 (the #288 security re-review's R-m1): what `StandingsStore.keep` writes is built only by a decode
+    # (`KEPT_ANSWER_TYPES`), never by an initialiser, so a typed question cannot become one by name.
+    "Recommendation.init(": (
+        set(), "only a decode builds an answer: the engine's, or the one the store kept (#297)"),
+    "Category.init(": (
+        set(), "only a decode builds a surface: the engine's list, or the one the store kept (#297)"),
+    "KeptAnswer.init(": (
+        {"StandingsStore.swift"}, "only the store builds a kept answer, from what the engine sent (#297)"),
 }
 KEPT_TYPES = {symbol.split(".")[0] for symbol in (*PROVENANCE, *PROVENANCE_BY_TYPE)}
+
+#: #297 (the #288 security review's MJ1, D-206 clause 4): declarations only one function may call, as
+#: `(file, type, function)`, each with why. A kept answer is written to `answers.json` only by the load path,
+#: with the answer the engine has just sent; `keep` called anywhere else is refused, in that file or another.
+CALLED_ONLY_IN: dict[str, tuple[tuple[str, str, str], str]] = {
+    "StandingsStore.keep": (
+        ("ContentView.swift", "ContentView", "load"),
+        "only the load path keeps an answer, the one the engine has just sent"),
+}
+#: #297 (R-m1, probe P5): the types `keep` writes, and the files that may decode one, each with why. A type
+#: whose synthesised decoder decodes one of them holds it (`CategoryList`), and is decoded only where it is:
+#: the synthesised decoder runs only inside that decode. A decode is a call whose generic substitution gives
+#: a `Decodable` parameter a type that names one (`[Category]`, `Recommendation?`), or a reference to the
+#: type's `init(from:)`.
+KEPT_ANSWER_TYPES: dict[str, tuple[set[str], str]] = {
+    "Recommendation": (
+        {"EngineClient.swift", "KeptAnswers.swift"},
+        "only the engine client decodes the engine's answer, and `KeptAnswers.swift` the one the store kept"),
+    "Category": (
+        {"EngineClient.swift", "KeptAnswers.swift"},
+        "only the engine client decodes the engine's surfaces, and `KeptAnswers.swift` the list the store kept"),
+    "KeptAnswer": (
+        {"StandingsStore.swift"},
+        "only the store reads back the answers it kept"),
+}
+#: A generic substitution, printed after a declaration's path: its signature, then each parameter's type.
+SUBSTITUTION = re.compile(r'\[with \(substitution_map generic_signature=<([^>]*)> ([^"]*?)\)\]')
 
 
 def _provenance(symbol: str) -> tuple[set[str], str] | None:
@@ -541,6 +580,13 @@ FIXTURE_REFUSALS = {
     # #168: a URL loaded as text, as NSData and by an XML parser is the network too.
     ("ContentView.swift", "String.init(contentsOf"), ("ContentView.swift", "NSData.init(contentsOf"),
     ("ContentView.swift", "XMLParser.init(contentsOf"),
+    # #297 (D-206 clause 4): an answer kept outside the load path, from the screen's file and another; probe
+    # P5, a surfaces' list decoded from the typed question in the load path, and through a type that holds
+    # one; and a surface and a kept answer built by their initialisers.
+    ("ContentView.swift", "in `ContentView.keepElsewhere`, outside the load path"),
+    ("Detail.swift", "in `fixtureDetailKeeps`, outside the load path"),
+    ("ContentView.swift", "decodes `Category`,"), ("ContentView.swift", "decodes `CategoryList`, which holds"),
+    ("Detail.swift", "builds Category"), ("Detail.swift", "builds KeptAnswer"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -579,6 +625,9 @@ FIXTURE_RULES: dict[str, str] = {
     "a URL a store makes from text": "a store makes a URL only",
     "a key path to a request's source": "a key path to `ContentView.task`",
     "the engine client's members": "a member of the engine client off the list",
+    # #297 (D-206 clause 4).
+    "a kept answer's caller": "outside the load path",
+    "a kept answer decoded": "decodes `Category`,",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -702,7 +751,7 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
     for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items(),
-                        *request_facts(ast).items()):
+                        *request_facts(ast).items(), *kept_answer_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -1776,6 +1825,85 @@ def request_facts(ast: str) -> dict[str, set[str]]:
     return {file: found for file, found in facts.items() if found}
 
 
+def _decoded(line: str, kept: set[str]) -> set[str]:
+    """#297: the kept types a line decodes: each type a generic substitution gives a `Decodable` parameter,
+    when it names a kept type (`[Category]`, not `Category.CodingKeys`)."""
+    found: set[str] = set()
+    for signature, mapping in SUBSTITUTION.findall(line):
+        for parameter in re.findall(r"(\w+) : Decodable\b", signature):
+            for typed in re.findall(rf"(?:^|\s){parameter} -> (.*?)(?=\s\w+ -> |$)", mapping):
+                found |= {name for name in kept if re.search(rf"\b{name}\b(?![.\w])", typed)}
+    return found
+
+
+def _owned(node: _Node, owner: str = "", function: str = "",
+           synthesised: str = "") -> Iterator[tuple[_Node, str, str, str]]:
+    """Every node with the type and the function it is in, and the type whose synthesised `init(from:)` it
+    is in, if any (#297)."""
+    if (declared := TYPE_DECL.match(node.line)) and declared.group(1) != "protocol":
+        owner, function = declared.group(2).split(".")[-1], ""
+    elif named := FUNCTION.match(node.line):
+        function = named.group(2)
+    elif node.kind == "constructor_decl" and " implicit " in node.line and '"init(from:)"' in node.line:
+        synthesised = owner
+    yield node, owner, function, synthesised
+    for kid in node.kids:
+        yield from _owned(kid, owner, function, synthesised)
+
+
+def kept_answer_facts(ast: str) -> dict[str, set[str]]:
+    """#297 (D-206 clause 4): `{file: {"main.<...>", ...}}`, each call to a declaration `CALLED_ONLY_IN`
+    holds, with the type and function it is in, and each decode of a kept answer's type, with the kept type
+    it is or holds. A type whose synthesised decoder decodes a kept type holds it, to a fixed point."""
+    roots = _tree(ast)
+    owned = [(_file_of(root), entry) for root in roots for entry in _owned(root)]
+    held = {name: name for name in KEPT_ANSWER_TYPES}
+    grown = True
+    while grown:
+        grown = False
+        for _, (node, _owner, _function, synthesised) in owned:
+            if synthesised and synthesised not in held and (inside := _decoded(node.line, set(held))):
+                held[synthesised] = held[sorted(inside)[0]]
+                grown = True
+    facts: dict[str, set[str]] = {}
+    for file, (node, owner, function, synthesised) in owned:
+        if not synthesised:
+            facts.setdefault(file, set()).update(
+                f"main.<decodes>.{name}|{held[name]}@{_line(node)}" for name in _decoded(node.line, set(held)))
+        for symbol, *_ in MAIN_REF.findall(node.line):
+            symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
+            if symbol.split(".")[0] in held and symbol.endswith(".init(from:)") and not synthesised:
+                name = symbol.split(".")[0]
+                facts.setdefault(file, set()).add(f"main.<decodes>.{name}|{held[name]}@{_line(node)}")
+            called = ".".join([*symbol.split(".")[:-1], _base(symbol.split(".")[-1])])
+            if called in CALLED_ONLY_IN:
+                facts.setdefault(file, set()).add(f"main.<called in>.{called}|{owner}|{function}@{_line(node)}")
+    return {file: found for file, found in facts.items() if found}
+
+
+def _kept_answer_problem(name: str, symbol: str) -> str | None:
+    """#297: a kept answer kept outside the load path, or its type decoded outside its files."""
+    fact, _, subject = symbol.partition(">.")
+    detail, _, line = subject.rpartition("@")
+    if fact == "<called in":
+        called, owner, function = detail.split("|")
+        (file, allowed_owner, allowed_function), why = CALLED_ONLY_IN[called]
+        if (name, owner, function) == (file, allowed_owner, allowed_function):
+            return None
+        where = ".".join(part for part in (owner, function) if part) or "the file's own scope"
+        return (f"{name}:{line}: keeps an answer (`{called}`) in `{where}`, outside the load path "
+                f"(`{allowed_owner}.{allowed_function}` in {file}); {why} (#297, INV-67)")
+    if fact == "<decodes":
+        decoded, kept = detail.split("|")
+        files, why = KEPT_ANSWER_TYPES[kept]
+        if name in files:
+            return None
+        holds = f", which holds a `{kept}`" if decoded != kept else ""
+        return (f"{name}:{line}: decodes `{decoded}`{holds}, a kept answer's type; {why} ({', '.join(sorted(files))}) "
+                "(#297, INV-67)")
+    return None
+
+
 def _request_problem(name: str, symbol: str) -> str | None:
     """#174, #188 (INV-64): the reader's text, or anything the screen built, into a request's arguments."""
     fact, _, subject = symbol.partition(">.")
@@ -2048,7 +2176,7 @@ def problems(found: dict[str, set[str]]) -> list[str]:
             module, _, symbol = decl.partition(".")
             if module == "main" and symbol.startswith("<"):
                 if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)
-                        or _request_problem(name, symbol)) is not None:
+                        or _request_problem(name, symbol) or _kept_answer_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
             problem = (_module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)

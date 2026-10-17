@@ -317,3 +317,24 @@ func fixtureViewReadsTheLaunch() -> [String] {
 func fixtureViewKeepsTheQuestionInDefaults(_ typed: String) {
     UserDefaults.standard.set(typed, forKey: "q")
 }
+
+// #297 (D-206 clause 4): the load path keeps what the engine sent, which the gate must ALLOW. Probe P5 of the
+// #288 security re-review (R-m1): the typed question decoded there into a surfaces' list, and into a type that
+// holds one, and kept. REFUSED, at each decode. And an answer kept anywhere but the load path (the #288
+// security review's MJ1). REFUSED.
+extension ContentView {
+    func load(_ answer: Recommendation, _ fresh: [Category], asked: String) {
+        StandingsStore.onDevice.keep(answer)
+        StandingsStore.onDevice.keep(fresh)
+        if let forged = try? JSONDecoder().decode([Category].self, from: Data(asked.utf8)) {
+            StandingsStore.onDevice.keep(forged)
+        }
+        if let list = try? JSONDecoder().decode(CategoryList.self, from: Data(asked.utf8)) {
+            StandingsStore.onDevice.keep(list.categories)
+        }
+    }
+
+    func keepElsewhere(_ answer: Recommendation) {
+        StandingsStore.onDevice.keep(answer)
+    }
+}
