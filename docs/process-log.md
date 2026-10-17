@@ -988,3 +988,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - CI once showed `test-bash-guard.py (no output) (exit 1)`. A per-case `subprocess.run(..., timeout=120)` that raised `TimeoutExpired` inside the thread pool would kill the test that way, and `run-all.py` now prints a dead test's stderr (81c974e). The case now reports `the Bash guard timed out after 120 s on <case>`. Red first: `tests/unit/test_bash_guard_conformance_timeout.py`.
 - Lesson: a check that runs many cases in a pool reports each case's failure; one exception must not end the run.
+
+## 2026-10-18 · fix/issue-341-conflict-markers — a committed conflict marker fails the tests
+
+- The merge of #333 into the integration branch left conflict markers in `docs/decisions.md`. The commit gate passed, and the run's bundle agent was the first to see them. `scripts/conflict_markers.py` lists every marker line in a tracked text file (Markdown fences excepted), and `tests/unit/test_conflict_markers.py` holds both polarities and the repository itself, so `make test` and the commit gate refuse one. Red first.
+- Lesson: after a merge with a conflict, read every conflicted path in the merge's output, not only its last lines.
