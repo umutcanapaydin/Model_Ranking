@@ -3,7 +3,7 @@
 Mode: light
 Started: 2026-10-17
 Ended: open
-Integration branch: none · PR: none
+Integration branch: `integration/run-bug-night` · PR: #335
 Plan PR: #334
 Rulings: D-209
 
@@ -13,14 +13,14 @@ The queue in order (D-209): the two drafts already open (#333, #329), then the b
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | e709a6b | issues | running |
 
 ## Waves
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-295 | fix/issue-295-task-before-ai | #333 | none | queued |
-| issue-326 | fix/issue-326-encoded-ref | #329 | none | queued |
+| issue-295 | fix/issue-295-task-before-ai | #333 | none | stacked |
+| issue-326 | fix/issue-326-encoded-ref | #329 | none | stacked |
 | issue-331 | fix/issue-331-main-clone-marker | none | none | queued |
 | issue-256 | owner/bug-night-bundle | none | none | queued |
 | issue-287 | owner/bug-night-bundle | none | none | queued |
