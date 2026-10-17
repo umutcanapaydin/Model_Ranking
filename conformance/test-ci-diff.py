@@ -50,7 +50,11 @@ def main() -> int:
         git("init", "-q")
         case("no install marker: says so", run(), "no `.gp/installed`")
         (repo / ".gp").mkdir()
-        (repo / ".gp" / "installed").write_text("gp_version: v9.9\n", encoding="utf-8")
+        # #331: the marker as `scripts/write_install_marker.py` writes it, its comment lines first. A
+        # bare `gp_version:` line here let a pattern anchored at the file's start pass, and the real
+        # marker made every ci-diff answer "no `.gp/installed`".
+        (repo / ".gp" / "installed").write_text(
+            "# Written by `make install`. Do not edit by hand.\n# Read this.\ngp_version: v9.9\n", encoding="utf-8")
         (repo / ".github" / "workflows" / "ci.yml").write_text("name: CI\non: push\n", encoding="utf-8")
         git("add", "-A")
         git("commit", "-q", "-m", "devflow v9.9")

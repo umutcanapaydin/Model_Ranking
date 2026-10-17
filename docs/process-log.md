@@ -960,3 +960,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The release security review's N1: `_in_submissions` judged the decoded path while httpx sends the raw one, so `%2e%2e` as the ref passed. It now refuses any `%` in the raw path; two parametrized cases went red first (25829bc).
 - The same session re-triaged the open queue after #308: nine issues closed as fixed, 22 re-verdicted.
 - **Lesson:** a URL allowlist judges the bytes that are sent, not a decoded view of them.
+
+## 2026-10-18 — fix/issue-331-main-clone-marker
+
+- The main clone's `.gp/installed` said v6.6: every upgrade since 2026-09-23 ran `make install` in a temporary worktree only. `make install` ran once in the main clone (D-209 clause 4); its marker reads v7.2 and `make install-check` passes there. Its missing `environment.md` was copied in.
+- On the way: `scripts/ci_diff.py` anchored `^gp_version:` at the file's start, so under the real marker's comment lines `make ci-diff` always answered "no `.gp/installed`". Fixed with `re.M`; the conformance test now writes the marker as the installer does (red at 3c0c0cb).
+- **Lesson:** a fixture that writes a simpler file than the producer does tests the simpler file; write it as the producer does.
