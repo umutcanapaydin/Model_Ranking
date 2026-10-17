@@ -29,7 +29,7 @@ The queue in order (D-209): the two drafts already open (#333, #329), then the b
 | issue-325 | fix/issue-325-ignored-documents | #338 | none | stacked |
 | issue-330 | fix/issue-330-next-adr | #339 | none | stacked |
 | issue-328 | fix/issue-328-guard-test-timeout | #340 | none | stacked |
-| issue-341 | fix/issue-341-conflict-markers | none | none | queued |
+| issue-341 | fix/issue-341-conflict-markers | #342 | none | stacked |
 | issue-317 | owner/bug-night-bundle | none | none | queued |
 | issue-318 | owner/bug-night-bundle | none | none | queued |
 | issue-320 | owner/bug-night-bundle | none | none | queued |
