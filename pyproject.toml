@@ -114,6 +114,7 @@ known-first-party = ["app"]   # ◄── change if package renamed
 # DevFlow v7.2 (D-207): its new governance scripts call `git` with literal arguments, as the lines above;
 # next_adr.py is kept as shipped, so the next sync stays a small three-way merge.
 "scripts/ci_diff.py" = ["S603", "S607"]
+"scripts/conflict_markers.py" = ["S603", "S607"]  # #341: runs `git ls-files`, as ci_diff.py runs git
 "scripts/gate_stamp.py" = ["S603", "S607"]
 "scripts/post_edit_scope.py" = ["S603", "S607"]
 "scripts/next_adr.py" = ["SIM108"]

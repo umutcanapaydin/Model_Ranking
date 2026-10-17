@@ -28,6 +28,12 @@ CASES = [
      "## D-100 — a\n## D-101 — b\n**Status:** superseded by D-102\n## D-102 — c\n", ("D-103", "P-001")),
     ("process ids count on their own", "## P-001 — a\n## P-003 — b\n## D-100 — c\n", ("D-101", "P-004")),
     ("an id in prose is not a heading", "## D-100 — a\nSee D-250 later.\n", ("D-101", "P-001")),
+    # #330: model_ranking's D-999 ("the agent opens drafts; a human merges") is a name, not a place in the
+    # run of ids; `make next-adr` printed D-1000 after D-207.
+    ("an id far past the run is a name, not the next place",
+     "## D-100 — a\n## D-101 — b\n## D-999 — c\n## D-102 — d\n", ("D-103", "P-001")),
+    ("an id far past the run is still counted once the run reaches it",
+     "## D-100 — a\n## D-150 — b\n## D-180 — c\n", ("D-181", "P-001")),
 ]
 
 
