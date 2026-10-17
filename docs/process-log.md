@@ -949,3 +949,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner opened run bug-night (light). The queue was re-triaged on fe35bc3 after #308: nine issues closed as fixed, the rest re-verdicted, and #331 and #332 triaged.
 - Every reserved decision was asked once, through the chat's choice picker, and is D-209. #115, #243 and #323 closed on the owner's ruling.
 - **Lesson:** a decisions message reads faster as a picker with a reasoned default than as a numbered list; the owner answered nine questions in two rounds.
+## 2026-10-17 — fix/issue-295-task-before-ai
+
+- The owner chose option (a) for #295 (D-208): a Turkish active participle with its own object right before "yapay zeka" names the task, and the question is read by the examples without those two words.
+- Red first (82efabc: the golden known_miss removed). The golden set passes 41 of 41. On m24 a measuring seat counted 83 of 173 against main's 82: one gained, none lost.
+- `make next-adr` printed D-1000, because it counts the historical D-999; the ADR is D-208 (filed).
+- **Lesson:** where a score cannot separate two kinds of question, the question's grammar can; gate the reading on it rather than on a margin.
