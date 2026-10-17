@@ -4,7 +4,7 @@ Mode: light
 Started: 2026-10-17
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
+Plan PR: #334
 Rulings: D-209
 
 The queue in order (D-209): the two drafts already open (#333, #329), then the bugs by severity, then the enhancements. The owner-only files (`.claude/`, `.githooks/`, `.github/workflows/`) end as one owner patch, reviewed before handover (D-209 clause 2). Questions the run meets that are reversible and outside a ⛔ zone take their most conservative answer in `docs/plans/assumptions-bug-night.md`.
