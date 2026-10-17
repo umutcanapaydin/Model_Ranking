@@ -5288,6 +5288,8 @@ Defaults the agent took, because the owner was asleep (run rule: an unanswered q
 
 **Status:** accepted -- 2026-10-17, the owner merged the plan PR #290 (run product-night)
 
+**Amended by D-206 (2026-10-17)**: clause 6 -- a reading rule ships when it turns no fresh held-out row from right to wrong and fixes the golden question it was written for.
+
 ## D-203 — The wording tier holds small talk, text with no meaning and a dictated answer (#66)
 
 **Status:** proposed -- the agent's, in run product-night under D-202 clause 6, for the owner's review
@@ -5349,3 +5351,30 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** If a project rule is lost in the port, a command the project refused passes again. The bounds test and `conformance/test-bash-guard.py` both run against the new file before the owner pins it.
 
 **Revisit when:** the next DevFlow release, or a guard finding that v7.1.2 does not cover.
+
+## D-206 — Run golden-night: what it does, and when a reading rule ships
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat, for run golden-night
+**Date:** 2026-10-17 · **Amends:** D-202 (clause 6).
+
+**Decision:** The owner's answers (translated from Turkish):
+1. **Reading rules (#293, #295, #292).** Before any rule is written, an independent seat writes one fresh held-out set, m24. The designs are the agent's defaults:
+   - #293: more example sentences first.
+   - #295: the general "yapay zeka" rule gives way when another surface's example scores confidently.
+   - #292: an agent with its own coding verb reads as agentic coding.
+2. **When a reading rule ships (amends D-202 clause 6).** A rule goes into the integration PR when two things hold: it turns no row of the fresh held-out set from right to wrong, and it fixes the golden question it was written for. Beating the shipped rule on the fresh set is not required. This is D-204's ruling, made general.
+3. **#294 is `disputed`.** "is it true that we only use 10 percent of our brain" fits `factuality` and `expert` alike. The golden set marks it disputed with that reason, and #294 closes.
+4. **#297 is approved, gate change included.** `scripts/client_decl_gate.py` limits `StandingsStore.keep` to the load path, and INV-73 is reworded for the hosted engine. It gets a security review.
+5. **#304: the gate is fixed.** L1 in `scripts/check_records.py` skips what git ignores and does not track, and the `ios/.build/` entry leaves `.language-allow`.
+6. **#255: an advisory make target.** It lists every issue a range's commit messages would close. It is not a leg of `make check`. Wiring it into `/pre-merge` is a skill patch for the owner.
+7. **#279: the additive form.** An `XCTestObservation` is registered beside the `tearDown` check, and no invariant test changes.
+8. **#265 is skipped tonight.** The licensed dataset needs the owner's Hugging Face token.
+9. **Owner-only files, prepared as one patch.** The agent prepares the changes to `.claude/`, `.githooks/` and `.github/workflows/` as one owner patch, and the owner applies it in the morning with one line. It covers #252, #254, #278 with #122, #283, #284, #305, and the guard holes #285–#287 that D-204 clause 6 sends after the v7.1.2 upgrade. A guard change in it passes a security review before it is handed over.
+10. **The run ends with the release reviews.** The milestone Tester (`docs/reviews/release-tester.md`) and the release security review (`docs/reviews/release-security.md`) run on the integration head, so `make deploy-check` can be green. Nothing deploys.
+
+**Rationale:** The owner wants the misses the golden set found fixed, and the process items cleared in one morning merge, with nothing that only the owner can do left half-done.
+
+**Mitigation if violated:** A rule that holds the fresh set level but is wrong on questions nobody wrote yet ships. The next fresh set and the golden set are where that shows.
+
+**Revisit when:** a shipped rule loses a row on a later fresh set, or the owner corrects the golden set.
