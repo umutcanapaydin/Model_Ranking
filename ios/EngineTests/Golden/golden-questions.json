@@ -119,7 +119,6 @@
     "expected_surface": "agentic-coding",
     "disputed": false,
     "reason": null,
-    "known_miss": 292,
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5",

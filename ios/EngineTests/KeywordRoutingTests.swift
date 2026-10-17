@@ -165,6 +165,40 @@ final class KeywordRoutingTests: OfflineTestCase {
         ])
     }
 
+    /// #292 (D-206 clause 1): an agent that does a coding action itself (writes or fixes code or tests,
+    /// opens a pull request) is agentic coding, however far that action is from the word "agent", as
+    /// long as both stand in one sentence. Made up for this test; the golden question is not here.
+    func testAnAgentThatDoesTheCodingItselfIsAgenticCoding() async {
+        await assertRoutes([
+            ("i need an agent that reads the issue, writes the code and asks me nothing", "agentic-coding"),
+            ("looking for an agent which picks up my backlog and opens a pr when it is done", "agentic-coding"),
+            ("which agent can take a broken build overnight and fix the failing tests", "agentic-coding"),
+            ("the agent should read our docs first and then open a pull request", "agentic-coding"),
+            ("issue'yu okuyup kodu kendisi yazan bir ajan arıyorum", "agentic-coding"),
+            ("hata raporunu alıp testleri düzelten ve pull request açan ajan hangisi", "agentic-coding"),
+            ("bir ajan gece boyunca çalışıp testleri kendisi düzeltsin istiyorum", "agentic-coding"),
+        ])
+    }
+
+    /// #292, the other direction: an agent whose action is not coding stays where it was, an agent in
+    /// one sentence does not borrow a coding action from the next, and code written FOR an agent is code.
+    func testAnAgentThatDoesNotCodeIsNotAgenticCoding() {
+        assertNotNamed([
+            ("a travel agent that books my flights and writes the itinerary", "agentic-coding"),
+            ("a browser agent that opens my inbox and fills in the forms", "agentic-coding"),
+            ("an agent that writes my cover letters and opens my mail", "agentic-coding"),
+            ("i want an agent for my holiday plans. separately, write the code for a login page", "agentic-coding"),
+            ("write python code for my customer support agent", "agentic-coding"),
+            ("e-postalarımı yazan ve toplantılarımı ayarlayan bir ajan", "agentic-coding"),
+            ("seyahat ajanı bana bilet açan bir site önerdi", "agentic-coding"),
+            ("en iyi ajan filmi hangisi? bu kodu yazan kişiye teşekkür et", "agentic-coding"),
+        ])
+        XCTAssertEqual(CategoryHints.namedSurface(
+            "i want an agent for my holiday plans. separately, write the code for a login page", within: known), "coding")
+        XCTAssertEqual(CategoryHints.namedSurface("write python code for my customer support agent", within: known),
+                       "coding")
+    }
+
     /// The two reviews' B1, B2 and M1 to M5: an everyday word is not a keyword.
     func testAnEverydayWordIsNotAKeyword() {
         assertNotNamed([

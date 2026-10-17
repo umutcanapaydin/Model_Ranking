@@ -462,6 +462,29 @@ extension CategoryHints {
     static let notAnAgentThatCodes: Set<String> = ["user", "travel", "estate", "insurance", "secret", "real",
                                                    "free", "booking", "sales"]
 
+    /// #292 (D-206 clause 1): an agent with its own coding action is an agent that codes, however far
+    /// the action stands from the word "agent", within one sentence. The action is a verb with its
+    /// object close by: in English the verb after the agent and the object within three words after
+    /// it ("an agent that takes a ticket, writes the code"); in Turkish the object within three words
+    /// before the verb, the agent on either side ("testleri kendisi duzelten bir ajan"). Only words
+    /// with one reading beside each other in a question to this app: write, fix or open; code, tests,
+    /// a PR or a pull request. A travel agent that writes an itinerary, or code written for an agent,
+    /// is none.
+    static let agentCodingVerbs: Set<String> = ["write", "writes", "writing", "fix", "fixes", "fixing", "open",
+                                                "opens", "opening"]
+    static let agentCodingVerbsTurkish: Set<String> = [
+        "yazan", "yazar", "yazsin", "yazip", "yazabilen", "yazabilir", "yazacak", "yaziyor",
+        "duzelten", "duzeltir", "duzeltsin", "duzeltip", "duzeltebilen", "duzeltebilir", "duzeltecek", "duzeltiyor",
+        "acan", "acar", "acsin", "acip", "acabilen", "acabilir", "acacak", "aciyor"]
+    static let agentCodingObjects: Set<String> = ["code", "codes", "codebase", "test", "tests", "pr", "prs",
+                                                  "kod", "kodu", "kodlar", "kodlari", "kodunu", "kodlarini",
+                                                  "testi", "testler", "testleri", "testlerini"]
+
+    /// The sentences of a question: an agent in one does not borrow a coding action from the next.
+    static func sentences(_ question: String) -> [String] {
+        question.split(whereSeparator: { ".!?;\n…".contains($0) }).map(String.init)
+    }
+
     /// What `everyday` answers where the embedding cannot read the question: a question about AI models
     /// in general, which names no surface.
     static let generalWords = SurfaceWords(
@@ -513,7 +536,8 @@ extension CategoryHints {
     static func namedSurface(_ question: String, within known: [String]) -> String? {
         let readings = readings(question), raw = question.lowercased()
         if known.contains("agentic-coding"), let coding = surfaceWords.first(where: { $0.id == "coding" }),
-           readings.contains(where: { agentBesideCode($0, coding) }) {
+           readings.contains(where: { agentBesideCode($0, coding) })
+            || sentences(question).contains(where: { self.readings($0).contains(where: agentThatCodes) }) {
             return "agentic-coding"
         }
         for rule in surfaceWords where known.contains(rule.id) && names(rule, readings, raw) {
@@ -553,6 +577,28 @@ extension CategoryHints {
                   index == 0 || !notAnAgentThatCodes.contains(words[index - 1]) else { return false }
             let near = max(0, index - 2)...min(words.count - 1, index + 2)
             return near.contains { $0 != index && matchesWord(coding, words, at: $0) }
+        }
+    }
+
+    /// #292: one sentence's words name an agent (not a user or travel agent) and a coding action it does.
+    private static func agentThatCodes(_ words: [String]) -> Bool {
+        let agents = words.indices.filter { index in
+            agentWords.contains(words[index]) && (index == 0 || !notAnAgentThatCodes.contains(words[index - 1]))
+        }
+        guard let firstAgent = agents.first else { return false }
+        let isObject = { (index: Int) -> Bool in
+            guard words.indices.contains(index) else { return false }
+            if words[index] == "pull" { return index + 1 < words.count && words[index + 1].hasPrefix("request") }
+            guard agentCodingObjects.contains(words[index]) else { return false }
+            // A zip code, a promo code, a posta kodu is not code.
+            let blocked = notAfter[words[index].hasPrefix("kod") ? "kod" : words[index]] ?? []
+            return index == 0 || !blocked.contains(words[index - 1])
+        }
+        return words.indices.contains { verb in
+            if agentCodingVerbs.contains(words[verb]) {
+                return verb > firstAgent && (verb + 1...verb + 3).contains(where: isObject)
+            }
+            return agentCodingVerbsTurkish.contains(words[verb]) && (verb - 3...verb - 1).contains(where: isObject)
         }
     }
 
