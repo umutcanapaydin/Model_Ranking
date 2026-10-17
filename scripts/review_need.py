@@ -252,8 +252,10 @@ def main(argv: list[str]) -> int:
     try:
         rng = argv[argv.index("--range") + 1] if "--range" in argv else default_range()
         # A side that is empty or names no commit is not a range: `..HEAD` diffs nothing and would
-        # answer `none` for any change (a merge-base that failed upstream of this script).
-        sides = rng.split("..", 1) if ".." in rng else ["", ""]
+        # answer `none` for any change (a merge-base that failed upstream of this script). `A...B` is
+        # split on its three dots: on two, its right side would read `.B`, and no commit is named that.
+        sep = "..." if "..." in rng else ".." if ".." in rng else None
+        sides = rng.split(sep, 1) if sep else ["", ""]
         for side in sides:
             if not side.strip() or subprocess.run(["git", "rev-parse", "-q", "--verify", f"{side}^{{commit}}"],
                                                   capture_output=True).returncode != 0:

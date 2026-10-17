@@ -5417,7 +5417,7 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
    - **The wave checklist's row 8** keeps `Session started in the repository:` (#202).
    - **`docs/security-invariants.md`** is the project's register, and v7.2's empty template is not taken.
    - **D-178** moves with the QA section into `.agents/rules/issues-qa.md`.
-4. **`schemas/record.schema.json` and `scripts/gen_schema.py` stay.** v7.2 removed them, but the project changed both, and `scripts/check_records.py` reads the schema.
+4. **`schemas/record.schema.json` and `scripts/gen_schema.py` stay.** v7.2 removed them, but the project changed both, and `scripts/check_records.py` reads the schema. **`docs/feature-catalog.md` stays too**: v7.2 removes it, and `tests/unit/test_security_invariants.py` reads it among the live records; a change to that test is the owner's (AGENTS.md, Escalate NOW).
 5. **The brief's `Rollback command:` is `none`.** The owner rolls a failed deploy back by hand.
 6. **ADRs.** Every ADR on `main` that still says `proposed` now reads as accepted, by v7.2's rule. Each one listed in the upgrade PR is in force, so none is superseded.
 

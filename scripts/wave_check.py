@@ -664,7 +664,7 @@ def ledger_problems(rows: list[list[str]], today: str | None = None) -> list[str
     back.
 
     DevFlow v7.1 took over the rest of what this function checked: a row's kind is validated against the legend
-    in `docs/warnings.ledger.template.md` (`ledger_kinds`), and the three-row count restarts at a `review` row
+    in `docs/warnings.ledger.md` (`ledger_kinds`), and the three-row count restarts at a `review` row
     citing a decision (`ledger_findings`). The project's `ruling` and `within-scope` kinds, and its own count
     (`ledger_strikes`), were retired with that upgrade: a kind outside the legend is now a finding."""
     import datetime as dt
