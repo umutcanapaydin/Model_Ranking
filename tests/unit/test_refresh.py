@@ -225,10 +225,13 @@ def test_the_candidate_is_built_beside_the_target_so_publishing_is_a_rename(tmp_
         return 0
 
     live = tmp_path / "nested" / "advisor.db"
-    live.parent.mkdir()
-    refresh(live, builder=watching)
+    # Owner-only, whatever the umask: CI's offline step runs pytest under `sudo -u`, whose umask left the
+    # directory group-writable, and `environment_problems` rightly refused to build in it.
+    live.parent.mkdir(mode=0o700)
+    outcome, _ = refresh(live, builder=watching)
 
-    assert seen and seen[0].parent == live.parent, (
+    assert seen, f"the builder never ran: {outcome.reason}"
+    assert seen[0].parent == live.parent, (
         f"the candidate was built in {seen[0].parent} and the target lives in {live.parent}; "
         "publishing across a filesystem boundary is a copy, not a rename"
     )

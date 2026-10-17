@@ -341,7 +341,9 @@ def main() -> int:
             fails.append(script)
             continue
         result = results[script].result()
-        tail = (result.stdout.strip().splitlines() or ["(no output)"])[-1]
+        # A test that died prints nothing on stdout: its traceback's last line is the only evidence CI keeps.
+        tail = (result.stdout.strip().splitlines() or [f"(no output; stderr: {line})" for line in
+                                                         result.stderr.strip().splitlines()[-1:]] or ["(no output)"])[-1]
         # Named verdicts, because did-not-run and ran-and-failed are different facts:
         # 0 PASS · 1 FAIL · 2 NOT-EVALUABLE. NOT-EVALUABLE is printed loudly and does not fail the
         # suite -- the test could not evaluate here and says so (for example, no git history to
