@@ -166,3 +166,27 @@ def test_the_local_network_prompt_speaks_turkish_too() -> None:
     assert found.group(1) != english and re.search(turkish_letter, found.group(1)), "not Turkish"
     regions = re.search(r"knownRegions = \(([^)]*)\);", PROJECT.read_text(encoding="utf-8"))  # raw: not Swift
     assert regions and re.search(r"\btr\b", regions.group(1)), "the project does not know the Turkish region"
+
+
+def test_inv_73_says_a_phone_asks_the_hosted_engine_and_cites_what_holds_it() -> None:
+    """#297 (the #288 security review's M1, D-206 clause 4): INV-73 said the address "is loopback unless an
+    http(s) URL with a host is given", and a build on a phone given no address of its own asks the hosted
+    engine over HTTPS since #288 (D-202 clause 4). The row says so and cites every `DeviceAddressTests` test,
+    read from the Swift file, and the two Python pins of the hosted address and the device flag."""
+    register = (IOS.parent / "docs" / "security-invariants.md").read_text(encoding="utf-8")  # raw: not Swift
+    rows = [line for line in register.splitlines() if line.startswith("| INV-73 |")]
+    assert len(rows) == 1, rows
+    row = rows[0]
+    claim = row.split(" | ")[1]
+    assert "is loopback unless" not in claim, "INV-73 still says the address is loopback unless one is given"
+    assert "hosted engine" in claim and "HTTPS" in claim, claim
+    tests = _code((IOS / "EngineTests" / "EngineClientTests.swift").read_text(encoding="utf-8"))
+    block = re.search(r"final class DeviceAddressTests\b.*?\n}\n", tests, re.DOTALL)
+    assert block, "no DeviceAddressTests in EngineClientTests.swift"
+    names = re.findall(r"func (test\w+)\(", block.group(0))
+    assert len(names) >= 6, names
+    missing = [name for name in names if f"`ios/EngineTests/EngineClientTests.swift::{name}`" not in row]
+    assert not missing, f"INV-73 does not cite {missing}"
+    for pin in ("test_the_hosted_engine_a_phone_falls_back_to_is_the_release_address",
+                "test_a_build_for_a_phone_says_so_and_the_client_reads_the_key_the_plist_carries"):
+        assert f"`tests/unit/test_engine_address.py::{pin}`" in row, pin
