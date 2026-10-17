@@ -50,9 +50,9 @@ def _git(root: Path, *args: str) -> str:
     return done.stdout.strip()
 
 
-def _commit(root: Path, message: str) -> str:
-    (root / "f.txt").write_text(message, encoding="utf-8")
-    _git(root, "add", "f.txt")
+def _commit(root: Path, message: str, path: str = "f.txt") -> str:
+    (root / path).write_text(message, encoding="utf-8")
+    _git(root, "add", path)
     _git(root, "commit", "-q", "--allow-empty", "-m", message)
     return _git(root, "rev-parse", "--short", "HEAD")
 
@@ -160,7 +160,7 @@ def test_a_clean_range_exits_zero_and_names_what_it_read(tmp_path: Path) -> None
 def test_a_merge_commits_own_message_is_read(tmp_path: Path) -> None:
     root = _repo(tmp_path)
     _git(root, "checkout", "-q", "-b", "side")
-    _commit(root, "docs: side work")
+    _commit(root, "docs: side work", "side.txt")
     _git(root, "checkout", "-q", "main")
     _commit(root, "docs: main work")
     _git(root, "merge", "-q", "--no-ff", "side", "-m", "Merge side; closes #77")

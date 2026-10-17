@@ -63,7 +63,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need deploy-check guard-pin
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need closing-keywords deploy-check guard-pin
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -325,6 +325,13 @@ mode:  ## this project's working mode, light or heavy (docs/project-brief.md `Wo
 
 review-need:  ## which review a change needs: none, code-reviewer, security, or both (make review-need [RANGE=A..B])
 	@$(SYS_PY) scripts/review_need.py $(if $(RANGE),--range $(RANGE))
+
+# #255 (D-206 clause 6): GitHub closes an issue that a closing keyword precedes in a commit message once the
+# commit reaches the default branch, whatever the PR body says, and `closingIssuesReferences` reads only the
+# body. Advisory, NOT a leg of `check`: exit 1 when the range would close any issue, 2 when no range is given
+# or it is empty or unreadable -- never a pass. `/pre-merge` asks it.
+closing-keywords:  ## which issues the commit messages in a range would close on merge; advisory, not in check (make closing-keywords RANGE=A..B)
+	@$(SYS_PY) scripts/closing_keywords.py $(if $(RANGE),--range $(RANGE))
 
 # The deploy gate without a command, for the deploys the Bash guard never sees -- the owner's own
 # terminal, a dashboard, a TestFlight upload. The Bash guard runs the same check (scripts/deploy_gate.py)
