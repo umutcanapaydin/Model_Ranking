@@ -983,3 +983,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - `scripts/next_adr.py` took the highest project id, and this project's D-999 ("the agent opens drafts; a human merges") made `make next-adr` print D-1000 after D-207. It now follows the run of ids and stops at a step wider than 100: D-999 is a name. On this tree it prints the id after D-209. Red first: two cases in `conformance/test-next-adr.py`.
 - Lesson: a number used as a name breaks every "highest plus one" rule; say which numbers are places.
+
+## 2026-10-18 · fix/issue-328-guard-test-timeout — a timed-out hook call is a finding, not a dead test
+
+- CI once showed `test-bash-guard.py (no output) (exit 1)`. A per-case `subprocess.run(..., timeout=120)` that raised `TimeoutExpired` inside the thread pool would kill the test that way, and `run-all.py` now prints a dead test's stderr (81c974e). The case now reports `the Bash guard timed out after 120 s on <case>`. Red first: `tests/unit/test_bash_guard_conformance_timeout.py`.
+- Lesson: a check that runs many cases in a pool reports each case's failure; one exception must not end the run.
