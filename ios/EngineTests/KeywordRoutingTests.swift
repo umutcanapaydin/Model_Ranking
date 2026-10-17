@@ -73,8 +73,9 @@ final class KeywordRoutingTests: OfflineTestCase {
         ])
     }
 
-    /// #289: quantum physics names `expert`, in English and in Turkish, before the embedding reads the
-    /// question's other words (a field theory read as maths). Made up for this test.
+    /// #289, #301 (shipped by D-204 clause 2): quantum physics names `expert`, in English and in
+    /// Turkish, before the embedding reads the question's other words (a field theory read as maths).
+    /// Made up for this test.
     func testQuantumPhysicsNamesExpert() async {
         await assertRoutes([
             ("explain the quantum hall effect", "expert"),
@@ -197,6 +198,28 @@ final class KeywordRoutingTests: OfflineTestCase {
             "i want an agent for my holiday plans. separately, write the code for a login page", within: known), "coding")
         XCTAssertEqual(CategoryHints.namedSurface("write python code for my customer support agent", within: known),
                        "coding")
+    }
+
+    /// #292, the release Tester's fault G06: the code an agent writes must be code. A zip, promo or
+    /// postal code beside the agent's coding verb is none, in English and in Turkish, so the question is
+    /// not agentic coding. Made up for this test.
+    func testAnAgentWhoseCodeIsAZipOrPromoCodeIsNotAgenticCoding() {
+        assertNotNamed([
+            ("an agent that fills in my shipping form and writes the zip code", "agentic-coding"),
+            ("i want an agent that opens the shop page and writes the promo code in the box", "agentic-coding"),
+            ("kargo formunu dolduran ve posta kodunu yazan bir ajan", "agentic-coding"),
+        ])
+    }
+
+    /// #292, the release Tester's fault G06b: a user agent or a travel agent is no agent that codes, though
+    /// a coding verb and its object follow it in the same sentence. Made up for this test.
+    func testAnAgentThatIsNoCoderIsNotAgenticCodingThoughACodingVerbFollows() {
+        assertNotNamed([
+            ("my user agent check keeps failing, can you fix the code", "agentic-coding"),
+            ("the travel agent site we built is broken, please fix the tests", "agentic-coding"),
+        ])
+        XCTAssertEqual(CategoryHints.namedSurface("my user agent check keeps failing, can you fix the code",
+                                                  within: known), "coding")
     }
 
     /// The two reviews' B1, B2 and M1 to M5: an everyday word is not a keyword.
