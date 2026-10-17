@@ -333,6 +333,18 @@ def test_pwd_is_never_read_as_scratch_and_a_redefined_mktemp_is_not_trusted(guar
     assert _bash(guard, "rm -rf .", inside) is None, "the scratch directory itself, by `.`, stays scratch"
 
 
+@pytest.mark.parametrize("command", [
+    "rm -rf /var/folders/zz", "rm -rf /private/var/folders/zz/x", "find /var/folders/zz -delete",
+    "rm -r /var/folders/qf/abc/C", "rm -rf /var/folders",
+])
+def test_the_rest_of_var_folders_is_not_scratch(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    """The v7.1.2 upgrade security review's M4: v7.1.2 counted all of `/var/folders` as scratch, and beside each
+    user's `T/` it holds macOS's per-user state and caches. Only `$TMPDIR` and the interpreter's own temp directory
+    there are scratch."""
+    why = _bash(guard, command, ungoverned)
+    assert why, command
+
+
 @pytest.mark.parametrize(("command", "where"), [
     ("rm -rf .", "."), ("rm -rf .git", "."), ("rm -rf ios", "."), ("rm -rf ./ios ./.git", "."), ("rm -rf ../", "."),
     ("rm -rf ..", "ios"), ("rm -fr ../repo", "ios"), ("find . -delete", "."), ("find ios -delete", "."),
