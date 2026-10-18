@@ -35,7 +35,7 @@ The queue in order (D-209): the two drafts already open (#333, #329), then the b
 | issue-320 | owner/bug-night-bundle | none | none | queued |
 | issue-81 | owner/bug-night-bundle | none | none | queued |
 | issue-314 | fix/issue-314-answers-size | #343 | none | stacked |
-| issue-322 | fix/issue-322-kept-answer-rules | none | none | queued |
+| issue-322 | fix/issue-322-kept-answer-rules | #346 | none | stacked |
 | issue-319 | fix/issue-319-policy-scripts | #347 | none | stacked |
 | issue-309 | fix/issue-309-whole-test-observer | #345 | none | stacked |
 
