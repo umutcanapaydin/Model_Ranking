@@ -951,6 +951,9 @@ SINK_FOUNDATION_ALLOWED = frozenset({
     "URLSessionConfiguration.httpShouldSetCookies", "URLSessionConfiguration.requestCachePolicy",
     "URLSessionConfiguration.timeoutIntervalForRequest", "URLSessionConfiguration.timeoutIntervalForResource",
     "URLSessionTask.cancel(",
+    # #314 (D-209 clause 6): the kept answers' file is refused by its size before its bytes are read. A
+    # resource value of the store's own file URL; it reads no file content and reaches no network.
+    "URL.resourceValues(forKeys:", "URLResourceKey.fileSizeKey", "URLResourceValues.fileSize",
 })
 #: A Swift standard-library type that holds process-wide state a sink may not read (B1).
 SINK_SWIFT_REFUSED = ("CommandLine",)

@@ -26,3 +26,14 @@ The wording tier (`PROBE_TIER=wording`), through the harness at `44b81c7`. Each 
 - **#293 ships.** It loses no row, and both of its golden questions pass.
 - **#292 ships.** It gains a search, loses none, and its golden question passes.
 - **#295 is stopped** before a rule was committed. The owner's design default could not fix the golden question without moving general Turkish "yapay zeka" questions off everyday (see #295 and the run file's Stops).
+
+## #295, measured after the owner's ruling (D-208)
+
+The owner chose option (a) on 2026-10-17. The rule was measured on the same set by a measuring seat that did not write it, with the wording tier and `fe35bc3`'s harness, each commit run twice (byte-identical runs). The implementer saw counts and surface ids only.
+
+| Commit | What | Right of 173 | Searches right of 112 | Not measured | Non-searches caught of 61 | Against its base |
+|---|---|---:|---:|---:|---:|---|
+| `fe35bc3` | main, with #293 and #292 | 82 | 69 | 4 | 13 | -- |
+| `afab5ec` | #295: a verb clause before "yapay zeka" names the task | 83 | 70 | 4 | 13 | 1 gained, 0 lost, 3 moved between wrong surfaces |
+
+- **#295 ships.** It loses no row and gains a `computer-use` search, and its golden question passes (41 of 41 asserted).
