@@ -77,9 +77,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
 
 PRODUCT_THRESHOLD = 130
-#: The scripts that read the policy fields, or decide from them (#283): a change to one is a policy edit.
-POLICY_SCRIPTS = ("scripts/review_need.py", "scripts/deploy_gate.py", "scripts/brief_fields.py")
-GATE_CODE = re.compile(r"^(scripts/|conformance/|\.claude/|\.githooks/|\.github/|Makefile$|stack\.mk$)")
+#: The gate code's places: a directory, or one file. GATE_CODE and the policy readers' search are both made from it.
+GATE_ROOTS = ("scripts/", "conformance/", ".claude/", ".githooks/", ".github/", "Makefile", "stack.mk")
+GATE_CODE = re.compile("^(" + "|".join(re.escape(r) + ("" if r.endswith("/") else "$") for r in GATE_ROOTS) + ")")
+#: The modules that read the policy fields, or decide from them (#283): a change to one is a policy edit. Each is
+#: also a token below, so a script that names one is a policy reader too (#319).
+POLICY_MODULES = ("review_need", "deploy_gate", "brief_fields")
+POLICY_SCRIPTS = tuple(f"scripts/{name}.py" for name in POLICY_MODULES)
+#: #319 (D-209 clause 5): what names a policy reader -- a policy module, its make target, a plan's
+#: `security-globs:` line or a policy field's label. A script under POLICY_READER_DIRS that names one, at either end
+#: of the range, is a policy script; in LINE_POLICY_PATHS (the Makefile, the plans) only a changed line naming one
+#: is a policy edit, so an unrelated Makefile change is not.
+POLICY_TOKENS = (*POLICY_MODULES, "review-need", "deploy-check", "security-globs", *brief_fields.POLICY_FIELDS)
+POLICY_PATTERN = re.compile("|".join(re.escape(token) for token in POLICY_TOKENS))
+#: The security review's M4: the readers are searched for wherever gate code lives, less the line-read files.
+LINE_POLICY_PATHS = ("Makefile", "docs/plans")
+POLICY_READER_DIRS = tuple(r.rstrip("/") for r in GATE_ROOTS if r.rstrip("/") not in LINE_POLICY_PATHS)
+#: The security review's M1 and M3: a diff no attribute or driver can hide, with paths git does not quote.
+PLAIN_DIFF = ("-c", "core.quotePath=false", "diff", "--text", "--no-textconv", "--no-ext-diff", "--no-renames")
 RECORDS = re.compile(r"^docs/|\.md$")
 SENSITIVE_PATH = re.compile(
     r"(^|[/_.-])(auth\w*|login|logout|session|token|oauth|jwt|crypto\w*|cipher|secret\w*|credential\w*|"
@@ -136,13 +151,43 @@ def range_base(rng: str) -> tuple[str, str]:
     return base, end
 
 
-def policy_edits(base_root: Path, end_root: Path, changed: list[str]) -> list[str]:
+def policy_readers(revs: tuple[str, ...]) -> set[str]:
+    """#319: the scripts that name a policy reader at any of `revs`, with the policy modules themselves.
+    RuntimeError when git cannot search a commit (fail closed: an unsearched tree has no readers to miss)."""
+    found = set(POLICY_SCRIPTS)
+    for rev in revs:
+        tokens = [arg for token in POLICY_TOKENS for arg in ("-e", token)]
+        grep = subprocess.run(["git", "grep", "-z", "-l", "-F", "--text", *tokens, rev, "--", *POLICY_READER_DIRS],
+                              capture_output=True, text=True, check=False)
+        if grep.returncode not in (0, 1):
+            raise RuntimeError(f"git grep cannot search {rev[:12]} for the policy readers: {grep.stderr.strip()}")
+        found |= {name.split(":", 1)[1] for name in grep.stdout.split("\0") if ":" in name}
+    return {path for path in found if not path.endswith(".md")}
+
+
+def policy_lines(rng: str) -> list[str]:
+    """#319: each file under LINE_POLICY_PATHS whose changed lines name a policy reader, in diff order."""
+    hits: list[str] = []
+    for path in (p for p in git(*PLAIN_DIFF, "--name-only", "-z", rng, "--", *LINE_POLICY_PATHS).split("\0") if p):
+        diff = git(*PLAIN_DIFF, "-U0", rng, "--", path)
+        if any(line[:1] in "+-" and not line.startswith(("+++ ", "--- ")) and POLICY_PATTERN.search(line)
+               for line in diff.splitlines()):
+            hits.append(path)
+    return hits
+
+
+def policy_edits(base_root: Path, end_root: Path, changed: list[str], rng: str = "",
+                 revs: tuple[str, ...] = ()) -> list[str]:
     """What in the range edits policy: each brief policy field whose answer differs between the base and
-    the end, and each policy script the range touches."""
+    the end, each policy script the range touches (#319: derived at `revs`), and each Makefile or plan line
+    that names a policy reader."""
     before, after = brief_fields.policy(base_root), brief_fields.policy(end_root)
     edits = [f"the brief's `{name}:` ({before[name] or 'unset'} -> {after[name] or 'unset'})"
              for name in brief_fields.POLICY_FIELDS if before[name] != after[name]]
-    return edits + [path for path in POLICY_SCRIPTS if path in changed]
+    readers = policy_readers(revs) if revs else set(POLICY_SCRIPTS)
+    scripts = sorted(path for path in changed if path in readers)
+    lines = [path for path in policy_lines(rng) if path not in scripts] if rng else []
+    return edits + scripts + lines
 
 
 def declared_globs(root: Path | str, at: str | None = None, plan: str | None = None) -> list[str]:
@@ -172,8 +217,8 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
     root: Path = brief_root_at(at) if at else base_root
     mode = brief_fields.mode(root)
     changed = [p for p in git("diff", "--name-only", "--no-renames", "-z", rng).split("\0") if p]
-    edits = policy_edits(base_root, brief_root_at(end), changed)
-    numstat = git("diff", "--numstat", rng)
+    edits = policy_edits(base_root, brief_root_at(end), changed, rng, (base, end))
+    numstat = git(*PLAIN_DIFF, "--numstat", rng)
     product = 0
     gate: list[str] = []
     paths: list[str] = []
@@ -218,7 +263,7 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
         reasons.append(f"test-only files with sensitive names (not a signal on their own): "
                        f"{', '.join(test_only[:4])}")
     # A parser in a TEST reads fixtures the test wrote; the signal is product code taking input.
-    added = [ln[1:] for ln in git("diff", "-U0", rng, "--", ".", ":(exclude)docs", ":(exclude)*.md",
+    added = [ln[1:] for ln in git(*PLAIN_DIFF, "-U0", rng, "--", ".", ":(exclude)docs", ":(exclude)*.md",
                                   *TEST_PATHSPECS).splitlines()
              if ln.startswith("+") and not ln.startswith("+++")]
     parsers = sorted({m.group(1) for ln in added for m in [UNTRUSTED_PARSER.search(ln)] if m})

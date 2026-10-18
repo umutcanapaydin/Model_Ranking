@@ -55,6 +55,12 @@ struct Category: Codable {
     let id: String
 }
 
+// #322 (M3): a type that holds a type that holds a surface, declared before the one it holds, so that one pass
+// over the decoders does not see it.
+struct FixtureSurfacesShelf: Codable {
+    let list: CategoryList
+}
+
 struct CategoryList: Codable {
     let categories: [Category]
 }
