@@ -519,7 +519,7 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
     assert gate.main() == 1, "a client that uses none of the permissions passed the gate"
     # The control: with no permission granted, the same client passes, so the failure above is theirs.
     for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED",
-                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE"):
+                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
 

@@ -321,20 +321,68 @@ func fixtureViewKeepsTheQuestionInDefaults(_ typed: String) {
 // #297 (D-206 clause 4): the load path keeps what the engine sent, which the gate must ALLOW. Probe P5 of the
 // #288 security re-review (R-m1): the typed question decoded there into a surfaces' list, and into a type that
 // holds one, and kept. REFUSED, at each decode. And an answer kept anywhere but the load path (the #288
-// security review's MJ1). REFUSED.
+// security review's MJ1). REFUSED. #322 (the #297 security review's M1 and M3): P5 behind an associated type the
+// compiler inferred, an explicit alias, an enum's payload and an existential, and a kept answer decoded in the
+// screen's file. REFUSED, at each decode. The load path is `ContentView.load()` by its full name (N1).
+protocol FixtureShaped {
+    associatedtype Item: Decodable
+    func sample() -> Item?
+}
+
+struct FixtureShape: FixtureShaped {
+    func sample() -> [Category]? { nil }
+}
+
+enum FixtureEnvelope: Decodable {
+    case surfaces([Category])
+}
+
+typealias FixtureSurfaces = [Category]
+
 extension ContentView {
-    func load(_ answer: Recommendation, _ fresh: [Category], asked: String) {
-        StandingsStore.onDevice.keep(answer)
-        StandingsStore.onDevice.keep(fresh)
-        if let forged = try? JSONDecoder().decode([Category].self, from: Data(asked.utf8)) {
+    func load() {
+        if let answer = fixtureClientDecodesAnAnswer(Data()) {
+            StandingsStore.onDevice.keep(answer)
+        }
+        StandingsStore.onDevice.keep(fixtureClientDecodesTheSurfaces(Data())?.categories ?? [])
+        let asked = Data(task.utf8)
+        if let forged = try? JSONDecoder().decode([Category].self, from: asked) {
             StandingsStore.onDevice.keep(forged)
         }
-        if let list = try? JSONDecoder().decode(CategoryList.self, from: Data(asked.utf8)) {
+        if let list = try? JSONDecoder().decode(CategoryList.self, from: asked) {
             StandingsStore.onDevice.keep(list.categories)
         }
+        if let inferred = try? JSONDecoder().decode(FixtureShape.Item.self, from: asked) {
+            StandingsStore.onDevice.keep(inferred)
+        }
+        if let aliased = try? JSONDecoder().decode(FixtureSurfaces.self, from: asked) {
+            StandingsStore.onDevice.keep(aliased)
+        }
+        if case .surfaces(let enveloped)? = try? JSONDecoder().decode(FixtureEnvelope.self, from: asked) {
+            StandingsStore.onDevice.keep(enveloped)
+        }
+        let erased: any Decodable.Type = [Category].self
+        if let opened = try? JSONDecoder().decode(erased, from: asked) as? [Category] {
+            StandingsStore.onDevice.keep(opened)
+        }
+        _ = try? JSONDecoder().decode([KeptAnswer].self, from: asked)
     }
 
     func keepElsewhere(_ answer: Recommendation) {
         StandingsStore.onDevice.keep(answer)
+    }
+
+    // #322 (N1): a load path of another name. REFUSED.
+    func load(later answer: Recommendation) {
+        StandingsStore.onDevice.keep(answer)
+    }
+}
+
+// #322 (N1): a load path in another type of the same simple name. REFUSED.
+enum FixtureElsewhere {
+    struct ContentView {
+        func load() {
+            StandingsStore.onDevice.keep([Category]())
+        }
     }
 }

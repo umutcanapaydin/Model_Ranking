@@ -81,8 +81,9 @@ def _in_submissions(link: object) -> TypeGuard[str]:
         url = httpx.URL(link)
     except (httpx.InvalidURL, ValueError):
         return False
+    # The request sends the raw path, so the raw path is what is judged: no percent-encoding at all (#326).
     return (url.scheme == "https" and url.host == "raw.githubusercontent.com"
-            and _SUBMISSION_PATH.fullmatch(url.path) is not None)
+            and b"%" not in url.raw_path and _SUBMISSION_PATH.fullmatch(url.path) is not None)
 
 
 def _accuracy(value: object) -> float | None:

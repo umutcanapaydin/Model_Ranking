@@ -90,6 +90,19 @@ final class KeptAnswerTests: OfflineTestCase {
         String(decoding: try Data(contentsOf: folder.appendingPathComponent("answers.json")), as: UTF8.self)
     }
 
+    /// #314: a kept-answers file over the ceiling is nothing kept, and one at the ceiling is still read. The
+    /// padding is JSON whitespace, so only the size can refuse it.
+    func testAKeptFileOverItsCeilingIsNothingKeptAndOneAtItIsRead() throws {
+        try plant([entry(try decoded(), at: arrived)], in: folder)
+        let file = folder.appendingPathComponent("answers.json")
+        let valid = try Data(contentsOf: file)
+        let pad = { (count: Int) in valid + Data(repeating: UInt8(ascii: " "), count: count - valid.count) }
+        try pad(StandingsStore.maxAnswersBytes).write(to: file)
+        XCTAssertEqual(store().keptAnswers().count, 1, "a file at the ceiling was refused")
+        try pad(StandingsStore.maxAnswersBytes + 1).write(to: file)
+        XCTAssertEqual(store().keptAnswers(), [], "a file over the ceiling was kept")
+    }
+
     func testNothingKeptMeansNothingToShow() {
         XCTAssertEqual(store().keptAnswers(), [])
         XCTAssertNil(KeptAnswers.recommendation(store().keptAnswers(), task: "assistant", budget: "unlimited",
