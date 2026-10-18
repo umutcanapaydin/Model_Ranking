@@ -40,8 +40,8 @@ def test_a_kept_answer_is_kept_only_in_the_load_path() -> None:
     """MJ1: a `keep` call anywhere but `ContentView.load()` is refused, in the screen's own file and in
     another; the load path's own calls are not. # covers REQ-RTR-004, INV-67"""
     elsewhere = _refused("ContentView.swift", "outside the load path")
-    assert any("`ContentView.keepElsewhere`" in line for line in elsewhere), elsewhere
-    assert not [line for line in elsewhere if "in `ContentView.load`" in line], elsewhere
+    assert any("`ContentView.keepElsewhere(_:)`" in line for line in elsewhere), elsewhere
+    assert not [line for line in elsewhere if "in `ContentView.load()`" in line], elsewhere
     assert _refused("Detail.swift", "outside the load path")
 
 
@@ -137,8 +137,8 @@ PROBE = {
     "ContentView.swift": (
         "import Foundation\n\n"
         "struct ContentView {\n"
-        "    let client = EngineClient()\n\n"
-        "    func load(_ data: Data, asked: String) {\n"
+        "    let client = EngineClient()\n    let data = Data()\n    let asked = \"\"\n\n"
+        "    func load() {\n"
         "        StandingsStore.onDevice.keep(client.categories(data))\n"
         "        if let forged = try? JSONDecoder().decode([Category].self, from: Data(asked.utf8)) {\n"
         "            StandingsStore.onDevice.keep(forged)\n        }\n    }\n\n"
@@ -160,7 +160,7 @@ def test_p5_and_a_keep_outside_the_load_path_are_refused_on_a_compiled_client(tm
     assert dumped is not None and dumped[1] == 0, dumped and dumped[0][-800:]
     refused = [line for line in gate.problems(gate.references(dumped[0])) if "#297" in line]
     assert any(line.startswith("ContentView.swift:") and "decodes `Category`" in line for line in refused), refused
-    assert any(line.startswith("ContentView.swift:") and "`ContentView.keepLater`" in line
+    assert any(line.startswith("ContentView.swift:") and "`ContentView.keepLater(_:)`" in line
                and "outside the load path" in line for line in refused), refused
     assert len(refused) == 2, refused
 
@@ -214,7 +214,7 @@ def test_322_an_enum_whose_case_carries_a_kept_type_holds_it() -> None:
 
 
 @pytest.mark.parametrize("file", ["ContentView.swift", "EngineClient.swift", "KeptAnswers.swift", "StandingsStore.swift"])
-def test_322_a_decode_through_an_existential_is_refused_in_every_file(file: str) -> None:
+def test_322_a_decode_through_an_existential_is_refused_where_kept_types_are_decoded(file: str) -> None:
     """#322 M1: `decode(t, …)` with `t: any Decodable.Type` prints `T -> any Decodable`, a type the gate cannot
     read, so it may be any kept answer's type. No file may decode one: no file may decode all three kept types.
     # covers REQ-RTR-004, INV-67"""
@@ -226,13 +226,13 @@ def test_322_a_decode_through_an_existential_is_refused_in_every_file(file: str)
 KEPT_SHIPPING = {
     "ContentView.swift": {"main.<called in>.StandingsStore.keep|ContentView|load()@1119",
                           "main.<called in>.StandingsStore.keep|ContentView|load()@1131"},
-    "EngineClient.swift": {"main.<decodes>.CategoryList|Category@287", "main.<decodes>.Recommendation|Recommendation@269"},
-    "KeptAnswers.swift": {"main.<decodes>.Category|Category@52", "main.<decodes>.Recommendation|Recommendation@42"},
-    "StandingsStore.swift": {"main.<decodes>.KeptAnswer|KeptAnswer@199"},
+    "EngineClient.swift": {"main.<decodes>.CategoryList|Category|@287", "main.<decodes>.Recommendation|Recommendation|@269"},
+    "KeptAnswers.swift": {"main.<decodes>.Category|Category|@52", "main.<decodes>.Recommendation|Recommendation|@42"},
+    "StandingsStore.swift": {"main.<decodes>.KeptAnswer|KeptAnswer|@199"},
 }
 
 
-def test_322_an_allowed_side_the_client_no_longer_shows_fails_the_gate() -> None:
+def test_322_an_unseen_allowed_side_fails_the_gate() -> None:
     """#322 M2 (AGENTS.md §3.5: an empty derived set fails): rename `keep`, or the load path, or a kept type,
     and the rule matched nothing while the gate passed. The load path's `keep` and each allowed decode must be
     SEEN on the shipping client; one that is not is reported as a permission that matches nothing.

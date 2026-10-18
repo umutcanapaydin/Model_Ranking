@@ -124,3 +124,22 @@ func fixtureDetailBuildsAKeptAnswer(_ typed: String) -> KeptAnswer {
 func fixtureDetailKeeps(_ list: [Category]) {
     StandingsStore.onDevice.keep(list)
 }
+
+// #322 (the #297 security review's M3): an answer built by its initialiser and decoded outside the engine client,
+// a surfaces' list decoded by calling its decoder by name, and a type that holds a type that holds one. REFUSED,
+// each.
+func fixtureDetailBuildsAnAnswer(_ typed: String) -> Recommendation {
+    Recommendation(query: Query(task: typed))
+}
+
+func fixtureDetailDecodesAnAnswer(_ typed: String) -> Recommendation? {
+    try? JSONDecoder().decode(Recommendation.self, from: Data(typed.utf8))
+}
+
+func fixtureDetailDecodesByName(_ decoder: any Decoder) throws -> CategoryList {
+    try CategoryList(from: decoder)
+}
+
+func fixtureDetailDecodesAShelf(_ typed: String) -> FixtureSurfacesShelf? {
+    try? JSONDecoder().decode(FixtureSurfacesShelf.self, from: Data(typed.utf8))
+}

@@ -32,13 +32,14 @@
 #       live submissions, and ARC-AGI-2's dataset still at the revision the committed scores were
 #       derived at (`test_scores_contract.py`).
 #    7  need the owner-fetched Epoch bundle (EPOCH_DATA_DIR)
-#    3  need Xcode's compiler: the declaration gate on its compiled fixture (`test_client_decl_gate.py`,
+#    4  need Xcode's compiler: the declaration gate on its compiled fixture (`test_client_decl_gate.py`,
 #       M18-W5, #51), and a probe that the code a privacy sink runs is followed into computed
 #       properties and protocol witnesses, a shape the fixture does not carry (`test_client_decl_gate.py`,
 #       M19-W2, the Tester's M2). One more at #297 (D-206 clause 4): probe P5 and a `keep` outside the
 #       load path, compiled and judged as the client is (`test_kept_answer_provenance.py`); the fixture
 #       carries both, and its committed dump is judged where CI runs. `make client-decls` runs the fixture
-#       wherever Xcode is.
+#       wherever Xcode is. One more at #322 (D-209 clause 5): the #297 review's alias, enum, existential
+#       and load-path shapes, compiled and judged as the client is; the fixture carries each too.
 #    1  more at M18-W7 (#112, the W7 review's M4): every model the served artifact names, named as
 #       this code would (`test_display_names.py`). The rules it applies are held where CI runs too:
 #       the same file's tests over the name table and Anthropic's word order.
@@ -53,4 +54,4 @@
 #       whole history (`fetch-depth: 0`, #278): 87 became 85.
 # The owner's Mac skips 25 of these, not 85, because it has the database. Lower this when CI builds
 # an artifact from fixtures (W-108's remedy), not by skipping less honestly.
-85
+86

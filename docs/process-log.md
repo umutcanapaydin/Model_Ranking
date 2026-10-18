@@ -998,3 +998,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - `StandingsStore.keptAnswers()` checked its 8 MiB ceiling after `contents()` had read the whole file. `contents(atMost:)` now reads the file's size from its attributes first, and the store's one read stays the one pinned expression. The client gate's sink list gains the three Foundation names the size check uses (D-209 clause 6). Red first: `tests/unit/test_answers_size_before_read.py`; `KeptAnswerTests` plants a file at and over the ceiling.
 - Lesson: a ceiling bounds the step it sits before; put the check before the read, not before the decode.
+
+## 2026-10-18 · fix/issue-322-kept-answer-rules — the kept-answer rules read aliases, enum payloads and an existential, and must see their allowed sides
+
+- #297's security review (M1-M3, N1), approved as a gate change by D-209 clause 5. `kept_answer_facts` expands each substitution through every `typealias` in the dump by its `type=`, holds an enum by its cases' payloads, and refuses a decode through an existential in every file. `_owned` matches `ContentView.load()` by its full name and its type by its full path.
+- `unseen_permissions` now requires the load path's `keep` and each allowed decode on the shipping client, so a renamed `keep` or kept type fails the gate (fail closed).
+- The fixture plants each shape the review found, and the five surviving mutants are each killed. A synthesised `init(from:)` called by name prints no location, so the old `.init(from:)` branch never fired on one. Red first: `test_322_*` in `tests/unit/test_kept_answer_provenance.py`.
+- Lesson: a rule over printed types must read the aliases the dump declares, or it holds only the spellings it was shown.
