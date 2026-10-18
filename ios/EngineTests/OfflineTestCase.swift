@@ -20,6 +20,8 @@
 //  tearDown fails the test that made it. Nothing leaves the machine, and nothing crashes.
 //  #279: a test observer fails it too, from a teardown block XCTest runs whatever a subclass does
 //  with `tearDown` (`OfflineObserver`, below).
+//  #309: `invokeTest` drains before and after the whole test, so a request in a class set-up or in a
+//  tear-down that skips `super` fails the test that made it, not the next one.
 
 import Foundation
 import XCTest
@@ -130,6 +132,16 @@ class OfflineTestCase: XCTestCase {
     override func setUp() {
         super.setUp()
         OfflineGuard.installed
+    }
+
+    // #309 (D-209 clause 8): the whole test, set-up and tear-down included, whatever a subclass does with
+    // `super`. A request left before the test begins (a class set-up) or after it ends fails this test, here,
+    // while its run is still open, and never the next one.
+    override func invokeTest() {
+        OfflineGuard.installed
+        XCTAssertEqual(OfflineGuard.drain(), [], "a request was made before this test began, in a class set-up; route it to a stub (#309)")
+        super.invokeTest()
+        XCTAssertEqual(OfflineGuard.drain(), [], "this test reached for the network in its set-up or tear-down; route it to a stub (#309)")
     }
 
     override func tearDown() {
