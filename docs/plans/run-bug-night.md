@@ -37,7 +37,7 @@ The queue in order (D-209): the two drafts already open (#333, #329), then the b
 | issue-314 | fix/issue-314-answers-size | #343 | none | stacked |
 | issue-322 | fix/issue-322-kept-answer-rules | none | none | queued |
 | issue-319 | fix/issue-319-policy-scripts | none | none | queued |
-| issue-309 | fix/issue-309-whole-test-observer | none | none | queued |
+| issue-309 | fix/issue-309-whole-test-observer | #345 | none | stacked |
 
 ## Stops
 
