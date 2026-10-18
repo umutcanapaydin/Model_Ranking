@@ -1014,3 +1014,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `unseen_permissions` now requires the load path's `keep` and each allowed decode on the shipping client, so a renamed `keep` or kept type fails the gate (fail closed).
 - The fixture plants each shape the review found, and the five surviving mutants are each killed. A synthesised `init(from:)` called by name prints no location, so the old `.init(from:)` branch never fired on one. Red first: `test_322_*` in `tests/unit/test_kept_answer_provenance.py`.
 - Lesson: a rule over printed types must read the aliases the dump declares, or it holds only the spellings it was shown.
+
+## 2026-10-18 · integration/run-bug-night — run bug-night ends: twelve PRs stacked, the owner bundle reviewed
+
+- The queue of D-209, bugs first: #295 and #326 stacked as drafts; #331, #332, #325, #330, #328, #341 (found tonight), #314, #309, #319 and #322 fixed red-first and stacked on #335. #319 was a policy edit and had its own security review, whose findings were fixed on its branch.
+- The owner bundle (#256, #287, #305, #317, #318, #320, #344, #81) took four review rounds. Round 1 was BLOCKING: the #287 fix made an unknown value read as safe, a loosening. Rounds 2-4 closed that, the minors, and #344. Its agent half is `f716219` on `owner/bug-night-bundle-v2`; the owner's half is one patch in the owner's clone.
+- The merge of #333 left conflict markers in `docs/decisions.md` that no gate caught; #341 now catches them.
+- Lesson: a guard change that turns "unknown" into "allowed" is a loosening even when every listed case passes; a reviewer probing the old guard against the new one finds it, a test list does not.

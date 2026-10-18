@@ -16,7 +16,7 @@ date: 2026-10-18
 **Risk tier:** HIGH (the Bash guard and the Write/Edit guard, `.claude/settings.json`, `.githooks/`, `.github/workflows/`)
 
 ## Verdict
-PASS WITH FINDINGS (round 2: B1 and M1-M4 verified fixed; NIT N1, N2; risk R1 stands)
+PASS WITH FINDINGS (round 4: M5 verified fixed, no loosening; NIT N1, N2, N3 remain, none blocking)
 
 Round 1 was BLOCKING; its text below is kept as found.
 
@@ -150,3 +150,81 @@ PASS WITH FINDINGS. BLOCKING 0 · MINOR 0 · NIT 2.
   definition is doubtful. It errs closed, as #287's text says; the plain form without a function still passes.
 - **N2** `git -c url.https://github.com/.insteadOf=git@github.com: fetch` (an ordinary SSH-to-HTTPS rewrite) is now
   refused. This also errs closed. The owner may want to allow an `insteadOf` whose base is a well-known host.
+
+## Round 3
+
+**Date:** 2026-10-18
+**Reviewed head:** debf99e (agent half, `owner/bug-night-bundle`) + owner.patch sha256 3e45dd07e7490dc3a1642d8637abb0dcccac5f8fca5560a51a7b51c3638a9fbe
+(the copy at `build/owner-bug-night.patch` is identical)
+**Guard:** sha256 2245b367b79e19fd50dc44982ef84264f303643df4de25025d9dcacb7ba862ae. Both hook entries pin it, `orig/` still
+matches the branch, and the patch applies to debf99e. I checked in my own worktree, removed afterwards.
+
+### Verdict
+PASS WITH FINDINGS. BLOCKING 0 · MINOR 1 · NIT 3.
+
+### Re-verification
+- Unit corpus at debf99e: the pinned guard fails 179 and passes 519; the new guard passes all 698. Conformance: the
+  same per-case verdicts on old and new (591 calls).
+- Probe sets p1-p9 again: **no loosening** against the pinned guard. Against round 2, the only changes are R1's
+  commands, now refused: `d=$(echo .claude); echo x > "$d"/settings.json`, the array forms,
+  and `d2=$d`.
+- Bypass probes of the new rule (p11, 29 commands) are refused: `$(echo rm) -rf ~`, `"$(echo fly)" deploy`, `env "$(...)"`,
+  `cp/sed -i/ln/mv/tee` into `"$(echo .claude)"` or `"${D:-.claude}"`, `set -- .claude; ... "$1"`, `git config "$(...)"`,
+  `git commit "$(echo --no-verify)"`, `git -c "$(...)"`, `git reset "$(...)"`, `eval "$(...)"`, `bash -c "$(...)"`.
+  Two pass both old and new: `read d <<< .claude; echo x > "$d"/settings.json` (stated as not held) and
+  `git add -f "$(echo .env)"` (gitleaks still covers that).
+- Ordinary work (p10, 50 commands using `$( )`, `${ }`, `"$@"`): 35 allowed as before. Among them: the heredoc
+  `git commit -m "$(cat <<'EOF' ...)"`, `cd "$(git rev-parse --show-toplevel)"`, `git diff "$(git merge-base ...)"`,
+  `make review-need RANGE=$(...)..HEAD`, `for f in $(ls)`, `echo "${HOME}"`, `python3 x.py "$@"`, `gh pr create --body "$(cat f)"`,
+  `git add $(...)`, `out=$(mktemp); ... > "$out"`, `git commit -am "chore: $(date +%F)"`, `git worktree add "$(mktemp -d)"`.
+  15 are newly refused; each is classed below.
+
+### MINOR
+- **M5** A `${NAME:-literal}` default is a value the guard can read (NAME's known value, or else the literal), yet
+  it is refused as unreadable: `echo hi > "${TMPDIR:-/tmp}/x.txt"`, `"${PY:-python3}" -V`,
+  `git switch -c "fix/issue-${N:-1}-x"`, `tee "build/run-${RUN:-x}.txt"`. `${TMPDIR:-/tmp}` is the usual
+  spelling of the scratch directory. Remedy: judge `${NAME:-word}` / `${NAME-word}` as each of its two readable
+  candidates (the B1 two-pass already has the machinery), and refuse only when either is refused or unreadable.
+
+### NIT
+- **N3** Reasonable costs: an unreadable word in a writing git subcommand may be a flag
+  (`--no-verify`, `--exec`, `--upload-pack`, `-f`), and an unreadable part of a write path may add `../`. So these
+  refusals buy safety, and each has a literal rewrite:
+  - `git push -u origin "$(git branch --show-current)"` and `git fetch origin "$(...)"`
+  - `git rebase "$(git merge-base origin/main HEAD)"`, `git cherry-pick "$(git rev-parse feat)"`, `git branch --contains "$(...)"`
+  - `git checkout -b "fix/issue-$(date +%s)"`
+  - `mkdir -p "$(dirname ...)"`, `git log > "build/log-$(date +%F).txt"`, `cat > "build/$(date +%s).log"`
+  - `$(command -v python3) -V`
+  The push form is the most frequent in agent work. The refusal message should name the rewrite (run
+  `git branch --show-current` first, then push the literal name); consider that the owner's call.
+- N1 and N2 from round 2 stand unchanged.
+
+## Round 4
+
+**Date:** 2026-10-18
+**Reviewed head:** 7fe3ba4 (agent half, `owner/bug-night-bundle`) + owner.patch sha256 e3755901fb862e7116a3dccb48530b938fc74757f4d43ba18d382e2e4807a30e
+(the copy at `build/owner-bug-night.patch` is identical)
+**Guard:** sha256 d255f6cb6feea4cdd81050548a6225d114aa2773686d4ece4f2ba711ae34dfa1. Both hook entries pin it, `orig/` still
+matches the branch, and the patch applies to 7fe3ba4. I checked in my own worktree, removed afterwards.
+
+### Verdict
+PASS WITH FINDINGS. BLOCKING 0 · MINOR 0 · NIT 3 (N1, N2, N3 unchanged).
+
+### Re-verification
+- Unit corpus at 7fe3ba4: the pinned guard fails 186 and passes 527; the new guard passes all 713. Conformance: the
+  same per-case verdicts on old and new (591 calls).
+- **M5 fixed.** Allowed now: `echo hi > "${TMPDIR:-/tmp}/x.txt"`, `"${PY:-python3}" -V`,
+  `git switch -c "fix/issue-${N:-1}-x"`, `tee "build/run-${RUN:-x}.txt"`. Refused for the rule each default would break:
+  `${X:-.claude}/settings.json` (also with `-`, `:=` and `=`), `git push origin "${B:-main}"`, `"${P:-fly}" deploy`,
+  `git commit ${O:---no-verify}`, `git config ${K:-core.hooksPath} /dev/null`. A known value is honoured:
+  `X=.claude; ... "${X:-/tmp}"` and `X=/tmp; ... "${X:-.claude}"` are both refused, since `.claude` is one of the
+  two values the word may take.
+- Odd forms are refused as unreadable: `${A:-${B}}`, `${A:-${B:-.claude}}`, `${A:-$(echo .claude)}`, `${A:+.claude}`,
+  `${A#.}`, `${A/x/.claude}`, `${A%%/*}`, `${A,,}`. Inside an assignment a default still counts as unreadable
+  (`D=${E:-.claude}; ... "$D"`).
+- `rm -rf` with a default: `"${TMPDIR:-/}"`, `"${TMPDIR:-/Users}"/x`, `"${TMPDIR:-/tmp}"/..`, `"${NOPE:-$HOME}"/x` and
+  `"${TMPDIR:-.}"` stay refused. One command the pinned guard refuses now passes: `rm -rf "${TMPDIR:-/tmp}"/build`.
+  That is correct, not a loosening: both of its values are scratch.
+- All earlier probe sets (p1-p11, about 300 commands): against round 3, the only changes are the four M5 commands, now
+  allowed. **No loosening.** The three unreadable-value messages end in "Write the value out, or assign it from a
+  literal first".
