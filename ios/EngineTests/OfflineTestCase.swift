@@ -228,3 +228,24 @@ final class SkipsTheBaseTearDown: OfflineTestCase {
         _ = try? Data(contentsOf: URL(string: "https://example.invalid/279")!)
     }
 }
+
+/// A request to loopback's discard port; the tripwire answers it, so nothing leaves the machine either way.
+func reachForTheNetwork() {
+    let done = DispatchSemaphore(value: 0)
+    URLSession(configuration: .ephemeral).dataTask(with: URL(string: "http://127.0.0.1:9/whole-test")!) { _, _, _ in
+        done.signal()
+    }.resume()
+    _ = done.wait(timeout: .now() + 5)
+}
+
+/// #309's first shape: a subclass whose own `tearDown` reaches for the network and skips `super`. Its method
+/// does not start with `test`, so XCTest never runs it on its own; `WholeTestObserverTests` runs it. It lives in
+/// the base's file because it skips `super` on purpose, which `tests/unit/test_swift_tests_offline.py` refuses
+/// everywhere else.
+final class SkipsSuperInTearDown: OfflineTestCase {
+    @objc func reachesInItsTearDown() {}
+
+    override func tearDown() {
+        reachForTheNetwork()
+    }
+}
