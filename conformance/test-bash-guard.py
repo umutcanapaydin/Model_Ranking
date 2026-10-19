@@ -47,7 +47,10 @@ def payload(command: str, cwd: pathlib.Path) -> str:
 
 
 def git(root: pathlib.Path, *args: str) -> str:
-    r = subprocess.run(["git", "-c", "user.name=f", "-c", "user.email=f@x", *args], cwd=root,
+    # No background maintenance (#328): a commit's detached `git maintenance run --auto` took
+    # .git/objects/maintenance.lock while main() copied the fixture, and copytree died on the vanished lock.
+    r = subprocess.run(["git", "-c", "user.name=f", "-c", "user.email=f@x", "-c", "maintenance.auto=false",
+                        "-c", "gc.auto=0", *args], cwd=root,
                        capture_output=True, encoding="utf-8", errors="replace", env=scrubbed_env(), timeout=60)
     if r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
