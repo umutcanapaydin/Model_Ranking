@@ -1049,3 +1049,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner's three research reports were read against each other; the named kinds had been tried on #66 under the old line, so they were measured before the ADR, and kept on 8 non-searches fixed and none broken.
 - The glow is on while Apple Intelligence is available and livelier while it reads. Retrieved examples (#353), prewarm (#354) and the m25 verdict (#355) are their own issues.
 - Lesson: on a small model, fix the decoder before the prompt; with random sampling the 3-7 row noise hid every change smaller than it.
+
+## 2026-10-20 · enhancement/issue-354-prewarm — the on-device model loads while the question is typed
+
+- When the question field gains focus and Apple Intelligence is available, the model tier prewarms a session with its instructions (`LanguageModelSession.prewarm()`); Apple asks for at least a second before the question, which typing gives. All three research reports: latency only.
+- The instructions moved, unchanged, into `ModelRouter.session(for:)`, so the prewarm and the reading build the same session; a measurement run confirmed no m24 or golden reading moved.
+- Red tests first (`PrewarmTests`), the recorder in the shared `TierStubs.swift`. REQ-APP-007's evidence names them.
+- Lesson: a stub belongs where the suite's rule says, even for one test; the shared-stubs pin caught it at the first commit.
