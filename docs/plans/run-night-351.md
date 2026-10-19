@@ -4,7 +4,7 @@ Mode: light
 Started: 2026-10-19
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
+Plan PR: #356
 Rulings: D-212
 
 The queue in order (D-212): #351's draft (#352) with its next step, the named non-search kinds, kept only if the measurement says so; #348; #354; #353 once its example pool is relabelled; #355, whose set is written tonight and judges only on macOS 27. Questions the run meets that are reversible and outside a ⛔ zone take their most conservative answer in `docs/plans/assumptions-night-351.md`.
