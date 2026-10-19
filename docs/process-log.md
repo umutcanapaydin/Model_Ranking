@@ -1034,3 +1034,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Shown where the product stands against its goals, the owner set four Golden Rules as the project's backbone: every source used lawfully, every question understood by an AI model (Apple Intelligence, or another LLM), the most correct list for every question (composed by an LLM when no board ranks it), and no empty work.
 - D-210 records them with the v1 order and the owner's two answers: Apple Intelligence in every case, another LLM only where it is missing; an LLM-composed list takes every number from our boards (D-104 stands).
 - Lesson: measure the product against the owner's goals at every run's end, not only the queue; a queue of green fixes can drift from what the product is for.
+
+## 2026-10-20 · fix/issue-348-smoke-short-source — "no eligible model" says what it was computed from
+
+- The real-data recommend smoke once failed with `no eligible model for this budget` (low, assistant) and passed on a rerun; a source that came back short and a budget that truly excludes everything printed the same line.
+- The owner chose the remedy in run night-351's decisions message (D-212 clause 1): the CLI's answer now carries `evidence` -- the models the task ranks, how many have a price, and the rows each score and price source gave. The workflow is unchanged, so no owner patch is owed.
+- Red test `tests/unit/test_recommend.py::test_no_eligible_model_says_what_the_evidence_held` first. review-need: none.
+- Lesson: a smoke that can fail on upstream data should print the data it judged, or its red reads as a defect.
