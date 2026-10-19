@@ -1021,3 +1021,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner bundle (#256, #287, #305, #317, #318, #320, #344, #81) took four review rounds. Round 1 was BLOCKING: the #287 fix made an unknown value read as safe, a loosening. Rounds 2-4 closed that, the minors, and #344. Its agent half is `f716219` on `owner/bug-night-bundle-v2`; the owner's half is one patch in the owner's clone.
 - The merge of #333 left conflict markers in `docs/decisions.md` that no gate caught; #341 now catches them.
 - Lesson: a guard change that turns "unknown" into "allowed" is a loosening even when every listed case passes; a reviewer probing the old guard against the new one finds it, a test list does not.
+
+## 2026-10-19 · fix/issue-328-maintenance-lock — the guard test's flake was git's background maintenance
+
+- #339 and #343 went red in CI on `test-bash-guard.py`. Now that run-all.py prints a dead test's stderr, both showed `shutil.Error` on a vanished `.git/objects/maintenance.lock`: each fixture commit starts a detached `git maintenance run --auto`, and `main()` copies the fixture while it runs.
+- #340 (the `TimeoutExpired` handling) had targeted the timeout #328 suspected; it stays useful but did not close #328.
+- The fixture's `git()` now passes `maintenance.auto=false` and `gc.auto=0`; red test `tests/unit/test_guard_fixture_maintenance.py` first. review-need: none.
+- Lesson: hold a flake's fix until the traceback names its cause; a fix built on the suspect closes the issue without closing the flake.
