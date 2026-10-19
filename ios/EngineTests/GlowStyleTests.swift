@@ -5,7 +5,7 @@ import XCTest
 
 @testable import ModelRankingEngine
 
-final class GlowStyleTests: XCTestCase {
+final class GlowStyleTests: OfflineTestCase {
     func testTheGlowIsOnWhileTheModelIsAvailableAndOffOtherwise() {
         XCTAssertNotNil(GlowStyle.of(.available, reading: false))
         XCTAssertNotNil(GlowStyle.of(.available, reading: true))

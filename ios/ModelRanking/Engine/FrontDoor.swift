@@ -161,8 +161,14 @@ public struct GlowStyle: Equatable {
     public let blur: Double
     public let opacity: Double
 
+    /// On whenever the model is available, so the reader sees Apple Intelligence is there; while the model
+    /// reads a question it turns three times as fast, wider and brighter. Off in every other state: the
+    /// caption under the field says why.
     public static func of(_ state: OnDeviceState, reading: Bool) -> GlowStyle? {
-        nil
+        guard state == .available else { return nil }
+        return reading
+            ? GlowStyle(secondsPerTurn: 1.3, lineWidth: 4.5, blur: 3, opacity: 1)
+            : GlowStyle(secondsPerTurn: 4, lineWidth: 3, blur: 1.5, opacity: 0.8)
     }
 }
 
