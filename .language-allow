@@ -145,6 +145,7 @@ ios/EngineTests/CreditsTests.swift      # #260: asserts the Credits screen's Tur
 # #271 (D-198 clause 1): L1 reads JSON and Swift escapes since #271. These held Turkish written with escapes:
 scripts/router_probe/reading_heldout_m22_questions.json  # #237 (D-196): the live held-out set, written by an independent seat, half Turkish by design
 scripts/router_probe/reading_heldout_m23_questions.json  # run product-night (D-202 clause 6): the fresh held-out set, written by an independent seat, spent on #273, #218, #66 and #301; Turkish and nine other languages by design
+scripts/router_probe/reading_heldout_m24_questions.json  # run golden-night (D-206): the fresh held-out set, written by an independent seat, spent on #292, #293 and #295, committed at #351 as the model tier's tuning set; Turkish and seven other languages by design
 scripts/router_probe/turkish_tuning_questions.json  # #222 (D-196): the reading wave's own Turkish tuning questions, kept verbatim
 docs/research/reading-wave-m22-runs/  # #222 (D-196): the probe's runs on the wave's own Turkish sets, each row its question as run; the Turkish is the evidence
 ios/EngineTests/TurkishEmbeddingTests.swift  # #222 (D-196): asserts how Turkish questions are read, by their words, for the reason ReadingTests does
