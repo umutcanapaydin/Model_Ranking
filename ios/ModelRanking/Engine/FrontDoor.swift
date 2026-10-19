@@ -364,3 +364,10 @@ public struct GapRegisterStore {
 func recordsGap(_ outcome: RoutingOutcome) -> Bool {
     outcome.reading == .search && outcome.unmeasured && outcome.tier != .manual
 }
+
+/// #354: when the question field's focus prewarms the on-device model.
+public enum Prewarm {
+    public static func onFocus(from wasFocused: Bool, to focused: Bool, _ state: OnDeviceState) -> Bool {
+        false
+    }
+}

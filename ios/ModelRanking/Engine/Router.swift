@@ -675,6 +675,12 @@ extension CategoryHints {
 
 protocol QuestionRouter {
     func route(_ question: String, within known: [String]) async -> RoutingOutcome?
+    /// #354: a question is about to be typed; a tier that loads a model gets ready. Nothing by default.
+    func prewarm(within known: [String])
+}
+
+extension QuestionRouter {
+    func prewarm(within known: [String]) {}
 }
 
 // MARK: - Tier 2: similarity, available on every device this app targets
@@ -1309,6 +1315,9 @@ struct TieredRouter {
         #endif
         return nil
     }
+
+    /// #354: the question field gained focus.
+    func prewarm(within known: [String]) {}
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome {
         if let model,
