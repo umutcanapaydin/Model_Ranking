@@ -5,6 +5,7 @@
     "expected_surface": "coding",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-4.6-opus",
       "claude-4.7-opus",
@@ -62,6 +63,7 @@
     "expected_surface": "coding",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-4.6-opus",
       "claude-4.7-opus",
@@ -81,6 +83,7 @@
     "expected_surface": "coding",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-4.6-opus",
       "claude-4.7-opus",
@@ -176,6 +179,7 @@
     "expected_surface": "mathematics",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -195,6 +199,7 @@
     "expected_surface": "mathematics",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -233,6 +238,7 @@
     "expected_surface": "mathematics",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -252,6 +258,7 @@
     "expected_surface": "mathematics",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -290,6 +297,7 @@
     "expected_surface": "abstract",
     "disputed": true,
     "reason": "the question fits two surfaces: an odd one out is a pattern puzzle (abstract), and these are numbers (mathematics)",
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -328,6 +336,7 @@
     "expected_surface": "expert",
     "disputed": false,
     "reason": null,
+    "not_a_search": "a question of fact",
     "expected_top3": [
       "claude-5-opus",
       "claude-sonnet5.5",
@@ -366,6 +375,7 @@
     "expected_surface": "expert",
     "disputed": false,
     "reason": null,
+    "not_a_search": "a question of fact",
     "expected_top3": [
       "claude-5-opus",
       "claude-sonnet5.5",
@@ -461,6 +471,7 @@
     "expected_surface": "assistant",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -480,6 +491,7 @@
     "expected_surface": "assistant",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -499,6 +511,7 @@
     "expected_surface": "assistant",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -518,6 +531,7 @@
     "expected_surface": "vision",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5",
@@ -556,6 +570,7 @@
     "expected_surface": "vision",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5",
@@ -575,6 +590,7 @@
     "expected_surface": "search",
     "disputed": false,
     "reason": null,
+    "not_a_search": "a question of fact",
     "expected_top3": [
       "claude-4.6-opus",
       "gpt-5.5",
@@ -594,6 +610,7 @@
     "expected_surface": "search",
     "disputed": false,
     "reason": null,
+    "not_a_search": "a question of fact",
     "expected_top3": [
       "claude-4.6-opus",
       "gpt-5.5",
@@ -613,6 +630,7 @@
     "expected_surface": "search",
     "disputed": false,
     "reason": null,
+    "not_a_search": "a question of fact",
     "expected_top3": [
       "claude-4.6-opus",
       "gpt-5.5",
@@ -632,6 +650,7 @@
     "expected_surface": "search_factuality",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-4.6-opus",
       "gpt-5.5",
@@ -670,6 +689,7 @@
     "expected_surface": "factuality",
     "disputed": true,
     "reason": "the question fits two surfaces: it asks whether a claim is true (factuality), and the claim is about the brain (expert); the owner ruled it disputed (D-206 clause 3)",
+    "not_a_search": "a question of fact",
     "expected_top3": [
       "claude-opus5.5",
       "gpt6-astra",
@@ -708,6 +728,7 @@
     "expected_surface": "document",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -746,6 +767,7 @@
     "expected_surface": "document",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",
@@ -765,6 +787,7 @@
     "expected_surface": "web-dev",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-fable-5.1",
       "claude-opus5.5",
@@ -784,6 +807,7 @@
     "expected_surface": "web-dev",
     "disputed": false,
     "reason": null,
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-fable-5.1",
       "claude-opus5.5",
@@ -917,6 +941,7 @@
     "expected_surface": "assistant",
     "disputed": true,
     "reason": "no surface measures translation: assistant is the closest, and no board ranks Turkish",
+    "not_a_search": "the task itself",
     "expected_top3": [
       "claude-5-opus",
       "claude-fable-5.1",

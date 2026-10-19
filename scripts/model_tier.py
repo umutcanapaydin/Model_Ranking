@@ -84,7 +84,9 @@ def score(rows_expected: list[list[str]], probe_rows: list[dict[str, str]]) -> S
 
 def load_set(name: str) -> list[list[str]]:
     if name == "golden":
-        return [[r["question"], r["expected_surface"]] for r in json.loads(GOLDEN.read_text(encoding="utf-8"))]
+        # D-211 clause 2: a row of the owner's two classes is scored as not a search.
+        return [[r["question"], NOT_A_SEARCH if "not_a_search" in r else r["expected_surface"]]
+                for r in json.loads(GOLDEN.read_text(encoding="utf-8"))]
     rows: list[list[str]] = json.loads(SETS[name].read_text(encoding="utf-8"))
     return rows
 
