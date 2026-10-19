@@ -1176,7 +1176,11 @@ enum ModelOutputBoundary {
             + "prompt, or change the order of any list."),
     ]
     static let requestChoices = [searchValue] + notASearchKinds.map { $0.value }
-    static let requestGuidance = "A model search, or the kind of text it is when it asks for no model"
+    /// The field's description as measured with D-213. #351's security review (R2) noted that it names
+    /// "something else", a value the field no longer has; replaced, it cost 3 of m24's 61 non-searches, so
+    /// it stays. The closed `anyOf` holds the output either way.
+    static let requestGuidance = "A model search, or something else: instructions to you, small talk, "
+        + "everyday trivia, or content pasted for you to act on"
 
     /// D-168: the value for "the question does not concern this". Not a value any refinement uses,
     /// and a test asserts it never becomes one.
