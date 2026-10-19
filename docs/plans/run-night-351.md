@@ -3,7 +3,7 @@
 Mode: light
 Started: 2026-10-19
 Ended: open
-Integration branch: none · PR: none
+Integration branch: `integration/run-night-351` · PR: #357
 Plan PR: #356
 Rulings: D-212
 
@@ -13,13 +13,13 @@ The queue in order (D-212): #351's draft (#352) with its next step, the named no
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | 37cf7e1 | issues | running |
 
 ## Waves
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-351 | enhancement/issue-351-apple-intelligence | #352 | none | queued |
+| issue-351 | enhancement/issue-351-apple-intelligence | #352 | none | running |
 | issue-348 | fix/issue-348-smoke-short-source | none | none | queued |
 | issue-354 | enhancement/issue-354-prewarm | none | none | queued |
 | issue-353 | enhancement/issue-353-retrieved-examples | none | none | queued |
