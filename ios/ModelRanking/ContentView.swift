@@ -549,6 +549,12 @@ struct ContentView: View {
                         .lineLimit(2...4)
                         .tint(Design.accent)
                         .focused($questionFocused)
+                        // #354: the model loads while the person types; a send without focus routes as before.
+                        .onChange(of: questionFocused) { wasFocused, focused in
+                            if Prewarm.onFocus(from: wasFocused, to: focused, onDevice), !categories.isEmpty {
+                                router.prewarm(within: categories.map(\.id))
+                            }
+                        }
                         .submitLabel(.send)
                         .onSubmit(submit)
                         .frame(maxWidth: .infinity, alignment: .leading)

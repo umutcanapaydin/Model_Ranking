@@ -6,23 +6,14 @@ import XCTest
 @testable import ModelRankingEngine
 
 final class PrewarmTests: OfflineTestCase {
-    /// A model tier that records each prewarm and answers every question with `coding`.
-    private final class RecordingModel: QuestionRouter, @unchecked Sendable {
-        var prewarmed: [[String]] = []
-        func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-            ModelOutputBoundary.outcome(for: "coding", within: known, request: ModelOutputBoundary.searchValue)
-        }
-        func prewarm(within known: [String]) { prewarmed.append(known) }
-    }
-
     func testTheTiersHandAPrewarmToTheModelTier() {
-        let model = RecordingModel()
+        let model = PrewarmRecordingModelTier()
         TieredRouter(model: model, similarity: SilentTier()).prewarm(within: ["coding", "vision"])
         XCTAssertEqual(model.prewarmed, [["coding", "vision"]])
     }
 
     func testAQuestionSentWithNoPrewarmIsStillReadByTheModel() async {
-        let model = RecordingModel()
+        let model = PrewarmRecordingModelTier()
         let outcome = await TieredRouter(model: model, similarity: SilentTier())
             .route("which ai is best for my python bugs", within: ["coding"])
         XCTAssertEqual(outcome.tier, .model)

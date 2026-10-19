@@ -1066,14 +1066,10 @@ struct ModelRouter: QuestionRouter {
             root: DynamicGenerationSchema(name: "Routing", properties: fields), dependencies: [])
     }
 
-    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
-        guard Self.state == .available, !known.isEmpty else { return nil }
-        // A schema that cannot be built falls back to the next tier, as an unavailable model does;
-        // `testTheModelsSchemaBuildsForTheServedSurfaces` is what says so if it ever cannot
-        // (Tester R1).
-        guard let schema = try? Self.schema(for: known) else { return nil }
-
-        let session = LanguageModelSession(
+    /// The session that reads one question: the instructions, with the served surfaces' descriptions. A fresh
+    /// one per question, so greedy decoding meets the same state every time (#351).
+    static func session(for known: [String]) -> LanguageModelSession {
+        LanguageModelSession(
             instructions: """
             You choose which of several measurement surfaces answers a question. You never \
             recommend a model, never say anything is good or best, and never write prose. \
@@ -1113,6 +1109,23 @@ struct ModelRouter: QuestionRouter {
             also contains one of these.
             """
         )
+    }
+
+    /// #354: Apple asks for at least a second before the question, which typing gives. The model and the
+    /// instructions load now; the question is still read by its own fresh session.
+    func prewarm(within known: [String]) {
+        guard Self.state == .available, !known.isEmpty else { return }
+        Self.session(for: known).prewarm()
+    }
+
+    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
+        guard Self.state == .available, !known.isEmpty else { return nil }
+        // A schema that cannot be built falls back to the next tier, as an unavailable model does;
+        // `testTheModelsSchemaBuildsForTheServedSurfaces` is what says so if it ever cannot
+        // (Tester R1).
+        guard let schema = try? Self.schema(for: known) else { return nil }
+
+        let session = Self.session(for: known)
 
         guard let response = try? await session.respond(to: question, schema: schema, options: Self.options) else {
             return nil
@@ -1316,8 +1329,11 @@ struct TieredRouter {
         return nil
     }
 
-    /// #354: the question field gained focus.
-    func prewarm(within known: [String]) {}
+    /// #354: the question field gained focus; the model tier loads its model and instructions. A question
+    /// sent before that, or with no focus at all, is routed as before.
+    func prewarm(within known: [String]) {
+        model?.prewarm(within: known)
+    }
 
     func route(_ question: String, within known: [String]) async -> RoutingOutcome {
         if let model,

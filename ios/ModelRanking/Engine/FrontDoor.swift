@@ -367,7 +367,9 @@ func recordsGap(_ outcome: RoutingOutcome) -> Bool {
 
 /// #354: when the question field's focus prewarms the on-device model.
 public enum Prewarm {
+    /// Only when the field GAINS focus, and only where Apple Intelligence is ready: a model still downloading
+    /// or turned off has nothing to load, and focus kept is not a new question coming.
     public static func onFocus(from wasFocused: Bool, to focused: Bool, _ state: OnDeviceState) -> Bool {
-        false
+        !wasFocused && focused && state == .available
     }
 }
