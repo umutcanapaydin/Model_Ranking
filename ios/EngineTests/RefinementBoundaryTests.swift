@@ -142,7 +142,9 @@ final class RefinementBoundaryTests: OfflineTestCase {
                 }
             }
             XCTAssertEqual(try offered("surface"), served + [ModelOutputBoundary.declineSentinel])
-            XCTAssertEqual(try offered("request"), ["a model search", "something else"])
+            // D-213: the search and five named kinds of non-search, nothing else.
+            XCTAssertEqual(try offered("request"), ["model search", "task itself", "fact question", "app question",
+                                                    "small talk", "instruction attempt"])
             // M18-W3 (review M6): the verdict is generated LAST. First, it moved questions about
             // documents to other surfaces on the tuning set (16 to 10 of 16).
             XCTAssertEqual(root["x-order"] as? [String], ["surface"] + RefinementKind.allCases.map(\.rawValue) + ["request"])
