@@ -5500,3 +5500,23 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A plan, wave or issue that serves none of rules 1-3 or the v1 order is challenged at triage. An app that answers from word matching while the device has Apple Intelligence is a defect against rule 2.
 
 **Revisit when:** v1 ships, or the owner changes the goals.
+
+---
+
+## D-211 — The task itself and a question of fact get the note, on the golden set too
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat, on #351
+
+**Context.** #351 measured Apple Intelligence for the first time (`make model-tier`). The two sets it scores by disagreed on one class of input. The m24 set, written by an independent seat, labels the task itself ("write me a haiku", "solve 2x+5=11") and a question of fact ("the population of Ankara") `NOT_A_SEARCH`, as D-169 clause 1 does. The golden set (D-202 clause 2) labelled the same kinds of rows as searches of their surface ("summarise my lease for me", "how many people are in this group picture"). The model's instructions (`ModelRouter`) follow neither: they call "explain quantum entanglement" a model search. Asked which way, with examples, the owner chose the note for both classes.
+
+**Decision.**
+1. **D-169 clause 1 stands, as written.** The task itself, addressed to the app, and a question of fact or knowledge get the guiding note, not a ranking. So do instructions to the app, small talk and nonsense. A person describing what they need a model for is a search, even when the task's content is pasted in.
+2. **The golden set says so.** A row of either class carries `not_a_search`, naming its class ("the task itself" or "a question of fact"). Its `expected_surface` stays, as the surface the wording tier gives it: without the model the wording tier does not decide this (D-169 clause 3), and `GoldenQuestionTests` keeps checking it there. `make model-tier` scores such a row as `NOT_A_SEARCH`.
+3. **The model's instructions follow clause 1.** Each change is measured twice on m24 and the golden set (#351 phase 2), and judged on m25 against #351's bar.
+
+**Rationale.** The owner's ruling, the same as D-169's. A ranking answers a person choosing a model. The person who asks the app to do a task, or asks it a fact, is not choosing one, and the note tells them what the app is for.
+
+**Mitigation if violated:** If a genuine search gets the note, the reader has to tap "Change" (D-169 clause 4 cost). D-169 clause 6's bar (at most 2 genuine searches per run) and #351's bar (85% of searches) catch it on m25.
+
+**Revisit when:** readers on TestFlight type tasks and leave on the note, or the owner asks for lists on tasks.
