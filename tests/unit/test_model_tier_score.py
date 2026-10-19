@@ -63,3 +63,35 @@ def test_a_golden_row_marked_not_a_search_is_scored_as_one() -> None:
     rows = dict((q, e) for q, e in _model_tier().load_set("golden"))
     assert rows["kira kontrat\u0131m\u0131 okuyup bana \u00f6zet \u00e7\u0131kar"] == "NOT_A_SEARCH"
     assert rows["which ai is best at fixing bugs in a large java project"] == "coding"
+
+
+def test_mcnemar_is_the_exact_two_sided_test_of_fixed_against_broken() -> None:
+    """#351 (D-206, the three research reports): a change is kept when it fixes more questions than it breaks
+    beyond chance. Under greedy decoding each variant runs once, and the exact McNemar test is the one for a
+    single run; with five or fewer changed questions no result can reach p < 0.05."""
+    mcnemar = _model_tier().mcnemar
+    assert round(mcnemar(9, 1), 4) == 0.0215
+    assert round(mcnemar(13, 3), 4) == 0.0213
+    assert round(mcnemar(15, 5), 4) == 0.0414
+    assert mcnemar(5, 0) > 0.05
+    assert mcnemar(0, 0) == 1.0
+    assert mcnemar(3, 9) == mcnemar(9, 3)
+
+
+def test_a_comparison_names_each_question_a_change_fixed_or_broke() -> None:
+    expected = [["a", "coding"], ["b", "NOT_A_SEARCH"], ["c", "coding"], ["d", "coding"], ["e", "NOT_A_SEARCH"]]
+    base = [_row("a", "vision"), _row("b", "everyday"), _row("c", "coding"), _row("d", "coding"),
+            _row("e", "everyday", reading="unsure")]
+    candidate = [_row("a", "coding"), _row("b", "everyday", reading="unsure"), _row("c", "vision"),
+                 _row("d", "coding"), _row("e", "everyday", reading="notASearch")]
+    result = _model_tier().compare(expected, base, candidate)
+    assert (result.fixed, result.broken) == (["a", "b"], ["c"])
+    assert (result.searches_net, result.not_searches_net) == (0, 1)
+
+
+def test_a_run_is_named_by_its_label_and_number() -> None:
+    """`--compare greedy kinds` reads run 1 of each label; `greedy:1 greedy:2` checks one label's two runs."""
+    module = _model_tier()
+    assert module.run_name("greedy") == ("greedy", 1)
+    assert module.run_name("greedy:2") == ("greedy", 2)
+    assert module.rows_path("greedy", "m24", "model", 2) == ROOT / "build" / "model-tier" / "greedy" / "m24-model-2.json"
