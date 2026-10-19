@@ -154,6 +154,18 @@ func routingNotice(_ outcome: RoutingOutcome, _ language: Language) -> String {
     }
 }
 
+/// #351 (Golden Rule 2, D-210; REQ-APP-007): how Apple Intelligence's glow around the question moves.
+public struct GlowStyle: Equatable {
+    public let secondsPerTurn: Double
+    public let lineWidth: Double
+    public let blur: Double
+    public let opacity: Double
+
+    public static func of(_ state: OnDeviceState, reading: Bool) -> GlowStyle? {
+        nil
+    }
+}
+
 // MARK: - Why the intelligent tier is not running, said as help rather than as an error
 
 /// Whether the on-device model can route questions, as the platform reports it.
