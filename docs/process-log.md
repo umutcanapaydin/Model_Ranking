@@ -1032,5 +1032,5 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 ## 2026-10-19 · enhancement/golden-rules — the owner's Golden Rules at the top of AGENTS.md (D-210)
 
 - Shown where the product stands against its goals, the owner set four Golden Rules as the project's backbone: every source used lawfully, every question understood by an AI model (Apple Intelligence, or another LLM), the most correct list for every question (composed by an LLM when no board ranks it), and no empty work.
-- D-210 records them with the v1 order and two open questions: does another LLM stay on the phone (D-160), and does an LLM-composed list keep every number from a board (D-104)?
+- D-210 records them with the v1 order and the owner's two answers: Apple Intelligence in every case, another LLM only where it is missing; an LLM-composed list takes every number from our boards (D-104 stands).
 - Lesson: measure the product against the owner's goals at every run's end, not only the queue; a queue of green fixes can drift from what the product is for.

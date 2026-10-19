@@ -5491,9 +5491,9 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **The v1 order** (the owner's): (1) every open issue closed, no code work left; (2) permission from every source; (3) Apple Intelligence used fully and (4) the question understood fully, worked together; (5) routing to the right lists; (6) composing a list no board ranks, last.
 
-**Open for the owner (answer by a new ADR, never by editing this one):**
-- **Q1, rule 2 versus D-160 clause 1** ("nothing derived from the question leaves the device"). "Another LLM" is either a model on the phone, which keeps D-160, or a hosted one, which supersedes D-160 clause 1 and needs a privacy note and App Store 5.1.2(i) review.
-- **Q2, rule 3 versus D-104** ("no LLM generates, adjusts or explains a score, price or availability"). The reading proposed here: the LLM chooses which boards and facets the list combines, and every number shown still comes from a board. An LLM writing a ranking of its own would supersede D-104.
+**The owner's answers (2026-10-19, in chat, before this ADR merged):**
+- **Rule 2 and D-160.** "I said 'if needed': Apple Intelligence must be used in every case" *(translated)*. Apple Intelligence reads every question on every device that has it, and the work goes there first. Another LLM is only the fallback for a device without it. Where that fallback runs (on the phone, which keeps D-160 clause 1, or hosted, which would supersede it) is decided by its own ADR when it is built.
+- **Rule 3 and D-104.** Agreed: "it will produce or interpret from our lists, of course it will not make something up on its own" *(translated)*. The LLM chooses and combines boards and facets. Every model, position and number it shows comes from a board. D-104 stands.
 
 **Rationale.** The owner's own statement of what the product is for. The roadmap had drifted to guard and process work while understanding stood at 83/173 on the fresh set (D-206) and accuracy on the Apple Intelligence tier had never been measured.
 
