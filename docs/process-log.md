@@ -943,3 +943,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scrubbed_env` now drops the outer make's MAKEFLAGS: under v7.2 the post-edit hook was red after every edit.
 - The owner waived the guard-change security review (one bypass row in `docs/control-events.csv`).
 - **Lesson:** a dry run of the owner patch is the only place an upgrade's agent half can be proven green; run it before calling the half done.
+
+## 2026-10-17 — plan/run-bug-night
+
+- The owner opened run bug-night (light). The queue was re-triaged on fe35bc3 after #308: nine issues closed as fixed, the rest re-verdicted, and #331 and #332 triaged.
+- Every reserved decision was asked once, through the chat's choice picker, and is D-209. #115, #243 and #323 closed on the owner's ruling.
+- **Lesson:** a decisions message reads faster as a picker with a reasoned default than as a numbered list; the owner answered nine questions in two rounds.
