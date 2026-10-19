@@ -20,7 +20,7 @@ The queue in order (D-212): #351's draft (#352) with its next step, the named no
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
 | issue-351 | enhancement/issue-351-apple-intelligence | #352 | none | running |
-| issue-348 | fix/issue-348-smoke-short-source | none | none | queued |
+| issue-348 | fix/issue-348-smoke-short-source | #358 | none | stacked |
 | issue-354 | enhancement/issue-354-prewarm | none | none | queued |
 | issue-353 | enhancement/issue-353-retrieved-examples | none | none | queued |
 | issue-355 | none | none | none | queued |
