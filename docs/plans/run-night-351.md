@@ -21,15 +21,16 @@ The queue in order (D-212): #351's draft (#352) with its next step, the named no
 |---|---|---|---|---|
 | issue-351 | enhancement/issue-351-apple-intelligence | #352 | none | stacked |
 | issue-348 | fix/issue-348-smoke-short-source | #358 | none | stacked |
-| issue-354 | enhancement/issue-354-prewarm | none | none | running |
+| issue-354 | enhancement/issue-354-prewarm | #360 | none | stacked |
 | issue-353 | enhancement/issue-353-retrieved-examples | none | none | stopped |
-| issue-355 | none | none | none | queued |
+| issue-355 | none | none | none | stopped |
 
 ## Stops
 
 | When | Wave | Class | What the owner decides | Continued on |
 |---|---|---|---|---|
 | 2026-10-20 | issue-353 | control-change | Whether the client may order the example pool by similarity to the typed question (our own labelled questions, never a model, a score or an answer): an exemption in Ruling A's two pins, `SORTING_PERMITTED` and the compiled client-decls gate, which are controls the agent does not widen. Measured on m24 the nearest 8 gave 152 of 173 against 139 (p = 0.015; #353's comment). The red step is commit `aa7b941` on the local branch (the pre-push gate refuses a red test); the green step is `build/night-351/issue-353-green.patch` in the main clone | #354 |
+| 2026-10-20 | issue-355 | environment | Upgrade the Mac to macOS 27 (the row in `docs/owner-actions.md`): m25 is written and sealed (511 rows; its sha256 on #355) and judges once on the OS 27 model, recording the build and `SystemLanguageModel.default.variant` | nothing |
 
 ## For the owner
 
