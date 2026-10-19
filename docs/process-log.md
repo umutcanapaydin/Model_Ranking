@@ -1056,3 +1056,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The instructions moved, unchanged, into `ModelRouter.session(for:)`, so the prewarm and the reading build the same session; a measurement run confirmed no m24 or golden reading moved.
 - Red tests first (`PrewarmTests`), the recorder in the shared `TierStubs.swift`. REQ-APP-007's evidence names them.
 - Lesson: a stub belongs where the suite's rule says, even for one test; the shared-stubs pin caught it at the first commit.
+
+## 2026-10-20 · integration/run-night-351 — run night-351: #351 raised to 139 of 173, #348, #354; #353 and #355 stopped
+
+- Stacked on #357, in order: #352 (#351, Apple Intelligence measured and raised; D-213), #358 (#348), #360 (#354). The owner's four answers are D-212.
+- Stopped: #353 at a control change (the retrieved examples gave 152 of m24's 173, p = 0.015, but sorting the example pool in a client file needs an exemption in Ruling A's two pins), #355 at the environment (m25, 511 rows, written and sealed; it judges on macOS 27).
+- Twelve tracked paths vanished from the first work tree while a subagent's post-edit hook and a commit's check ran at once in it (#359); two were under `.claude/`, which the agent may not restore, so the run moved to fresh trees, with `advisor.db` copied into them (assumption 4).
+- Lesson: in a run, subagents that write files run their hooks in the coordinator's tree; give them no Write tool there, or one tree each, before the first check overlaps.
