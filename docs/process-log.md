@@ -1041,3 +1041,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner chose the remedy in run night-351's decisions message (D-212 clause 1): the CLI's answer now carries `evidence` -- the models the task ranks, how many have a price, and the rows each score and price source gave. The workflow is unchanged, so no owner patch is owed.
 - Red test `tests/unit/test_recommend.py::test_no_eligible_model_says_what_the_evidence_held` first. review-need: none.
 - Lesson: a smoke that can fail on upstream data should print the data it judged, or its red reads as a defect.
+
+## 2026-10-20 · enhancement/issue-351-apple-intelligence — Apple Intelligence measured, then raised: 107-111 to 139 of m24's 173
+
+- `make model-tier` scores the on-device model for the first time, beside the wording tier, and keeps every question's row so two runs compare by an exact McNemar test.
+- Raised on m24 (tuning): the request paragraph by D-169/D-211, surface descriptions, greedy decoding (one answer per question on one model version; two runs agree on every row), and the verdict naming the kind of a non-search (D-213). Searches 81-85 to 88 of 112; non-searches caught 23-27 to 51 of 61.
+- The owner's three research reports were read against each other; the named kinds had been tried on #66 under the old line, so they were measured before the ADR, and kept on 8 non-searches fixed and none broken.
+- The glow is on while Apple Intelligence is available and livelier while it reads. Retrieved examples (#353), prewarm (#354) and the m25 verdict (#355) are their own issues.
+- Lesson: on a small model, fix the decoder before the prompt; with random sampling the 3-7 row noise hid every change smaller than it.

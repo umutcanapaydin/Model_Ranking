@@ -154,6 +154,24 @@ func routingNotice(_ outcome: RoutingOutcome, _ language: Language) -> String {
     }
 }
 
+/// #351 (Golden Rule 2, D-210; REQ-APP-007): how Apple Intelligence's glow around the question moves.
+public struct GlowStyle: Equatable {
+    public let secondsPerTurn: Double
+    public let lineWidth: Double
+    public let blur: Double
+    public let opacity: Double
+
+    /// On whenever the model is available, so the reader sees Apple Intelligence is there; while the model
+    /// reads a question it turns three times as fast, wider and brighter. Off in every other state: the
+    /// caption under the field says why.
+    public static func of(_ state: OnDeviceState, reading: Bool) -> GlowStyle? {
+        guard state == .available else { return nil }
+        return reading
+            ? GlowStyle(secondsPerTurn: 1.3, lineWidth: 4.5, blur: 3, opacity: 1)
+            : GlowStyle(secondsPerTurn: 4, lineWidth: 3, blur: 1.5, opacity: 0.8)
+    }
+}
+
 // MARK: - Why the intelligent tier is not running, said as help rather than as an error
 
 /// Whether the on-device model can route questions, as the platform reports it.

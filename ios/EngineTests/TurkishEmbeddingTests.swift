@@ -138,7 +138,7 @@ final class TurkishEmbeddingTests: OfflineTestCase {
         try requireTheEmbedding()
         let question = "h\u{00FC}cre zar\u{0131}ndan iyonlar nas\u{0131}l ge\u{00E7}er"
         let declined = await TieredRouter(
-            model: ScriptedModelRouter(answers: [question: ["request": "a model search",
+            model: ScriptedModelRouter(answers: [question: ["request": "model search",
                                                             "surface": ModelOutputBoundary.declineSentinel]]),
             similarity: SimilarityRouter()
         ).route(question, within: known)
