@@ -57,3 +57,15 @@ struct AnsweringWordingTier: QuestionRouter {
         RoutingOutcome(categoryID: surface, tier: .similarity, unmeasured: false)
     }
 }
+
+/// #354: a model tier that records each prewarm and reads every question as a search for `coding`. A class,
+/// so the record survives the copy `TieredRouter` holds.
+final class PrewarmRecordingModelTier: QuestionRouter, @unchecked Sendable {
+    private(set) var prewarmed: [[String]] = []
+
+    func route(_ question: String, within known: [String]) async -> RoutingOutcome? {
+        ModelOutputBoundary.outcome(for: "coding", within: known, request: ModelOutputBoundary.searchValue)
+    }
+
+    func prewarm(within known: [String]) { prewarmed.append(known) }
+}
