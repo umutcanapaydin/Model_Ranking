@@ -5472,3 +5472,31 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A general question with a descriptive clause (`en çok kullanılan yapay zeka`, *(translated: the most used AI)*) would leave `everyday`; the fresh set's general rows catch it.
 
 **Revisit when:** the fresh measurement fails the bar, or the on-device model tier is on every supported phone.
+
+---
+
+## D-210 — The Golden Rules: the product's backbone, as the owner set them
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat ("these are the backbone of this project ... write them down somewhere very important, in golden letters, under the name Golden Rules; stop working on empty tasks, these are our goals" *(translated)*)
+
+**Context.** After run bug-night the owner was shown where the product stands against its goals. Their reply set the goals as the project's backbone: what the owner expects from the app is that it can use every source's data, understand what the user wants through Apple Intelligence (or another LLM when it is not there), and show the most correct list, building one itself with an LLM when needed *(translated)*.
+
+**Decision.** The Golden Rules. They outrank every other priority. `AGENTS.md` carries them at the top, so every session reads them.
+
+1. **Every source's data, used lawfully.** Each board and price source is either under an open licence or used with its publisher's written permission. Before v1, no source stays unlicensed.
+2. **Understand the question with an AI model, always.** Apple Intelligence reads every question whenever the device has it. Where it does not, another LLM reads it. Matching words alone is a fallback for when no model answers. It is never the plan.
+3. **The most correct list for every question.** The answer is the list from our boards that fits the question. When no board ranks what was asked, the app composes the list itself with an LLM, from the boards' data, and shows it.
+4. **No empty work.** Every task serves rules 1-3 or the v1 order below. Anything else waits, and the agent says so instead of doing it.
+
+**The v1 order** (the owner's): (1) every open issue closed, no code work left; (2) permission from every source; (3) Apple Intelligence used fully and (4) the question understood fully, worked together; (5) routing to the right lists; (6) composing a list no board ranks, last.
+
+**Open for the owner (answer by a new ADR, never by editing this one):**
+- **Q1, rule 2 versus D-160 clause 1** ("nothing derived from the question leaves the device"). "Another LLM" is either a model on the phone, which keeps D-160, or a hosted one, which supersedes D-160 clause 1 and needs a privacy note and App Store 5.1.2(i) review.
+- **Q2, rule 3 versus D-104** ("no LLM generates, adjusts or explains a score, price or availability"). The reading proposed here: the LLM chooses which boards and facets the list combines, and every number shown still comes from a board. An LLM writing a ranking of its own would supersede D-104.
+
+**Rationale.** The owner's own statement of what the product is for. The roadmap had drifted to guard and process work while understanding stood at 83/173 on the fresh set (D-206) and accuracy on the Apple Intelligence tier had never been measured.
+
+**Mitigation if violated:** A plan, wave or issue that serves none of rules 1-3 or the v1 order is challenged at triage. An app that answers from word matching while the device has Apple Intelligence is a defect against rule 2.
+
+**Revisit when:** v1 ships, or the owner changes the goals.

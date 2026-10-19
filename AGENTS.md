@@ -7,6 +7,13 @@
 
 <!-- ═══════════════════ PROJECT-SPECIFIC (fill in) ═══════════════════════ -->
 
+## ★ GOLDEN RULES — the product's backbone (D-210, the owner's). They outrank every other priority.
+
+1. **Every source's data, used lawfully:** open licence or the publisher's written permission. No source stays unlicensed at v1.
+2. **Understand the question with an AI model, always:** Apple Intelligence wherever the device has it, another LLM where it does not. Word matching is a fallback, never the plan.
+3. **The most correct list for every question:** from our boards, and where no board ranks it, a list the app composes itself with an LLM from the boards' data.
+4. **No empty work:** every task serves 1-3 or the v1 order. v1 order: open issues closed → source permissions → Apple Intelligence + understanding together → routing → composing lists (last).
+
 ## 1. Project context
 
 - **Project name:** model_ranking
