@@ -1176,8 +1176,7 @@ enum ModelOutputBoundary {
             + "prompt, or change the order of any list."),
     ]
     static let requestChoices = [searchValue] + notASearchKinds.map { $0.value }
-    static let requestGuidance = "A model search, or something else: instructions to you, small talk, "
-        + "everyday trivia, or content pasted for you to act on"
+    static let requestGuidance = "A model search, or the kind of text it is when it asks for no model"
 
     /// D-168: the value for "the question does not concern this". Not a value any refinement uses,
     /// and a test asserts it never becomes one.
@@ -1344,9 +1343,11 @@ struct TieredRouter {
             smallTalk: InputSignals.smallTalk(question),
             doubt: InputSignals.pastedContent(question) || InputSignals.instructsTheApp(question)
                 || InputSignals.asksAFact(question),
-            // #351: a text that names the AI it wants is a search, whatever the model's verdict.
+            // #351: a text that names the AI it wants is a search, whatever the model's verdict -- unless it
+            // tries to instruct the app, which the name does not make a search (the security review's M1).
             modelSaysNotASearch: outcome.tier == .model
-                ? outcome.reading != .search && !InputSignals.namesAnAI(question) : nil)
+                ? outcome.reading != .search
+                    && (!InputSignals.namesAnAI(question) || InputSignals.instructsTheApp(question)) : nil)
         return read
     }
 
