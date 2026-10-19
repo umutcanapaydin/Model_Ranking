@@ -150,6 +150,9 @@ def test_terminal_bench_is_credited_under_apache_2_0_with_its_repository() -> No
     RAW + "../../../../evil/repo/main/x.json",
     "https://raw.githubusercontent.com/harbor-framework/terminal-bench/main/leaderboard/other/x.json",
     "https://raw.githubusercontent.com/harbor-framework/terminal-bench-x/main/leaderboard/submissions/x.json",
+    # #326: the check read the decoded path, so an encoded `..` as the ref passed it and was sent raw.
+    "https://raw.githubusercontent.com/harbor-framework/terminal-bench/%2e%2e/leaderboard/submissions/x.json",
+    "https://raw.githubusercontent.com/harbor-framework/terminal-bench/%2E%2E/leaderboard/submissions/x.json",
 ])
 def test_a_listed_file_whose_path_leaves_the_submissions_directory_is_refused(link: str) -> None:
     """The review's M2: httpx removes dot segments before the request, so a prefix test let `..` out."""

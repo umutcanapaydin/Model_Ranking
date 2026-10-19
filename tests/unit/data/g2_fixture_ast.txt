@@ -5135,142 +5135,880 @@
                 (declref_expr type="String" location=/x/ContentView.swift:318:31 range=[/x/ContentView.swift:318:31 - line:318:31] decl="main.(file).fixtureViewKeepsTheQuestionInDefaults(_:).typed@/x/ContentView.swift:317:46" function_ref=unapplied))))
           (argument label="forKey"
             (string_literal_expr type="String" location=/x/ContentView.swift:318:46 range=[/x/ContentView.swift:318:46 - line:318:46] encoding=utf8 value="q" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))))))
-  (extension_decl range=[/x/ContentView.swift:325:1 - line:340:1] "ContentView"
-    (func_decl range=[/x/ContentView.swift:326:5 - line:335:5] "load(_:_:asked:)" interface_type="(ContentView) -> (Recommendation, [Category], String) -> ()" access=internal
-      (parameter "self") result="()" thrown_type="<null>"
-      (parameter_list range=[/x/ContentView.swift:326:14 - line:326:75]
-        (parameter "answer" interface_type="Recommendation")
-        (parameter "fresh" interface_type="[Category]")
-        (parameter "asked" apiName="asked" interface_type="String"))
-      (brace_stmt range=[/x/ContentView.swift:326:77 - line:335:5]
-        (call_expr type="()" location=/x/ContentView.swift:327:33 range=[/x/ContentView.swift:327:9 - line:327:44] nothrow isolation_crossing="none"
-          (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:327:33 range=[/x/ContentView.swift:327:9 - line:327:33] nothrow isolation_crossing="none"
-            (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:327:33 range=[/x/ContentView.swift:327:33 - line:327:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
+  (protocol range=[/x/ContentView.swift:327:1 - line:330:1] "FixtureShaped" interface_type="FixtureShaped.Type" access=internal non_resilient requirement_signature="<Self where Self : Copyable, Self : Escapable, Self.Item : Decodable>"
+    (associated_type_decl range=[/x/ContentView.swift:328:5 - line:328:26] "Item" interface_type="Self.Item.Type" access=internal default="<null>")
+    (func_decl range=[/x/ContentView.swift:329:5 - line:329:26] "sample()" interface_type="<Self where Self : FixtureShaped> (Self) -> () -> Self.Item?" access=internal captures=(<generic>  type=τ_0_0)
+      (parameter "self") result="Self.Item?" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:329:16 - line:329:17])))
+  (struct_decl range=[/x/ContentView.swift:332:1 - line:334:1] "FixtureShape" interface_type="FixtureShape.Type" access=internal non_resilient inherits="FixtureShaped"
+    (func_decl range=[/x/ContentView.swift:333:5 - line:333:40] "sample()" interface_type="(FixtureShape) -> () -> [Category]?" access=internal
+      (parameter "self") result="[Category]?" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:333:16 - line:333:17])
+      (brace_stmt range=[/x/ContentView.swift:333:34 - line:333:40]
+        (return_stmt implicit range=[/x/ContentView.swift:333:36 - line:333:36]
+          (nil_literal_expr type="[Category]?" location=/x/ContentView.swift:333:36 range=[/x/ContentView.swift:333:36 - line:333:36] initializer="**NULL**"))))
+    (typealias implicit "Item" interface_type="FixtureShape.Item.Type" access=internal type="[Category]")
+    (constructor_decl implicit range=[/x/ContentView.swift:332:8 - line:332:8] "init()" interface_type="(FixtureShape.Type) -> () -> FixtureShape" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list)
+      (brace_stmt implicit range=[/x/ContentView.swift:332:8 - line:332:8]
+        (return_stmt implicit range=[/x/ContentView.swift:332:8 - line:332:8]))))
+  (enum_decl range=[/x/ContentView.swift:336:1 - line:338:1] "FixtureEnvelope" interface_type="FixtureEnvelope.Type" access=internal non_resilient inherits="Decodable"
+    (enum_case_decl range=[/x/ContentView.swift:337:5 - line:337:29]
+      (enum_element_decl range=[/x/ContentView.swift:337:10 - line:337:29] "surfaces(_:)" interface_type="(FixtureEnvelope.Type) -> ([Category]) -> FixtureEnvelope" access=internal
+        (parameter_list range=[/x/ContentView.swift:337:18 - line:337:29]
+          (parameter <anonymous @ 0x0> interface_type="[Category]"))))
+    (enum_element_decl range=[/x/ContentView.swift:337:10 - line:337:29] "surfaces(_:)" interface_type="(FixtureEnvelope.Type) -> ([Category]) -> FixtureEnvelope" access=internal
+      (parameter_list range=[/x/ContentView.swift:337:18 - line:337:29]
+        (parameter <anonymous @ 0x0> interface_type="[Category]")))
+    (enum_decl implicit "CodingKeys" interface_type="FixtureEnvelope.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "surfaces")
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(FixtureEnvelope.CodingKeys.Type) -> (String) -> FixtureEnvelope.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit
+                  (string_literal_expr implicit type="<null>" encoding=utf8 value="surfaces" builtin_initializer="**NULL**" initializer="**NULL**")))
+              (brace_stmt implicit
+                (assign_expr implicit type="<null>"
+                  (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (member_ref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.surfaces"
+                    (type_expr implicit type="FixtureEnvelope.CodingKeys.Type" null_typerepr)))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit))
+              (brace_stmt implicit
+                (fail_stmt implicit))))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(FixtureEnvelope.CodingKeys.Type) -> (Int) -> FixtureEnvelope.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (return_stmt implicit
+            (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(FixtureEnvelope.CodingKeys.Type) -> (FixtureEnvelope.CodingKeys, FixtureEnvelope.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="FixtureEnvelope.CodingKeys")
+          (parameter "b" interface_type="FixtureEnvelope.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureEnvelope.CodingKeys" decl="main.(file).FixtureEnvelope.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureEnvelope.CodingKeys" element="FixtureEnvelope.CodingKeys.surfaces"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureEnvelope.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureEnvelope.CodingKeys" decl="main.(file).FixtureEnvelope.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureEnvelope.CodingKeys" element="FixtureEnvelope.CodingKeys.surfaces"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureEnvelope.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).FixtureEnvelope.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).FixtureEnvelope.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(FixtureEnvelope.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureEnvelope.CodingKeys" decl="main.(file).FixtureEnvelope.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureEnvelope.CodingKeys" element="FixtureEnvelope.CodingKeys.surfaces"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureEnvelope.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="combine(_:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.hash(into:).hasher" function_ref=unapplied))
             (argument_list implicit
               (argument
-                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:327:24 range=[/x/ContentView.swift:327:9 - line:327:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
-                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:327:9 range=[/x/ContentView.swift:327:9 - line:327:9] typerepr="StandingsStore")))))
-          (argument_list
-            (argument
-              (declref_expr type="Recommendation" location=/x/ContentView.swift:327:38 range=[/x/ContentView.swift:327:38 - line:327:38] decl="main.(file).ContentView extension.load(_:_:asked:).answer@/x/ContentView.swift:326:17" function_ref=unapplied))))
-        (call_expr type="()" location=/x/ContentView.swift:328:33 range=[/x/ContentView.swift:328:9 - line:328:43] nothrow isolation_crossing="none"
-          (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:328:33 range=[/x/ContentView.swift:328:9 - line:328:33] nothrow isolation_crossing="none"
-            (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:328:33 range=[/x/ContentView.swift:328:33 - line:328:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (declref_expr implicit type="Int" decl="main.(file).FixtureEnvelope.CodingKeys.hash(into:).discriminator" function_ref=unapplied))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="hashValue"
+          (parameter "self") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(FixtureEnvelope.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> FixtureEnvelope.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="FixtureEnvelope.CodingKeys" decl="main.(file).FixtureEnvelope.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="<null>" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="stringValue"
+          (parameter "self") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="FixtureEnvelope.CodingKeys" element="FixtureEnvelope.CodingKeys.surfaces"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="<null>" encoding=utf8 value="surfaces" builtin_initializer="**NULL**" initializer="**NULL**")))))))))
+    (enum_decl implicit "SurfacesCodingKeys" interface_type="FixtureEnvelope.SurfacesCodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "_0")
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(FixtureEnvelope.SurfacesCodingKeys.Type) -> (String) -> FixtureEnvelope.SurfacesCodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit
+                  (string_literal_expr implicit type="<null>" encoding=utf8 value="_0" builtin_initializer="**NULL**" initializer="**NULL**")))
+              (brace_stmt implicit
+                (assign_expr implicit type="<null>"
+                  (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (member_ref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys._0"
+                    (type_expr implicit type="FixtureEnvelope.SurfacesCodingKeys.Type" null_typerepr)))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit))
+              (brace_stmt implicit
+                (fail_stmt implicit))))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(FixtureEnvelope.SurfacesCodingKeys.Type) -> (Int) -> FixtureEnvelope.SurfacesCodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (return_stmt implicit
+            (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(FixtureEnvelope.SurfacesCodingKeys.Type) -> (FixtureEnvelope.SurfacesCodingKeys, FixtureEnvelope.SurfacesCodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="FixtureEnvelope.SurfacesCodingKeys")
+          (parameter "b" interface_type="FixtureEnvelope.SurfacesCodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureEnvelope.SurfacesCodingKeys" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureEnvelope.SurfacesCodingKeys" element="FixtureEnvelope.SurfacesCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureEnvelope.SurfacesCodingKeys" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureEnvelope.SurfacesCodingKeys" element="FixtureEnvelope.SurfacesCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(FixtureEnvelope.SurfacesCodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureEnvelope.SurfacesCodingKeys" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureEnvelope.SurfacesCodingKeys" element="FixtureEnvelope.SurfacesCodingKeys._0"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="combine(_:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.hash(into:).hasher" function_ref=unapplied))
             (argument_list implicit
               (argument
-                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:328:24 range=[/x/ContentView.swift:328:9 - line:328:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
-                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:328:9 range=[/x/ContentView.swift:328:9 - line:328:9] typerepr="StandingsStore")))))
+                (declref_expr implicit type="Int" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.hash(into:).discriminator" function_ref=unapplied))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="hashValue"
+          (parameter "self") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(FixtureEnvelope.SurfacesCodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> FixtureEnvelope.SurfacesCodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="FixtureEnvelope.SurfacesCodingKeys" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="<null>" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> access=fileprivate get for="stringValue"
+          (parameter "self") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="FixtureEnvelope.SurfacesCodingKeys" element="FixtureEnvelope.SurfacesCodingKeys._0"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="<null>" encoding=utf8 value="_0" builtin_initializer="**NULL**" initializer="**NULL**")))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(FixtureEnvelope.Type) -> (any Decoder) throws -> FixtureEnvelope" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=try_expr implicit type="<null>"
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                  (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).decoder" function_ref=unapplied))
+                (argument_list implicit labels="keyedBy:"
+                  (argument label="keyedBy"
+                    (dot_self_expr type="<null>"
+                      (type_expr implicit type="FixtureEnvelope.CodingKeys.Type" typerepr="CodingKeys"))))))
+            (processed_init=try_expr implicit type="<null>"
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                  (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).decoder" function_ref=unapplied))
+                (argument_list implicit labels="keyedBy:"
+                  (argument label="keyedBy"
+                    (dot_self_expr type="<null>"
+                      (type_expr implicit type="FixtureEnvelope.CodingKeys.Type" typerepr="CodingKeys"))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<FixtureEnvelope.CodingKeys>" let readImpl=stored immutable)
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "allKeys")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (declref_expr implicit type="<null>" decl="Swift.(file).ArraySlice" function_ref=unapplied)
+              (argument_list implicit
+                (argument
+                  (unresolved_dot_expr implicit type="<null>" field="allKeys" function_ref=unapplied
+                    (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).container" direct_to_storage function_ref=unapplied)))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (declref_expr implicit type="<null>" decl="Swift.(file).ArraySlice" function_ref=unapplied)
+              (argument_list implicit
+                (argument
+                  (unresolved_dot_expr implicit type="<null>" field="allKeys" function_ref=unapplied
+                    (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).container" direct_to_storage function_ref=unapplied)))))))
+        (var_decl implicit "allKeys")
+        (guard_stmt implicit
+          (conditions=array
+            (pattern
+              (pattern_binding implicit kind=let
+                (pattern_named implicit "onlyKey"))
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="popFirst" function_ref=unapplied
+                  (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).allKeys" function_ref=unapplied))
+                (argument_list implicit)))
+            (unresolved_dot_expr implicit type="<null>" field="isEmpty" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).allKeys" function_ref=unapplied)))
+          (brace_stmt implicit
+            (throw_stmt
+              (call_expr implicit type="<null>" isolation_crossing="none"
+                (unresolved_dot_expr implicit type="<null>" field="typeMismatch(_:_:)" function_ref=unapplied
+                  (type_expr implicit type="DecodingError.Type" null_typerepr))
+                (argument_list implicit
+                  (argument
+                    (dot_self_expr type="<null>"
+                      (type_expr implicit type="FixtureEnvelope.Type" null_typerepr)))
+                  (argument
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="init(codingPath:debugDescription:underlyingError:)" function_ref=unapplied
+                        (type_expr implicit type="DecodingError.Context.Type" null_typerepr))
+                      (argument_list implicit labels="codingPath:debugDescription:underlyingError:"
+                        (argument label="codingPath"
+                          (unresolved_dot_expr implicit type="<null>" field="codingPath" function_ref=unapplied
+                            (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).container" direct_to_storage function_ref=unapplied)))
+                        (argument label="debugDescription"
+                          (string_literal_expr implicit type="<null>" encoding=utf8 value="Invalid number of keys found, expected one." builtin_initializer="**NULL**" initializer="**NULL**"))
+                        (argument label="underlyingError"
+                          (nil_literal_expr implicit type="<null>" initializer="**NULL**"))))))))))
+        (switch_stmt implicit
+          (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).onlyKey" function_ref=unapplied)
+          (case_stmt implicit
+            (case_label_item ownership=borrowing
+              (pattern_enum_element implicit type="FixtureEnvelope.CodingKeys" element="FixtureEnvelope.CodingKeys.surfaces"))
+            (brace_stmt implicit
+              (pattern_binding_decl implicit
+                (pattern_entry
+                  (pattern_named implicit "nestedContainer")
+                  (original_init=try_expr implicit type="<null>"
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="nestedContainer(keyedBy:forKey:)" function_ref=unapplied
+                        (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).container" direct_to_storage function_ref=unapplied))
+                      (argument_list implicit labels="keyedBy:forKey:"
+                        (argument label="keyedBy"
+                          (dot_self_expr type="<null>"
+                            (type_expr implicit type="FixtureEnvelope.SurfacesCodingKeys.Type" typerepr="SurfacesCodingKeys")))
+                        (argument label="forKey"
+                          (member_ref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.surfaces"
+                            (type_expr implicit type="FixtureEnvelope.CodingKeys.Type" null_typerepr))))))
+                  (processed_init=try_expr implicit type="<null>"
+                    (call_expr implicit type="<null>" isolation_crossing="none"
+                      (unresolved_dot_expr implicit type="<null>" field="nestedContainer(keyedBy:forKey:)" function_ref=unapplied
+                        (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).container" direct_to_storage function_ref=unapplied))
+                      (argument_list implicit labels="keyedBy:forKey:"
+                        (argument label="keyedBy"
+                          (dot_self_expr type="<null>"
+                            (type_expr implicit type="FixtureEnvelope.SurfacesCodingKeys.Type" typerepr="SurfacesCodingKeys")))
+                        (argument label="forKey"
+                          (member_ref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.CodingKeys.surfaces"
+                            (type_expr implicit type="FixtureEnvelope.CodingKeys.Type" null_typerepr))))))))
+              (var_decl implicit "nestedContainer" interface_type="KeyedDecodingContainer<FixtureEnvelope.SurfacesCodingKeys>" let readImpl=stored immutable)
+              (assign_expr implicit type="<null>"
+                (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).self" function_ref=unapplied)
+                (call_expr implicit type="<null>" isolation_crossing="none"
+                  (unresolved_dot_expr implicit type="<null>" field="surfaces(_:)" function_ref=unapplied
+                    (type_expr implicit type="FixtureEnvelope.Type" null_typerepr))
+                  (argument_list implicit
+                    (argument
+                      (try_expr implicit type="<null>"
+                        (call_expr implicit type="<null>" isolation_crossing="none"
+                          (unresolved_dot_expr implicit type="<null>" field="decode(_:forKey:)" function_ref=unapplied
+                            (declref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.init(from:).nestedContainer" direct_to_storage function_ref=unapplied))
+                          (argument_list implicit labels="_:forKey:"
+                            (argument
+                              (dot_self_expr type="[Category]"
+                                (type_expr implicit type="[Category].Type" null_typerepr)))
+                            (argument label="forKey"
+                              (member_ref_expr implicit type="<null>" decl="main.(file).FixtureEnvelope.SurfacesCodingKeys._0"
+                                (type_expr implicit type="FixtureEnvelope.SurfacesCodingKeys.Type" null_typerepr))))))))))))))))
+  (typealias range=[/x/ContentView.swift:340:1 - line:340:38] "FixtureSurfaces" interface_type="FixtureSurfaces.Type" access=internal type="[Category]")
+  (extension_decl range=[/x/ContentView.swift:342:1 - line:379:1] "ContentView"
+    (func_decl range=[/x/ContentView.swift:343:5 - line:369:5] "load()" interface_type="(ContentView) -> () -> ()" access=internal
+      (parameter "self" interface_type="ContentView") result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:343:14 - line:343:15])
+      (brace_stmt range=[/x/ContentView.swift:343:17 - line:369:5]
+        (if_stmt range=[/x/ContentView.swift:344:9 - line:346:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some implicit type="Recommendation?"
+                (pattern_binding implicit type="Recommendation" kind=let
+                  (pattern_named type="Recommendation" "answer")))
+              (call_expr type="Recommendation?" location=/x/ContentView.swift:344:25 range=[/x/ContentView.swift:344:25 - line:344:60] nothrow isolation_crossing="none"
+                (declref_expr type="(Data) -> Recommendation?" location=/x/ContentView.swift:344:25 range=[/x/ContentView.swift:344:25 - line:344:25] decl="main.(file).fixtureClientDecodesAnAnswer@/x/EngineClient.swift:117:6" function_ref=single apply)
+                (argument_list
+                  (argument
+                    (call_expr type="Data" location=/x/ContentView.swift:344:54 range=[/x/ContentView.swift:344:54 - line:344:59] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> Data" location=/x/ContentView.swift:344:54 range=[/x/ContentView.swift:344:54 - line:344:54] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(Data.Type) -> () -> Data" location=/x/ContentView.swift:344:54 range=[/x/ContentView.swift:344:54 - line:344:54] decl="Foundation.(file).Data.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="Data.Type" location=/x/ContentView.swift:344:54 range=[/x/ContentView.swift:344:54 - line:344:54] typerepr="Data"))))
+                      (argument_list)))))))
+          (brace_stmt range=[/x/ContentView.swift:344:62 - line:346:9]
+            (call_expr type="()" location=/x/ContentView.swift:345:37 range=[/x/ContentView.swift:345:13 - line:345:48] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:345:37 range=[/x/ContentView.swift:345:13 - line:345:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:345:37 range=[/x/ContentView.swift:345:37 - line:345:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:345:28 range=[/x/ContentView.swift:345:13 - line:345:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:345:13 range=[/x/ContentView.swift:345:13 - line:345:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (declref_expr type="Recommendation" location=/x/ContentView.swift:345:42 range=[/x/ContentView.swift:345:42 - line:345:42] decl="main.(file).ContentView extension.load().answer@/x/ContentView.swift:344:16" function_ref=unapplied))))))
+        (call_expr type="()" location=/x/ContentView.swift:347:33 range=[/x/ContentView.swift:347:9 - line:347:95] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:347:33 range=[/x/ContentView.swift:347:9 - line:347:33] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:347:33 range=[/x/ContentView.swift:347:33 - line:347:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:347:24 range=[/x/ContentView.swift:347:9 - line:347:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:347:9 range=[/x/ContentView.swift:347:9 - line:347:9] typerepr="StandingsStore")))))
           (argument_list
             (argument
-              (declref_expr type="[Category]" location=/x/ContentView.swift:328:38 range=[/x/ContentView.swift:328:38 - line:328:38] decl="main.(file).ContentView extension.load(_:_:asked:).fresh@/x/ContentView.swift:326:43" function_ref=unapplied))))
-        (if_stmt range=[/x/ContentView.swift:329:9 - line:331:9]
+              (binary_expr type="[Category]" location=/x/ContentView.swift:347:90 range=[/x/ContentView.swift:347:38 - line:347:94] nothrow isolation_crossing="none"
+                (declref_expr type="(consuming [Category]?, @autoclosure () throws -> [Category]) throws -> [Category]" location=/x/ContentView.swift:347:90 range=[/x/ContentView.swift:347:90 - line:347:90] decl="Swift.(file).?? [with (substitution_map generic_signature=<T where T : Escapable> T -> [Category])]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (optional_evaluation_expr implicit type="[Category]?" location=/x/ContentView.swift:347:79 range=[/x/ContentView.swift:347:38 - line:347:79]
+                      (inject_into_optional implicit type="[Category]?" location=/x/ContentView.swift:347:79 range=[/x/ContentView.swift:347:38 - line:347:79]
+                        (member_ref_expr type="[Category]" location=/x/ContentView.swift:347:79 range=[/x/ContentView.swift:347:38 - line:347:79] decl="main.(file).CategoryList.categories@/x/Models.swift:65:9"
+                          (bind_optional_expr type="CategoryList" location=/x/ContentView.swift:347:77 range=[/x/ContentView.swift:347:38 - line:347:77] depth=0
+                            (call_expr type="CategoryList?" location=/x/ContentView.swift:347:38 range=[/x/ContentView.swift:347:38 - line:347:76] nothrow isolation_crossing="none"
+                              (declref_expr type="(Data) -> CategoryList?" location=/x/ContentView.swift:347:38 range=[/x/ContentView.swift:347:38 - line:347:38] decl="main.(file).fixtureClientDecodesTheSurfaces@/x/EngineClient.swift:121:6" function_ref=single apply)
+                              (argument_list
+                                (argument
+                                  (call_expr type="Data" location=/x/ContentView.swift:347:70 range=[/x/ContentView.swift:347:70 - line:347:75] nothrow isolation_crossing="none"
+                                    (constructor_ref_call_expr type="() -> Data" location=/x/ContentView.swift:347:70 range=[/x/ContentView.swift:347:70 - line:347:70] nothrow isolation_crossing="none"
+                                      (declref_expr implicit type="(Data.Type) -> () -> Data" location=/x/ContentView.swift:347:70 range=[/x/ContentView.swift:347:70 - line:347:70] decl="Foundation.(file).Data.init()" function_ref=single apply)
+                                      (argument_list implicit
+                                        (argument
+                                          (type_expr type="Data.Type" location=/x/ContentView.swift:347:70 range=[/x/ContentView.swift:347:70 - line:347:70] typerepr="Data"))))
+                                    (argument_list))))))))))
+                  (argument
+                    (autoclosure_expr implicit type="() throws -> [Category]" location=/x/ContentView.swift:347:93 range=[/x/ContentView.swift:347:93 - line:347:94] discriminator=0 nonisolated
+                      (parameter_list)
+                      (array_expr type="[Category]" location=/x/ContentView.swift:347:93 range=[/x/ContentView.swift:347:93 - line:347:94] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> Category)]"))))))))
+        (pattern_binding_decl range=[/x/ContentView.swift:348:9 - line:348:35]
+          (pattern_entry
+            (pattern_named type="Data" "asked")
+            (original_init=call_expr type="Data" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:35] nothrow isolation_crossing="none"
+              (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:21] nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:21] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr type="Data.Type" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:21] typerepr="Data"))))
+              (argument_list
+                (argument
+                  (load_expr implicit type="String.UTF8View" location=/x/ContentView.swift:348:31 range=[/x/ContentView.swift:348:26 - line:348:31]
+                    (member_ref_expr type="@lvalue String.UTF8View" location=/x/ContentView.swift:348:31 range=[/x/ContentView.swift:348:26 - line:348:31] decl="Swift.(file).String extension.utf8"
+                      (member_ref_expr type="@lvalue String" location=/x/ContentView.swift:348:26 range=[/x/ContentView.swift:348:26 - line:348:26] decl="main.(file).ContentView.task@/x/ContentView.swift:208:16"
+                        (declref_expr implicit type="ContentView" location=/x/ContentView.swift:348:26 range=[/x/ContentView.swift:348:26 - line:348:26] decl="main.(file).ContentView extension.load().self@/x/ContentView.swift:343:10" function_ref=unapplied)))))))
+            (processed_init=call_expr type="Data" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:35] nothrow isolation_crossing="none"
+              (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:21] nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:21] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (type_expr type="Data.Type" location=/x/ContentView.swift:348:21 range=[/x/ContentView.swift:348:21 - line:348:21] typerepr="Data"))))
+              (argument_list
+                (argument
+                  (load_expr implicit type="String.UTF8View" location=/x/ContentView.swift:348:31 range=[/x/ContentView.swift:348:26 - line:348:31]
+                    (member_ref_expr type="@lvalue String.UTF8View" location=/x/ContentView.swift:348:31 range=[/x/ContentView.swift:348:26 - line:348:31] decl="Swift.(file).String extension.utf8"
+                      (member_ref_expr type="@lvalue String" location=/x/ContentView.swift:348:26 range=[/x/ContentView.swift:348:26 - line:348:26] decl="main.(file).ContentView.task@/x/ContentView.swift:208:16"
+                        (declref_expr implicit type="ContentView" location=/x/ContentView.swift:348:26 range=[/x/ContentView.swift:348:26 - line:348:26] decl="main.(file).ContentView extension.load().self@/x/ContentView.swift:343:10" function_ref=unapplied)))))))))
+        (var_decl range=[/x/ContentView.swift:348:13 - line:348:13] "asked" interface_type="Data" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (if_stmt range=[/x/ContentView.swift:349:9 - line:351:9]
           (conditions=array
             (pattern
               (pattern_optional_some implicit type="[Category]?"
                 (pattern_binding implicit type="[Category]" kind=let
                   (pattern_named type="[Category]" "forged")))
-              (optional_try_expr type="[Category]?" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:25 - line:329:90] thrown_error="any Error"
-                (inject_into_optional implicit type="[Category]?" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:30 - line:329:90]
-                  (call_expr type="[Category]" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:30 - line:329:90] throws isolation_crossing="none"
-                    (dot_syntax_call_expr type="([Category].Type, Data) throws -> [Category]" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:30 - line:329:44] nothrow isolation_crossing="none"
-                      (declref_expr type="(JSONDecoder) -> ([Category].Type, Data) throws -> [Category]" location=/x/ContentView.swift:329:44 range=[/x/ContentView.swift:329:44 - line:329:44] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> [Category])]" function_ref=single apply)
+              (optional_try_expr type="[Category]?" location=/x/ContentView.swift:349:44 range=[/x/ContentView.swift:349:25 - line:349:79] thrown_error="any Error"
+                (inject_into_optional implicit type="[Category]?" location=/x/ContentView.swift:349:44 range=[/x/ContentView.swift:349:30 - line:349:79]
+                  (call_expr type="[Category]" location=/x/ContentView.swift:349:44 range=[/x/ContentView.swift:349:30 - line:349:79] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="([Category].Type, Data) throws -> [Category]" location=/x/ContentView.swift:349:44 range=[/x/ContentView.swift:349:30 - line:349:44] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> ([Category].Type, Data) throws -> [Category]" location=/x/ContentView.swift:349:44 range=[/x/ContentView.swift:349:44 - line:349:44] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> [Category])]" function_ref=single apply)
                       (argument_list implicit
                         (argument
-                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:42] nothrow isolation_crossing="none"
-                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:30] nothrow isolation_crossing="none"
-                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:30] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:349:30 range=[/x/ContentView.swift:349:30 - line:349:42] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:349:30 range=[/x/ContentView.swift:349:30 - line:349:30] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:349:30 range=[/x/ContentView.swift:349:30 - line:349:30] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
                               (argument_list implicit
                                 (argument
-                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:329:30 range=[/x/ContentView.swift:329:30 - line:329:30] typerepr="JSONDecoder"))))
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:349:30 range=[/x/ContentView.swift:349:30 - line:349:30] typerepr="JSONDecoder"))))
                             (argument_list)))))
                     (argument_list labels="_:from:"
                       (argument
-                        (dot_self_expr type="[Category].Type" location=/x/ContentView.swift:329:51 range=[/x/ContentView.swift:329:51 - line:329:62]
-                          (type_expr type="[Category].Type" location=/x/ContentView.swift:329:51 range=[/x/ContentView.swift:329:51 - line:329:60] typerepr="[Category]")))
+                        (dot_self_expr type="[Category].Type" location=/x/ContentView.swift:349:51 range=[/x/ContentView.swift:349:51 - line:349:62]
+                          (type_expr type="[Category].Type" location=/x/ContentView.swift:349:51 range=[/x/ContentView.swift:349:51 - line:349:60] typerepr="[Category]")))
                       (argument label="from"
-                        (call_expr type="Data" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:89] nothrow isolation_crossing="none"
-                          (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:74] nothrow isolation_crossing="none"
-                            (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:74] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
-                            (argument_list implicit
-                              (argument
-                                (type_expr type="Data.Type" location=/x/ContentView.swift:329:74 range=[/x/ContentView.swift:329:74 - line:329:74] typerepr="Data"))))
-                          (argument_list
-                            (argument
-                              (member_ref_expr type="String.UTF8View" location=/x/ContentView.swift:329:85 range=[/x/ContentView.swift:329:79 - line:329:85] decl="Swift.(file).String extension.utf8"
-                                (declref_expr type="String" location=/x/ContentView.swift:329:79 range=[/x/ContentView.swift:329:79 - line:329:79] decl="main.(file).ContentView extension.load(_:_:asked:).asked@/x/ContentView.swift:326:62" function_ref=unapplied))))))))))))
-          (brace_stmt range=[/x/ContentView.swift:329:92 - line:331:9]
-            (call_expr type="()" location=/x/ContentView.swift:330:37 range=[/x/ContentView.swift:330:13 - line:330:48] nothrow isolation_crossing="none"
-              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:330:37 range=[/x/ContentView.swift:330:13 - line:330:37] nothrow isolation_crossing="none"
-                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:330:37 range=[/x/ContentView.swift:330:37 - line:330:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                        (declref_expr type="Data" location=/x/ContentView.swift:349:74 range=[/x/ContentView.swift:349:74 - line:349:74] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied))))))))
+          (brace_stmt range=[/x/ContentView.swift:349:81 - line:351:9]
+            (call_expr type="()" location=/x/ContentView.swift:350:37 range=[/x/ContentView.swift:350:13 - line:350:48] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:350:37 range=[/x/ContentView.swift:350:13 - line:350:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:350:37 range=[/x/ContentView.swift:350:37 - line:350:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
                 (argument_list implicit
                   (argument
-                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:330:28 range=[/x/ContentView.swift:330:13 - line:330:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
-                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:330:13 range=[/x/ContentView.swift:330:13 - line:330:13] typerepr="StandingsStore")))))
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:350:28 range=[/x/ContentView.swift:350:13 - line:350:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:350:13 range=[/x/ContentView.swift:350:13 - line:350:13] typerepr="StandingsStore")))))
               (argument_list
                 (argument
-                  (declref_expr type="[Category]" location=/x/ContentView.swift:330:42 range=[/x/ContentView.swift:330:42 - line:330:42] decl="main.(file).ContentView extension.load(_:_:asked:).forged@/x/ContentView.swift:329:16" function_ref=unapplied))))))
-        (if_stmt range=[/x/ContentView.swift:332:9 - line:334:9]
+                  (declref_expr type="[Category]" location=/x/ContentView.swift:350:42 range=[/x/ContentView.swift:350:42 - line:350:42] decl="main.(file).ContentView extension.load().forged@/x/ContentView.swift:349:16" function_ref=unapplied))))))
+        (if_stmt range=[/x/ContentView.swift:352:9 - line:354:9]
           (conditions=array
             (pattern
               (pattern_optional_some implicit type="CategoryList?"
                 (pattern_binding implicit type="CategoryList" kind=let
                   (pattern_named type="CategoryList" "list")))
-              (optional_try_expr type="CategoryList?" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:23 - line:332:90] thrown_error="any Error"
-                (inject_into_optional implicit type="CategoryList?" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:28 - line:332:90]
-                  (call_expr type="CategoryList" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:28 - line:332:90] throws isolation_crossing="none"
-                    (dot_syntax_call_expr type="(CategoryList.Type, Data) throws -> CategoryList" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:28 - line:332:42] nothrow isolation_crossing="none"
-                      (declref_expr type="(JSONDecoder) -> (CategoryList.Type, Data) throws -> CategoryList" location=/x/ContentView.swift:332:42 range=[/x/ContentView.swift:332:42 - line:332:42] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> CategoryList)]" function_ref=single apply)
+              (optional_try_expr type="CategoryList?" location=/x/ContentView.swift:352:42 range=[/x/ContentView.swift:352:23 - line:352:79] thrown_error="any Error"
+                (inject_into_optional implicit type="CategoryList?" location=/x/ContentView.swift:352:42 range=[/x/ContentView.swift:352:28 - line:352:79]
+                  (call_expr type="CategoryList" location=/x/ContentView.swift:352:42 range=[/x/ContentView.swift:352:28 - line:352:79] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="(CategoryList.Type, Data) throws -> CategoryList" location=/x/ContentView.swift:352:42 range=[/x/ContentView.swift:352:28 - line:352:42] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> (CategoryList.Type, Data) throws -> CategoryList" location=/x/ContentView.swift:352:42 range=[/x/ContentView.swift:352:42 - line:352:42] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> CategoryList)]" function_ref=single apply)
                       (argument_list implicit
                         (argument
-                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:40] nothrow isolation_crossing="none"
-                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:28] nothrow isolation_crossing="none"
-                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:28] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:352:28 range=[/x/ContentView.swift:352:28 - line:352:40] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:352:28 range=[/x/ContentView.swift:352:28 - line:352:28] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:352:28 range=[/x/ContentView.swift:352:28 - line:352:28] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
                               (argument_list implicit
                                 (argument
-                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:332:28 range=[/x/ContentView.swift:332:28 - line:332:28] typerepr="JSONDecoder"))))
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:352:28 range=[/x/ContentView.swift:352:28 - line:352:28] typerepr="JSONDecoder"))))
                             (argument_list)))))
                     (argument_list labels="_:from:"
                       (argument
-                        (dot_self_expr type="CategoryList.Type" location=/x/ContentView.swift:332:49 range=[/x/ContentView.swift:332:49 - line:332:62]
-                          (type_expr type="CategoryList.Type" location=/x/ContentView.swift:332:49 range=[/x/ContentView.swift:332:49 - line:332:49] typerepr="CategoryList")))
+                        (dot_self_expr type="CategoryList.Type" location=/x/ContentView.swift:352:49 range=[/x/ContentView.swift:352:49 - line:352:62]
+                          (type_expr type="CategoryList.Type" location=/x/ContentView.swift:352:49 range=[/x/ContentView.swift:352:49 - line:352:49] typerepr="CategoryList")))
                       (argument label="from"
-                        (call_expr type="Data" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:89] nothrow isolation_crossing="none"
-                          (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:74] nothrow isolation_crossing="none"
-                            (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:74] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
-                            (argument_list implicit
-                              (argument
-                                (type_expr type="Data.Type" location=/x/ContentView.swift:332:74 range=[/x/ContentView.swift:332:74 - line:332:74] typerepr="Data"))))
-                          (argument_list
-                            (argument
-                              (member_ref_expr type="String.UTF8View" location=/x/ContentView.swift:332:85 range=[/x/ContentView.swift:332:79 - line:332:85] decl="Swift.(file).String extension.utf8"
-                                (declref_expr type="String" location=/x/ContentView.swift:332:79 range=[/x/ContentView.swift:332:79 - line:332:79] decl="main.(file).ContentView extension.load(_:_:asked:).asked@/x/ContentView.swift:326:62" function_ref=unapplied))))))))))))
-          (brace_stmt range=[/x/ContentView.swift:332:92 - line:334:9]
-            (call_expr type="()" location=/x/ContentView.swift:333:37 range=[/x/ContentView.swift:333:13 - line:333:57] nothrow isolation_crossing="none"
-              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:333:37 range=[/x/ContentView.swift:333:13 - line:333:37] nothrow isolation_crossing="none"
-                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:333:37 range=[/x/ContentView.swift:333:37 - line:333:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                        (declref_expr type="Data" location=/x/ContentView.swift:352:74 range=[/x/ContentView.swift:352:74 - line:352:74] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied))))))))
+          (brace_stmt range=[/x/ContentView.swift:352:81 - line:354:9]
+            (call_expr type="()" location=/x/ContentView.swift:353:37 range=[/x/ContentView.swift:353:13 - line:353:57] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:353:37 range=[/x/ContentView.swift:353:13 - line:353:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:353:37 range=[/x/ContentView.swift:353:37 - line:353:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
                 (argument_list implicit
                   (argument
-                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:333:28 range=[/x/ContentView.swift:333:13 - line:333:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
-                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:333:13 range=[/x/ContentView.swift:333:13 - line:333:13] typerepr="StandingsStore")))))
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:353:28 range=[/x/ContentView.swift:353:13 - line:353:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:353:13 range=[/x/ContentView.swift:353:13 - line:353:13] typerepr="StandingsStore")))))
               (argument_list
                 (argument
-                  (member_ref_expr type="[Category]" location=/x/ContentView.swift:333:47 range=[/x/ContentView.swift:333:42 - line:333:47] decl="main.(file).CategoryList.categories@/x/Models.swift:59:9"
-                    (declref_expr type="CategoryList" location=/x/ContentView.swift:333:42 range=[/x/ContentView.swift:333:42 - line:333:42] decl="main.(file).ContentView extension.load(_:_:asked:).list@/x/ContentView.swift:332:16" function_ref=unapplied)))))))))
-    (func_decl range=[/x/ContentView.swift:337:5 - line:339:5] "keepElsewhere(_:)" interface_type="(ContentView) -> (Recommendation) -> ()" access=internal
+                  (member_ref_expr type="[Category]" location=/x/ContentView.swift:353:47 range=[/x/ContentView.swift:353:42 - line:353:47] decl="main.(file).CategoryList.categories@/x/Models.swift:65:9"
+                    (declref_expr type="CategoryList" location=/x/ContentView.swift:353:42 range=[/x/ContentView.swift:353:42 - line:353:42] decl="main.(file).ContentView extension.load().list@/x/ContentView.swift:352:16" function_ref=unapplied)))))))
+        (if_stmt range=[/x/ContentView.swift:355:9 - line:357:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some implicit type="FixtureShape.Item?"
+                (pattern_binding implicit type="FixtureShape.Item" kind=let
+                  (pattern_named type="FixtureShape.Item" "inferred")))
+              (optional_try_expr type="FixtureShape.Item?" location=/x/ContentView.swift:355:46 range=[/x/ContentView.swift:355:27 - line:355:88] thrown_error="any Error"
+                (inject_into_optional implicit type="FixtureShape.Item?" location=/x/ContentView.swift:355:46 range=[/x/ContentView.swift:355:32 - line:355:88]
+                  (call_expr type="FixtureShape.Item" location=/x/ContentView.swift:355:46 range=[/x/ContentView.swift:355:32 - line:355:88] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="(FixtureShape.Item.Type, Data) throws -> FixtureShape.Item" location=/x/ContentView.swift:355:46 range=[/x/ContentView.swift:355:32 - line:355:46] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> (FixtureShape.Item.Type, Data) throws -> FixtureShape.Item" location=/x/ContentView.swift:355:46 range=[/x/ContentView.swift:355:46 - line:355:46] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> FixtureShape.Item)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:355:32 range=[/x/ContentView.swift:355:32 - line:355:44] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:355:32 range=[/x/ContentView.swift:355:32 - line:355:32] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:355:32 range=[/x/ContentView.swift:355:32 - line:355:32] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:355:32 range=[/x/ContentView.swift:355:32 - line:355:32] typerepr="JSONDecoder"))))
+                            (argument_list)))))
+                    (argument_list labels="_:from:"
+                      (argument
+                        (dot_self_expr type="FixtureShape.Item.Type" location=/x/ContentView.swift:355:53 range=[/x/ContentView.swift:355:53 - line:355:71]
+                          (type_expr type="FixtureShape.Item.Type" location=/x/ContentView.swift:355:53 range=[/x/ContentView.swift:355:53 - line:355:66] typerepr="FixtureShape.Item")))
+                      (argument label="from"
+                        (declref_expr type="Data" location=/x/ContentView.swift:355:83 range=[/x/ContentView.swift:355:83 - line:355:83] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied))))))))
+          (brace_stmt range=[/x/ContentView.swift:355:90 - line:357:9]
+            (call_expr type="()" location=/x/ContentView.swift:356:37 range=[/x/ContentView.swift:356:13 - line:356:50] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:356:37 range=[/x/ContentView.swift:356:13 - line:356:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:356:37 range=[/x/ContentView.swift:356:37 - line:356:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:356:28 range=[/x/ContentView.swift:356:13 - line:356:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:356:13 range=[/x/ContentView.swift:356:13 - line:356:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (declref_expr type="FixtureShape.Item" location=/x/ContentView.swift:356:42 range=[/x/ContentView.swift:356:42 - line:356:42] decl="main.(file).ContentView extension.load().inferred@/x/ContentView.swift:355:16" function_ref=unapplied))))))
+        (if_stmt range=[/x/ContentView.swift:358:9 - line:360:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some implicit type="FixtureSurfaces?"
+                (pattern_binding implicit type="FixtureSurfaces" kind=let
+                  (pattern_named type="FixtureSurfaces" "aliased")))
+              (optional_try_expr type="FixtureSurfaces?" location=/x/ContentView.swift:358:45 range=[/x/ContentView.swift:358:26 - line:358:85] thrown_error="any Error"
+                (inject_into_optional implicit type="FixtureSurfaces?" location=/x/ContentView.swift:358:45 range=[/x/ContentView.swift:358:31 - line:358:85]
+                  (call_expr type="FixtureSurfaces" location=/x/ContentView.swift:358:45 range=[/x/ContentView.swift:358:31 - line:358:85] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="(FixtureSurfaces.Type, Data) throws -> FixtureSurfaces" location=/x/ContentView.swift:358:45 range=[/x/ContentView.swift:358:31 - line:358:45] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> (FixtureSurfaces.Type, Data) throws -> FixtureSurfaces" location=/x/ContentView.swift:358:45 range=[/x/ContentView.swift:358:45 - line:358:45] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> FixtureSurfaces)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:358:31 range=[/x/ContentView.swift:358:31 - line:358:43] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:358:31 range=[/x/ContentView.swift:358:31 - line:358:31] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:358:31 range=[/x/ContentView.swift:358:31 - line:358:31] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:358:31 range=[/x/ContentView.swift:358:31 - line:358:31] typerepr="JSONDecoder"))))
+                            (argument_list)))))
+                    (argument_list labels="_:from:"
+                      (argument
+                        (dot_self_expr type="FixtureSurfaces.Type" location=/x/ContentView.swift:358:52 range=[/x/ContentView.swift:358:52 - line:358:68]
+                          (type_expr type="FixtureSurfaces.Type" location=/x/ContentView.swift:358:52 range=[/x/ContentView.swift:358:52 - line:358:52] typerepr="FixtureSurfaces")))
+                      (argument label="from"
+                        (declref_expr type="Data" location=/x/ContentView.swift:358:80 range=[/x/ContentView.swift:358:80 - line:358:80] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied))))))))
+          (brace_stmt range=[/x/ContentView.swift:358:87 - line:360:9]
+            (call_expr type="()" location=/x/ContentView.swift:359:37 range=[/x/ContentView.swift:359:13 - line:359:49] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:359:37 range=[/x/ContentView.swift:359:13 - line:359:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:359:37 range=[/x/ContentView.swift:359:37 - line:359:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:359:28 range=[/x/ContentView.swift:359:13 - line:359:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:359:13 range=[/x/ContentView.swift:359:13 - line:359:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (declref_expr type="FixtureSurfaces" location=/x/ContentView.swift:359:42 range=[/x/ContentView.swift:359:42 - line:359:42] decl="main.(file).ContentView extension.load().aliased@/x/ContentView.swift:358:16" function_ref=unapplied))))))
+        (if_stmt range=[/x/ContentView.swift:361:9 - line:363:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some type="FixtureEnvelope?"
+                (pattern_enum_element type="FixtureEnvelope" element="FixtureEnvelope.surfaces"
+                  (pattern_paren type="[Category]"
+                    (pattern_binding type="[Category]" kind=let
+                      (pattern_named type="[Category]" "enveloped")))))
+              (optional_try_expr type="FixtureEnvelope?" location=/x/ContentView.swift:361:64 range=[/x/ContentView.swift:361:45 - line:361:104] thrown_error="any Error"
+                (inject_into_optional implicit type="FixtureEnvelope?" location=/x/ContentView.swift:361:64 range=[/x/ContentView.swift:361:50 - line:361:104]
+                  (call_expr type="FixtureEnvelope" location=/x/ContentView.swift:361:64 range=[/x/ContentView.swift:361:50 - line:361:104] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="(FixtureEnvelope.Type, Data) throws -> FixtureEnvelope" location=/x/ContentView.swift:361:64 range=[/x/ContentView.swift:361:50 - line:361:64] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> (FixtureEnvelope.Type, Data) throws -> FixtureEnvelope" location=/x/ContentView.swift:361:64 range=[/x/ContentView.swift:361:64 - line:361:64] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> FixtureEnvelope)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (call_expr type="JSONDecoder" location=/x/ContentView.swift:361:50 range=[/x/ContentView.swift:361:50 - line:361:62] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:361:50 range=[/x/ContentView.swift:361:50 - line:361:50] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:361:50 range=[/x/ContentView.swift:361:50 - line:361:50] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:361:50 range=[/x/ContentView.swift:361:50 - line:361:50] typerepr="JSONDecoder"))))
+                            (argument_list)))))
+                    (argument_list labels="_:from:"
+                      (argument
+                        (dot_self_expr type="FixtureEnvelope.Type" location=/x/ContentView.swift:361:71 range=[/x/ContentView.swift:361:71 - line:361:87]
+                          (type_expr type="FixtureEnvelope.Type" location=/x/ContentView.swift:361:71 range=[/x/ContentView.swift:361:71 - line:361:71] typerepr="FixtureEnvelope")))
+                      (argument label="from"
+                        (declref_expr type="Data" location=/x/ContentView.swift:361:99 range=[/x/ContentView.swift:361:99 - line:361:99] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied))))))))
+          (brace_stmt range=[/x/ContentView.swift:361:106 - line:363:9]
+            (call_expr type="()" location=/x/ContentView.swift:362:37 range=[/x/ContentView.swift:362:13 - line:362:51] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:362:37 range=[/x/ContentView.swift:362:13 - line:362:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:362:37 range=[/x/ContentView.swift:362:37 - line:362:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:362:28 range=[/x/ContentView.swift:362:13 - line:362:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:362:13 range=[/x/ContentView.swift:362:13 - line:362:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (declref_expr type="[Category]" location=/x/ContentView.swift:362:42 range=[/x/ContentView.swift:362:42 - line:362:42] decl="main.(file).ContentView extension.load().enveloped@/x/ContentView.swift:361:31" function_ref=unapplied))))))
+        (pattern_binding_decl range=[/x/ContentView.swift:364:9 - line:364:53]
+          (pattern_entry
+            (pattern_typed type="any Decodable.Type"
+              (pattern_named type="any Decodable.Type" "erased")
+              (type_existential
+                (type_metatype
+                  (type_unqualified_ident id="Decodable" bind="Swift.(file).Decodable"))))
+            (original_init=dot_self_expr type="[Category].Type" location=/x/ContentView.swift:364:42 range=[/x/ContentView.swift:364:42 - line:364:53]
+              (type_expr type="[Category].Type" location=/x/ContentView.swift:364:42 range=[/x/ContentView.swift:364:42 - line:364:51] typerepr="[Category]"))
+            (processed_init=erasure_expr implicit type="any Decodable.Type" location=/x/ContentView.swift:364:42 range=[/x/ContentView.swift:364:42 - line:364:53]
+              (specialized_conformance type="Array<Category>" protocol="Decodable" explicit nonisolated
+                (substitution_map generic_signature=<Element where Element : Decodable>
+                  (substitution Element -> 
+                    (struct_type decl="main.(file).Category@/x/Models.swift:54:8"))
+                  (conformance type="Element"
+                    (normal_conformance type="Category" protocol="Decodable" explicit nonisolated
+                      (assoc_conformance type="Self" proto="Copyable"
+                        (builtin_conformance type="Category" protocol="Copyable" synthesized nonisolated))
+                      (assoc_conformance type="Self" proto="Escapable"
+                        (builtin_conformance type="Category" protocol="Escapable" synthesized nonisolated)))))
+                (<conditional requirements unable to be computed>)
+                (normal_conformance type="Array<Element>" protocol="Decodable" explicit nonisolated
+                  (value req="init(from:)" witness="Swift.(file).Array extension.init(from:)")
+                  (assoc_conformance type="Self" proto="Copyable"
+                    (builtin_conformance type="Array<Element>" protocol="Copyable" synthesized nonisolated))
+                  (assoc_conformance type="Self" proto="Escapable"
+                    (builtin_conformance type="Array<Element>" protocol="Escapable" synthesized nonisolated))
+                  (requirement "Element" conforms_to "Decodable")))
+              (dot_self_expr type="[Category].Type" location=/x/ContentView.swift:364:42 range=[/x/ContentView.swift:364:42 - line:364:53]
+                (type_expr type="[Category].Type" location=/x/ContentView.swift:364:42 range=[/x/ContentView.swift:364:42 - line:364:51] typerepr="[Category]")))))
+        (var_decl range=[/x/ContentView.swift:364:13 - line:364:13] "erased" interface_type="any Decodable.Type" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (if_stmt range=[/x/ContentView.swift:365:9 - line:367:9]
+          (conditions=array
+            (pattern
+              (pattern_optional_some implicit type="[Category]?"
+                (pattern_binding implicit type="[Category]" kind=let
+                  (pattern_named type="[Category]" "opened")))
+              (optional_try_expr type="[Category]?" location=/x/ContentView.swift:365:72 range=[/x/ContentView.swift:365:25 - line:365:85] thrown_error="any Error"
+                (conditional_checked_cast_expr type="[Category]?" location=/x/ContentView.swift:365:72 range=[/x/ContentView.swift:365:30 - line:365:85] value_cast written_type="[Category]"
+                  (open_existential_expr implicit type="any Decodable" location=/x/ContentView.swift:365:44 range=[/x/ContentView.swift:365:30 - line:365:70]
+                    (opaque_value_expr implicit type="(any Decodable).Type" location=/x/ContentView.swift:365:51 range=[/x/ContentView.swift:365:51 - line:365:51] 0x0)
+                    (declref_expr type="any Decodable.Type" location=/x/ContentView.swift:365:51 range=[/x/ContentView.swift:365:51 - line:365:51] decl="main.(file).ContentView extension.load().erased@/x/ContentView.swift:364:13" function_ref=unapplied)
+                    (erasure_expr implicit type="any Decodable" location=/x/ContentView.swift:365:44 range=[/x/ContentView.swift:365:30 - line:365:70]
+                      (abstract_conformance type="any Decodable" protocol="Decodable")
+                      (call_expr type="any Decodable" location=/x/ContentView.swift:365:44 range=[/x/ContentView.swift:365:30 - line:365:70] throws isolation_crossing="none"
+                        (dot_syntax_call_expr type="((any Decodable).Type, Data) throws -> any Decodable" location=/x/ContentView.swift:365:44 range=[/x/ContentView.swift:365:30 - line:365:44] nothrow isolation_crossing="none"
+                          (declref_expr type="(JSONDecoder) -> ((any Decodable).Type, Data) throws -> any Decodable" location=/x/ContentView.swift:365:44 range=[/x/ContentView.swift:365:44 - line:365:44] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> any Decodable)]" function_ref=single apply)
+                          (argument_list implicit
+                            (argument
+                              (call_expr type="JSONDecoder" location=/x/ContentView.swift:365:30 range=[/x/ContentView.swift:365:30 - line:365:42] nothrow isolation_crossing="none"
+                                (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:365:30 range=[/x/ContentView.swift:365:30 - line:365:30] nothrow isolation_crossing="none"
+                                  (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:365:30 range=[/x/ContentView.swift:365:30 - line:365:30] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                                  (argument_list implicit
+                                    (argument
+                                      (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:365:30 range=[/x/ContentView.swift:365:30 - line:365:30] typerepr="JSONDecoder"))))
+                                (argument_list)))))
+                        (argument_list labels="_:from:"
+                          (argument
+                            (opaque_value_expr implicit type="(any Decodable).Type" location=/x/ContentView.swift:365:51 range=[/x/ContentView.swift:365:51 - line:365:51] 0x0))
+                          (argument label="from"
+                            (declref_expr type="Data" location=/x/ContentView.swift:365:65 range=[/x/ContentView.swift:365:65 - line:365:65] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied))))))))))
+          (brace_stmt range=[/x/ContentView.swift:365:87 - line:367:9]
+            (call_expr type="()" location=/x/ContentView.swift:366:37 range=[/x/ContentView.swift:366:13 - line:366:48] nothrow isolation_crossing="none"
+              (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:366:37 range=[/x/ContentView.swift:366:13 - line:366:37] nothrow isolation_crossing="none"
+                (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:366:37 range=[/x/ContentView.swift:366:37 - line:366:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:366:28 range=[/x/ContentView.swift:366:13 - line:366:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                      (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:366:13 range=[/x/ContentView.swift:366:13 - line:366:13] typerepr="StandingsStore")))))
+              (argument_list
+                (argument
+                  (declref_expr type="[Category]" location=/x/ContentView.swift:366:42 range=[/x/ContentView.swift:366:42 - line:366:42] decl="main.(file).ContentView extension.load().opened@/x/ContentView.swift:365:16" function_ref=unapplied))))))
+        (assign_expr type="()" location=/x/ContentView.swift:368:11 range=[/x/ContentView.swift:368:9 - line:368:69]
+          (discard_assignment_expr type="@lvalue [KeptAnswer]?" location=/x/ContentView.swift:368:9 range=[/x/ContentView.swift:368:9 - line:368:9])
+          (optional_try_expr type="[KeptAnswer]?" location=/x/ContentView.swift:368:32 range=[/x/ContentView.swift:368:13 - line:368:69] thrown_error="any Error"
+            (inject_into_optional implicit type="[KeptAnswer]?" location=/x/ContentView.swift:368:32 range=[/x/ContentView.swift:368:18 - line:368:69]
+              (call_expr type="[KeptAnswer]" location=/x/ContentView.swift:368:32 range=[/x/ContentView.swift:368:18 - line:368:69] throws isolation_crossing="none"
+                (dot_syntax_call_expr type="([KeptAnswer].Type, Data) throws -> [KeptAnswer]" location=/x/ContentView.swift:368:32 range=[/x/ContentView.swift:368:18 - line:368:32] nothrow isolation_crossing="none"
+                  (declref_expr type="(JSONDecoder) -> ([KeptAnswer].Type, Data) throws -> [KeptAnswer]" location=/x/ContentView.swift:368:32 range=[/x/ContentView.swift:368:32 - line:368:32] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> [KeptAnswer])]" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (call_expr type="JSONDecoder" location=/x/ContentView.swift:368:18 range=[/x/ContentView.swift:368:18 - line:368:30] nothrow isolation_crossing="none"
+                        (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/ContentView.swift:368:18 range=[/x/ContentView.swift:368:18 - line:368:18] nothrow isolation_crossing="none"
+                          (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/ContentView.swift:368:18 range=[/x/ContentView.swift:368:18 - line:368:18] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                          (argument_list implicit
+                            (argument
+                              (type_expr type="JSONDecoder.Type" location=/x/ContentView.swift:368:18 range=[/x/ContentView.swift:368:18 - line:368:18] typerepr="JSONDecoder"))))
+                        (argument_list)))))
+                (argument_list labels="_:from:"
+                  (argument
+                    (dot_self_expr type="[KeptAnswer].Type" location=/x/ContentView.swift:368:39 range=[/x/ContentView.swift:368:39 - line:368:52]
+                      (type_expr type="[KeptAnswer].Type" location=/x/ContentView.swift:368:39 range=[/x/ContentView.swift:368:39 - line:368:50] typerepr="[KeptAnswer]")))
+                  (argument label="from"
+                    (declref_expr type="Data" location=/x/ContentView.swift:368:64 range=[/x/ContentView.swift:368:64 - line:368:64] decl="main.(file).ContentView extension.load().asked@/x/ContentView.swift:348:13" function_ref=unapplied)))))))))
+    (func_decl range=[/x/ContentView.swift:371:5 - line:373:5] "keepElsewhere(_:)" interface_type="(ContentView) -> (Recommendation) -> ()" access=internal
       (parameter "self") result="()" thrown_type="<null>"
-      (parameter_list range=[/x/ContentView.swift:337:23 - line:337:48]
+      (parameter_list range=[/x/ContentView.swift:371:23 - line:371:48]
         (parameter "answer" interface_type="Recommendation"))
-      (brace_stmt range=[/x/ContentView.swift:337:50 - line:339:5]
-        (call_expr type="()" location=/x/ContentView.swift:338:33 range=[/x/ContentView.swift:338:9 - line:338:44] nothrow isolation_crossing="none"
-          (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:338:33 range=[/x/ContentView.swift:338:9 - line:338:33] nothrow isolation_crossing="none"
-            (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:338:33 range=[/x/ContentView.swift:338:33 - line:338:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
+      (brace_stmt range=[/x/ContentView.swift:371:50 - line:373:5]
+        (call_expr type="()" location=/x/ContentView.swift:372:33 range=[/x/ContentView.swift:372:9 - line:372:44] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:372:33 range=[/x/ContentView.swift:372:9 - line:372:33] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:372:33 range=[/x/ContentView.swift:372:33 - line:372:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
             (argument_list implicit
               (argument
-                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:338:24 range=[/x/ContentView.swift:338:9 - line:338:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
-                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:338:9 range=[/x/ContentView.swift:338:9 - line:338:9] typerepr="StandingsStore")))))
+                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:372:24 range=[/x/ContentView.swift:372:9 - line:372:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:372:9 range=[/x/ContentView.swift:372:9 - line:372:9] typerepr="StandingsStore")))))
           (argument_list
             (argument
-              (declref_expr type="Recommendation" location=/x/ContentView.swift:338:38 range=[/x/ContentView.swift:338:38 - line:338:38] decl="main.(file).ContentView extension.keepElsewhere(_:).answer@/x/ContentView.swift:337:26" function_ref=unapplied))))))))
+              (declref_expr type="Recommendation" location=/x/ContentView.swift:372:38 range=[/x/ContentView.swift:372:38 - line:372:38] decl="main.(file).ContentView extension.keepElsewhere(_:).answer@/x/ContentView.swift:371:26" function_ref=unapplied))))))
+    (func_decl range=[/x/ContentView.swift:376:5 - line:378:5] "load(later:)" interface_type="(ContentView) -> (Recommendation) -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:376:14 - line:376:43]
+        (parameter "answer" apiName="later" interface_type="Recommendation"))
+      (brace_stmt range=[/x/ContentView.swift:376:45 - line:378:5]
+        (call_expr type="()" location=/x/ContentView.swift:377:33 range=[/x/ContentView.swift:377:9 - line:377:44] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Recommendation) -> ()" location=/x/ContentView.swift:377:33 range=[/x/ContentView.swift:377:9 - line:377:33] nothrow isolation_crossing="none"
+            (declref_expr type="(StandingsStore) -> (Recommendation) -> ()" location=/x/ContentView.swift:377:33 range=[/x/ContentView.swift:377:33 - line:377:33] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:54:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:377:24 range=[/x/ContentView.swift:377:9 - line:377:24] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                  (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:377:9 range=[/x/ContentView.swift:377:9 - line:377:9] typerepr="StandingsStore")))))
+          (argument_list
+            (argument
+              (declref_expr type="Recommendation" location=/x/ContentView.swift:377:38 range=[/x/ContentView.swift:377:38 - line:377:38] decl="main.(file).ContentView extension.load(later:).answer@/x/ContentView.swift:376:21" function_ref=unapplied)))))))
+  (enum_decl range=[/x/ContentView.swift:382:1 - line:388:1] "FixtureElsewhere" interface_type="FixtureElsewhere.Type" access=internal non_resilient
+    (struct_decl range=[/x/ContentView.swift:383:5 - line:387:5] "ContentView" interface_type="FixtureElsewhere.ContentView.Type" access=internal non_resilient
+      (func_decl range=[/x/ContentView.swift:384:9 - line:386:9] "load()" interface_type="(FixtureElsewhere.ContentView) -> () -> ()" access=internal
+        (parameter "self") result="()" thrown_type="<null>"
+        (parameter_list range=[/x/ContentView.swift:384:18 - line:384:19])
+        (brace_stmt range=[/x/ContentView.swift:384:21 - line:386:9]
+          (call_expr type="()" location=/x/ContentView.swift:385:37 range=[/x/ContentView.swift:385:13 - line:385:54] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="([Category]) -> ()" location=/x/ContentView.swift:385:37 range=[/x/ContentView.swift:385:13 - line:385:37] nothrow isolation_crossing="none"
+              (declref_expr type="(StandingsStore) -> ([Category]) -> ()" location=/x/ContentView.swift:385:37 range=[/x/ContentView.swift:385:37 - line:385:37] decl="main.(file).StandingsStore extension.keep@/x/StandingsStore.swift:58:10" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (member_ref_expr type="StandingsStore" location=/x/ContentView.swift:385:28 range=[/x/ContentView.swift:385:13 - line:385:28] decl="main.(file).StandingsStore.onDevice@/x/StandingsStore.swift:17:16"
+                    (type_expr type="StandingsStore.Type" location=/x/ContentView.swift:385:13 range=[/x/ContentView.swift:385:13 - line:385:13] typerepr="StandingsStore")))))
+            (argument_list
+              (argument
+                (call_expr type="[Category]" location=/x/ContentView.swift:385:51 range=[/x/ContentView.swift:385:42 - line:385:53] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="() -> [Category]" location=/x/ContentView.swift:385:51 range=[/x/ContentView.swift:385:42 - line:385:51] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Array<Category>.Type) -> () -> Array<Category>" location=/x/ContentView.swift:385:51 range=[/x/ContentView.swift:385:51 - line:385:51] decl="Swift.(file).Array extension.init() [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> Category)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr type="[Category].Type" location=/x/ContentView.swift:385:42 range=[/x/ContentView.swift:385:42 - line:385:51] typerepr="[Category]"))))
+                  (argument_list)))))))
+      (constructor_decl implicit range=[/x/ContentView.swift:383:12 - line:383:12] "init()" interface_type="(FixtureElsewhere.ContentView.Type) -> () -> FixtureElsewhere.ContentView" access=internal designated
+        (parameter "self") thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:383:12 - line:383:12]
+          (return_stmt implicit range=[/x/ContentView.swift:383:12 - line:383:12]))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")
@@ -6210,7 +6948,112 @@
                 (type_expr type="StandingsStore.Type" location=/x/Detail.swift:125:5 range=[/x/Detail.swift:125:5 - line:125:5] typerepr="StandingsStore")))))
         (argument_list
           (argument
-            (declref_expr type="[Category]" location=/x/Detail.swift:125:34 range=[/x/Detail.swift:125:34 - line:125:34] decl="main.(file).fixtureDetailKeeps(_:).list@/x/Detail.swift:124:27" function_ref=unapplied)))))))
+            (declref_expr type="[Category]" location=/x/Detail.swift:125:34 range=[/x/Detail.swift:125:34 - line:125:34] decl="main.(file).fixtureDetailKeeps(_:).list@/x/Detail.swift:124:27" function_ref=unapplied))))))
+  (func_decl range=[/x/Detail.swift:131:1 - line:133:1] "fixtureDetailBuildsAnAnswer(_:)" interface_type="(String) -> Recommendation" access=internal result="Recommendation" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:131:33 - line:131:49]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/Detail.swift:131:69 - line:133:1]
+      (return_stmt implicit range=[/x/Detail.swift:132:5 - line:132:45]
+        (call_expr type="Recommendation" location=/x/Detail.swift:132:5 range=[/x/Detail.swift:132:5 - line:132:45] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="(Query) -> Recommendation" location=/x/Detail.swift:132:5 range=[/x/Detail.swift:132:5 - line:132:5] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(Recommendation.Type) -> (Query) -> Recommendation" location=/x/Detail.swift:132:5 range=[/x/Detail.swift:132:5 - line:132:5] decl="main.(file).Recommendation.init(query:)@/x/Models.swift:50:8" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="Recommendation.Type" location=/x/Detail.swift:132:5 range=[/x/Detail.swift:132:5 - line:132:5] typerepr="Recommendation"))))
+          (argument_list labels="query:"
+            (argument label="query"
+              (call_expr type="Query" location=/x/Detail.swift:132:27 range=[/x/Detail.swift:132:27 - line:132:44] nothrow isolation_crossing="none"
+                (constructor_ref_call_expr type="(String) -> Query" location=/x/Detail.swift:132:27 range=[/x/Detail.swift:132:27 - line:132:27] nothrow isolation_crossing="none"
+                  (declref_expr implicit type="(Query.Type) -> (String) -> Query" location=/x/Detail.swift:132:27 range=[/x/Detail.swift:132:27 - line:132:27] decl="main.(file).Query.init(task:)@/x/Models.swift:46:8" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr type="Query.Type" location=/x/Detail.swift:132:27 range=[/x/Detail.swift:132:27 - line:132:27] typerepr="Query"))))
+                (argument_list labels="task:"
+                  (argument label="task"
+                    (declref_expr type="String" location=/x/Detail.swift:132:39 range=[/x/Detail.swift:132:39 - line:132:39] decl="main.(file).fixtureDetailBuildsAnAnswer(_:).typed@/x/Detail.swift:131:36" function_ref=unapplied))))))))))
+  (func_decl range=[/x/Detail.swift:135:1 - line:137:1] "fixtureDetailDecodesAnAnswer(_:)" interface_type="(String) -> Recommendation?" access=internal result="Recommendation?" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:135:34 - line:135:50]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/Detail.swift:135:71 - line:137:1]
+      (return_stmt implicit range=[/x/Detail.swift:136:5 - line:136:74]
+        (optional_try_expr type="Recommendation?" location=/x/Detail.swift:136:24 range=[/x/Detail.swift:136:5 - line:136:74] thrown_error="any Error"
+          (inject_into_optional implicit type="Recommendation?" location=/x/Detail.swift:136:24 range=[/x/Detail.swift:136:10 - line:136:74]
+            (call_expr type="Recommendation" location=/x/Detail.swift:136:24 range=[/x/Detail.swift:136:10 - line:136:74] throws isolation_crossing="none"
+              (dot_syntax_call_expr type="(Recommendation.Type, Data) throws -> Recommendation" location=/x/Detail.swift:136:24 range=[/x/Detail.swift:136:10 - line:136:24] nothrow isolation_crossing="none"
+                (declref_expr type="(JSONDecoder) -> (Recommendation.Type, Data) throws -> Recommendation" location=/x/Detail.swift:136:24 range=[/x/Detail.swift:136:24 - line:136:24] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> Recommendation)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (call_expr type="JSONDecoder" location=/x/Detail.swift:136:10 range=[/x/Detail.swift:136:10 - line:136:22] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/Detail.swift:136:10 range=[/x/Detail.swift:136:10 - line:136:10] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/Detail.swift:136:10 range=[/x/Detail.swift:136:10 - line:136:10] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="JSONDecoder.Type" location=/x/Detail.swift:136:10 range=[/x/Detail.swift:136:10 - line:136:10] typerepr="JSONDecoder"))))
+                      (argument_list)))))
+              (argument_list labels="_:from:"
+                (argument
+                  (dot_self_expr type="Recommendation.Type" location=/x/Detail.swift:136:31 range=[/x/Detail.swift:136:31 - line:136:46]
+                    (type_expr type="Recommendation.Type" location=/x/Detail.swift:136:31 range=[/x/Detail.swift:136:31 - line:136:31] typerepr="Recommendation")))
+                (argument label="from"
+                  (call_expr type="Data" location=/x/Detail.swift:136:58 range=[/x/Detail.swift:136:58 - line:136:73] nothrow isolation_crossing="none"
+                    (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/Detail.swift:136:58 range=[/x/Detail.swift:136:58 - line:136:58] nothrow isolation_crossing="none"
+                      (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/Detail.swift:136:58 range=[/x/Detail.swift:136:58 - line:136:58] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (type_expr type="Data.Type" location=/x/Detail.swift:136:58 range=[/x/Detail.swift:136:58 - line:136:58] typerepr="Data"))))
+                    (argument_list
+                      (argument
+                        (member_ref_expr type="String.UTF8View" location=/x/Detail.swift:136:69 range=[/x/Detail.swift:136:63 - line:136:69] decl="Swift.(file).String extension.utf8"
+                          (declref_expr type="String" location=/x/Detail.swift:136:63 range=[/x/Detail.swift:136:63 - line:136:63] decl="main.(file).fixtureDetailDecodesAnAnswer(_:).typed@/x/Detail.swift:135:37" function_ref=unapplied)))))))))))))
+  (func_decl range=[/x/Detail.swift:139:1 - line:141:1] "fixtureDetailDecodesByName(_:)" interface_type="(any Decoder) throws -> CategoryList" access=internal result="CategoryList" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:139:32 - line:139:55]
+      (parameter "decoder" interface_type="any Decoder"))
+    (brace_stmt range=[/x/Detail.swift:139:80 - line:141:1]
+      (return_stmt implicit range=[/x/Detail.swift:140:5 - line:140:35]
+        (try_expr type="CategoryList" location=/x/Detail.swift:140:9 range=[/x/Detail.swift:140:5 - line:140:35]
+          (call_expr type="CategoryList" location=/x/Detail.swift:140:9 range=[/x/Detail.swift:140:9 - line:140:35] throws isolation_crossing="none"
+            (constructor_ref_call_expr type="(any Decoder) throws -> CategoryList" location=/x/Detail.swift:140:9 range=[/x/Detail.swift:140:9 - line:140:9] nothrow isolation_crossing="none"
+              (declref_expr implicit type="(CategoryList.Type) -> (any Decoder) throws -> CategoryList" location=/x/Detail.swift:140:9 range=[/x/Detail.swift:140:9 - line:140:9] decl="main.(file).CategoryList.init(from:)" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (type_expr type="CategoryList.Type" location=/x/Detail.swift:140:9 range=[/x/Detail.swift:140:9 - line:140:9] typerepr="CategoryList"))))
+            (argument_list labels="from:"
+              (argument label="from"
+                (declref_expr type="any Decoder" location=/x/Detail.swift:140:28 range=[/x/Detail.swift:140:28 - line:140:28] decl="main.(file).fixtureDetailDecodesByName(_:).decoder@/x/Detail.swift:139:35" function_ref=unapplied))))))))
+  (func_decl range=[/x/Detail.swift:143:1 - line:145:1] "fixtureDetailDecodesAShelf(_:)" interface_type="(String) -> FixtureSurfacesShelf?" access=internal result="FixtureSurfacesShelf?" thrown_type="<null>"
+    (parameter_list range=[/x/Detail.swift:143:32 - line:143:48]
+      (parameter "typed" interface_type="String"))
+    (brace_stmt range=[/x/Detail.swift:143:75 - line:145:1]
+      (return_stmt implicit range=[/x/Detail.swift:144:5 - line:144:80]
+        (optional_try_expr type="FixtureSurfacesShelf?" location=/x/Detail.swift:144:24 range=[/x/Detail.swift:144:5 - line:144:80] thrown_error="any Error"
+          (inject_into_optional implicit type="FixtureSurfacesShelf?" location=/x/Detail.swift:144:24 range=[/x/Detail.swift:144:10 - line:144:80]
+            (call_expr type="FixtureSurfacesShelf" location=/x/Detail.swift:144:24 range=[/x/Detail.swift:144:10 - line:144:80] throws isolation_crossing="none"
+              (dot_syntax_call_expr type="(FixtureSurfacesShelf.Type, Data) throws -> FixtureSurfacesShelf" location=/x/Detail.swift:144:24 range=[/x/Detail.swift:144:10 - line:144:24] nothrow isolation_crossing="none"
+                (declref_expr type="(JSONDecoder) -> (FixtureSurfacesShelf.Type, Data) throws -> FixtureSurfacesShelf" location=/x/Detail.swift:144:24 range=[/x/Detail.swift:144:24 - line:144:24] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> FixtureSurfacesShelf)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (call_expr type="JSONDecoder" location=/x/Detail.swift:144:10 range=[/x/Detail.swift:144:10 - line:144:22] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/Detail.swift:144:10 range=[/x/Detail.swift:144:10 - line:144:10] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/Detail.swift:144:10 range=[/x/Detail.swift:144:10 - line:144:10] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="JSONDecoder.Type" location=/x/Detail.swift:144:10 range=[/x/Detail.swift:144:10 - line:144:10] typerepr="JSONDecoder"))))
+                      (argument_list)))))
+              (argument_list labels="_:from:"
+                (argument
+                  (dot_self_expr type="FixtureSurfacesShelf.Type" location=/x/Detail.swift:144:31 range=[/x/Detail.swift:144:31 - line:144:52]
+                    (type_expr type="FixtureSurfacesShelf.Type" location=/x/Detail.swift:144:31 range=[/x/Detail.swift:144:31 - line:144:31] typerepr="FixtureSurfacesShelf")))
+                (argument label="from"
+                  (call_expr type="Data" location=/x/Detail.swift:144:64 range=[/x/Detail.swift:144:64 - line:144:79] nothrow isolation_crossing="none"
+                    (constructor_ref_call_expr type="(String.UTF8View) -> Data" location=/x/Detail.swift:144:64 range=[/x/Detail.swift:144:64 - line:144:64] nothrow isolation_crossing="none"
+                      (declref_expr implicit type="(Data.Type) -> (String.UTF8View) -> Data" location=/x/Detail.swift:144:64 range=[/x/Detail.swift:144:64 - line:144:64] decl="Foundation.(file).Data.init(_:) [with (substitution_map generic_signature=<S where S : Sequence, S.Element == UInt8> S -> String.UTF8View)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (type_expr type="Data.Type" location=/x/Detail.swift:144:64 range=[/x/Detail.swift:144:64 - line:144:64] typerepr="Data"))))
+                    (argument_list
+                      (argument
+                        (member_ref_expr type="String.UTF8View" location=/x/Detail.swift:144:75 range=[/x/Detail.swift:144:69 - line:144:75] decl="Swift.(file).String extension.utf8"
+                          (declref_expr type="String" location=/x/Detail.swift:144:69 range=[/x/Detail.swift:144:69 - line:144:69] decl="main.(file).fixtureDetailDecodesAShelf(_:).typed@/x/Detail.swift:143:35" function_ref=unapplied))))))))))))))
 (source_file "/x/EngineClient.swift"
   (import_decl range=[/x/EngineClient.swift:2:1 - line:2:8] module="Foundation")
   (func_decl range=[/x/EngineClient.swift:4:1 - line:6:1] "fixtureClientFetches(_:)" interface_type="(URL) async throws -> Int64" access=internal result="Int64" thrown_type="<null>"
@@ -8799,22 +9642,293 @@
       (parameter "self") thrown_type="<null>"
       (parameter_list range=[/x/Models.swift:54:8 - line:54:8]
         (parameter "id" apiName="id" interface_type="String"))))
-  (struct_decl range=[/x/Models.swift:58:1 - line:60:1] "CategoryList" interface_type="CategoryList.Type" access=internal non_resilient inherits="Codable"
-    (pattern_binding_decl range=[/x/Models.swift:59:5 - line:59:30]
+  (struct_decl range=[/x/Models.swift:60:1 - line:62:1] "FixtureSurfacesShelf" interface_type="FixtureSurfacesShelf.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/Models.swift:61:5 - line:61:15]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="CategoryList"
+          (pattern_named type="CategoryList" "list")
+          (type_unqualified_ident id="CategoryList" bind="main.(file).CategoryList@/x/Models.swift:64:8"))))
+    (var_decl range=[/x/Models.swift:61:9 - line:61:9] "list" interface_type="CategoryList" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/Models.swift:61:9 - line:61:9] <anonymous @ 0x0> interface_type="(FixtureSurfacesShelf) -> () -> CategoryList" access=internal get for="list"
+        (parameter "self" interface_type="FixtureSurfacesShelf") result="CategoryList" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/Models.swift:61:9 - line:61:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="CategoryList" decl="main.(file).FixtureSurfacesShelf.list@/x/Models.swift:61:9" direct_to_storage
+              (declref_expr implicit type="FixtureSurfacesShelf" decl="main.(file).FixtureSurfacesShelf.<anonymous>.self@/x/Models.swift:61:9" function_ref=unapplied))))))
+    (enum_decl implicit "CodingKeys" interface_type="FixtureSurfacesShelf.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
+      (enum_element_decl implicit "list" interface_type="(FixtureSurfacesShelf.CodingKeys.Type) -> FixtureSurfacesShelf.CodingKeys" access=internal)
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int"
+            (pattern_named implicit type="Int" "hashValue"))))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="String"
+            (pattern_named implicit type="String" "stringValue"))))
+      (constructor_decl implicit "init(stringValue:)" interface_type="(FixtureSurfacesShelf.CodingKeys.Type) -> (String) -> FixtureSurfacesShelf.CodingKeys?" access=private designated failable=true
+        (parameter "self" interface_type="FixtureSurfacesShelf.CodingKeys" inout) thrown_type="<null>"
+        (parameter_list
+          (parameter "stringValue" apiName="stringValue" interface_type="String"))
+        (brace_stmt implicit
+          (switch_stmt implicit
+            (declref_expr implicit type="String" decl="main.(file).FixtureSurfacesShelf.CodingKeys.init(stringValue:).stringValue" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_expr implicit type="String" ownership=borrowing
+                  (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(String, String) -> Bool" decl="Swift.(file).~= [with (substitution_map generic_signature=<T where T : Equatable> T -> String)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (string_literal_expr implicit type="String" encoding=utf8 value="list" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**"))
+                      (argument
+                        (declref_expr implicit type="String" decl="main.(file).FixtureSurfacesShelf.CodingKeys.init(stringValue:).$match" function_ref=unapplied))))))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.init(stringValue:).self" function_ref=unapplied)
+                  (dot_syntax_call_expr implicit type="FixtureSurfacesShelf.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(FixtureSurfacesShelf.CodingKeys.Type) -> FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.list" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" null_typerepr)))))))
+            (case_stmt implicit
+              (case_label_item default ownership=borrowing
+                (pattern_any implicit type="String"))
+              (brace_stmt implicit
+                (fail_stmt implicit))))
+          (return_stmt implicit)))
+      (pattern_binding_decl implicit
+        (pattern_entry init_context=0x0
+          (pattern_typed implicit type="Int?"
+            (pattern_named implicit type="Int?" "intValue"))))
+      (constructor_decl implicit "init(intValue:)" interface_type="(FixtureSurfacesShelf.CodingKeys.Type) -> (Int) -> FixtureSurfacesShelf.CodingKeys?" access=private designated failable=true
+        (parameter "self") thrown_type="<null>"
+        (parameter_list
+          (parameter "intValue" apiName="intValue" interface_type="Int"))
+        (brace_stmt implicit
+          (fail_stmt implicit)))
+      (func_decl implicit "__derived_enum_equals(_:_:)" interface_type="(FixtureSurfacesShelf.CodingKeys.Type) -> (FixtureSurfacesShelf.CodingKeys, FixtureSurfacesShelf.CodingKeys) -> Bool" access=fileprivate static
+        (implements_attr
+          (protocol=<null typerepr>) member="==(_:_:)")
+        (semantics_attr implicit value="derived_enum_equals")
+        (parameter "self") result="Bool" thrown_type="<null>"
+        (parameter_list
+          (parameter "a" interface_type="FixtureSurfacesShelf.CodingKeys")
+          (parameter "b" interface_type="FixtureSurfacesShelf.CodingKeys"))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_a"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.__derived_enum_equals(_:_:).a" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureSurfacesShelf.CodingKeys" element="FixtureSurfacesShelf.CodingKeys.list"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureSurfacesShelf.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "index_b"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.__derived_enum_equals(_:_:).b" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureSurfacesShelf.CodingKeys" element="FixtureSurfacesShelf.CodingKeys.list"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureSurfacesShelf.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (return_stmt implicit
+            (binary_expr implicit type="Bool" nothrow isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(Int, Int) -> Bool" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(Int.Type) -> (Int, Int) -> Bool" decl="Swift.(file).Int.==" function_ref=unapplied)
+                (argument_list implicit
+                  (argument
+                    (type_expr implicit type="Int.Type" null_typerepr))))
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).FixtureSurfacesShelf.CodingKeys.__derived_enum_equals(_:_:).index_a" function_ref=unapplied))
+                (argument
+                  (declref_expr implicit type="Int" decl="main.(file).FixtureSurfacesShelf.CodingKeys.__derived_enum_equals(_:_:).index_b" function_ref=unapplied)))))))
+      (func_decl implicit "hash(into:)" interface_type="(FixtureSurfacesShelf.CodingKeys) -> (inout Hasher) -> ()" access=fileprivate
+        (parameter "self" interface_type="FixtureSurfacesShelf.CodingKeys") result="()" thrown_type="<null>"
+        (parameter_list
+          (parameter "hasher" apiName="into" interface_type="Hasher" inout))
+        (brace_stmt implicit
+          (pattern_binding_decl implicit
+            (pattern_entry
+              (pattern_typed implicit type="Int"
+                (pattern_named implicit type="Int" "discriminator"))))
+          (switch_stmt implicit
+            (declref_expr implicit type="FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.hash(into:).self" function_ref=unapplied)
+            (case_stmt implicit
+              (case_label_item ownership=borrowing
+                (pattern_enum_element implicit type="FixtureSurfacesShelf.CodingKeys" element="FixtureSurfacesShelf.CodingKeys.list"))
+              (brace_stmt implicit
+                (assign_expr implicit type="()"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureSurfacesShelf.CodingKeys.hash(into:).discriminator" function_ref=unapplied)
+                  (integer_literal_expr implicit type="Int" value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))
+          (call_expr implicit type="()" nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(Int) -> ()" nothrow isolation_crossing="none"
+              (declref_expr implicit type="(inout Hasher) -> (Int) -> ()" decl="Swift.(file).Hasher.combine [with (substitution_map generic_signature=<H where H : Hashable> H -> Int)]" function_ref=single apply)
+              (argument_list implicit
+                (argument inout
+                  (inout_expr implicit type="inout Hasher"
+                    (declref_expr implicit type="@lvalue Hasher" decl="main.(file).FixtureSurfacesShelf.CodingKeys.hash(into:).hasher" function_ref=unapplied)))))
+            (argument_list implicit
+              (argument
+                (load_expr implicit type="Int"
+                  (declref_expr implicit type="@lvalue Int" decl="main.(file).FixtureSurfacesShelf.CodingKeys.hash(into:).discriminator" function_ref=unapplied)))))))
+      (var_decl implicit "hashValue" interface_type="Int" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(FixtureSurfacesShelf.CodingKeys) -> () -> Int" access=fileprivate get for="hashValue"
+          (parameter "self" interface_type="FixtureSurfacesShelf.CodingKeys") result="Int" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (call_expr implicit type="Int" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(FixtureSurfacesShelf.CodingKeys) -> Int" decl="Swift.(file)._hashValue(for:) [with (substitution_map generic_signature=<H where H : Hashable> H -> FixtureSurfacesShelf.CodingKeys)]" function_ref=unapplied)
+                (argument_list implicit labels="for:"
+                  (argument label="for"
+                    (declref_expr implicit type="FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.<anonymous>.self" function_ref=unapplied))))))))
+      (var_decl implicit "intValue" interface_type="Int?" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(FixtureSurfacesShelf.CodingKeys) -> () -> Int?" access=fileprivate get for="intValue"
+          (parameter "self") result="Int?" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (return_stmt implicit
+              (nil_literal_expr implicit type="Int?" initializer="**NULL**")))))
+      (var_decl implicit "stringValue" interface_type="String" access=fileprivate readImpl=getter immutable
+        (accessor_decl implicit <anonymous @ 0x0> interface_type="(FixtureSurfacesShelf.CodingKeys) -> () -> String" access=fileprivate get for="stringValue"
+          (parameter "self" interface_type="FixtureSurfacesShelf.CodingKeys") result="String" thrown_type="<null>"
+          (parameter_list)
+          (brace_stmt implicit
+            (switch_stmt implicit
+              (declref_expr implicit type="FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.<anonymous>.self" function_ref=unapplied)
+              (case_stmt implicit
+                (case_label_item ownership=borrowing
+                  (pattern_enum_element implicit type="FixtureSurfacesShelf.CodingKeys" element="FixtureSurfacesShelf.CodingKeys.list"))
+                (brace_stmt implicit
+                  (return_stmt implicit
+                    (string_literal_expr implicit type="String" encoding=utf8 value="list" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
+    (func_decl implicit "encode(to:)" interface_type="(FixtureSurfacesShelf) -> (any Encoder) throws -> ()" access=internal
+      (parameter "self") result="()" thrown_type="<null>"
+      (parameter_list
+        (parameter "encoder" apiName="to" interface_type="any Encoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit "container")
+            (original_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).FixtureSurfacesShelf.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" typerepr="CodingKeys")))))
+            (processed_init=call_expr implicit type="<null>" isolation_crossing="none"
+              (unresolved_dot_expr implicit type="<null>" field="container(keyedBy:)" function_ref=unapplied
+                (declref_expr implicit type="<null>" decl="main.(file).FixtureSurfacesShelf.encode(to:).encoder" function_ref=unapplied))
+              (argument_list implicit labels="keyedBy:"
+                (argument label="keyedBy"
+                  (dot_self_expr type="<null>"
+                    (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" typerepr="CodingKeys")))))))
+        (var_decl implicit "container" interface_type="KeyedEncodingContainer<FixtureSurfacesShelf.CodingKeys>" readImpl=stored writeImpl=stored readWriteImpl=stored)
+        (try_expr implicit type="<null>"
+          (call_expr implicit type="<null>" isolation_crossing="none"
+            (unresolved_dot_expr implicit type="<null>" field="encode(_:forKey:)" function_ref=unapplied
+              (declref_expr implicit type="<null>" decl="main.(file).FixtureSurfacesShelf.encode(to:).container" direct_to_storage function_ref=unapplied))
+            (argument_list implicit labels="_:forKey:"
+              (argument
+                (member_ref_expr implicit type="<null>" decl="main.(file).FixtureSurfacesShelf.list@/x/Models.swift:61:9"
+                  (declref_expr implicit type="<null>" decl="main.(file).FixtureSurfacesShelf.encode(to:).self" function_ref=unapplied)))
+              (argument label="forKey"
+                (member_ref_expr implicit type="<null>" decl="main.(file).FixtureSurfacesShelf.CodingKeys.list"
+                  (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" null_typerepr))))))))
+    (constructor_decl implicit "init(from:)" interface_type="(FixtureSurfacesShelf.Type) -> (any Decoder) throws -> FixtureSurfacesShelf" access=internal designated
+      (parameter "self" interface_type="FixtureSurfacesShelf" inout) thrown_type="<null>"
+      (parameter_list
+        (parameter "decoder" apiName="from" interface_type="any Decoder"))
+      (brace_stmt implicit
+        (pattern_binding_decl implicit
+          (pattern_entry
+            (pattern_named implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" "container")
+            (original_init=try_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).FixtureSurfacesShelf.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(FixtureSurfacesShelf.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (FixtureSurfacesShelf.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> FixtureSurfacesShelf.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="FixtureSurfacesShelf.CodingKeys.Type"
+                        (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" typerepr="CodingKeys")))))))
+            (processed_init=try_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>"
+              (open_existential_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>"
+                (opaque_value_expr implicit type="any Decoder" 0x0)
+                (declref_expr implicit type="any Decoder" decl="main.(file).FixtureSurfacesShelf.init(from:).decoder" function_ref=unapplied)
+                (call_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" throws isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(FixtureSurfacesShelf.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(any Decoder) -> (FixtureSurfacesShelf.CodingKeys.Type) throws -> KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" decl="Swift.(file).Decoder.container(keyedBy:) [with (substitution_map generic_signature=<Self, Key where Self : Decoder, Key : CodingKey> Self -> any Decoder Key -> FixtureSurfacesShelf.CodingKeys)]" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (opaque_value_expr implicit type="any Decoder" 0x0))))
+                  (argument_list implicit labels="keyedBy:"
+                    (argument label="keyedBy"
+                      (dot_self_expr type="FixtureSurfacesShelf.CodingKeys.Type"
+                        (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" typerepr="CodingKeys")))))))))
+        (var_decl implicit "container" interface_type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" access=private let readImpl=stored immutable
+          (has_initial_value_attr implicit)
+          (has_storage_attr implicit))
+        (assign_expr implicit type="()"
+          (member_ref_expr implicit type="@lvalue CategoryList" decl="main.(file).FixtureSurfacesShelf.list@/x/Models.swift:61:9" direct_to_storage
+            (declref_expr implicit type="@lvalue FixtureSurfacesShelf" decl="main.(file).FixtureSurfacesShelf.init(from:).self" function_ref=unapplied))
+          (try_expr implicit type="CategoryList"
+            (call_expr implicit type="CategoryList" throws isolation_crossing="none"
+              (dot_syntax_call_expr implicit type="(CategoryList.Type, FixtureSurfacesShelf.CodingKeys) throws -> CategoryList" nothrow isolation_crossing="none"
+                (declref_expr implicit type="(KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>) -> (CategoryList.Type, FixtureSurfacesShelf.CodingKeys) throws -> CategoryList" decl="Swift.(file).KeyedDecodingContainer.decode(_:forKey:) [with (substitution_map generic_signature=<K, T where K : CodingKey, T : Decodable> K -> FixtureSurfacesShelf.CodingKeys T -> CategoryList)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (declref_expr implicit type="KeyedDecodingContainer<FixtureSurfacesShelf.CodingKeys>" decl="main.(file).FixtureSurfacesShelf.init(from:).container" function_ref=unapplied))))
+              (argument_list implicit labels="_:forKey:"
+                (argument
+                  (dot_self_expr type="CategoryList.Type"
+                    (type_expr implicit type="CategoryList.Type" null_typerepr)))
+                (argument label="forKey"
+                  (dot_syntax_call_expr implicit type="FixtureSurfacesShelf.CodingKeys" nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(FixtureSurfacesShelf.CodingKeys.Type) -> FixtureSurfacesShelf.CodingKeys" decl="main.(file).FixtureSurfacesShelf.CodingKeys.list" function_ref=double apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr implicit type="FixtureSurfacesShelf.CodingKeys.Type" null_typerepr)))))))))
+        (return_stmt implicit)))
+    (constructor_decl implicit range=[/x/Models.swift:60:8 - line:60:8] "init(list:)" interface_type="(FixtureSurfacesShelf.Type) -> (CategoryList) -> FixtureSurfacesShelf" access=internal designated
+      (parameter "self") thrown_type="<null>"
+      (parameter_list range=[/x/Models.swift:60:8 - line:60:8]
+        (parameter "list" apiName="list" interface_type="CategoryList"))))
+  (struct_decl range=[/x/Models.swift:64:1 - line:66:1] "CategoryList" interface_type="CategoryList.Type" access=internal non_resilient inherits="Codable"
+    (pattern_binding_decl range=[/x/Models.swift:65:5 - line:65:30]
       (pattern_entry init_context=0x0
         (pattern_typed type="[Category]"
           (pattern_named type="[Category]" "categories")
           (type_array
             (type_unqualified_ident id="Category" bind="main.(file).Category@/x/Models.swift:54:8")))))
-    (var_decl range=[/x/Models.swift:59:9 - line:59:9] "categories" interface_type="[Category]" access=internal let readImpl=stored immutable
+    (var_decl range=[/x/Models.swift:65:9 - line:65:9] "categories" interface_type="[Category]" access=internal let readImpl=stored immutable
       (has_storage_attr implicit)
-      (accessor_decl implicit range=[/x/Models.swift:59:9 - line:59:9] <anonymous @ 0x0> interface_type="(CategoryList) -> () -> [Category]" access=internal get for="categories"
+      (accessor_decl implicit range=[/x/Models.swift:65:9 - line:65:9] <anonymous @ 0x0> interface_type="(CategoryList) -> () -> [Category]" access=internal get for="categories"
         (parameter "self" interface_type="CategoryList") result="[Category]" thrown_type="<null>"
         (parameter_list)
-        (brace_stmt implicit range=[/x/Models.swift:59:9 - line:59:9]
+        (brace_stmt implicit range=[/x/Models.swift:65:9 - line:65:9]
           (return_stmt implicit
-            (member_ref_expr implicit type="[Category]" decl="main.(file).CategoryList.categories@/x/Models.swift:59:9" direct_to_storage
-              (declref_expr implicit type="CategoryList" decl="main.(file).CategoryList.<anonymous>.self@/x/Models.swift:59:9" function_ref=unapplied))))))
+            (member_ref_expr implicit type="[Category]" decl="main.(file).CategoryList.categories@/x/Models.swift:65:9" direct_to_storage
+              (declref_expr implicit type="CategoryList" decl="main.(file).CategoryList.<anonymous>.self@/x/Models.swift:65:9" function_ref=unapplied))))))
     (enum_decl implicit "CodingKeys" interface_type="CategoryList.CodingKeys.Type" access=private non_resilient inherits="CodingKey"
       (enum_element_decl implicit "categories" interface_type="(CategoryList.CodingKeys.Type) -> CategoryList.CodingKeys" access=internal)
       (pattern_binding_decl implicit
@@ -9002,14 +10116,14 @@
               (declref_expr implicit type="<null>" decl="main.(file).CategoryList.encode(to:).container" direct_to_storage function_ref=unapplied))
             (argument_list implicit labels="_:forKey:"
               (argument
-                (member_ref_expr implicit type="<null>" decl="main.(file).CategoryList.categories@/x/Models.swift:59:9"
+                (member_ref_expr implicit type="<null>" decl="main.(file).CategoryList.categories@/x/Models.swift:65:9"
                   (declref_expr implicit type="<null>" decl="main.(file).CategoryList.encode(to:).self" function_ref=unapplied)))
               (argument label="forKey"
                 (member_ref_expr implicit type="<null>" decl="main.(file).CategoryList.CodingKeys.categories"
                   (type_expr implicit type="CategoryList.CodingKeys.Type" null_typerepr))))))))
-    (constructor_decl implicit range=[/x/Models.swift:58:8 - line:58:8] "init(categories:)" interface_type="(CategoryList.Type) -> ([Category]) -> CategoryList" access=internal designated
+    (constructor_decl implicit range=[/x/Models.swift:64:8 - line:64:8] "init(categories:)" interface_type="(CategoryList.Type) -> ([Category]) -> CategoryList" access=internal designated
       (parameter "self") thrown_type="<null>"
-      (parameter_list range=[/x/Models.swift:58:8 - line:58:8]
+      (parameter_list range=[/x/Models.swift:64:8 - line:64:8]
         (parameter "categories" apiName="categories" interface_type="[Category]")))
     (constructor_decl implicit "init(from:)" interface_type="(CategoryList.Type) -> (any Decoder) throws -> CategoryList" access=internal designated
       (parameter "self" interface_type="CategoryList" inout) thrown_type="<null>"
@@ -9051,7 +10165,7 @@
           (has_initial_value_attr implicit)
           (has_storage_attr implicit))
         (assign_expr implicit type="()"
-          (member_ref_expr implicit type="@lvalue [Category]" decl="main.(file).CategoryList.categories@/x/Models.swift:59:9" direct_to_storage
+          (member_ref_expr implicit type="@lvalue [Category]" decl="main.(file).CategoryList.categories@/x/Models.swift:65:9" direct_to_storage
             (declref_expr implicit type="@lvalue CategoryList" decl="main.(file).CategoryList.init(from:).self" function_ref=unapplied))
           (try_expr implicit type="[Category]"
             (call_expr implicit type="[Category]" throws isolation_crossing="none"
