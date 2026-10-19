@@ -3,6 +3,9 @@
 //  dropped and never acted on. Tested without the model, on every machine, as the surface is.
 
 import XCTest
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 @testable import ModelRankingEngine
 
@@ -98,6 +101,17 @@ final class RefinementBoundaryTests: OfflineTestCase {
         if #available(iOS 26.0, macOS 26.0, *) {
             XCTAssertNoThrow(try ModelRouter.schema(for: served))
             XCTAssertNoThrow(try ModelRouter.schema(for: ["assistant"]))
+        }
+        #endif
+    }
+
+    func testTheModelReadsWithGreedyDecoding() {
+        // #351: with the framework's default (random) sampling the same 173 questions moved by 3 to 7
+        // rows between identical runs, so no change to the instructions could be told from noise.
+        // Greedy decoding reads one question the same way every time on one model version.
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            XCTAssertEqual(ModelRouter.options, GenerationOptions(sampling: .greedy))
         }
         #endif
     }
