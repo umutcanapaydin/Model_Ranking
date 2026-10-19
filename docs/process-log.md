@@ -943,3 +943,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scrubbed_env` now drops the outer make's MAKEFLAGS: under v7.2 the post-edit hook was red after every edit.
 - The owner waived the guard-change security review (one bypass row in `docs/control-events.csv`).
 - **Lesson:** a dry run of the owner patch is the only place an upgrade's agent half can be proven green; run it before calling the half done.
+
+## 2026-10-19 · fix/issue-328-maintenance-lock — the guard test's flake was git's background maintenance
+
+- #339 and #343 went red in CI on `test-bash-guard.py`. Now that run-all.py prints a dead test's stderr, both showed `shutil.Error` on a vanished `.git/objects/maintenance.lock`: each fixture commit starts a detached `git maintenance run --auto`, and `main()` copies the fixture while it runs.
+- #340 (the `TimeoutExpired` handling) had targeted the timeout #328 suspected; it stays useful but did not close #328.
+- The fixture's `git()` now passes `maintenance.auto=false` and `gc.auto=0`; red test `tests/unit/test_guard_fixture_maintenance.py` first. review-need: none.
+- Lesson: hold a flake's fix until the traceback names its cause; a fix built on the suspect closes the issue without closing the flake.
