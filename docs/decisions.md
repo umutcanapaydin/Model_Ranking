@@ -5431,7 +5431,9 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Status:** proposed
 **Owner ruling:** 2026-10-17, in chat, for run bug-night
-**Date:** 2026-10-17 · **Amends:** none. (D-208, #295's ruling, rides on #333, which this run stacks first.)
+**Date:** 2026-10-17 · **Amends:** none.
+
+#295's ruling is its own ADR, on #333, which this run stacks first.
 
 **Context.** The owner opened a light run for the night (translated from Turkish: *"triage what is untriaged, take in as much as one night can run, bugs first, plan it all up front, ask me the questions, then go on without stopping until morning"*). The answers below were given through the chat's choice picker.
 
@@ -5452,3 +5454,21 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A guard change handed over without its review could open a hole that nothing reports; the bundle is not handed over until the review passes.
 
 **Revisit when:** the owner's morning review.
+
+## D-208 — #295: a verb clause right before "yapay zeka" names the question's task
+
+**Status:** proposed
+**Owner ruling:** 2026-10-17, in chat (option (a) of run golden-night's stop row for #295).
+**Date:** 2026-10-17 · **Amends:** none.
+
+**Context.** #222's general-words rule keeps a confident Turkish question that says "yapay zeka" on `everyday` before its examples are compared, so a question that names its task in words no rule lists (the golden question `tarayıcımda benim yerime alışveriş yapacak bir yapay zeka var mı`, *(translated: is there an AI that will shop for me in my browser)*, expected `computer-use`) gets the general list. Four attempts in run golden-night could not fix it without sending general questions off `everyday` (D-206).
+
+**Decision.**
+1. **A grammar rule:** in a Turkish question, a verb clause that ends right before "yapay zeka" (a participle such as `yapacak`, `yazan`, `kullanan`) names a task, and the general-words rule does not hold the question on `everyday`; the question is then read by its examples as any other.
+2. **Measured as D-202 clause 6 as amended by D-206:** on a fresh held-out set written by an independent seat, it ships when it turns no row from right to wrong and fixes the golden question.
+
+**Rationale:** The owner chose the rule that reads the question's own grammar over shipping attempt 3 (about one general question in six leaving `everyday`) or leaving it to the on-device model, which older phones do not have.
+
+**Mitigation if violated:** A general question with a descriptive clause (`en çok kullanılan yapay zeka`, *(translated: the most used AI)*) would leave `everyday`; the fresh set's general rows catch it.
+
+**Revisit when:** the fresh measurement fails the bar, or the on-device model tier is on every supported phone.

@@ -949,3 +949,75 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner opened run bug-night (light). The queue was re-triaged on fe35bc3 after #308: nine issues closed as fixed, the rest re-verdicted, and #331 and #332 triaged.
 - Every reserved decision was asked once, through the chat's choice picker, and is D-209. #115, #243 and #323 closed on the owner's ruling.
 - **Lesson:** a decisions message reads faster as a picker with a reasoned default than as a numbered list; the owner answered nine questions in two rounds.
+## 2026-10-17 — fix/issue-295-task-before-ai
+
+- The owner chose option (a) for #295 (D-208): a Turkish active participle with its own object right before "yapay zeka" names the task, and the question is read by the examples without those two words.
+- Red first (82efabc: the golden known_miss removed). The golden set passes 41 of 41. On m24 a measuring seat counted 83 of 173 against main's 82: one gained, none lost.
+- `make next-adr` printed D-1000, because it counts the historical D-999; the ADR is D-208 (filed).
+- **Lesson:** where a score cannot separate two kinds of question, the question's grammar can; gate the reading on it rather than on a margin.
+## 2026-10-17 — fix/issue-326-encoded-ref
+
+- The release security review's N1: `_in_submissions` judged the decoded path while httpx sends the raw one, so `%2e%2e` as the ref passed. It now refuses any `%` in the raw path; two parametrized cases went red first (25829bc).
+- The same session re-triaged the open queue after #308: nine issues closed as fixed, 22 re-verdicted.
+- **Lesson:** a URL allowlist judges the bytes that are sent, not a decoded view of them.
+
+## 2026-10-18 — fix/issue-331-main-clone-marker
+
+- The main clone's `.gp/installed` said v6.6: every upgrade since 2026-09-23 ran `make install` in a temporary worktree only. `make install` ran once in the main clone (D-209 clause 4); its marker reads v7.2 and `make install-check` passes there. Its missing `environment.md` was copied in.
+- On the way: `scripts/ci_diff.py` anchored `^gp_version:` at the file's start, so under the real marker's comment lines `make ci-diff` always answered "no `.gp/installed`". Fixed with `re.M`; the conformance test now writes the marker as the installer does (red at 3c0c0cb).
+- **Lesson:** a fixture that writes a simpler file than the producer does tests the simpler file; write it as the producer does.
+
+## 2026-10-18 · fix/issue-332-mcp-json — `.mcp.json` stays removed; two record corrections
+
+- `.mcp.json` left `main` with the v7.2 apply (`7c45a5b`). Its restore stayed staged in the upgrade worktree and made every push there report `gate stamp: none`. The owner chose to keep it removed (D-209 clause 3): every GitHub step runs through `gh`, and no guard hook covers MCP tools. The staged restore was dropped.
+- Correction to D-207: its "Mitigation if violated" names the upgrade's security review, but that review was waived by the owner (the `guard-change-security-review` bypass row in `docs/control-events.csv`, 2026-10-17). Run bug-night's owner bundle is reviewed before handover (D-209 clause 2).
+- Correction to the format: the entries headed `## 2026-10-17 — upgrade/devflow-v7.2: …` and later in this file use `—` where v7.2's format is `## <date> · <branch> — <what it did>` (`/pre-merge` §8). The entries stay as written; this one and the run's later ones use the format.
+- Lesson: an upgrade that removes a file the project added (here `.mcp.json`) says so in its PR, so the owner decides before the file is gone.
+
+## 2026-10-18 · fix/issue-325-ignored-documents — documents() grades no ignored, untracked scratch
+
+- `conformance/lib_record.documents()` walked the disk, so a gitignored note under `build/` turned `test-documented-paths` red, though its targets already came from git. It now skips what `git ls-files --others --ignored --exclude-standard` lists; a tracked file under an ignore rule is still graded, and without git the walk stays whole (D-209 clause 5). Red first: `tests/unit/test_documents_skip_ignored.py`.
+- Lesson: a gate's inputs and its targets come from the same source, or scratch on one side breaks it.
+
+## 2026-10-18 · fix/issue-330-next-adr — next-adr reads the run of ids, not its far-off names
+
+- `scripts/next_adr.py` took the highest project id, and this project's D-999 ("the agent opens drafts; a human merges") made `make next-adr` print D-1000 after D-207. It now follows the run of ids and stops at a step wider than 100: D-999 is a name. On this tree it prints the id after D-209. Red first: two cases in `conformance/test-next-adr.py`.
+- Lesson: a number used as a name breaks every "highest plus one" rule; say which numbers are places.
+
+## 2026-10-18 · fix/issue-328-guard-test-timeout — a timed-out hook call is a finding, not a dead test
+
+- CI once showed `test-bash-guard.py (no output) (exit 1)`. A per-case `subprocess.run(..., timeout=120)` that raised `TimeoutExpired` inside the thread pool would kill the test that way, and `run-all.py` now prints a dead test's stderr (81c974e). The case now reports `the Bash guard timed out after 120 s on <case>`. Red first: `tests/unit/test_bash_guard_conformance_timeout.py`.
+- Lesson: a check that runs many cases in a pool reports each case's failure; one exception must not end the run.
+
+## 2026-10-18 · fix/issue-341-conflict-markers — a committed conflict marker fails the tests
+
+- The merge of #333 into the integration branch left conflict markers in `docs/decisions.md`. The commit gate passed, and the run's bundle agent was the first to see them. `scripts/conflict_markers.py` lists every marker line in a tracked text file (Markdown fences excepted), and `tests/unit/test_conflict_markers.py` holds both polarities and the repository itself, so `make test` and the commit gate refuse one. Red first.
+- Lesson: after a merge with a conflict, read every conflicted path in the merge's output, not only its last lines.
+
+## 2026-10-18 · fix/issue-314-answers-size — the kept answers' file is refused by its size before it is read
+
+- `StandingsStore.keptAnswers()` checked its 8 MiB ceiling after `contents()` had read the whole file. `contents(atMost:)` now reads the file's size from its attributes first, and the store's one read stays the one pinned expression. The client gate's sink list gains the three Foundation names the size check uses (D-209 clause 6). Red first: `tests/unit/test_answers_size_before_read.py`; `KeptAnswerTests` plants a file at and over the ceiling.
+- Lesson: a ceiling bounds the step it sits before; put the check before the read, not before the decode.
+
+## 2026-10-18 · fix/issue-309-whole-test-observer — the network watcher covers the whole Swift test
+
+- A request made in a subclass's `tearDown` that skipped `super`, or in a class set-up, outlived its test: the next test's drain failed instead, or nothing did in a parallel run. `OfflineTestCase.invokeTest` now drains before and after the whole test and fails that test while its run is open (D-209 clause 8). Red first: `WholeTestObserverTests` runs a probe that skips `super` (the probe lives in the base's file, the one place the skip rule allows).
+- Lesson: wrap the whole invocation when a check must not depend on subclasses calling `super`.
+## 2026-10-18 · fix/issue-319-policy-scripts — review-need derives its policy scripts
+
+- `POLICY_SCRIPTS` held three scripts by hand, so a change to `scripts/wave_check.py`, the Bash guard, the Makefile's `review-need` recipe or a plan's `security-globs:` line routed to `none` in light mode. A script under `scripts/`, `.claude/hooks/` or `.githooks/` that names a policy module, target, field or `security-globs` at either end of the range is now a policy script; in the Makefile and the plans only a changed line that names one is a policy edit (D-209 clause 5). Red first: `tests/unit/test_review_need_derived_policy.py`.
+- Lesson: derive a gate's scope from what the code names, and keep a hand-kept seed only where the names are the seed.
+- The security review (PASS WITH FINDINGS, `docs/reviews/fix-issue-319-security.md`): M1 and N3 a `-diff` attribute hid a policy line and a parser (every diff now runs with `--text --no-textconv --no-ext-diff`); M3 a non-ASCII path was quoted (`-z`, `core.quotePath=false`); M4 the searched places are derived from the gate code's (`GATE_ROOTS`, which `GATE_CODE` is built from too); M2's six surviving mutants each have a case now; N2 `git grep -F -e`. N1 (a name split across lines or written in another case) is refused: a policy reader names its module, and the review found none that does not.
+## 2026-10-18 · fix/issue-322-kept-answer-rules — the kept-answer rules read aliases, enum payloads and an existential, and must see their allowed sides
+
+- #297's security review (M1-M3, N1), approved as a gate change by D-209 clause 5. `kept_answer_facts` expands each substitution through every `typealias` in the dump by its `type=`, holds an enum by its cases' payloads, and refuses a decode through an existential in every file. `_owned` matches `ContentView.load()` by its full name and its type by its full path.
+- `unseen_permissions` now requires the load path's `keep` and each allowed decode on the shipping client, so a renamed `keep` or kept type fails the gate (fail closed).
+- The fixture plants each shape the review found, and the five surviving mutants are each killed. A synthesised `init(from:)` called by name prints no location, so the old `.init(from:)` branch never fired on one. Red first: `test_322_*` in `tests/unit/test_kept_answer_provenance.py`.
+- Lesson: a rule over printed types must read the aliases the dump declares, or it holds only the spellings it was shown.
+
+## 2026-10-18 · integration/run-bug-night — run bug-night ends: twelve PRs stacked, the owner bundle reviewed
+
+- The queue of D-209, bugs first: #295 and #326 stacked as drafts; #331, #332, #325, #330, #328, #341 (found tonight), #314, #309, #319 and #322 fixed red-first and stacked on #335. #319 was a policy edit and had its own security review, whose findings were fixed on its branch.
+- The owner bundle (#256, #287, #305, #317, #318, #320, #344, #81) took four review rounds. Round 1 was BLOCKING: the #287 fix made an unknown value read as safe, a loosening. Rounds 2-4 closed that, the minors, and #344. Its agent half is `f716219` on `owner/bug-night-bundle-v2`; the owner's half is one patch in the owner's clone.
+- The merge of #333 left conflict markers in `docs/decisions.md` that no gate caught; #341 now catches them.
+- Lesson: a guard change that turns "unknown" into "allowed" is a loosening even when every listed case passes; a reviewer probing the old guard against the new one finds it, a test list does not.

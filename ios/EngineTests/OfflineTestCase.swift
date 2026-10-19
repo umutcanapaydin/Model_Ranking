@@ -20,6 +20,8 @@
 //  tearDown fails the test that made it. Nothing leaves the machine, and nothing crashes.
 //  #279: a test observer fails it too, from a teardown block XCTest runs whatever a subclass does
 //  with `tearDown` (`OfflineObserver`, below).
+//  #309: `invokeTest` drains before and after the whole test, so a request in a class set-up or in a
+//  tear-down that skips `super` fails the test that made it, not the next one.
 
 import Foundation
 import XCTest
@@ -132,6 +134,16 @@ class OfflineTestCase: XCTestCase {
         OfflineGuard.installed
     }
 
+    // #309 (D-209 clause 8): the whole test, set-up and tear-down included, whatever a subclass does with
+    // `super`. A request left before the test begins (a class set-up) or after it ends fails this test, here,
+    // while its run is still open, and never the next one.
+    override func invokeTest() {
+        OfflineGuard.installed
+        XCTAssertEqual(OfflineGuard.drain(), [], "a request was made before this test began, in a class set-up; route it to a stub (#309)")
+        super.invokeTest()
+        XCTAssertEqual(OfflineGuard.drain(), [], "this test reached for the network in its set-up or tear-down; route it to a stub (#309)")
+    }
+
     override func tearDown() {
         let attempts = OfflineGuard.drain()
         XCTAssertNil(OfflineGuard.notInstalled)
@@ -226,5 +238,26 @@ final class SkipsTheBaseTearDown: OfflineTestCase {
 
     @objc func reachForTheNetwork() {
         _ = try? Data(contentsOf: URL(string: "https://example.invalid/279")!)
+    }
+}
+
+/// A request to loopback's discard port; the tripwire answers it, so nothing leaves the machine either way.
+func reachForTheNetwork() {
+    let done = DispatchSemaphore(value: 0)
+    URLSession(configuration: .ephemeral).dataTask(with: URL(string: "http://127.0.0.1:9/whole-test")!) { _, _, _ in
+        done.signal()
+    }.resume()
+    _ = done.wait(timeout: .now() + 5)
+}
+
+/// #309's first shape: a subclass whose own `tearDown` reaches for the network and skips `super`. Its method
+/// does not start with `test`, so XCTest never runs it on its own; `WholeTestObserverTests` runs it. It lives in
+/// the base's file because it skips `super` on purpose, which `tests/unit/test_swift_tests_offline.py` refuses
+/// everywhere else.
+final class SkipsSuperInTearDown: OfflineTestCase {
+    @objc func reachesInItsTearDown() {}
+
+    override func tearDown() {
+        reachForTheNetwork()
     }
 }
