@@ -989,4 +989,23 @@ final class GuidingNoteTests: OfflineTestCase {
         }
         XCTAssertGreaterThan(searches, 60, "the tuning sets were not read")
     }
+
+    /// #351 (D-169, D-211): a text that names an AI, a model, a chatbot or an agent is a search for one,
+    /// whatever the model's verdict. Measured on m24 at #351: with the model told the task itself is not a
+    /// search, it called 23 searches that name the AI they want "something else" (the surface was right in
+    /// most). The task itself and a question of fact, which name none, keep the model's doubt.
+    func testATextThatNamesAnAIIsASearchWhateverTheModelSays() {
+        func read(_ question: String) -> InputReading {
+            var outcome = RoutingOutcome(categoryID: "assistant", tier: .model, unmeasured: false)
+            outcome.reading = .unsure
+            return TieredRouter.read(question, outcome).reading
+        }
+        for search in ["which ai should read my scanned receipts", "hangi yapay zeka sunum hazırlamada iyi",
+                       "modelo para escribir contratos", "a chatbot for my bakery's customers",
+                       "bir ajan lazım, testlerimi kendisi düzeltsin"] {
+            XCTAssertEqual(read(search), .search, search)
+        }
+        XCTAssertEqual(read("write me a limerick about cats"), .unsure)
+        XCTAssertEqual(read("who painted the mona lisa"), .notASearch)
+    }
 }
