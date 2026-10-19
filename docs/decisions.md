@@ -5500,3 +5500,24 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A plan, wave or issue that serves none of rules 1-3 or the v1 order is challenged at triage. An app that answers from word matching while the device has Apple Intelligence is a defect against rule 2.
 
 **Revisit when:** v1 ships, or the owner changes the goals.
+
+---
+
+## D-212 — Run night-351's rulings: #348's smoke, #353's example pool, m25, and one integration PR
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat, for run night-351
+
+**Context.** The owner opened run night-351 to carry #351 (Apple Intelligence reads every question) on through the night, with #348 and the issues filed for #351's rest: #353 (retrieved examples), #354 (prewarm) and #355 (m25). The run's decisions message asked four questions, and the owner took the recommended answer to each. Earlier the same day the owner ruled on m25's size and bar after reading the three research reports.
+
+**Decision.**
+1. **#348.** When the real-data recommend smoke finds no eligible model, it says which source came back short, so an upstream blip and a defect can be told apart. The engine's answer is not re-checked against the snapshot.
+2. **#353's example pool.** The older probe sets are relabelled to D-169 and D-211 (the task itself and a question of fact are not searches) by an independent seat that reads no routing code, and the run's author checks where the two disagree. m24, the golden set and m25 never enter the pool.
+3. **m25 (#355).** An independent seat writes it tonight, about 300 searches and about 200 non-searches, without seeing the model tier's instructions, hints or tuning sets. It stays out of the repository, sealed by its sha256, and judges once, on macOS 27, recording the OS build and the model variant. #351's bar is met on the observed rates; the Wilson interval is reported beside them.
+4. **One integration PR.** The run's work, #352 included, stacks on `integration/run-night-351`, merged with a merge commit.
+
+**Rationale.** The owner's answers. A blip should not read as a defect (1). Examples labelled to an old line teach the model that line (2). 173 rows tell apart only about 8 points, and the non-search side needs 170-350 rows to show 80% at all (3).
+
+**Mitigation if violated:** A pool row from m24, golden or m25, or a near-duplicate of one, inflates every score it touches: the pool is checked against them before any run. An m25 read or tuned on before it judges is no longer held out, and a new set is written.
+
+**Revisit when:** m25 has judged, or the owner changes the bar.
