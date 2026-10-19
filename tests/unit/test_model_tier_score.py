@@ -56,3 +56,10 @@ def test_an_empty_run_is_an_error_not_a_zero_score() -> None:
     except module.EmptyRun:
         return
     raise AssertionError("an empty run scored instead of failing")
+
+
+def test_a_golden_row_marked_not_a_search_is_scored_as_one() -> None:
+    """D-211 clause 2: the golden set's `not_a_search` rows are NOT_A_SEARCH to the model-tier score."""
+    rows = dict((q, e) for q, e in _model_tier().load_set("golden"))
+    assert rows["kira kontrat\u0131m\u0131 okuyup bana \u00f6zet \u00e7\u0131kar"] == "NOT_A_SEARCH"
+    assert rows["which ai is best at fixing bugs in a large java project"] == "coding"
