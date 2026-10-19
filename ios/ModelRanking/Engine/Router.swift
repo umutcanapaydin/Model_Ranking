@@ -72,17 +72,24 @@ enum CategoryHints {
         // file or a PDF still reads as code (the issue-73 branch's variant 3, measured there).
         "coding": "anything about code: an error message, a failing test, a bug, a library or a framework "
             + "such as React, Django or pandas, a programming language, SQL, a script, an API; writing, "
-            + "fixing or reviewing code",
-        "agentic-coding": "an autonomous coding agent that plans and edits many files by itself, "
-            + "running tools and tests",
-        "assistant": "chat, write an email or a message, explain something, give advice, answer a "
-            + "general question",
-        "everyday": "broad everyday usefulness across many different ordinary tasks at once",
-        "expert": "graduate level science: physics, chemistry, biology, a specialist technical question",
-        "mathematics": "a maths problem: algebra, geometry, a proof, a competition question, calculation",
-        "computer-use": "operate a computer or a browser for me: click buttons, fill in forms, navigate "
-            + "an app's or a website's screens",
-        "abstract": "abstract reasoning and puzzles: patterns, sequences, logic with no worked example",
+            + "fixing or reviewing code, or which model writes code best, with the person in charge",
+        // #351: worded AWAY from `coding` and `computer-use`, which it took 10 times on m24 and the golden set.
+        "agentic-coding": "an AI agent left to work on a code repository alone, for a long time: it takes a "
+            + "whole ticket or feature, edits many files, runs the tests and commits, with no one guiding "
+            + "each step. Not one bug or one question about code (coding), not using apps or websites "
+            + "(computer-use)",
+        "assistant": "writing and conversation: an email, a message, a note, a translation, advice, "
+            + "a friendly AI to talk to",
+        "everyday": "one AI for many ordinary things in daily life: the best all-round choice, also asked "
+            + "as the cheapest, the fastest or the best overall for normal use",
+        "expert": "graduate level science: physics, chemistry, biology, medicine, a specialist question "
+            + "for an exam or research; not maths",
+        "mathematics": "maths: homework, calculus, algebra, geometry, probability, statistics, proofs, "
+            + "olympiad problems, checking solutions",
+        "computer-use": "an AI that uses a computer, a phone app or a web browser by itself: clicks, types, "
+            + "fills in forms, books or buys on a website; not writing code",
+        "abstract": "puzzles and reasoning: riddles, logic puzzles, sudoku, a Rubik's cube, IQ-test patterns, "
+            + "the odd one out, what comes next in a sequence; not school maths",
         "web-dev": "build a website or a web page: front end, HTML, CSS, a landing page, a web app",
         // M14-W2. Written for the question a reader asks, not for the board's name.
         // Worded AWAY from its neighbours on purpose (M14-W2 review MAJOR-4): no "report" (it
@@ -103,7 +110,8 @@ enum CategoryHints {
         // on the hint whose reader would say it, and only `search_factuality` mentions being
         // right, because that is the whole difference between the two.
         "vision": "look at a picture, a photo, a screenshot, a scan, a chart: what is in this image",
-        "search": "search the web right now: current prices, today's news, a live lookup",
+        "search": "an AI that searches the web for what is happening now: news, prices, events, a live "
+            + "lookup",
         "search_factuality": "look it up online and quote it correctly: real sources it actually "
             + "fetched, real numbers, nothing invented from the page",
     ]
