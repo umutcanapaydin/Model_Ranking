@@ -1034,3 +1034,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Shown where the product stands against its goals, the owner set four Golden Rules as the project's backbone: every source used lawfully, every question understood by an AI model (Apple Intelligence, or another LLM), the most correct list for every question (composed by an LLM when no board ranks it), and no empty work.
 - D-210 records them with the v1 order and the owner's two answers: Apple Intelligence in every case, another LLM only where it is missing; an LLM-composed list takes every number from our boards (D-104 stands).
 - Lesson: measure the product against the owner's goals at every run's end, not only the queue; a queue of green fixes can drift from what the product is for.
+
+## 2026-10-20 · enhancement/issue-351-apple-intelligence — Apple Intelligence measured, then raised: 107-111 to 139 of m24's 173
+
+- `make model-tier` scores the on-device model for the first time, beside the wording tier, and keeps every question's row so two runs compare by an exact McNemar test.
+- Raised on m24 (tuning): the request paragraph by D-169/D-211, surface descriptions, greedy decoding (one answer per question on one model version; two runs agree on every row), and the verdict naming the kind of a non-search (D-213). Searches 81-85 to 88 of 112; non-searches caught 23-27 to 51 of 61.
+- The owner's three research reports were read against each other; the named kinds had been tried on #66 under the old line, so they were measured before the ADR, and kept on 8 non-searches fixed and none broken.
+- The glow is on while Apple Intelligence is available and livelier while it reads. Retrieved examples (#353), prewarm (#354) and the m25 verdict (#355) are their own issues.
+- Lesson: on a small model, fix the decoder before the prompt; with random sampling the 3-7 row noise hid every change smaller than it.
