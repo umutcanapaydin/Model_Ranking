@@ -72,7 +72,7 @@ def test_the_manifest_lists_exactly_the_tests_the_sources_declare() -> None:
     )
     assert not added, (
         f"{added} is declared and not in {MANIFEST.name}: add it, so the manifest keeps being the "
-        "list of what must run (`cd ios && swift test --list-tests | sort > "
+        "list of what must run (`cd ios && swift test --list-tests | LC_ALL=C sort > "
         "EngineTests/test-manifest.txt`)"
     )
 
