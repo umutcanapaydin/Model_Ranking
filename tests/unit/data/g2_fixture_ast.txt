@@ -6601,7 +6601,33 @@
             (argument label="selector"
               (declref_expr type="Selector" location=/x/ContentView.swift:419:42 range=[/x/ContentView.swift:419:42 - line:419:42] decl="main.(file).fixtureViewTargets(_:_:).named@/x/ContentView.swift:416:47" function_ref=unapplied))
             (argument label="object"
-              (nil_literal_expr type="Any?" location=/x/ContentView.swift:419:57 range=[/x/ContentView.swift:419:57 - line:419:57] initializer="**NULL**"))))))))
+              (nil_literal_expr type="Any?" location=/x/ContentView.swift:419:57 range=[/x/ContentView.swift:419:57 - line:419:57] initializer="**NULL**")))))))
+  (func_decl range=[/x/ContentView.swift:424:1 - line:426:1] "fixtureViewPointsTheRegister()" interface_type="() -> Data?" access=internal result="Data?" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:424:34 - line:424:35])
+    (brace_stmt range=[/x/ContentView.swift:424:46 - line:426:1]
+      (return_stmt implicit range=[/x/ContentView.swift:425:5 - line:425:56]
+        (call_expr type="Data?" location=/x/ContentView.swift:425:51 range=[/x/ContentView.swift:425:5 - line:425:56] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="() -> Data?" location=/x/ContentView.swift:425:51 range=[/x/ContentView.swift:425:5 - line:425:51] nothrow isolation_crossing="none"
+            (declref_expr type="(GapRegisterStore) -> () -> Data?" location=/x/ContentView.swift:425:51 range=[/x/ContentView.swift:425:51 - line:425:51] decl="main.(file).GapRegisterStore.load()@/x/FrontDoor.swift:43:10" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (call_expr type="GapRegisterStore" location=/x/ContentView.swift:425:5 range=[/x/ContentView.swift:425:5 - line:425:49] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="(URL) -> GapRegisterStore" location=/x/ContentView.swift:425:5 range=[/x/ContentView.swift:425:5 - line:425:5] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" location=/x/ContentView.swift:425:5 range=[/x/ContentView.swift:425:5 - line:425:5] decl="main.(file).GapRegisterStore.init(url:)@/x/FrontDoor.swift:40:8" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr type="GapRegisterStore.Type" location=/x/ContentView.swift:425:5 range=[/x/ContentView.swift:425:5 - line:425:5] typerepr="GapRegisterStore"))))
+                  (argument_list labels="url:"
+                    (argument label="url"
+                      (member_ref_expr type="URL" location=/x/ContentView.swift:425:42 range=[/x/ContentView.swift:425:27 - line:425:42] decl="main.(file).EngineClient.baseURL@/x/EngineClient.swift:36:9"
+                        (call_expr type="EngineClient" location=/x/ContentView.swift:425:27 range=[/x/ContentView.swift:425:27 - line:425:40] nothrow isolation_crossing="none"
+                          (constructor_ref_call_expr type="() -> EngineClient" location=/x/ContentView.swift:425:27 range=[/x/ContentView.swift:425:27 - line:425:27] nothrow isolation_crossing="none"
+                            (declref_expr implicit type="(EngineClient.Type) -> () -> EngineClient" location=/x/ContentView.swift:425:27 range=[/x/ContentView.swift:425:27 - line:425:27] decl="main.(file).EngineClient.init()@/x/EngineClient.swift:38:5" function_ref=single apply)
+                            (argument_list implicit
+                              (argument
+                                (type_expr type="EngineClient.Type" location=/x/ContentView.swift:425:27 range=[/x/ContentView.swift:425:27 - line:425:27] typerepr="EngineClient"))))
+                          (argument_list)))))))))
+          (argument_list))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")
@@ -8808,7 +8834,263 @@
                 (argument label="contentsOf"
                   (declref_expr type="URL" location=/x/FrontDoor.swift:14:34 range=[/x/FrontDoor.swift:14:34 - line:14:34] decl="main.(file).fixtureStoreParse(_:).target@/x/FrontDoor.swift:13:15" function_ref=unapplied))
                 (argument label="options"
-                  (default_argument_expr implicit type="Data.ReadingOptions" location=/x/FrontDoor.swift:14:21 range=[/x/FrontDoor.swift:14:21 - line:14:21] default_args_owner="Foundation.(file).Data extension.init(contentsOf:options:)" param=1))))))))))
+                  (default_argument_expr implicit type="Data.ReadingOptions" location=/x/FrontDoor.swift:14:21 range=[/x/FrontDoor.swift:14:21 - line:14:21] default_args_owner="Foundation.(file).Data extension.init(contentsOf:options:)" param=1)))))))))
+  (typealias range=[/x/FrontDoor.swift:21:1 - line:21:28] "FixtureAddress" interface_type="FixtureAddress.Type" access=internal type="URL")
+  (func_decl range=[/x/FrontDoor.swift:23:1 - line:25:1] "fixtureStoreHelper(_:_:)" "<T : Decodable>" interface_type="<T where T : Decodable> (T.Type, Data) -> T?" access=internal captures=(<generic>  type=T, type=τ_0_0) result="T?" thrown_type="<null>"
+    (parameter_list range=[/x/FrontDoor.swift:23:38 - line:23:67]
+      (parameter "type" interface_type="T.Type")
+      (parameter "data" interface_type="Data"))
+    (brace_stmt range=[/x/FrontDoor.swift:23:75 - line:25:1]
+      (return_stmt implicit range=[/x/FrontDoor.swift:24:5 - line:24:47]
+        (optional_try_expr type="T?" location=/x/FrontDoor.swift:24:24 range=[/x/FrontDoor.swift:24:5 - line:24:47] thrown_error="any Error"
+          (inject_into_optional implicit type="T?" location=/x/FrontDoor.swift:24:24 range=[/x/FrontDoor.swift:24:10 - line:24:47]
+            (call_expr type="T" location=/x/FrontDoor.swift:24:24 range=[/x/FrontDoor.swift:24:10 - line:24:47] throws isolation_crossing="none"
+              (dot_syntax_call_expr type="(T.Type, Data) throws -> T" location=/x/FrontDoor.swift:24:24 range=[/x/FrontDoor.swift:24:10 - line:24:24] nothrow isolation_crossing="none"
+                (declref_expr type="(JSONDecoder) -> (T.Type, Data) throws -> T" location=/x/FrontDoor.swift:24:24 range=[/x/FrontDoor.swift:24:24 - line:24:24] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> T)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (call_expr type="JSONDecoder" location=/x/FrontDoor.swift:24:10 range=[/x/FrontDoor.swift:24:10 - line:24:22] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/FrontDoor.swift:24:10 range=[/x/FrontDoor.swift:24:10 - line:24:10] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/FrontDoor.swift:24:10 range=[/x/FrontDoor.swift:24:10 - line:24:10] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="JSONDecoder.Type" location=/x/FrontDoor.swift:24:10 range=[/x/FrontDoor.swift:24:10 - line:24:10] typerepr="JSONDecoder"))))
+                      (argument_list)))))
+              (argument_list labels="_:from:"
+                (argument
+                  (declref_expr type="T.Type" location=/x/FrontDoor.swift:24:31 range=[/x/FrontDoor.swift:24:31 - line:24:31] decl="main.(file).fixtureStoreHelper(_:_:).type@/x/FrontDoor.swift:23:41" function_ref=unapplied))
+                (argument label="from"
+                  (declref_expr type="Data" location=/x/FrontDoor.swift:24:43 range=[/x/FrontDoor.swift:24:43 - line:24:43] decl="main.(file).fixtureStoreHelper(_:_:).data@/x/FrontDoor.swift:23:57" function_ref=unapplied)))))))))
+  (func_decl range=[/x/FrontDoor.swift:27:1 - line:29:1] "fixtureStoreInferred(_:)" "<T : Decodable>" interface_type="<T where T : Decodable> (Data) -> T?" access=internal captures=(<generic>  type=T, type=τ_0_0) result="T?" thrown_type="<null>"
+    (parameter_list range=[/x/FrontDoor.swift:27:40 - line:27:53]
+      (parameter "data" interface_type="Data"))
+    (brace_stmt range=[/x/FrontDoor.swift:27:61 - line:29:1]
+      (return_stmt implicit range=[/x/FrontDoor.swift:28:5 - line:28:49]
+        (optional_try_expr type="T?" location=/x/FrontDoor.swift:28:24 range=[/x/FrontDoor.swift:28:5 - line:28:49] thrown_error="any Error"
+          (inject_into_optional implicit type="T?" location=/x/FrontDoor.swift:28:24 range=[/x/FrontDoor.swift:28:10 - line:28:49]
+            (call_expr type="T" location=/x/FrontDoor.swift:28:24 range=[/x/FrontDoor.swift:28:10 - line:28:49] throws isolation_crossing="none"
+              (dot_syntax_call_expr type="(T.Type, Data) throws -> T" location=/x/FrontDoor.swift:28:24 range=[/x/FrontDoor.swift:28:10 - line:28:24] nothrow isolation_crossing="none"
+                (declref_expr type="(JSONDecoder) -> (T.Type, Data) throws -> T" location=/x/FrontDoor.swift:28:24 range=[/x/FrontDoor.swift:28:24 - line:28:24] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> T)]" function_ref=single apply)
+                (argument_list implicit
+                  (argument
+                    (call_expr type="JSONDecoder" location=/x/FrontDoor.swift:28:10 range=[/x/FrontDoor.swift:28:10 - line:28:22] nothrow isolation_crossing="none"
+                      (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/FrontDoor.swift:28:10 range=[/x/FrontDoor.swift:28:10 - line:28:10] nothrow isolation_crossing="none"
+                        (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/FrontDoor.swift:28:10 range=[/x/FrontDoor.swift:28:10 - line:28:10] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (type_expr type="JSONDecoder.Type" location=/x/FrontDoor.swift:28:10 range=[/x/FrontDoor.swift:28:10 - line:28:10] typerepr="JSONDecoder"))))
+                      (argument_list)))))
+              (argument_list labels="_:from:"
+                (argument
+                  (dot_self_expr type="T.Type" location=/x/FrontDoor.swift:28:31 range=[/x/FrontDoor.swift:28:31 - line:28:33]
+                    (type_expr type="T.Type" location=/x/FrontDoor.swift:28:31 range=[/x/FrontDoor.swift:28:31 - line:28:31] typerepr="T")))
+                (argument label="from"
+                  (declref_expr type="Data" location=/x/FrontDoor.swift:28:45 range=[/x/FrontDoor.swift:28:45 - line:28:45] decl="main.(file).fixtureStoreInferred(_:).data@/x/FrontDoor.swift:27:43" function_ref=unapplied)))))))))
+  (func_decl range=[/x/FrontDoor.swift:31:1 - line:36:1] "fixtureStoreGeneric(_:_:)" interface_type="(Data, Any) -> [Data?]" access=internal result="[Data?]" thrown_type="<null>"
+    (parameter_list range=[/x/FrontDoor.swift:31:25 - line:31:52]
+      (parameter "data" interface_type="Data")
+      (parameter "value" interface_type="Any"))
+    (brace_stmt range=[/x/FrontDoor.swift:31:65 - line:36:1]
+      (pattern_binding_decl range=[/x/FrontDoor.swift:32:5 - line:32:55]
+        (pattern_entry
+          (pattern_named type="URL?" "given")
+          (original_init=unresolved_dot_expr type="<null>" field="first" function_ref=unapplied
+            (bind_optional_expr type="[URL]" location=/x/FrontDoor.swift:32:53 range=[/x/FrontDoor.swift:32:17 - line:32:53] depth=0
+              (call_expr type="[URL]?" location=/x/FrontDoor.swift:32:17 range=[/x/FrontDoor.swift:32:17 - line:32:52] nothrow isolation_crossing="none"
+                (declref_expr type="([URL].Type, Data) -> [URL]?" location=/x/FrontDoor.swift:32:17 range=[/x/FrontDoor.swift:32:17 - line:32:17] decl="main.(file).fixtureStoreHelper@/x/FrontDoor.swift:23:6 [with (substitution_map generic_signature=<T where T : Decodable> T -> [URL])]" function_ref=single apply)
+                (argument_list
+                  (argument
+                    (dot_self_expr type="[URL].Type" location=/x/FrontDoor.swift:32:36 range=[/x/FrontDoor.swift:32:36 - line:32:42]
+                      (type_expr type="[URL].Type" location=/x/FrontDoor.swift:32:36 range=[/x/FrontDoor.swift:32:36 - line:32:40] typerepr="[URL]")))
+                  (argument
+                    (declref_expr type="Data" location=/x/FrontDoor.swift:32:48 range=[/x/FrontDoor.swift:32:48 - line:32:48] decl="main.(file).fixtureStoreGeneric(_:_:).data@/x/FrontDoor.swift:31:28" function_ref=unapplied))))))
+          (processed_init=optional_evaluation_expr implicit type="URL?" location=/x/FrontDoor.swift:32:55 range=[/x/FrontDoor.swift:32:17 - line:32:55]
+            (member_ref_expr type="URL?" location=/x/FrontDoor.swift:32:55 range=[/x/FrontDoor.swift:32:17 - line:32:55] decl="Swift.(file).Collection extension.first [with (substitution_map generic_signature=<Self where Self : Collection> Self -> [URL])]"
+              (bind_optional_expr type="[URL]" location=/x/FrontDoor.swift:32:53 range=[/x/FrontDoor.swift:32:17 - line:32:53] depth=0
+                (call_expr type="[URL]?" location=/x/FrontDoor.swift:32:17 range=[/x/FrontDoor.swift:32:17 - line:32:52] nothrow isolation_crossing="none"
+                  (declref_expr type="([URL].Type, Data) -> [URL]?" location=/x/FrontDoor.swift:32:17 range=[/x/FrontDoor.swift:32:17 - line:32:17] decl="main.(file).fixtureStoreHelper@/x/FrontDoor.swift:23:6 [with (substitution_map generic_signature=<T where T : Decodable> T -> [URL])]" function_ref=single apply)
+                  (argument_list
+                    (argument
+                      (dot_self_expr type="[URL].Type" location=/x/FrontDoor.swift:32:36 range=[/x/FrontDoor.swift:32:36 - line:32:42]
+                        (type_expr type="[URL].Type" location=/x/FrontDoor.swift:32:36 range=[/x/FrontDoor.swift:32:36 - line:32:40] typerepr="[URL]")))
+                    (argument
+                      (declref_expr type="Data" location=/x/FrontDoor.swift:32:48 range=[/x/FrontDoor.swift:32:48 - line:32:48] decl="main.(file).fixtureStoreGeneric(_:_:).data@/x/FrontDoor.swift:31:28" function_ref=unapplied)))))))))
+      (var_decl range=[/x/FrontDoor.swift:32:9 - line:32:9] "given" interface_type="URL?" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (pattern_binding_decl range=[/x/FrontDoor.swift:33:5 - line:33:51]
+        (pattern_entry
+          (pattern_typed type="URL?"
+            (pattern_named type="URL?" "inferred")
+            (type_optional
+              (type_unqualified_ident id="URL" bind="Foundation.(file).URL")))
+          (original_init=call_expr type="URL?" location=/x/FrontDoor.swift:33:26 range=[/x/FrontDoor.swift:33:26 - line:33:51] nothrow isolation_crossing="none"
+            (declref_expr type="(Data) -> URL?" location=/x/FrontDoor.swift:33:26 range=[/x/FrontDoor.swift:33:26 - line:33:26] decl="main.(file).fixtureStoreInferred@/x/FrontDoor.swift:27:6 [with (substitution_map generic_signature=<T where T : Decodable> T -> URL)]" function_ref=single apply)
+            (argument_list
+              (argument
+                (declref_expr type="Data" location=/x/FrontDoor.swift:33:47 range=[/x/FrontDoor.swift:33:47 - line:33:47] decl="main.(file).fixtureStoreGeneric(_:_:).data@/x/FrontDoor.swift:31:28" function_ref=unapplied))))
+          (processed_init=call_expr type="URL?" location=/x/FrontDoor.swift:33:26 range=[/x/FrontDoor.swift:33:26 - line:33:51] nothrow isolation_crossing="none"
+            (declref_expr type="(Data) -> URL?" location=/x/FrontDoor.swift:33:26 range=[/x/FrontDoor.swift:33:26 - line:33:26] decl="main.(file).fixtureStoreInferred@/x/FrontDoor.swift:27:6 [with (substitution_map generic_signature=<T where T : Decodable> T -> URL)]" function_ref=single apply)
+            (argument_list
+              (argument
+                (declref_expr type="Data" location=/x/FrontDoor.swift:33:47 range=[/x/FrontDoor.swift:33:47 - line:33:47] decl="main.(file).fixtureStoreGeneric(_:_:).data@/x/FrontDoor.swift:31:28" function_ref=unapplied))))))
+      (var_decl range=[/x/FrontDoor.swift:33:9 - line:33:9] "inferred" interface_type="URL?" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (pattern_binding_decl range=[/x/FrontDoor.swift:34:5 - line:34:26]
+        (pattern_entry
+          (pattern_named type="URL?" "cast")
+          (original_init=sequence_expr type="<null>"
+            (unresolved_decl_ref_expr type="<null>" name="value" function_ref=unapplied)
+            (conditional_checked_cast_expr type="URL?" location=/x/FrontDoor.swift:34:22 range=[/x/FrontDoor.swift:34:16 - line:34:26] value_cast written_type="URL"
+              (declref_expr type="Any" location=/x/FrontDoor.swift:34:16 range=[/x/FrontDoor.swift:34:16 - line:34:16] decl="main.(file).fixtureStoreGeneric(_:_:).value@/x/FrontDoor.swift:31:42" function_ref=unapplied))
+            (conditional_checked_cast_expr type="URL?" location=/x/FrontDoor.swift:34:22 range=[/x/FrontDoor.swift:34:16 - line:34:26] value_cast written_type="URL"
+              (declref_expr type="Any" location=/x/FrontDoor.swift:34:16 range=[/x/FrontDoor.swift:34:16 - line:34:16] decl="main.(file).fixtureStoreGeneric(_:_:).value@/x/FrontDoor.swift:31:42" function_ref=unapplied)))
+          (processed_init=conditional_checked_cast_expr type="URL?" location=/x/FrontDoor.swift:34:22 range=[/x/FrontDoor.swift:34:16 - line:34:26] value_cast written_type="URL"
+            (declref_expr type="Any" location=/x/FrontDoor.swift:34:16 range=[/x/FrontDoor.swift:34:16 - line:34:16] decl="main.(file).fixtureStoreGeneric(_:_:).value@/x/FrontDoor.swift:31:42" function_ref=unapplied))))
+      (var_decl range=[/x/FrontDoor.swift:34:9 - line:34:9] "cast" interface_type="URL?" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/FrontDoor.swift:35:5 - line:35:83]
+        (call_expr type="[Data?]" location=/x/FrontDoor.swift:35:36 range=[/x/FrontDoor.swift:35:12 - line:35:83] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="((URL?) -> Data?) -> [Data?]" location=/x/FrontDoor.swift:35:36 range=[/x/FrontDoor.swift:35:12 - line:35:36] nothrow isolation_crossing="none"
+            (declref_expr type="([URL?]) -> ((URL?) -> Data?) -> [Data?]" location=/x/FrontDoor.swift:35:36 range=[/x/FrontDoor.swift:35:36 - line:35:36] decl="Swift.(file).Collection extension.map [with (substitution_map generic_signature=<Self, T, E where Self : Collection, T : Copyable, T : Escapable, E : Error> Self -> [URL?] T -> Data? E -> Never)]" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (array_expr type="[URL?]" location=/x/FrontDoor.swift:35:12 range=[/x/FrontDoor.swift:35:12 - line:35:34] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> URL?)]"
+                  (declref_expr type="URL?" location=/x/FrontDoor.swift:35:13 range=[/x/FrontDoor.swift:35:13 - line:35:13] decl="main.(file).fixtureStoreGeneric(_:_:).given@/x/FrontDoor.swift:32:9" function_ref=unapplied)
+                  (declref_expr type="URL?" location=/x/FrontDoor.swift:35:20 range=[/x/FrontDoor.swift:35:20 - line:35:20] decl="main.(file).fixtureStoreGeneric(_:_:).inferred@/x/FrontDoor.swift:33:9" function_ref=unapplied)
+                  (declref_expr type="URL?" location=/x/FrontDoor.swift:35:30 range=[/x/FrontDoor.swift:35:30 - line:35:30] decl="main.(file).fixtureStoreGeneric(_:_:).cast@/x/FrontDoor.swift:34:9" function_ref=unapplied)))))
+          (argument_list
+            (argument
+              (closure_expr type="(URL?) -> Data?" location=/x/FrontDoor.swift:35:40 range=[/x/FrontDoor.swift:35:40 - line:35:83] discriminator=0 nonisolated single_expression
+                (parameter_list range=[/x/FrontDoor.swift:35:40 - line:35:40]
+                  (parameter "$0" interface_type="URL?"))
+                (brace_stmt range=[/x/FrontDoor.swift:35:40 - line:35:83]
+                  (return_stmt implicit range=[/x/FrontDoor.swift:35:42 - line:35:81]
+                    (call_expr type="Data?" location=/x/FrontDoor.swift:35:45 range=[/x/FrontDoor.swift:35:42 - line:35:81] nothrow isolation_crossing="none"
+                      (dot_syntax_call_expr type="((URL) -> Data?) -> Data?" location=/x/FrontDoor.swift:35:45 range=[/x/FrontDoor.swift:35:42 - line:35:45] nothrow isolation_crossing="none"
+                        (declref_expr type="(Optional<URL>) -> ((URL) -> Data?) -> Data?" location=/x/FrontDoor.swift:35:45 range=[/x/FrontDoor.swift:35:45 - line:35:45] decl="Swift.(file).Optional extension.flatMap [with (substitution_map generic_signature=<Wrapped, E, U where Wrapped : Copyable, Wrapped : Escapable, E : Error, U : Escapable> Wrapped -> URL E -> Never U -> Data)]" function_ref=single apply)
+                        (argument_list implicit
+                          (argument
+                            (declref_expr type="URL?" location=/x/FrontDoor.swift:35:42 range=[/x/FrontDoor.swift:35:42 - line:35:42] decl="main.(file).fixtureStoreGeneric(_:_:).explicit closure discriminator=0.$0@/x/FrontDoor.swift:35:40" function_ref=unapplied))))
+                      (argument_list
+                        (argument
+                          (closure_expr type="(URL) -> Data?" location=/x/FrontDoor.swift:35:53 range=[/x/FrontDoor.swift:35:53 - line:35:81] discriminator=0 nonisolated single_expression
+                            (parameter_list range=[/x/FrontDoor.swift:35:53 - line:35:53]
+                              (parameter "$0" interface_type="URL"))
+                            (brace_stmt range=[/x/FrontDoor.swift:35:53 - line:35:81]
+                              (return_stmt implicit range=[/x/FrontDoor.swift:35:55 - line:35:79]
+                                (optional_try_expr type="Data?" location=/x/FrontDoor.swift:35:60 range=[/x/FrontDoor.swift:35:55 - line:35:79] thrown_error="any Error"
+                                  (inject_into_optional implicit type="Data?" location=/x/FrontDoor.swift:35:60 range=[/x/FrontDoor.swift:35:60 - line:35:79]
+                                    (call_expr type="Data" location=/x/FrontDoor.swift:35:60 range=[/x/FrontDoor.swift:35:60 - line:35:79] throws isolation_crossing="none"
+                                      (constructor_ref_call_expr type="(__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:35:60 range=[/x/FrontDoor.swift:35:60 - line:35:60] nothrow isolation_crossing="none"
+                                        (declref_expr implicit type="(Data.Type) -> (__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:35:60 range=[/x/FrontDoor.swift:35:60 - line:35:60] decl="Foundation.(file).Data extension.init(contentsOf:options:)" function_ref=single apply)
+                                        (argument_list implicit
+                                          (argument
+                                            (type_expr type="Data.Type" location=/x/FrontDoor.swift:35:60 range=[/x/FrontDoor.swift:35:60 - line:35:60] typerepr="Data"))))
+                                      (argument_list labels="contentsOf:options:"
+                                        (argument label="contentsOf"
+                                          (declref_expr type="URL" location=/x/FrontDoor.swift:35:77 range=[/x/FrontDoor.swift:35:77 - line:35:77] decl="main.(file).fixtureStoreGeneric(_:_:).explicit closure discriminator=0.explicit closure discriminator=0.$0@/x/FrontDoor.swift:35:53" function_ref=unapplied))
+                                        (argument label="options"
+                                          (default_argument_expr implicit type="Data.ReadingOptions" location=/x/FrontDoor.swift:35:64 range=[/x/FrontDoor.swift:35:64 - line:35:64] default_args_owner="Foundation.(file).Data extension.init(contentsOf:options:)" param=1)))))))))))))))))))))
+  (struct_decl range=[/x/FrontDoor.swift:40:1 - line:52:1] "GapRegisterStore" interface_type="GapRegisterStore.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/FrontDoor.swift:41:5 - line:41:14]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="URL"
+          (pattern_named type="URL" "url")
+          (type_unqualified_ident id="URL" bind="Foundation.(file).URL"))))
+    (var_decl range=[/x/FrontDoor.swift:41:9 - line:41:9] "url" interface_type="URL" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/FrontDoor.swift:41:9 - line:41:9] <anonymous @ 0x0> interface_type="(GapRegisterStore) -> () -> URL" access=internal get for="url"
+        (parameter "self" interface_type="GapRegisterStore") result="URL" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/FrontDoor.swift:41:9 - line:41:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="URL" decl="main.(file).GapRegisterStore.url@/x/FrontDoor.swift:41:9" direct_to_storage
+              (declref_expr implicit type="GapRegisterStore" decl="main.(file).GapRegisterStore.<anonymous>.self@/x/FrontDoor.swift:41:9" function_ref=unapplied))))))
+    (func_decl range=[/x/FrontDoor.swift:43:5 - line:46:5] "load()" interface_type="(GapRegisterStore) -> () -> Data?" access=internal
+      (parameter "self" interface_type="GapRegisterStore") result="Data?" thrown_type="<null>"
+      (parameter_list range=[/x/FrontDoor.swift:43:14 - line:43:15])
+      (brace_stmt range=[/x/FrontDoor.swift:43:26 - line:46:5]
+        (guard_stmt range=[/x/FrontDoor.swift:44:9 - line:44:47]
+          (conditions=array
+            (member_ref_expr type="Bool" location=/x/FrontDoor.swift:44:19 range=[/x/FrontDoor.swift:44:15 - line:44:19] decl="Foundation.(file).URL.isFileURL"
+              (member_ref_expr type="URL" location=/x/FrontDoor.swift:44:15 range=[/x/FrontDoor.swift:44:15 - line:44:15] decl="main.(file).GapRegisterStore.url@/x/FrontDoor.swift:41:9"
+                (declref_expr implicit type="GapRegisterStore" location=/x/FrontDoor.swift:44:15 range=[/x/FrontDoor.swift:44:15 - line:44:15] decl="main.(file).GapRegisterStore.load().self@/x/FrontDoor.swift:43:10" function_ref=unapplied))))
+          (brace_stmt range=[/x/FrontDoor.swift:44:34 - line:44:47]
+            (return_stmt range=[/x/FrontDoor.swift:44:36 - line:44:43]
+              (nil_literal_expr type="Data?" location=/x/FrontDoor.swift:44:43 range=[/x/FrontDoor.swift:44:43 - line:44:43] initializer="**NULL**"))))
+        (return_stmt range=[/x/FrontDoor.swift:45:9 - line:45:41]
+          (optional_try_expr type="Data?" location=/x/FrontDoor.swift:45:21 range=[/x/FrontDoor.swift:45:16 - line:45:41] thrown_error="any Error"
+            (inject_into_optional implicit type="Data?" location=/x/FrontDoor.swift:45:21 range=[/x/FrontDoor.swift:45:21 - line:45:41]
+              (call_expr type="Data" location=/x/FrontDoor.swift:45:21 range=[/x/FrontDoor.swift:45:21 - line:45:41] throws isolation_crossing="none"
+                (constructor_ref_call_expr type="(__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:45:21 range=[/x/FrontDoor.swift:45:21 - line:45:21] nothrow isolation_crossing="none"
+                  (declref_expr implicit type="(Data.Type) -> (__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:45:21 range=[/x/FrontDoor.swift:45:21 - line:45:21] decl="Foundation.(file).Data extension.init(contentsOf:options:)" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr type="Data.Type" location=/x/FrontDoor.swift:45:21 range=[/x/FrontDoor.swift:45:21 - line:45:21] typerepr="Data"))))
+                (argument_list labels="contentsOf:options:"
+                  (argument label="contentsOf"
+                    (member_ref_expr type="URL" location=/x/FrontDoor.swift:45:38 range=[/x/FrontDoor.swift:45:38 - line:45:38] decl="main.(file).GapRegisterStore.url@/x/FrontDoor.swift:41:9"
+                      (declref_expr implicit type="GapRegisterStore" location=/x/FrontDoor.swift:45:38 range=[/x/FrontDoor.swift:45:38 - line:45:38] decl="main.(file).GapRegisterStore.load().self@/x/FrontDoor.swift:43:10" function_ref=unapplied)))
+                  (argument label="options"
+                    (default_argument_expr implicit type="Data.ReadingOptions" location=/x/FrontDoor.swift:45:25 range=[/x/FrontDoor.swift:45:25 - line:45:25] default_args_owner="Foundation.(file).Data extension.init(contentsOf:options:)" param=1)))))))))
+    (func_decl range=[/x/FrontDoor.swift:48:5 - line:51:5] "loadShadowed(_:)" interface_type="(GapRegisterStore) -> (Data) -> Data?" access=internal
+      (parameter "self" interface_type="GapRegisterStore") result="Data?" thrown_type="<null>"
+      (parameter_list range=[/x/FrontDoor.swift:48:22 - line:48:35]
+        (parameter "data" interface_type="Data"))
+      (brace_stmt range=[/x/FrontDoor.swift:48:46 - line:51:5]
+        (guard_stmt range=[/x/FrontDoor.swift:49:9 - line:49:117]
+          (conditions=array
+            (member_ref_expr type="Bool" location=/x/FrontDoor.swift:49:19 range=[/x/FrontDoor.swift:49:15 - line:49:19] decl="Foundation.(file).URL.isFileURL"
+              (member_ref_expr type="URL" location=/x/FrontDoor.swift:49:15 range=[/x/FrontDoor.swift:49:15 - line:49:15] decl="main.(file).GapRegisterStore.url@/x/FrontDoor.swift:41:9"
+                (declref_expr implicit type="GapRegisterStore" location=/x/FrontDoor.swift:49:15 range=[/x/FrontDoor.swift:49:15 - line:49:15] decl="main.(file).GapRegisterStore.loadShadowed(_:).self@/x/FrontDoor.swift:48:10" function_ref=unapplied)))
+            (pattern
+              (pattern_optional_some implicit type="FixtureAddress?"
+                (pattern_binding implicit type="FixtureAddress" kind=let
+                  (pattern_named type="FixtureAddress" "url")))
+              (optional_try_expr type="FixtureAddress?" location=/x/FrontDoor.swift:49:59 range=[/x/FrontDoor.swift:49:40 - line:49:97] thrown_error="any Error"
+                (inject_into_optional implicit type="FixtureAddress?" location=/x/FrontDoor.swift:49:59 range=[/x/FrontDoor.swift:49:45 - line:49:97]
+                  (call_expr type="FixtureAddress" location=/x/FrontDoor.swift:49:59 range=[/x/FrontDoor.swift:49:45 - line:49:97] throws isolation_crossing="none"
+                    (dot_syntax_call_expr type="(FixtureAddress.Type, Data) throws -> FixtureAddress" location=/x/FrontDoor.swift:49:59 range=[/x/FrontDoor.swift:49:45 - line:49:59] nothrow isolation_crossing="none"
+                      (declref_expr type="(JSONDecoder) -> (FixtureAddress.Type, Data) throws -> FixtureAddress" location=/x/FrontDoor.swift:49:59 range=[/x/FrontDoor.swift:49:59 - line:49:59] decl="Foundation.(file).JSONDecoder.decode(_:from:) [with (substitution_map generic_signature=<T where T : Decodable> T -> FixtureAddress)]" function_ref=single apply)
+                      (argument_list implicit
+                        (argument
+                          (call_expr type="JSONDecoder" location=/x/FrontDoor.swift:49:45 range=[/x/FrontDoor.swift:49:45 - line:49:57] nothrow isolation_crossing="none"
+                            (constructor_ref_call_expr type="() -> JSONDecoder" location=/x/FrontDoor.swift:49:45 range=[/x/FrontDoor.swift:49:45 - line:49:45] nothrow isolation_crossing="none"
+                              (declref_expr implicit type="(JSONDecoder.Type) -> () -> JSONDecoder" location=/x/FrontDoor.swift:49:45 range=[/x/FrontDoor.swift:49:45 - line:49:45] decl="Foundation.(file).JSONDecoder.init()" function_ref=single apply)
+                              (argument_list implicit
+                                (argument
+                                  (type_expr type="JSONDecoder.Type" location=/x/FrontDoor.swift:49:45 range=[/x/FrontDoor.swift:49:45 - line:49:45] typerepr="JSONDecoder"))))
+                            (argument_list)))))
+                    (argument_list labels="_:from:"
+                      (argument
+                        (dot_self_expr type="FixtureAddress.Type" location=/x/FrontDoor.swift:49:66 range=[/x/FrontDoor.swift:49:66 - line:49:81]
+                          (type_expr type="FixtureAddress.Type" location=/x/FrontDoor.swift:49:66 range=[/x/FrontDoor.swift:49:66 - line:49:66] typerepr="FixtureAddress")))
+                      (argument label="from"
+                        (declref_expr type="Data" location=/x/FrontDoor.swift:49:93 range=[/x/FrontDoor.swift:49:93 - line:49:93] decl="main.(file).GapRegisterStore.loadShadowed(_:).data@/x/FrontDoor.swift:48:25" function_ref=unapplied))))))))
+          (brace_stmt range=[/x/FrontDoor.swift:49:104 - line:49:117]
+            (return_stmt range=[/x/FrontDoor.swift:49:106 - line:49:113]
+              (nil_literal_expr type="Data?" location=/x/FrontDoor.swift:49:113 range=[/x/FrontDoor.swift:49:113 - line:49:113] initializer="**NULL**"))))
+        (return_stmt range=[/x/FrontDoor.swift:50:9 - line:50:41]
+          (optional_try_expr type="Data?" location=/x/FrontDoor.swift:50:21 range=[/x/FrontDoor.swift:50:16 - line:50:41] thrown_error="any Error"
+            (inject_into_optional implicit type="Data?" location=/x/FrontDoor.swift:50:21 range=[/x/FrontDoor.swift:50:21 - line:50:41]
+              (call_expr type="Data" location=/x/FrontDoor.swift:50:21 range=[/x/FrontDoor.swift:50:21 - line:50:41] throws isolation_crossing="none"
+                (constructor_ref_call_expr type="(__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:50:21 range=[/x/FrontDoor.swift:50:21 - line:50:21] nothrow isolation_crossing="none"
+                  (declref_expr implicit type="(Data.Type) -> (__shared URL, Data.ReadingOptions) throws -> Data" location=/x/FrontDoor.swift:50:21 range=[/x/FrontDoor.swift:50:21 - line:50:21] decl="Foundation.(file).Data extension.init(contentsOf:options:)" function_ref=single apply)
+                  (argument_list implicit
+                    (argument
+                      (type_expr type="Data.Type" location=/x/FrontDoor.swift:50:21 range=[/x/FrontDoor.swift:50:21 - line:50:21] typerepr="Data"))))
+                (argument_list labels="contentsOf:options:"
+                  (argument label="contentsOf"
+                    (declref_expr type="FixtureAddress" location=/x/FrontDoor.swift:50:38 range=[/x/FrontDoor.swift:50:38 - line:50:38] decl="main.(file).GapRegisterStore.loadShadowed(_:).url@/x/FrontDoor.swift:49:34" function_ref=unapplied))
+                  (argument label="options"
+                    (default_argument_expr implicit type="Data.ReadingOptions" location=/x/FrontDoor.swift:50:25 range=[/x/FrontDoor.swift:50:25 - line:50:25] default_args_owner="Foundation.(file).Data extension.init(contentsOf:options:)" param=1)))))))))
+    (constructor_decl implicit range=[/x/FrontDoor.swift:40:8 - line:40:8] "init(url:)" interface_type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" access=internal designated
+      (parameter "self" interface_type="GapRegisterStore" inout) thrown_type="<null>"
+      (parameter_list range=[/x/FrontDoor.swift:40:8 - line:40:8]
+        (parameter "url" apiName="url" interface_type="URL")))))
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")

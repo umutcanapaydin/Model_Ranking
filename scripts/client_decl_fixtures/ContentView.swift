@@ -418,3 +418,9 @@ func fixtureViewTargets(_ target: NSObject, _ named: Selector) {
     _ = Timer(timeInterval: 1, target: target, selector: named, userInfo: nil, repeats: false)
     _ = Thread(target: target, selector: named, object: nil)
 }
+
+// #242 (G-13): the register's store pointed by the screen at the engine's address, a URL the store did not make.
+// REFUSED: only the register's own file builds its store.
+func fixtureViewPointsTheRegister() -> Data? {
+    GapRegisterStore(url: EngineClient().baseURL).load()
+}

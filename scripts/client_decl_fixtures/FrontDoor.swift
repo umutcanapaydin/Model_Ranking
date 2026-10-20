@@ -13,3 +13,40 @@ func fixtureStoreParse(_ typed: String) -> Data? {
     guard let target = try? URL.ParseStrategy().parse("ht" + "tps://example.invalid/?q=" + typed) else { return nil }
     return try? Data(contentsOf: target)
 }
+
+// #242 (G-13; the backlog-gates review rounds 2 and 3, M1; #276): a store's URL made by a generic helper of its
+// own, its type given and inferred, through a `typealias` of `URL`, and by a cast; and a read of anything but the
+// store's own `url`. REFUSED, each: a store makes a URL only from the file manager's folders, and reads only its
+// own file.
+typealias FixtureAddress = URL
+
+func fixtureStoreHelper<T: Decodable>(_ type: T.Type, _ data: Data) -> T? {
+    try? JSONDecoder().decode(type, from: data)
+}
+
+func fixtureStoreInferred<T: Decodable>(_ data: Data) -> T? {
+    try? JSONDecoder().decode(T.self, from: data)
+}
+
+func fixtureStoreGeneric(_ data: Data, _ value: Any) -> [Data?] {
+    let given = fixtureStoreHelper([URL].self, data)?.first
+    let inferred: URL? = fixtureStoreInferred(data)
+    let cast = value as? URL
+    return [given, inferred, cast].map { $0.flatMap { try? Data(contentsOf: $0) } }
+}
+
+// The register's store, as the app declares it: it reads only its own `url`, built only here. ALLOWED: `load()`.
+// REFUSED: the #276 shape, a URL decoded through an alias and bound to `url` between the guard and the read.
+struct GapRegisterStore {
+    let url: URL
+
+    func load() -> Data? {
+        guard url.isFileURL else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    func loadShadowed(_ data: Data) -> Data? {
+        guard url.isFileURL, let url = try? JSONDecoder().decode(FixtureAddress.self, from: data) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+}

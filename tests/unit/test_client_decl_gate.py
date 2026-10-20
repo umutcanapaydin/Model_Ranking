@@ -1207,3 +1207,34 @@ def test_242_a_codable_containers_key_and_the_stores_resource_keys_are_not_refus
     shipping["Models.swift"].discard("Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:")
     assert [line for line in gate.unseen_permissions(shipping) if "by-name" in line and "decodeIfPresent" in line]
     assert gate.problems({"Models.swift": {"Swift.KeyedEncodingContainer.encode(_:forKey:"}}), "an unlisted label passed"
+
+
+@pytest.mark.parametrize("phrase", [
+    "makes a URL by `main.fixtureStoreHelper`",          # a generic helper of the store's own, its type given
+    "makes a URL by `main.fixtureStoreInferred`",        # and inferred
+    "makes a URL by a cast",                             # `value as? URL`
+    "makes a URL by `Foundation.JSONDecoder.decode(_:from:`",  # through `typealias FixtureAddress = URL` (#276's shape)
+    "reads with `Data.init(contentsOf:options:` from GapRegisterStore.loadShadowed(_:).url",
+])
+def test_242_a_stores_url_comes_only_from_the_file_managers_folders(phrase: str) -> None:
+    """#242 (G-13, INV-62, INV-67; the backlog-gates review rounds 2 and 3, M1; #276): `URL.made` was on the store's
+    list, so a URL its own file made by a generic helper, a `typealias` or a cast passed, and so did a read of it.
+    A store now makes a URL only by the file manager's makers or a function of its own file, and reads only its
+    own `url`. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("FrontDoor.swift", phrase)
+
+
+def test_242_the_registers_store_is_built_only_in_its_own_file() -> None:
+    """#242 (G-13): the screen pointed the register's store at the engine's address, a URL no store made, and
+    `load()` read it. Only `FrontDoor.swift` builds a `GapRegisterStore`. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("ContentView.swift", "builds GapRegisterStore")
+
+
+def test_242_the_stores_own_reads_and_folders_pass() -> None:
+    """#242 (G-13): the fixture's register store reading its own `url`, and the standings store's folder made by a
+    function of its own file, are not refused by the store rules. # covers D-214"""
+    span = _lines_of("FrontDoor.swift", "struct GapRegisterStore")
+    own = [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith("FrontDoor.swift:")
+           and int(line.split(":")[1]) in span and "loadShadowed" not in line and int(line.split(":")[1]) < span[0] + 8]
+    assert not own, own
+    assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "fixtureStoreFolder" in line]
