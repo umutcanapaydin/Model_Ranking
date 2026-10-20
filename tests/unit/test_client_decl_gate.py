@@ -1154,3 +1154,26 @@ def test_242_a_meeting_the_client_no_longer_makes_fails_the_gate() -> None:
     file, function = sorted(places or {("Language.swift", "-")})[0]
     seen[file].discard(f"main.<meets listed>.{declared}|{role}|{function}")
     assert [line for line in gate.unseen_permissions(seen) if f"`{declared}`" in line and "a served number may meet" in line]
+
+
+@pytest.mark.parametrize(("which", "member"), [
+    ("argument 0 (unlabelled)", "EngineClient.ask"),
+    ("`asking` argument", "EngineClient.init(asking:)"),
+    ("`asking` argument", "EngineClient.subscript(asking:)"),
+])
+def test_242_every_argument_of_a_call_into_the_engine_client_is_read(which: str, member: str) -> None:
+    """#242 (G-11, INV-64; the backlog-gates review's K1): `_request_call` read only the labelled arguments of a
+    method call, so an unlabelled argument, an initialiser's and a subscript's were never read; the gap was latent
+    while `ENGINE_CLIENT_REACHABLE` lists no such member. Every argument of a call into the engine client from
+    another file is now read, and refused unless `REQUEST_ARGUMENTS` names it with its declared source.
+    # covers D-214, REQ-RTR-004"""
+    assert _refused_in("ContentView.swift", f"the {which} of `{member}`")
+
+
+def test_242_the_screens_own_requests_arguments_are_not_refused_by_the_argument_rule() -> None:
+    """#242 (G-11): the screen's own request (`load()`: its surface and its budget) and `EngineClient()` pass the
+    rule that reads every argument. # covers D-214"""
+    span = _lines_of("ContentView.swift", "struct ContentView {")
+    own = [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith("ContentView.swift:")
+           and "#242" in line and "REQUEST_ARGUMENTS" in line and int(line.split(":")[1]) in (210, 213)]
+    assert 213 in span and not own, own

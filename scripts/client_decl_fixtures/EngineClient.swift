@@ -128,3 +128,11 @@ struct FixtureWidenedClient {
     func boardsWidened() -> String { "\(fixtureWidened)\(fixtureWidenedList)\(fixtureHeld.text)" }
     func boardsBuffered() -> String { FixtureBuffered.tag + fixtureSharedBuffer.header }
 }
+
+// #242 (G-11, the backlog-gates review's K1): a request member whose parameter has no label, which the request
+// rule's argument check did not read. The screen's call to it is REFUSED at the argument.
+extension EngineClient {
+    func ask(_ surface: String) -> URL {
+        recommendation(task: surface, budget: "unlimited")
+    }
+}

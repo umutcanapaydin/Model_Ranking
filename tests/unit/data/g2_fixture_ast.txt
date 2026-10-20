@@ -6435,7 +6435,24 @@
               (argument_list)))))))
   (var_decl range=[/x/ContentView.swift:395:5 - line:395:5] "fixtureHeld" interface_type="FixtureHolder" access=internal let readImpl=stored immutable
     (has_initial_value_attr implicit)
-    (has_storage_attr implicit)))
+    (has_storage_attr implicit))
+  (extension_decl range=[/x/ContentView.swift:400:1 - line:404:1] "ContentView"
+    (func_decl range=[/x/ContentView.swift:401:5 - line:403:5] "askUnlabelled(_:)" interface_type="(ContentView) -> (String) -> URL" access=internal
+      (parameter "self" interface_type="ContentView") result="URL" thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:401:23 - line:401:39]
+        (parameter "typed" interface_type="String"))
+      (brace_stmt range=[/x/ContentView.swift:401:48 - line:403:5]
+        (return_stmt implicit range=[/x/ContentView.swift:402:9 - line:402:25]
+          (call_expr type="URL" location=/x/ContentView.swift:402:16 range=[/x/ContentView.swift:402:9 - line:402:25] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr type="(String) -> URL" location=/x/ContentView.swift:402:16 range=[/x/ContentView.swift:402:9 - line:402:16] nothrow isolation_crossing="none"
+              (declref_expr type="(EngineClient) -> (String) -> URL" location=/x/ContentView.swift:402:16 range=[/x/ContentView.swift:402:16 - line:402:16] decl="main.(file).EngineClient extension.ask@/x/EngineClient.swift:135:10" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (member_ref_expr type="EngineClient" location=/x/ContentView.swift:402:9 range=[/x/ContentView.swift:402:9 - line:402:9] decl="main.(file).ContentView.client@/x/ContentView.swift:210:9"
+                    (declref_expr implicit type="ContentView" location=/x/ContentView.swift:402:9 range=[/x/ContentView.swift:402:9 - line:402:9] decl="main.(file).ContentView extension.askUnlabelled(_:).self@/x/ContentView.swift:401:10" function_ref=unapplied)))))
+            (argument_list
+              (argument
+                (declref_expr type="String" location=/x/ContentView.swift:402:20 range=[/x/ContentView.swift:402:20 - line:402:20] decl="main.(file).ContentView extension.askUnlabelled(_:).typed@/x/ContentView.swift:401:26" function_ref=unapplied)))))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")
@@ -8437,7 +8454,25 @@
       (parameter "self" interface_type="FixtureWidenedClient" inout) thrown_type="<null>"
       (parameter_list)
       (brace_stmt implicit range=[/x/EngineClient.swift:127:8 - line:127:8]
-        (return_stmt implicit range=[/x/EngineClient.swift:127:8 - line:127:8])))))
+        (return_stmt implicit range=[/x/EngineClient.swift:127:8 - line:127:8]))))
+  (extension_decl range=[/x/EngineClient.swift:134:1 - line:138:1] "EngineClient"
+    (func_decl range=[/x/EngineClient.swift:135:5 - line:137:5] "ask(_:)" interface_type="(EngineClient) -> (String) -> URL" access=internal
+      (parameter "self" interface_type="EngineClient") result="URL" thrown_type="<null>"
+      (parameter_list range=[/x/EngineClient.swift:135:13 - line:135:31]
+        (parameter "surface" interface_type="String"))
+      (brace_stmt range=[/x/EngineClient.swift:135:40 - line:137:5]
+        (return_stmt implicit range=[/x/EngineClient.swift:136:9 - line:136:58]
+          (call_expr type="URL" location=/x/EngineClient.swift:136:9 range=[/x/EngineClient.swift:136:9 - line:136:58] nothrow isolation_crossing="none"
+            (dot_syntax_call_expr implicit type="(String, String) -> URL" location=/x/EngineClient.swift:136:9 range=[/x/EngineClient.swift:136:9 - line:136:9] nothrow isolation_crossing="none"
+              (declref_expr type="(EngineClient) -> (String, String) -> URL" location=/x/EngineClient.swift:136:9 range=[/x/EngineClient.swift:136:9 - line:136:9] decl="main.(file).EngineClient.recommendation(task:budget:)@/x/EngineClient.swift:72:10" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (declref_expr implicit type="EngineClient" location=/x/EngineClient.swift:136:9 range=[/x/EngineClient.swift:136:9 - line:136:9] decl="main.(file).EngineClient extension.ask(_:).self@/x/EngineClient.swift:135:10" function_ref=unapplied))))
+            (argument_list labels="task:budget:"
+              (argument label="task"
+                (declref_expr type="String" location=/x/EngineClient.swift:136:30 range=[/x/EngineClient.swift:136:30 - line:136:30] decl="main.(file).EngineClient extension.ask(_:).surface@/x/EngineClient.swift:135:16" function_ref=unapplied))
+              (argument label="budget"
+                (string_literal_expr type="String" location=/x/EngineClient.swift:136:47 range=[/x/EngineClient.swift:136:47 - line:136:47] encoding=utf8 value="unlimited" builtin_initializer="Swift.(file).String extension.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)" initializer="**NULL**")))))))))
 (source_file "/x/FrontDoor.swift"
   (import_decl range=[/x/FrontDoor.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/FrontDoor.swift:5:1 - line:9:1] "fixtureStoreLoad(_:)" interface_type="(String) -> Data?" access=internal result="Data?" thrown_type="<null>"

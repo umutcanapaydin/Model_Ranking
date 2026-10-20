@@ -393,3 +393,12 @@ let fixtureWidened: Any = NSMutableString()
 let fixtureWidenedList = [NSMutableString()]
 struct FixtureHolder { let text: NSMutableString }
 let fixtureHeld = FixtureHolder(text: NSMutableString())
+
+// #242 (G-11): the typed question as an unlabelled argument of an engine-client member. REFUSED at the argument,
+// as are the initialiser's and the subscript's above (`askThroughAnInitialiser`, `askThroughASubscript`): every
+// argument of a call into the engine client is read, labelled or not.
+extension ContentView {
+    func askUnlabelled(_ typed: String) -> URL {
+        client.ask(typed)
+    }
+}
