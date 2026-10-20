@@ -69,6 +69,7 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
 
 from __future__ import annotations
 
+import os
 import pathlib
 import platform
 import re
@@ -686,13 +687,14 @@ NUMERIC_FIELD = re.compile(r'^ *\(var_decl [^"]*"(\w+)" interface_type="(?:U?Int
                            r'CGFloat|Decimal)\??"[^\n]*readImpl=stored')
 #: Any operator on a type that is not text or a collection: `+`, `-=`, `&+`, on `Int`, `Int32`,
 #: `FixedWidthInteger`, `Decimal`... (the review's A5, A7).
-OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+)(?: extension)?\.(&?(?:<<|>>|[-+*/%&|^~])=?)(?:"| \[with)')
+OPERATOR = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(\w+)(?: extension)?\.(&?(?:<<|>>|[-+*/%&|^~])=?)(?:"| \[with|@)')
 NOT_NUMBERS = {"Bool", "String", "Substring", "StringProtocol", "Character", "Array", "ArraySlice",
                "ContiguousArray", "Set", "Dictionary", "Sequence", "Collection",
                "RangeReplaceableCollection", "Optional"}
 #: The end of a resolved function's name. The compiler prints a function whose labels are all `_`
-#: by its base name alone (`map [with ...`, `swapAt"`), and any other with its labels.
-_CALLED = r'(?:\(([^)]*)\))?(?:"| \[with)'
+#: by its base name alone (`map [with ...`, `swapAt"`), and any other with its labels. #363: Swift 6.4
+#: prints an Objective-C declaration with its header after the name (`sortedArray(comparator:)@<h>:652:1`).
+_CALLED = r'(?:\(([^)]*)\))?(?:"| \[with|@)'
 #: A numeric method, which is arithmetic by another spelling (the review's A6).
 NUMERIC_METHOD = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+(?: extension)?\.(advanced|distance|adding\w*|'
                             r'subtracting\w*|multiplied\w*|divided\w*|remainder\w*|squareRoot|negate|addProduct|'
@@ -759,8 +761,13 @@ def dump_ast(sdk_name: str, flags: list[str], folder: pathlib.Path = CLIENT) -> 
     except (OSError, subprocess.CalledProcessError):
         return None
     sources = sorted(str(path) for path in folder.rglob("*.swift"))
+    # #363: Swift 6.4 expands `@State` in a macro plugin it runs under its own sandbox, and macOS
+    # refuses a sandbox inside the test run's offline one (`scripts/offline.sb`): the macro is not
+    # expanded and the fixture does not type-check. Only there is the compiler's sandbox dropped;
+    # the offline profile still holds the plugin, and `make client-decls` runs with it as before.
+    nested = ["-disable-sandbox"] if os.environ.get("MODEL_RANKING_REQUIRE_OFFLINE") == "1" else []
     result = subprocess.run(  # noqa: S603
-        [xcrun, "swiftc", "-typecheck", "-dump-ast", *flags, "-sdk", sdk, *sources],
+        [xcrun, "swiftc", "-typecheck", "-dump-ast", *nested, *flags, "-sdk", sdk, *sources],
         capture_output=True, text=True, cwd=ROOT,
     )
     # `-dump-ast` writes the tree to stderr and type errors land there too. A type error STOPS the
@@ -972,6 +979,9 @@ SINK_FOUNDATION_ALLOWED = frozenset({
     "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
     "Code.appTransportSecurityRequiresSecureConnection", "Code.dataNotAllowed", "Code.networkConnectionLost",
     "Code.notConnectedToInternet", "Code.secureConnectionFailed", "Code.timedOut", "_BridgedStoredNSError.code",
+    # #363 (owner, 2026-10-20): `EngineClient.read`'s `data.append(byte)` (#56), unchanged; Swift 6.4
+    # binds it to Foundation's `Data.append`, where 6.3 bound the standard library's. A local buffer.
+    "Data.append",
     "Data.count", "Data.init(", "Data.init(contentsOf:options:", "Data.reserveCapacity", "Data.write(to:options:",
     "NSData.WritingOptions.atomic", "Date.init(", "Date.timeIntervalSince", "Error.localizedDescription",
     "FileManager.SearchPathDirectory.cachesDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
@@ -1263,7 +1273,7 @@ PARSES_NUMBER = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.(?:(?:U?Int(?
 #: A count, an index range or a test for emptiness ends the walk: how many served numbers there are is
 #: not one (the M21-W3 review's M1).
 COUNTING = re.compile(r'decl="Swift\.\(file\)\.\w+(?: extension)?\.(?:count|indices|isEmpty|underestimatedCount|'
-                      r'startIndex|endIndex)[" ]')
+                      r'startIndex|endIndex)[" @]')
 
 
 def _texty(node: _Node, attribute: str) -> bool:

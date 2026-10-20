@@ -481,6 +481,57 @@ def test_foundations_nsarray_sort_is_counted_as_a_sort() -> None:
     assert _refused_in("ContentView.swift", "with `sortedArray`")
 
 
+#: #363: Xcode 27.1 (Swift 6.4) prints an Objective-C declaration with its header after the name
+#: (measured: `sortedArray`); the others are the same terminator on a rule that reads that name's end.
+_SDK = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk"
+WITH_HEADER = [
+    ("ORDERING_CALL", "sortedArray", f'decl="Foundation.(file).NSArray extension.sortedArray(comparator:)@{_SDK}'
+                                     '/System/Library/Frameworks/Foundation.framework/Headers/NSArray.h:652:1" '
+                                     "function_ref=single apply"),
+    ("HANDS_ELEMENTS", None, f'decl="Foundation.(file).NSArray extension.contains(_:)@{_SDK}/NSArray.h:40:1" '
+                             "function_ref=single apply"),
+    ("NUMERIC_METHOD", "adding", f'decl="Foundation.(file).NSDecimalNumber extension.adding(_:)@{_SDK}'
+                                 '/NSDecimalNumber.h:80:1" function_ref=single apply'),
+    ("OPERATOR", "Decimal", f'decl="Foundation.(file).Decimal extension.+@{_SDK}/Decimal.h:1:1" function_ref=unapplied'),
+    ("COUNTING", None, f'decl="Swift.(file).Array extension.count@{_SDK}/Array.swift:1:1" function_ref=unapplied'),
+]
+
+
+@pytest.mark.parametrize(("rule", "name", "line"), WITH_HEADER, ids=[rule for rule, _, _ in WITH_HEADER])
+def test_a_declaration_printed_with_its_header_is_read_by_every_rule_that_reads_its_name(
+        rule: str, name: str | None, line: str) -> None:
+    """#363: a rule that needed `"` or ` [with` straight after the name read no declaration Swift 6.4
+    prints with its header, and the compiled gate stopped refusing an `NSArray` sort (REQ-APP-002)."""
+    match = getattr(gate, rule).search(line)
+    assert match, (rule, line)
+    if name is not None:
+        assert match.group(1) == name
+
+
+@pytest.mark.parametrize(("offline", "dropped"), [("1", True), (None, False)])
+def test_the_compilers_sandbox_is_dropped_only_inside_the_offline_run(
+        monkeypatch: pytest.MonkeyPatch, offline: str | None, dropped: bool) -> None:
+    """#363: inside `scripts/offline.sb` the `@State` macro's plugin cannot start its own sandbox, so
+    the dump drops it there, and only there."""
+    calls: list[list[str]] = []
+
+    class _Done:
+        stdout, stderr, returncode = "/sdk\n", "", 0
+
+    def run(argv: list[str], **_: object) -> _Done:
+        calls.append(argv)
+        return _Done()
+
+    if offline is None:
+        monkeypatch.delenv("MODEL_RANKING_REQUIRE_OFFLINE", raising=False)
+    else:
+        monkeypatch.setenv("MODEL_RANKING_REQUIRE_OFFLINE", offline)
+    monkeypatch.setattr(gate.shutil, "which", lambda _: "/usr/bin/xcrun")
+    monkeypatch.setattr(gate.subprocess, "run", run)
+    assert gate.dump_ast("iphonesimulator", []) == ("", 0)
+    assert ("-disable-sandbox" in calls[-1]) is dropped
+
+
 def test_the_committed_dump_is_the_fixture_as_it_compiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The second W2 review's K1: `g2_fixture_ast.txt` is a second copy of the fixture's compile, and
     nothing compared the two where Xcode runs. The self-test now does, and fails when they differ. The
@@ -592,7 +643,9 @@ def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not(
     refused = _refused_in("ContentView.swift", "#174, #188")
     # The two lines above, the M21-W3 review's four twins (B2) and round two's two key paths (#244): eight,
     # and the screen's own request, `apply`'s routed surface and `select`'s chosen one are not among them.
-    assert len(refused) == 8, refused
+    # #363 (owner, 2026-10-20): Swift 6.4 expands `@State` as a macro, and the four assignments its
+    # accessors make to `_task` are refused too: twelve. More refused, never fewer (fails closed).
+    assert len(refused) == 12, refused
 
 
 def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:

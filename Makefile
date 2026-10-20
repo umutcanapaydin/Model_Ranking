@@ -202,12 +202,12 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 			echo "  A suite that stops being discovered exits 0 and reports nothing."; \
 			exit 1; \
 		fi; \
-		( cd ios && $(SWIFT_TEST) --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
+		( cd ios && $(SWIFT_TEST) --list-tests 2>/dev/null ) | LC_ALL=C sort > build/swift-tests-discovered.txt; \
 		if ! diff -u $(SWIFT_TEST_MANIFEST) build/swift-tests-discovered.txt > build/swift-manifest.diff 2>&1; then \
 			echo "swift-test FAIL: the discovered tests are not the manifest (D-150)."; \
 			head -20 build/swift-manifest.diff; \
 			echo "  A test deleted from the code but left here, or added and not listed, stops the gate."; \
-			echo "  Regenerate deliberately: cd ios && swift test --list-tests | sort > EngineTests/test-manifest.txt"; \
+			echo "  Regenerate deliberately: cd ios && swift test --list-tests | LC_ALL=C sort > EngineTests/test-manifest.txt"; \
 			exit 1; \
 		fi; \
 		echo "swift-test PASS: $$n test(s), each one named in $(SWIFT_TEST_MANIFEST)"; \
