@@ -386,3 +386,10 @@ enum FixtureElsewhere {
         }
     }
 }
+
+// #242 (G-1): another file's objects behind a widened type, held in constants a sink reads. REFUSED, each: a sink
+// and the code it runs read only constants of a plain value type.
+let fixtureWidened: Any = NSMutableString()
+let fixtureWidenedList = [NSMutableString()]
+struct FixtureHolder { let text: NSMutableString }
+let fixtureHeld = FixtureHolder(text: NSMutableString())

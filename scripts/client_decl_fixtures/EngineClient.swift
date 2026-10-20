@@ -121,3 +121,10 @@ func fixtureClientDecodesAnAnswer(_ data: Data) -> Recommendation? {
 func fixtureClientDecodesTheSurfaces(_ data: Data) -> CategoryList? {
     try? JSONDecoder().decode(CategoryList.self, from: data)
 }
+
+// #242 (G-1): the sink's half: it reads the widened constants, and the static `let` whose initialiser reads the
+// shared buffer. REFUSED, each.
+struct FixtureWidenedClient {
+    func boardsWidened() -> String { "\(fixtureWidened)\(fixtureWidenedList)\(fixtureHeld.text)" }
+    func boardsBuffered() -> String { FixtureBuffered.tag + fixtureSharedBuffer.header }
+}

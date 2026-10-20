@@ -1073,3 +1073,35 @@ def test_the_self_test_fails_when_a_pinned_refusal_is_gone(monkeypatch: pytest.M
         broken = gate.self_test() or []
         assert len([line for line in broken if "missing, empty or malformed" in line]) == len(gate.CONFIGURATIONS), (
             name, broken)
+
+
+def test_242_the_sinks_twins_are_refused() -> None:
+    """#242 (G-1; the backlog-gates review round 2's K1): another file's objects behind a widened type (`Any`, an
+    array, a struct holding one) and a Swift-module object (`ManagedBuffer`) held in constants a sink reads, the
+    same buffer read by a static `let`'s initialiser the sink runs, the current calendar in a decoder no one
+    names, and a declaration the standings store inherited from the engine client's Foundation list. Each passed
+    the deny-lists. # covers D-214, D-180"""
+    for constant in ("fixtureWidened", "fixtureWidenedList", "fixtureHeld", "fixtureSharedBuffer"):
+        assert _refused_in("EngineClient.swift", f"reads `{constant}`, a constant"), constant
+    assert _refused_in("Detail.swift", "`FixtureBuffered.tag`, code a privacy sink runs, reads `fixtureSharedBuffer`")
+    assert _refused_in("Detail.swift", "references `Swift.ManagedBuffer.header`")
+    assert _refused_in("Detail.swift", "references `Foundation.Calendar.current`")
+    assert _refused_in("StandingsStore.swift", "`Foundation.Bundle.main` is not on the list of Foundation declarations")
+
+
+def test_242_each_sink_has_its_own_lists_and_a_stale_entry_fails_the_gate() -> None:
+    """#242 (the backlog-gates review round 2's K1): one Foundation list per sink file, and the list of what the
+    code a sink runs may reference, each entry seen on the shipping client or reported. # covers D-214, D-180"""
+    assert set(gate.SINK_FOUNDATION_ALLOWED) == set(gate.SINK_FILES)
+    for sink, allowed in gate.SINK_FOUNDATION_ALLOWED.items():
+        found = {sink: {f"Foundation.{entry}" for entry in allowed}}
+        assert not [line for line in gate.unseen_permissions(found) if "sink's Foundation list" in line]
+        dropped = sorted(allowed)[0]
+        found[sink].discard(f"Foundation.{dropped}")
+        assert [line for line in gate.unseen_permissions(found)
+                if line.startswith(f"{sink}:") and f"`{dropped}`" in line and "sink's Foundation list" in line]
+    runs = {"Models.swift": {f"main.<sink runs uses>.{entry}" for entry in gate.SINK_RUNS_ALLOWED}}
+    assert not [line for line in gate.unseen_permissions(runs) if "the code a sink runs" in line]
+    dropped = sorted(gate.SINK_RUNS_ALLOWED)[0]
+    runs["Models.swift"].discard(f"main.<sink runs uses>.{dropped}")
+    assert [line for line in gate.unseen_permissions(runs) if f"`{dropped}`" in line and "the code a sink runs" in line]
