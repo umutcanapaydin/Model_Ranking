@@ -281,6 +281,20 @@ BY_NAME = (
     "NSClassFromString",
     "NSSelectorFromString",
 )
+#: #242 (G-12; the M21-W3 review's round 2, B3): a value, a class or a selector reached by name, matched by what
+#: the declaration takes rather than by who declares it: an argument labelled for a key or a selector (`forKey:`,
+#: `forKeyPath:`, `forKeys:`, `forUndefinedKey:`, `selector:`, `aSelector:`), a base name that takes keys
+#: (`setValuesForKeys`), and the class-by-name entry points. `Selector.init` and `responds(to:)` are declared in
+#: `ObjectiveC`, which the module rule refuses whole. Each match is refused unless `BY_NAME_ALLOWED` names it.
+BY_NAME_LABEL = re.compile(r"[(:](?:forKey|forKeyPath|forKeys|forUndefinedKey|selector|aSelector):|"
+                           r"ForKey(?:s|Path)?(?:\(|$)|^Bundle\.(?:classNamed|principalClass)\b")
+#: #242 (G-12): the declarations the by-name labels match that the client may reference, matched whole, each with its
+#: reason (measured on the shipping client, the four configurations, 2026-10-21); each is seen there or reported.
+BY_NAME_ALLOWED: dict[str, str] = {
+    "Swift.KeyedDecodingContainer.decode(_:forKey:": "a Codable container's key: a coding key of the app's own type",
+    "Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:": "a Codable container's key: a coding key of the app's own type",
+    "Foundation.URL.resourceValues(forKeys:": "#314: the standings store reads its own file's size by a resource key",
+}
 
 #: #85 (D-180): the two privacy sinks, into which the file scope above cannot see (the M17 closure's
 #: P2). What the rules below refuse is the shapes the fixture holds; see INV-66 (G-1).
@@ -694,6 +708,8 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "the `asking` argument of `EngineClient.init(asking:)`"),
     ("ContentView.swift", "the `asking` argument of `EngineClient.subscript(asking:)`"),
     ("ContentView.swift", "reaches `EngineClient.ask`"),
+    # #242 (G-12): by name, matched by the argument's label or as a class-by-name entry point.
+    ("ContentView.swift", "reaches a value, a class or a selector by name (an argument labelled"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -744,6 +760,8 @@ FIXTURE_RULES: dict[str, str] = {
     "each sink's own Foundation list": "`Foundation.Bundle.main` is not on the list of Foundation declarations",
     # #242 (G-11).
     "every argument into the engine client": "the argument 0 (unlabelled) of `EngineClient.ask`",
+    # #242 (G-12).
+    "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -2374,6 +2392,9 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 if entry not in seen_runs]
     missing += [f"`{typed}` on the list of constant types a sink may read" for typed in sorted(SINK_CONSTANT_TYPES)
                 if typed not in seen_runs]
+    # #242 (G-12): the by-name labels the client may use.
+    referenced = set().union(set(), *found.values())
+    missing += [f"`{entry}` on the by-name list" for entry in sorted(BY_NAME_ALLOWED) if entry not in referenced]
     # #242 (G-2): what a served number may meet, in each place an entry names; an entry for any file, anywhere.
     seen_meets = {(name, *fact.split(">.", 1)[1].rsplit("|", 2))
                   for name, facts in found.items() for fact in facts if fact.startswith("main.<meets listed>.")}
@@ -2506,6 +2527,10 @@ def _reach_anything_problem(name: str, symbol: str, head: str, decl: str) -> str
     if any(symbol.startswith(p) or head == p for p in BY_NAME):
         return (f"{name}: `{decl}` reaches a value, a class or a selector by name, past every declaration "
                 "rule here; the client uses none (the M21-W3 review's K1, #241)")
+    if BY_NAME_LABEL.search(symbol) and decl not in BY_NAME_ALLOWED:
+        return (f"{name}: `{decl}` reaches a value, a class or a selector by name (an argument labelled for a key or a "
+                "selector, or a class-by-name entry point); only the declarations `BY_NAME_ALLOWED` names take one "
+                "(G-12, #242)")
     if any(part.startswith(UNSAFE) for part in head.split(".")):
         return (f"{name}: `{decl}` touches memory unsafely, which can rewrite any value, a privacy sink's "
                 "own included; the client uses none (D-180, the second W2 review's U9)")

@@ -574,7 +574,8 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
     for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED",
                   "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES",
                   # #242: each sink's own list, what the code a sink runs may reference, the constants it may read.
-                  "SINK_FOUNDATION_ALLOWED", "SINK_RUNS_ALLOWED", "SINK_CONSTANT_TYPES", "SERVED_MAY_MEET"):
+                  "SINK_FOUNDATION_ALLOWED", "SINK_RUNS_ALLOWED", "SINK_CONSTANT_TYPES", "SERVED_MAY_MEET",
+                  "BY_NAME_ALLOWED"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
 
