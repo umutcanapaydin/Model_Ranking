@@ -1116,3 +1116,41 @@ def test_242_each_sink_has_its_own_lists_and_a_stale_entry_fails_the_gate() -> N
     dropped = sorted(gate.SINK_RUNS_ALLOWED)[0]
     runs["Models.swift"].discard(f"main.<sink runs uses>.{dropped}")
     assert [line for line in gate.unseen_permissions(runs) if f"`{dropped}`" in line and "the code a sink runs" in line]
+
+
+#: #242 (G-2): the twins the reviews planted past the arithmetic rule, each marked in `Arithmetic.swift`.
+SERVED_TWINS = ["abs", "min", "max", "magnitude", "rounded", "table", "bound-count", "bound-range", "bound-drop",
+                "string-repeating", "data-count", "data-repeating", "repeat-element"]
+
+
+@pytest.mark.parametrize("shape", SERVED_TWINS)
+def test_242_what_a_served_number_meets_off_its_list_is_refused(shape: str) -> None:
+    """#242 (G-2, INV-76): `abs`, `min`, `max`, `.magnitude`, `.rounded(_:)`, an app's table indexed by a served
+    number, and a list a served number sizes (`Array(repeating:count:)`, a range, `dropFirst`, `String(repeating:
+    count:)`, `Data(count:)`, `Data(repeating:count:)`, `repeatElement`), bound to a name before its count is read
+    or not. Each passed the arithmetic rule; each is refused on its own line. # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+@pytest.mark.parametrize("mark", ["compared", "shown"])
+def test_242_a_served_number_compared_or_shown_is_not_refused(mark: str) -> None:
+    """#242 (G-2): what a served number may meet includes a comparison and its display. # covers D-214"""
+    line = _marked(f"// allowed: {mark}")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_242_a_meeting_the_client_no_longer_makes_fails_the_gate() -> None:
+    """#242 (G-2): each entry of `SERVED_MAY_MEET`, in each place it names, is seen on the shipping client or
+    reported, so the list cannot outlive its code. # covers D-214"""
+    assert gate.SERVED_MAY_MEET
+    seen: dict[str, set[str]] = {}
+    for (declared, role), (places, _) in gate.SERVED_MAY_MEET.items():
+        for file, function in sorted(places or {("Language.swift", "-")}):
+            seen.setdefault(file, set()).add(f"main.<meets listed>.{declared}|{role}|{function}")
+    assert not [line for line in gate.unseen_permissions(seen) if "a served number may meet" in line]
+    (declared, role), (places, _) = sorted(gate.SERVED_MAY_MEET.items(), key=str)[0]
+    file, function = sorted(places or {("Language.swift", "-")})[0]
+    seen[file].discard(f"main.<meets listed>.{declared}|{role}|{function}")
+    assert [line for line in gate.unseen_permissions(seen) if f"`{declared}`" in line and "a served number may meet" in line]
