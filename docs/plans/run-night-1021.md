@@ -10,8 +10,8 @@
 Mode: light
 Started: 2026-10-21
 Ended: open
-Integration branch: none · PR: none
-Plan PR: none
+Integration branch: `integration/run-night-1021` · PR: #370
+Plan PR: #369
 Rulings: D-214
 
 <!-- `Ended:` is `open` while the run runs. When it ends: `<YYYY-MM-DD> — <why>`, where why is one
@@ -26,7 +26,7 @@ The queue in order (D-214): #367 first, filed at the run's first push (two CA ad
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | c4df42b | issues | running |
 
 <!-- Base: the integration-branch sha the milestone's first wave was cut from (`none` until it
      starts); the milestone Tester and the last wave's cross-wave review take their range from it. Status: `queued` ·
