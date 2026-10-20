@@ -1072,3 +1072,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `make gate` then found a third: macOS 27's `sort` collates by locale, so the Swift manifest (byte order) stopped matching the discovered list on an unchanged suite. The Makefile now sorts with `LC_ALL=C`, and a test holds both sides to byte order.
 - Neither fix can be committed green without the other, so both ship in one PR. Every gate change was escalated, and the owner approved each one in session.
 - **Lesson:** an OS or Xcode upgrade changes every test and gate that reads a framework's output; run `make check` in the first session after one, before any other work.
+
+## 2026-10-20 — fix/issue-361-instruction-naming-an-ai: an instruction that names an AI no longer gets a ranking (#361)
+
+- Before any change, the issue's remedy was probed on macOS 27 (AFM 3 Core Advanced): the model labelled 9 of 10 instruction texts that name an AI as `model search`, so carrying its `instruction attempt` through the boundary alone would have fixed almost nothing.
+- Two parts. The model is told that saying what to say about a named model, or where to rank it, is an instruction attempt. `ModelOutputBoundary` then carries that kind on the outcome, and the AI-name rule no longer overrides it. Only the boundary sets the flag, and it never reaches the engine.
+- Measured question by question against `main` on the same OS: m24 154 → 156 of 173 (4 fixed, 2 broken, p = 0.69; not a search 51 → 55, searches 103 → 101), golden 43 → 44 of 49; all 10 probe instructions are no longer searches, and the 3 real searches that name an AI stay searches.
+- The macOS 27 baseline (154) is new: the same code read 139 on macOS 26. Every measurement from now on compares on one OS.
+- Lesson: test an issue's remedy against the model of the day before writing it; an OS upgrade can move the failure from the code to the model.
