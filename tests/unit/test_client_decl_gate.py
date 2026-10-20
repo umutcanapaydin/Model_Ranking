@@ -1028,3 +1028,48 @@ def test_a_store_entry_is_seen_only_by_its_own_declaration() -> None:
     found = {"FrontDoor.swift": store - {"Foundation.URL.appendingPathComponent"}, **ENGINE_CLIENT_SHIPPING}
     missing = gate.unseen_permissions(found)
     assert any("FrontDoor.swift" in line and "`URL.appendingPathComponent`" in line for line in missing), missing
+
+
+# --- #242 (D-214 clause 1): the deny-lists become allowlists, and nothing is loosened -----------------------------
+
+
+def _pinned(release: bool = True) -> list[str]:
+    pinned = gate.pinned_refusals(release)
+    assert pinned, f"{gate.PINNED_REFUSALS.name} is missing, empty or malformed"
+    return pinned
+
+
+def test_the_fixture_still_refuses_everything_it_refused_before_242() -> None:
+    """#242 (D-214 clause 1): every refusal the fixture made before #242 (183, the committed dump, the simulator's
+    Release configuration) is pinned, and every one is still made: an allowlist may refuse more than the deny-list
+    it replaces, never less. The self-test asks the same of all four configurations. # covers D-214"""
+    found = gate.references(FLOW_AST)
+    made = set(gate.problems(found)) | set(gate.release_problems(found))
+    pinned = _pinned()
+    assert len(pinned) == 183, len(pinned)
+    assert len(_pinned(release=False)) == 182, "the Debug configurations make all but the Release-only hook's"
+    gone = [line for line in pinned if line not in made]
+    assert not gone, gone
+
+
+def test_the_self_test_fails_when_a_pinned_refusal_is_gone(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#242 (D-214 clause 1), watched failing: with one pinned refusal no longer made, the self-test names it in
+    every configuration; and with the pin missing, empty or malformed it fails closed. The committed dump stands
+    in for the compile, so this runs where there is no Xcode too. # covers D-214"""
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (FLOW_AST, 0))
+    assert gate.self_test() == []
+    dropped = _pinned()[0]
+    real = gate.problems
+    monkeypatch.setattr(gate, "problems", lambda found: [line for line in real(found) if line != dropped])
+    gone = [line for line in gate.self_test() or [] if "is gone" in line and line.endswith(dropped)]
+    assert len(gone) == len(gate.CONFIGURATIONS), gone
+    monkeypatch.setattr(gate, "problems", real)
+    for name, content in (("missing.txt", None), ("empty.txt", ""), ("malformed.txt", "sometimes\tx\n"),
+                          ("untabbed.txt", "all x\n")):
+        pin = tmp_path / name
+        if content is not None:
+            pin.write_text(content, encoding="utf-8")
+        monkeypatch.setattr(gate, "PINNED_REFUSALS", pin)
+        broken = gate.self_test() or []
+        assert len([line for line in broken if "missing, empty or malformed" in line]) == len(gate.CONFIGURATIONS), (
+            name, broken)

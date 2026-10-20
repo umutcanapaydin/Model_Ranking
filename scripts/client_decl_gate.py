@@ -518,6 +518,12 @@ FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
 #: The fixture's dump as committed, which the flow tests read where there is no Xcode. The self-test
 #: compares it with the fixture's compile (the second W2 review's K1); `--snapshot` writes it again.
 SNAPSHOT = ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt"
+#: #242 (D-214 clause 1, no loosening): every refusal the fixture made before #242 turned the deny-lists into
+#: allowlists, one per line: `all` or `release` (the Release configurations only), a tab, the refusal. The
+#: self-test fails in any configuration that no longer makes one of them, so a rule rewritten as an allowlist
+#: cannot refuse less than the list it replaced. Lines are added, never removed; the fixture is extended at
+#: the end of a file, so no pinned line moves.
+PINNED_REFUSALS = ROOT / "tests" / "unit" / "data" / "client_decl_refusals_before_242.txt"
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
@@ -2338,6 +2344,34 @@ def _snapshot_drift(ast: str) -> list[str]:
             f"{len(set(refused_kept) - set(refused_now))} gone); write it again with `--snapshot`"]
 
 
+def pinned_refusals(release: bool) -> list[str] | None:
+    """#242 (D-214): the refusals `PINNED_REFUSALS` holds for a Release or a Debug configuration, or None when
+    the file is missing, empty or has a line of another shape, which fails the self-test (fail closed)."""
+    try:
+        lines = PINNED_REFUSALS.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    pinned: list[str] = []
+    for line in lines:
+        scope, tab, refusal = line.partition("\t")
+        if not tab or scope not in ("all", "release") or not refusal.strip():
+            return None
+        if scope == "all" or release:
+            pinned.append(refusal)
+    return pinned or None
+
+
+def _pin_broken(label: str, refused: list[str]) -> list[str]:
+    """#242 (D-214 clause 1): each pinned refusal one configuration no longer makes."""
+    pinned = pinned_refusals("release" in label)
+    if pinned is None:
+        return [f"({label}) {PINNED_REFUSALS.name} is missing, empty or malformed, so nothing holds that the gate "
+                "refuses what it refused before #242 (D-214)"]
+    made = set(refused)
+    return [f"({label}) a refusal the fixture made before #242 is gone (D-214, no loosening): {line}"
+            for line in pinned if line not in made]
+
+
 def self_test() -> list[str] | None:
     """#51: the gate on its compiled fixture, in every configuration it reads (#175 R3). What it failed
     to refuse, or allowed wrongly; empty when it behaves; None where there is no toolchain."""
@@ -2358,6 +2392,7 @@ def self_test() -> list[str] | None:
             expected |= FIXTURE_RELEASE_REFUSALS
         if index == 0:
             broken += _snapshot_drift(ast)
+        broken += _pin_broken(label, refused)
         broken += [f"({label}) {file}: {phrase} was not refused" for file, phrase in sorted(expected)
                    if not any(line.startswith(f"{file}:") and phrase in line for line in refused)]
         broken += [f"({label}) refused what it must allow: {line}" for line in refused
