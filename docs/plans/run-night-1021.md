@@ -20,7 +20,7 @@ Rulings: D-214
      (`/log-decision`, each with its `Owner ruling:` line); `none` when every question took its
      default. -->
 
-The queue in order (D-214): #242, the compiled client gate's deny-lists become allowlists, with nothing loosened; then #355, m25 judging once on the final integration head. Questions the run meets that are reversible and outside a ⛔ zone take their most conservative answer in `docs/plans/assumptions-night-1021.md`.
+The queue in order (D-214): #367 first, filed at the run's first push (two CA advisories made `deps` refuse every push); then #242, the compiled client gate's deny-lists become allowlists, with nothing loosened; then #355, m25 judging once on the final integration head. Questions the run meets that are reversible and outside a ⛔ zone take their most conservative answer in `docs/plans/assumptions-night-1021.md`.
 
 ## Milestones, in order
 
@@ -39,6 +39,7 @@ The queue in order (D-214): #242, the compiled client gate's deny-lists become a
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
+| issue-367 | fix/issue-367-ca-bundle | #368 | none | stacked |
 | issue-242 | enhancement/issue-242-allowlists | none | none | queued |
 | issue-355 | none | none | none | queued |
 
