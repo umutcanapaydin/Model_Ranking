@@ -402,3 +402,19 @@ extension ContentView {
         client.ask(typed)
     }
 }
+
+// #242 (G-12, the M21-W3 review's round 2, B3): a value, a class or a selector reached by name through declarations
+// the by-name list did not name: key-value coding through the collections' overrides and `setValuesForKeys(_:)`, a
+// class by name from the bundle, and the target-and-selector APIs. REFUSED, each, matched by its argument label or
+// as a class-by-name entry point.
+func fixtureViewByName(_ typed: String, _ list: NSArray, _ table: NSDictionary, _ set: NSSet, _ object: NSObject) -> [Any?] {
+    object.setValuesForKeys([typed: typed])
+    return [list.value(forKey: typed), table.value(forKey: typed), set.value(forKey: typed),
+            Bundle.main.classNamed(typed), Bundle.main.principalClass]
+}
+
+func fixtureViewTargets(_ target: NSObject, _ named: Selector) {
+    NotificationCenter.default.addObserver(target, selector: named, name: nil, object: nil)
+    _ = Timer(timeInterval: 1, target: target, selector: named, userInfo: nil, repeats: false)
+    _ = Thread(target: target, selector: named, object: nil)
+}

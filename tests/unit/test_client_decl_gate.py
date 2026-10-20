@@ -1179,3 +1179,30 @@ def test_242_the_screens_own_requests_arguments_are_not_refused_by_the_argument_
     assert 213 in span and not own, own
     # A default the caller did not write (`session:`) is not an argument it passed.
     assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "the `session` argument" in line]
+
+
+@pytest.mark.parametrize("declared", [
+    "Foundation.NSObject.setValuesForKeys", "Foundation.NSArray.value(forKey:", "Foundation.NSDictionary.value(forKey:",
+    "Foundation.NSSet.value(forKey:", "Foundation.Bundle.classNamed", "Foundation.Bundle.principalClass",
+    "Foundation.NotificationCenter.addObserver(_:selector:name:object:",
+    "Foundation.Timer.init(timeInterval:target:selector:userInfo:repeats:", "Foundation.Thread.init(target:selector:object:",
+])
+def test_242_a_value_a_class_or_a_selector_by_name_is_refused_by_its_label(declared: str) -> None:
+    """#242 (G-12, INV-62; the M21-W3 review's round 2, B3): `BY_NAME` matched by owner type and name, so key-value
+    coding through the collections' overrides and `setValuesForKeys(_:)`, a class by name from the bundle, and the
+    target-and-selector APIs passed. Each is refused, by its argument label or as a class-by-name entry point.
+    # covers D-214, D-126"""
+    assert _refused_in("ContentView.swift", f"`{declared}` reaches a value, a class or a selector by name")
+
+
+def test_242_a_codable_containers_key_and_the_stores_resource_keys_are_not_refused_by_name() -> None:
+    """#242 (G-12): the labels the by-name rule reads are also a Codable container's (`decode(_:forKey:)`) and the
+    standings store's resource keys (#314); `BY_NAME_ALLOWED` admits those, each with its reason, and every entry
+    is seen on the shipping client or reported. # covers D-214"""
+    shipping = {"Models.swift": {"Swift.KeyedDecodingContainer.decode(_:forKey:", "Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:"},
+                "StandingsStore.swift": {"Foundation.URL.resourceValues(forKeys:"}}
+    assert not [line for line in gate.problems(shipping) if "by name" in line]
+    assert not [line for line in gate.unseen_permissions(shipping) if "by-name" in line]
+    shipping["Models.swift"].discard("Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:")
+    assert [line for line in gate.unseen_permissions(shipping) if "by-name" in line and "decodeIfPresent" in line]
+    assert gate.problems({"Models.swift": {"Swift.KeyedEncodingContainer.encode(_:forKey:"}}), "an unlisted label passed"
