@@ -688,6 +688,12 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "code a privacy sink runs, references"),
     ("StandingsStore.swift", "`Foundation.Bundle.main` is not on the list of Foundation declarations"),
     ("StandingsStore.swift", "`Foundation.Bundle.object(forInfoDictionaryKey:` is not on the list of Foundation declarations"),
+    # #242 (G-11): an unlabelled argument, an initialiser's and a subscript's into the engine client, each read; and
+    # the unlabelled member the screen may not reach.
+    ("ContentView.swift", "the argument 0 (unlabelled) of `EngineClient.ask`"),
+    ("ContentView.swift", "the `asking` argument of `EngineClient.init(asking:)`"),
+    ("ContentView.swift", "the `asking` argument of `EngineClient.subscript(asking:)`"),
+    ("ContentView.swift", "reaches `EngineClient.ask`"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -736,6 +742,8 @@ FIXTURE_RULES: dict[str, str] = {
     "a constant a sink reads": "reads `fixtureWidened`, a constant",
     "what the code a sink runs references": "references `Foundation.Calendar.current`",
     "each sink's own Foundation list": "`Foundation.Bundle.main` is not on the list of Foundation declarations",
+    # #242 (G-11).
+    "every argument into the engine client": "the argument 0 (unlabelled) of `EngineClient.ask`",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -2040,6 +2048,41 @@ def _request_call(node: _Node) -> list[str]:
     return found
 
 
+#: #242 (G-11): a call into the engine client, a member of an extension of it included: a method, printed with its
+#: labels or (all `_`) without them, an initialiser or a subscript.
+ENGINE_MEMBER = re.compile(r'decl="main\.\(file\)\.(EngineClient(?: extension)?\.\w+(?:\([^)"]*\))?)@')
+
+
+def _engine_arguments(node: _Node) -> list[str]:
+    """#242 (G-11, INV-64; the backlog-gates review's K1): every argument of a call into the engine client, labelled
+    or not, an initialiser's and a subscript's included, that `REQUEST_ARGUMENTS` does not name with its declared
+    source, keyed by its label or, unlabelled, by its position (`#0`). The labelled arguments of a request method
+    `_request_call` reads are left to it."""
+    if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list":
+        callee = _top(node.kids[0])
+        head = callee.kids[0] if callee.kind in ("dot_syntax_call_expr", "constructor_ref_call_expr") and callee.kids \
+            else callee
+        listed: _Node | None = node.kids[1]
+        judged = callee.kind == "dot_syntax_call_expr" and REQUEST_CALL.search(head.line) is not None
+    elif node.kind == "subscript_expr":
+        head, listed, judged = node, next((kid for kid in node.kids if kid.kind == "argument_list"), None), False
+    else:
+        return []
+    if listed is None or " implicit" in listed.line or (member := ENGINE_MEMBER.search(head.line)) is None:
+        return []
+    method, found = member.group(1).replace(" extension.", "."), []
+    for index, argument in enumerate(kid for kid in listed.kids if kid.kind == "argument"):
+        label = ARGUMENT_LABEL.match(argument.line)
+        # A default the caller did not write is the engine client's own value, not an argument.
+        if (label is not None and judged) or (argument.kids and argument.kids[0].kind == "default_argument_expr"):
+            continue
+        key = label.group(1) if label is not None else f"#{index}"
+        allowed, named = REQUEST_ARGUMENTS.get((method, key)), _named(argument)
+        if allowed is None or (named and named != {allowed}):
+            found.append(f"main.<engine argument>.{method}|{key}|{', '.join(sorted(named)) or 'a value'}@{_line(node)}")
+    return found
+
+
 def _request_value(node: _Node) -> list[str]:
     """The review's B2: an engine request method referred to anywhere but as the direct callee of a call
     (`let ask = client.recommendation`) carries arguments `_request_call` never sees."""
@@ -2098,7 +2141,7 @@ def request_facts(ast: str) -> dict[str, set[str]]:
                     declared_at[path] = f"{pathlib.Path(decl_file).name}:{decl_line}:{decl_col}"
             found = _request_source(node) + ([] if file == NETWORK_FILE else _request_call(node))
             if file != NETWORK_FILE:
-                found += _request_value(node)
+                found += _request_value(node) + _engine_arguments(node)
             facts.setdefault(file, set()).update(found)
     for held, sources in REQUEST_SOURCES.items():
         if sources is None and held in declared_at and not _literal_let(roots, declared_at[held]):
@@ -2246,6 +2289,12 @@ def _request_problem(name: str, symbol: str) -> str | None:
         method, label, named = detail.split("|")
         return (f"{name}:{line}: the request's `{label}` argument to `{method}` names {named}; a request "
                 "carries only its declared sources, never what the screen builds (INV-64, D-126; #174, #188)")
+    if fact == "<engine argument":
+        method, key, named = detail.split("|", 2)
+        which = f"argument {key[1:]} (unlabelled)" if key.startswith("#") else f"`{key}` argument"
+        return (f"{name}:{line}: the {which} of `{method}` names {named}; every argument of a call into the engine "
+                "client, labelled or not, an initialiser's and a subscript's included, carries only the declared source "
+                "`REQUEST_ARGUMENTS` names for it (INV-64, D-126; G-11, #242)")
     if fact == "<request source":
         held, how = detail.split("|")
         return (f"{name}:{line}: assigns `{held}` ({how}) from something other than its declared source; it "

@@ -1177,3 +1177,5 @@ def test_242_the_screens_own_requests_arguments_are_not_refused_by_the_argument_
     own = [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith("ContentView.swift:")
            and "#242" in line and "REQUEST_ARGUMENTS" in line and int(line.split(":")[1]) in (210, 213)]
     assert 213 in span and not own, own
+    # A default the caller did not write (`session:`) is not an argument it passed.
+    assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "the `session` argument" in line]
