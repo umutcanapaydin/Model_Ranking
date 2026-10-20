@@ -3,6 +3,9 @@
 //  dropped and never acted on. Tested without the model, on every machine, as the surface is.
 
 import XCTest
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 @testable import ModelRankingEngine
 
@@ -102,6 +105,17 @@ final class RefinementBoundaryTests: OfflineTestCase {
         #endif
     }
 
+    func testTheModelReadsWithGreedyDecoding() {
+        // #351: with the framework's default (random) sampling the same 173 questions moved by 3 to 7
+        // rows between identical runs, so no change to the instructions could be told from noise.
+        // Greedy decoding reads one question the same way every time on one model version.
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *) {
+            XCTAssertEqual(ModelRouter.options, GenerationOptions(sampling: .greedy))
+        }
+        #endif
+    }
+
     func testTheModelsSchemaOffersExactlyTheDeclaredChoicesAndNothingElse() throws {
         // Security pass S1: the text pins held that the closed sets were PRESENT, not that the
         // schema holds nothing else. Read from the schema itself, as the model receives it, so an
@@ -128,7 +142,9 @@ final class RefinementBoundaryTests: OfflineTestCase {
                 }
             }
             XCTAssertEqual(try offered("surface"), served + [ModelOutputBoundary.declineSentinel])
-            XCTAssertEqual(try offered("request"), ["a model search", "something else"])
+            // D-213: the search and five named kinds of non-search, nothing else.
+            XCTAssertEqual(try offered("request"), ["model search", "task itself", "fact question", "app question",
+                                                    "small talk", "instruction attempt"])
             // M18-W3 (review M6): the verdict is generated LAST. First, it moved questions about
             // documents to other surfaces on the tuning set (16 to 10 of 16).
             XCTAssertEqual(root["x-order"] as? [String], ["surface"] + RefinementKind.allCases.map(\.rawValue) + ["request"])

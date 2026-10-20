@@ -218,3 +218,27 @@ def test_the_ten_percent_brain_question_is_disputed_between_factuality_and_exper
     assert _ruled_disputed(before, BRAIN_MYTH) == [
         "it is not disputed", "its reason does not name factuality", "its reason does not name expert",
         "it is still a known miss (#294)"]
+
+
+def _person(**extra: Any) -> dict[str, Any]:
+    return {"question": "summarise my lease for me", "language": "en", "expected_surface": "document",
+            "disputed": False, **extra}
+
+
+def test_a_not_a_search_row_names_its_class() -> None:
+    """D-211 clause 2: a row the owner's ruling reads as not a search names its class; anything else fails."""
+    golden.check_entry(_person(not_a_search="the task itself"), 0)
+    golden.check_entry(_person(not_a_search="a question of fact"), 0)
+    for bad in ("", True, "a greeting"):
+        with pytest.raises(golden.GoldenError, match="not_a_search"):
+            golden.check_entry(_person(not_a_search=bad), 0)
+
+
+def test_the_rows_of_the_owners_two_classes_are_marked_not_a_search() -> None:
+    """D-211 clause 2, on the committed set: the task itself and a question of fact are marked."""
+    rows = {r["question"]: r for r in json.loads(
+        (pathlib.Path(__file__).resolve().parents[2] / "ios/EngineTests/Golden/golden-questions.json")
+        .read_text(encoding="utf-8"))}
+    assert rows["kira kontrat\u0131m\u0131 okuyup bana \u00f6zet \u00e7\u0131kar"].get("not_a_search") == "the task itself"
+    assert rows["why does a mitochondrion have its own DNA"].get("not_a_search") == "a question of fact"
+    assert "not_a_search" not in rows["which ai is best at fixing bugs in a large java project"]

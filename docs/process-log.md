@@ -1034,3 +1034,32 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Shown where the product stands against its goals, the owner set four Golden Rules as the project's backbone: every source used lawfully, every question understood by an AI model (Apple Intelligence, or another LLM), the most correct list for every question (composed by an LLM when no board ranks it), and no empty work.
 - D-210 records them with the v1 order and the owner's two answers: Apple Intelligence in every case, another LLM only where it is missing; an LLM-composed list takes every number from our boards (D-104 stands).
 - Lesson: measure the product against the owner's goals at every run's end, not only the queue; a queue of green fixes can drift from what the product is for.
+
+## 2026-10-20 · fix/issue-348-smoke-short-source — "no eligible model" says what it was computed from
+
+- The real-data recommend smoke once failed with `no eligible model for this budget` (low, assistant) and passed on a rerun; a source that came back short and a budget that truly excludes everything printed the same line.
+- The owner chose the remedy in run night-351's decisions message (D-212 clause 1): the CLI's answer now carries `evidence` -- the models the task ranks, how many have a price, and the rows each score and price source gave. The workflow is unchanged, so no owner patch is owed.
+- Red test `tests/unit/test_recommend.py::test_no_eligible_model_says_what_the_evidence_held` first. review-need: none.
+- Lesson: a smoke that can fail on upstream data should print the data it judged, or its red reads as a defect.
+
+## 2026-10-20 · enhancement/issue-351-apple-intelligence — Apple Intelligence measured, then raised: 107-111 to 139 of m24's 173
+
+- `make model-tier` scores the on-device model for the first time, beside the wording tier, and keeps every question's row so two runs compare by an exact McNemar test.
+- Raised on m24 (tuning): the request paragraph by D-169/D-211, surface descriptions, greedy decoding (one answer per question on one model version; two runs agree on every row), and the verdict naming the kind of a non-search (D-213). Searches 81-85 to 88 of 112; non-searches caught 23-27 to 51 of 61.
+- The owner's three research reports were read against each other; the named kinds had been tried on #66 under the old line, so they were measured before the ADR, and kept on 8 non-searches fixed and none broken.
+- The glow is on while Apple Intelligence is available and livelier while it reads. Retrieved examples (#353), prewarm (#354) and the m25 verdict (#355) are their own issues.
+- Lesson: on a small model, fix the decoder before the prompt; with random sampling the 3-7 row noise hid every change smaller than it.
+
+## 2026-10-20 · enhancement/issue-354-prewarm — the on-device model loads while the question is typed
+
+- When the question field gains focus and Apple Intelligence is available, the model tier prewarms a session with its instructions (`LanguageModelSession.prewarm()`); Apple asks for at least a second before the question, which typing gives. All three research reports: latency only.
+- The instructions moved, unchanged, into `ModelRouter.session(for:)`, so the prewarm and the reading build the same session; a measurement run confirmed no m24 or golden reading moved.
+- Red tests first (`PrewarmTests`), the recorder in the shared `TierStubs.swift`. REQ-APP-007's evidence names them.
+- Lesson: a stub belongs where the suite's rule says, even for one test; the shared-stubs pin caught it at the first commit.
+
+## 2026-10-20 · integration/run-night-351 — run night-351: #351 raised to 139 of 173, #348, #354; #353 and #355 stopped
+
+- Stacked on #357, in order: #352 (#351, Apple Intelligence measured and raised; D-213), #358 (#348), #360 (#354). The owner's four answers are D-212.
+- Stopped: #353 at a control change (the retrieved examples gave 152 of m24's 173, p = 0.015, but sorting the example pool in a client file needs an exemption in Ruling A's two pins), #355 at the environment (m25, 511 rows, written and sealed; it judges on macOS 27).
+- Twelve tracked paths vanished from the first work tree while a subagent's post-edit hook and a commit's check ran at once in it (#359); two were under `.claude/`, which the agent may not restore, so the run moved to fresh trees, with `advisor.db` copied into them (assumption 4).
+- Lesson: in a run, subagents that write files run their hooks in the coordinator's tree; give them no Write tool there, or one tree each, before the first check overlaps.

@@ -49,7 +49,9 @@ TOP = 3
 SIZE = (30, 50)
 LANGUAGES = {"en", "tr"}
 #: Written by a person, kept as they are, in this order.
-HUMAN_FIELDS = ("question", "language", "expected_surface", "disputed", "reason", "known_miss")
+HUMAN_FIELDS = ("question", "language", "expected_surface", "disputed", "reason", "known_miss", "not_a_search")
+#: D-211 clause 2: the owner's two classes of input that get the note, not a ranking.
+NOT_A_SEARCH_CLASSES = ("the task itself", "a question of fact")
 #: Written by this script, in this order.
 DERIVED_FIELDS = ("expected_top3", "expected_top3_names", "top3_disputed", "top3_reason")
 
@@ -149,6 +151,8 @@ def check_entry(entry: Mapping[str, Any], index: int) -> None:
         raise GoldenError(f"{where}: a disputed question says why (reason)")
     if "known_miss" in entry and (entry["disputed"] or not isinstance(entry["known_miss"], int)):
         raise GoldenError(f"{where}: known_miss is an issue number, on a question that is not disputed")
+    if "not_a_search" in entry and entry["not_a_search"] not in NOT_A_SEARCH_CLASSES:
+        raise GoldenError(f"{where}: not_a_search names one of {list(NOT_A_SEARCH_CLASSES)} (D-211)")
     unknown = set(entry) - set(HUMAN_FIELDS) - set(DERIVED_FIELDS)
     if unknown:
         raise GoldenError(f"{where}: unknown fields {sorted(unknown)}")
