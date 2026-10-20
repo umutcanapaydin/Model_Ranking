@@ -5567,3 +5567,22 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A sixth value, or a free one, would let the model say something the boundary does not map: the schema test fails. If m25 shows searches lost to the kinds, the kinds' meanings are narrowed, or this ADR is superseded.
 
 **Revisit when:** m25 judges (#355), or a new on-device model (OS 27) is measured.
+
+---
+
+## D-214 — Run night-1021's rulings: #242's allowlists never loosen, and m25 judges last and closes on its bar
+
+**Status:** proposed
+**Owner ruling:** 2026-10-21, in chat, for run night-1021
+
+**Context.** On 2026-10-20 the owner re-assessed the open queue against the Golden Rules (D-210) after the macOS 27 upgrade: four issues closed, #242 kept at the end of the queue, #265 waits on a new Hugging Face token, and the eight guard issues wait on the owner's bundle. #361 merged in #366. The owner then opened a night run over what the agent can work, with m25 (#355) last. The run's decisions message asked two questions, and the owner took the recommended answer to each.
+
+**Decision.**
+1. **#242 runs tonight, under one rule: no loosening.** The compiled client gate's deny-lists (sinks, served numbers, the request surface, the by-name set, the stores' URLs: #242's triage, five slices) become allowlists. Every input the gate refuses today is still refused (a test holds the fixture's refusals before against after), and every twin #242 names is refused. An allowlist entry for the app's own code names its reason. The Security-Reviewer reviews the change, whatever `make review-need` says. A slice not finished by morning stays a stop for the owner, never a weaker rule.
+2. **m25 judges last, once,** on the run's final integration head: the model tier, greedy, recording the OS build and `SystemLanguageModel.default.variant`. #351's bar (D-212 clause 3): at least 80% of searches and 80% of non-searches read right, on the observed rates, with the Wilson interval beside them. Met → #351 and #355 close with the result. Not met → the result is recorded, both stay open, and nothing is tuned on m25's rows.
+
+**Rationale.** The owner's answers. A gate that guards D-160 must not be weakened to be rewritten (1). m25 is held out once, so it judges the build that ships, and what it shows is final for this round (2).
+
+**Mitigation if violated:** An allowlist that refuses less than the deny-list did would open a hole the reviews already closed: the before/after test fails. Tuning on m25 would spend the held-out set: a new one is written.
+
+**Revisit when:** m25 has judged, or the next review plants a twin that the allowlists pass.
