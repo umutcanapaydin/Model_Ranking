@@ -508,6 +508,30 @@ def test_a_declaration_printed_with_its_header_is_read_by_every_rule_that_reads_
         assert match.group(1) == name
 
 
+@pytest.mark.parametrize(("offline", "dropped"), [("1", True), (None, False)])
+def test_the_compilers_sandbox_is_dropped_only_inside_the_offline_run(
+        monkeypatch: pytest.MonkeyPatch, offline: str | None, dropped: bool) -> None:
+    """#363: inside `scripts/offline.sb` the `@State` macro's plugin cannot start its own sandbox, so
+    the dump drops it there, and only there."""
+    calls: list[list[str]] = []
+
+    class _Done:
+        stdout, stderr, returncode = "/sdk\n", "", 0
+
+    def run(argv: list[str], **_: object) -> _Done:
+        calls.append(argv)
+        return _Done()
+
+    if offline is None:
+        monkeypatch.delenv("MODEL_RANKING_REQUIRE_OFFLINE", raising=False)
+    else:
+        monkeypatch.setenv("MODEL_RANKING_REQUIRE_OFFLINE", offline)
+    monkeypatch.setattr(gate.shutil, "which", lambda _: "/usr/bin/xcrun")
+    monkeypatch.setattr(gate.subprocess, "run", run)
+    assert gate.dump_ast("iphonesimulator", []) == ("", 0)
+    assert ("-disable-sandbox" in calls[-1]) is dropped
+
+
 def test_the_committed_dump_is_the_fixture_as_it_compiles(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The second W2 review's K1: `g2_fixture_ast.txt` is a second copy of the fixture's compile, and
     nothing compared the two where Xcode runs. The self-test now does, and fails when they differ. The
@@ -619,7 +643,9 @@ def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not(
     refused = _refused_in("ContentView.swift", "#174, #188")
     # The two lines above, the M21-W3 review's four twins (B2) and round two's two key paths (#244): eight,
     # and the screen's own request, `apply`'s routed surface and `select`'s chosen one are not among them.
-    assert len(refused) == 8, refused
+    # #363 (owner, 2026-10-20): Swift 6.4 expands `@State` as a macro, and the four assignments its
+    # accessors make to `_task` are refused too: twelve. More refused, never fewer (fails closed).
+    assert len(refused) == 12, refused
 
 
 def test_a_request_argument_the_gate_does_not_know_is_refused() -> None:

@@ -152,12 +152,19 @@ final class RefinementBoundaryTests: OfflineTestCase {
     private enum SchemaShape: Error { case open(String), unknown }
 
     /// The closed choices of every field, read from the schema as the running OS encodes it (#362).
-    /// macOS 26 puts each field's set under `$defs.<field>` as an `anyOf` of fixed strings.
+    /// macOS 26 puts each field's set under `$defs.<field>` as an `anyOf` of fixed strings; macOS 27
+    /// writes it inline as the property itself, `{"type": "string", "enum": [...]}`, with no `$defs`.
+    /// Any other shape is refused, so reading two shapes lets no open field through.
     static func closedChoices(in root: [String: Any]) throws -> [String: [String]] {
-        guard let definitions = root["$defs"] as? [String: [String: Any]] else { throw SchemaShape.unknown }
-        return try definitions.reduce(into: [:]) { choices, entry in
-            guard let options = entry.value["anyOf"] as? [[String: Any]] else { throw SchemaShape.open(entry.key) }
-            choices[entry.key] = try options.flatMap { try fixedStrings(in: $0, entry.key) }
+        if let definitions = root["$defs"] as? [String: [String: Any]] {
+            return try definitions.reduce(into: [:]) { choices, entry in
+                guard let options = entry.value["anyOf"] as? [[String: Any]] else { throw SchemaShape.open(entry.key) }
+                choices[entry.key] = try options.flatMap { try fixedStrings(in: $0, entry.key) }
+            }
+        }
+        guard let properties = root["properties"] as? [String: [String: Any]] else { throw SchemaShape.unknown }
+        return try properties.reduce(into: [:]) { choices, entry in
+            choices[entry.key] = try fixedStrings(in: entry.value, entry.key)
         }
     }
 
