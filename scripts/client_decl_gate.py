@@ -474,6 +474,54 @@ ARITHMETIC_PERMITTED: dict[tuple[str, str, str | None], str] = {
     ("Uncertainty.swift", "fact", "distanceOutOf100"): "D-143: a fact's distance from the leader, out of 100 (#171)",
     ("Uncertainty.swift", "fact", "scoreOutOf100"): "D-143: a fact's score against the served anchor (#171)",
 }
+#: #242 (G-2, INV-76): what a served number may meet, by the declaration of another module the compiler resolves
+#: and the number's role there (`receiver` or `argument`), each with its reason. `None` admits it in any file; a
+#: set admits it only in those `(file, function)` places (measured on the shipping client, the four
+#: configurations, 2026-10-21). Anything else a served number meets, outside the places `ARITHMETIC_PERMITTED`
+#: names, is refused (`_meets`), so a new operation on one is a reviewed edit; every entry, in every place it
+#: names, is seen on the shipping client or reported. The arithmetic rule still judges the operators and numeric
+#: methods it names; this rule judges every other declaration. What the app's own code does with a served number
+#: is followed by `_Flow` and judged where it meets one of these.
+_Places = frozenset[tuple[str, str]] | None
+SERVED_MAY_MEET: dict[tuple[str, str], tuple[_Places, str]] = {
+    # A test reads a number and changes none (a comparison operator is admitted by rule, `SERVED_MAY_MEET_BY_RULE`).
+    ("Swift.ClosedRange.contains", "argument"): (None, "a comparison: whether a range of the app's own holds it"),
+    ("Swift.Double.isFinite", "receiver"): (None, "a test: whether it is a number at all"),
+    # Display: the number written as it is.
+    ("Swift.DefaultStringInterpolation.appendInterpolation", "argument"): (None, "display: written into text"),
+    ("SwiftUICore.LocalizedStringKey.StringInterpolation.appendInterpolation", "argument"): (
+        None, "display: written into a localised text"),
+    ("Swift.String.init(_:", "argument"): (None, "display: the number as text"),
+    # Passed along unchanged: the flow follows what is passed (`_Flow`); a method that hands each element to a
+    # closure is admitted by rule (`SERVED_PASSES_ELEMENTS`).
+    ("Swift.??", "argument"): (None, "passed along: the served number, or a default of the app's own"),
+    ("Swift.Array.subscript(_:", "receiver"): (None, "passed along: an element of a list of served numbers"),
+    ("Swift.Sequence.sorted(", "receiver"): (None, "ordered, which `SORTS_PERMITTED` counts per file"),
+    # Only where the shipping client needs it, each place named.
+    ("Swift.Double.init(_:", "argument"): (frozenset({("Language.swift", "number")}),
+                                           "display: a whole count checked against the range a sentence may show"),
+    ("Swift.Int.init(_:", "argument"): (frozenset({("Language.swift", "wholeNumber")}),
+                                        "display: a number `rounded()` has shown to be whole, written without decimals"),
+    ("Swift.FloatingPoint.rounded(", "receiver"): (
+        frozenset({("Language.swift", "wholeNumber"), ("Router.swift", "money")}),
+        "display: whether a number is whole (`wholeNumber`), and a price of a dollar or more shown to the dollar "
+        "(`money`, REQ-CMP-002)"),
+    ("Foundation.NSNumber.init(value:", "argument"): (frozenset({("Scores.swift", "priceTag")}),
+                                                      "display: the price handed to its number formatter"),
+    ("Swift.Set.init(_:", "argument"): (frozenset({("AnswerPlan.swift", "-")}),
+                                        "counted: whether two rows share a place (a tie notice)"),
+}
+#: #242 (G-2): what a served number may meet by rule, whatever type declares it, each rule with its reason: a
+#: comparison operator of the standard library as an argument, which reads a number and changes none; and as a
+#: receiver, a count, an index range or a test for emptiness (`COUNTING`'s members) and `enumerated()`, which the
+#: M21-W3 review's M1 rules are not served numbers (how many there are, and a row number beside each). And
+#: `SERVED_PASSES_ELEMENTS`, read off the printed declaration as `HANDS_ELEMENTS` reads it.
+SERVED_MAY_MEET_BY_RULE: dict[str, tuple[str, re.Pattern[str]]] = {
+    # The owner is identifiers joined by single dots, so `Comparable...<`, a range, is no comparison.
+    "a comparison": ("argument", re.compile(r"^Swift\.(?:\w+(?:\.\w+)*\.)?(?:<|>|<=|>=|==|!=)$")),
+    "a count or a row number": ("receiver", re.compile(r"^Swift\.[\w.]+\.(?:count|indices|isEmpty|underestimatedCount|"
+                                                       r"startIndex|endIndex|enumerated\()$")),
+}
 #: A type the client decodes that the engine never sends: the phone's own record, kept on the phone.
 #: Every other decoded type is served, so a new one counts until it is named here, with its reason.
 NOT_SERVED = {
@@ -1766,7 +1814,9 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     for root in flow.roots:
         file = _file_of(root)
         for node, function in _scoped(root):
-            for fact in _arithmetic(node, flow, function):
+            arithmetic = _arithmetic(node, flow, function)
+            # #242 (G-2): what the arithmetic rule does not judge, the list of what a served number may meet does.
+            for fact in arithmetic or _meets(node, flow, file, function):
                 facts.setdefault(file, set()).add(fact)
             if (ordering := _ordering(node)) is not None:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
@@ -1815,6 +1865,75 @@ def _arithmetic(node: _Node, flow: _Flow, function: str | None) -> list[str]:
     line = place.group(2) if place else "?"
     return [f"main.<arithmetic>.{kind}@{line} {operator} in {function or '-'}"
             for kind in sorted(flow.carried(operands, closures=False))]
+
+
+#: #242 (G-2): what is never a served number's role: a closure, an implicit one, a key path.
+_NOT_AN_OPERAND = {"closure_expr", "autoclosure_expr", "keypath_expr"}
+
+
+#: #242 (G-2): a method that hands each element of a list of served numbers, unchanged, to a closure the flow
+#: follows (`HANDS_ELEMENTS`, `_Flow.closure`), or returns one of them as it is; admitted as the receiver. `min`,
+#: `max`, `reduce`, `drop`, `prefix` and `sorted` are not here: they choose, combine, cut or order.
+SERVED_PASSES_ELEMENTS = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(?:map|compactMap|flatMap|'
+                                    r'filter|forEach|contains|allSatisfy|first|last|firstIndex|lastIndex)' + _CALLED)
+
+
+def _operands(listed: _Node | None) -> list[_Node]:
+    return [argument.kids[0] for argument in (listed.kids if listed else []) if argument.kind == "argument" and argument.kids]
+
+
+def _application(node: _Node) -> tuple[_Node, list[_Node], list[_Node]] | None:
+    """#242 (G-2): `(the node that names the declaration, its receivers, its arguments)` for a call, a method call,
+    an initialiser, an operator, a property read or a subscript; None for any other node."""
+    if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list":
+        callee = _top(node.kids[0])
+        if callee.kind == "dot_syntax_call_expr" and callee.kids:
+            listed = next((kid for kid in callee.kids[1:] if kid.kind == "argument_list"), None)
+            return callee.kids[0], _operands(listed), _operands(node.kids[1])
+        if callee.kind == "constructor_ref_call_expr" and callee.kids:
+            return callee.kids[0], [], _operands(node.kids[1])
+        return (callee, [], _operands(node.kids[1])) if callee.kind == "declref_expr" else None
+    if node.kind in ("binary_expr", "prefix_unary_expr", "postfix_unary_expr") and len(node.kids) >= 2:
+        callee = _top(node.kids[0])
+        head = callee.kids[0] if callee.kind == "dot_syntax_call_expr" and callee.kids else callee
+        return head, [], _operands(node.kids[1])
+    if node.kind in ("member_ref_expr", "subscript_expr") and node.kids:
+        return node, [node.kids[0]], _operands(next((kid for kid in node.kids if kid.kind == "argument_list"), None))
+    return None
+
+
+def _served_operand(flow: _Flow, operand: _Node) -> set[str]:
+    """#242 (G-2): the served kinds an operand carries, when it is a number (or a list of them) and not a closure."""
+    typed = TYPE_OF["type"].search(operand.line)
+    if operand.kind in _NOT_AN_OPERAND or typed is None or "->" in typed.group(1) or not NUMERIC_TYPE.search(typed.group(1)):
+        return set()
+    return flow.carried(operand, closures=False)
+
+
+def _meets(node: _Node, flow: _Flow, file: str, function: str | None) -> list[str]:
+    """#242 (G-2, INV-76): a declaration of another module a served number meets, as its receiver or an argument:
+    `main.<meets listed>` when `SERVED_MAY_MEET` admits it there (a fact `unseen_permissions` reads), nothing in a
+    place `ARITHMETIC_PERMITTED` names, and `main.<meets>` to be refused otherwise."""
+    if (applied := _application(node)) is None:
+        return []
+    head, receivers, arguments = applied
+    if (named := DECL.search(head.line)) is None or named.group(1) == "main":
+        return []
+    declared, where, line = f"{named.group(1)}.{_symbol(named.group(2))}", function or "-", _line(node)
+    found: list[str] = []
+    for role, operands in (("receiver", receivers), ("argument", arguments)):
+        for kind in sorted(set().union(set(), *(_served_operand(flow, operand) for operand in operands))):
+            if _arithmetic_permitted(file, kind, where):
+                continue
+            if any(role == by and rule.match(declared) for by, rule in SERVED_MAY_MEET_BY_RULE.values()) or (
+                    role == "receiver" and SERVED_PASSES_ELEMENTS.search(head.line)):
+                continue
+            places, _ = SERVED_MAY_MEET.get((declared, role), (frozenset(), ""))
+            if places is None or (file, where) in places:
+                found.append(f"main.<meets listed>.{declared}|{role}|{where}")
+            else:
+                found.append(f"main.<meets>.{kind}@{line} {declared}|{role} in {where}")
+    return found
 
 
 def _operator_as_value(node: _Node) -> str | None:
@@ -2146,6 +2265,15 @@ def _flow_problem(name: str, symbol: str) -> str | None:
         what = "number" if kind == "number" else kind
         return (f"{name}:{line}: `{operator}` on a served {what}, a second scoring implementation; only the "
                 f"places a ruling names do arithmetic on one (REQ-APP-005; D-138, D-167, REQ-CMP-002)")
+    if fact == "<meets":
+        kind, _, where = subject.partition("@")
+        line, _, rest = where.partition(" ")
+        meeting, _, function = rest.rpartition(" in ")
+        declared, _, role = meeting.rpartition("|")
+        what = "number" if kind == "number" else kind
+        return (f"{name}:{line}: `{declared}` on a served {what} (its {role}) in `{function}`, which is not on the list "
+                "of what a served number may meet (`SERVED_MAY_MEET`: a comparison, its display, what passes it along "
+                "unchanged, and the places named there); a new one is a reviewed edit (REQ-APP-005, D-181, #242)")
     if fact == "<declares operator":
         operator, _, line = subject.partition("@")
         return (f"{name}:{line}: declares the operator `{operator}`, arithmetic no rule can follow; the client "
@@ -2197,6 +2325,16 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 if entry not in seen_runs]
     missing += [f"`{typed}` on the list of constant types a sink may read" for typed in sorted(SINK_CONSTANT_TYPES)
                 if typed not in seen_runs]
+    # #242 (G-2): what a served number may meet, in each place an entry names; an entry for any file, anywhere.
+    seen_meets = {(name, *fact.split(">.", 1)[1].rsplit("|", 2))
+                  for name, facts in found.items() for fact in facts if fact.startswith("main.<meets listed>.")}
+    for (declared, role), (places, _) in sorted(SERVED_MAY_MEET.items(), key=str):
+        wanted = [(file, function) for file, function in sorted(places)] if places is not None else [None]
+        for place in wanted:
+            if not any(d == declared and r == role and (place is None or (n, f) == place) for n, d, r, f in seen_meets):
+                at = f"{place[0]}: " if place else ""
+                missing.append(f"{at}`{declared}` as a {role}{f' in {place[1]}' if place else ''} on the list of what "
+                               "a served number may meet")
     # #322 (M2): the kept answers' allowed sides. Rename `keep`, the load path or a kept type, and its rule
     # matched nothing while the gate passed.
     seen_kept = {(name, fact.split(">.", 1)[1].rpartition("@")[0])
