@@ -129,3 +129,16 @@ def test_the_manifest_is_sorted_and_one_module(
     assert {ENTRY.match(line)["module"] for line in lines if ENTRY.match(line)} == {  # type: ignore[index]
         "ModelRankingEngineTests"
     }
+
+
+def test_the_manifest_and_the_discovered_list_are_sorted_in_one_locale_free_order() -> None:
+    """#363: macOS 27's `sort` collates by the user's locale (`testAn` before `testAP` in en_NZ), so
+    the manifest, written in byte order, stopped matching the discovered list on an unchanged suite.
+    Both sides are byte order: the manifest here, and every `sort` the Makefile runs on the list."""
+    lines = [line for line in MANIFEST.read_text(encoding="utf-8").splitlines() if line.strip()]  # raw: not Swift
+    assert lines == sorted(lines, key=lambda line: line.encode("utf-8")), "the manifest is not in byte order"
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")  # raw: not Swift
+    sorts = re.findall(r"--list-tests[^|\n]*\|\s*(\S+(?:\s+\S+)?)", makefile)
+    assert sorts, "the Makefile no longer sorts the discovered list: this test reads nothing"
+    assert all(found == "LC_ALL=C sort" for found in sorts), sorts
