@@ -630,6 +630,16 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "decodes `FixtureSurfacesShelf`, which holds a `Category`"),
     ("ContentView.swift", "in `ContentView.load(later:)`, outside the load path"),
     ("ContentView.swift", "in `FixtureElsewhere.ContentView.load()`, outside the load path"),
+    # #242 (G-1; the backlog-gates review round 2's K1): constants of an object's type, behind a widened type and of
+    # a Swift-module class, read by a sink and by a static `let`'s initialiser it runs; what the code a sink runs
+    # references off its list; and a declaration the standings store inherited from the engine client's list.
+    ("EngineClient.swift", "reads `fixtureWidened`, a constant"), ("EngineClient.swift", "reads `fixtureWidenedList`, a constant"),
+    ("EngineClient.swift", "reads `fixtureHeld`, a constant"), ("EngineClient.swift", "reads `fixtureSharedBuffer`, a constant"),
+    ("Detail.swift", "reads `fixtureSharedBuffer`, a constant"), ("Detail.swift", "code a privacy sink runs, references"),
+    ("Detail.swift", "references `Swift.ManagedBuffer.header`"), ("Detail.swift", "references `Foundation.Calendar.current`"),
+    ("ContentView.swift", "code a privacy sink runs, references"),
+    ("StandingsStore.swift", "`Foundation.Bundle.main` is not on the list of Foundation declarations"),
+    ("StandingsStore.swift", "`Foundation.Bundle.object(forInfoDictionaryKey:` is not on the list of Foundation declarations"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -674,6 +684,10 @@ FIXTURE_RULES: dict[str, str] = {
     # #322 (D-209 clause 5).
     "a kept answer decoded through an alias": "through the alias",
     "a decode through an existential": "an existential",
+    # #242 (G-1).
+    "a constant a sink reads": "reads `fixtureWidened`, a constant",
+    "what the code a sink runs references": "references `Foundation.Calendar.current`",
+    "each sink's own Foundation list": "`Foundation.Bundle.main` is not on the list of Foundation declarations",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -968,7 +982,8 @@ _LOCAL_KINDS = {"func_decl", "constructor_decl", "destructor_decl", "accessor_de
 
 
 #: #172 and the M21-W3 review's B1: process-wide state any file can set that the code a sink runs in
-#: another file could read, as a list; what it does not name is not held (G-1, #242).
+#: another file could read, as a list. Since #242 that code is also held to `SINK_RUNS_ALLOWED`, an allowlist, and
+#: this list still runs beside it, so nothing it refused is refused less.
 FOUNDATION_SHARED = re.compile(r'decl="(?:Foundation|Swift)\.\(file\)\.((?:Thread|OperationQueue|ProcessInfo|NSTimeZone|'
                                r'TimeZone\.(?:current|autoupdatingCurrent|default)|NSLocale|'
                                r'Locale\.(?:current|autoupdatingCurrent)|CommandLine|NotificationCenter|URLCache|'
@@ -976,40 +991,85 @@ FOUNDATION_SHARED = re.compile(r'decl="(?:Foundation|Swift)\.\(file\)\.((?:Threa
 #: The M21-W3 review's B1 (#242): the Foundation declarations the two privacy sinks' own files may
 #: reference, each by the path the compiler resolves. Any other declaration of these modules in a sink
 #: file is refused by absence, so a new one is a reviewed edit; an object reached through a listed
-#: declaration, or held behind a widened type, is not held (G-1). The code a sink runs in another file
-#: is checked against `FOUNDATION_SHARED` above, a list.
+#: declaration is not held (G-1). The code a sink runs in another file is checked against `SINK_RUNS_ALLOWED`
+#: and `FOUNDATION_SHARED`, and the constants it and the sink read against `SINK_CONSTANT_TYPES` (#242).
 #: `ObjectiveC` is on neither list (the M21 closure security seat's S6): it declares the whole runtime
 #: (`sel_registerName`, `object_*`, `ivar_*`), and the shipping client resolves nothing in it.
 SINK_MODULES = {"Foundation", "CoreFoundation", "Dispatch", "_DarwinFoundation1"}
-SINK_FOUNDATION_ALLOWED = frozenset({
-    "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
-    "Code.appTransportSecurityRequiresSecureConnection", "Code.dataNotAllowed", "Code.networkConnectionLost",
-    "Code.notConnectedToInternet", "Code.secureConnectionFailed", "Code.timedOut", "_BridgedStoredNSError.code",
-    # #363 (owner, 2026-10-20): `EngineClient.read`'s `data.append(byte)` (#56), unchanged; Swift 6.4
-    # binds it to Foundation's `Data.append`, where 6.3 bound the standard library's. A local buffer.
-    "Data.append",
-    "Data.count", "Data.init(", "Data.init(contentsOf:options:", "Data.reserveCapacity", "Data.write(to:options:",
-    "NSData.WritingOptions.atomic", "Date.init(", "Date.timeIntervalSince", "Error.localizedDescription",
-    "FileManager.SearchPathDirectory.cachesDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
-    "FileManager.createDirectory(at:withIntermediateDirectories:attributes:", "FileManager.default",
-    "FileManager.temporaryDirectory", "FileManager.urls(for:in:",
-    "HTTPCookie.AcceptPolicy.never", "HTTPURLResponse.statusCode",
-    "JSONDecoder.decode(_:from:", "JSONDecoder.init(", "JSONEncoder.encode", "JSONEncoder.init(",
-    "NSURLRequest.CachePolicy.reloadIgnoringLocalCacheData",
-    "URL.absoluteString", "URL.appendingPathComponent", "URL.appendingPathComponent(_:isDirectory:",
-    "URL.deletingLastPathComponent(", "URL.host", "URL.init(string:", "URL.isFileURL", "URL.made", "URL.decoded",
-    "URL.scheme", "URLComponents.init(url:resolvingAgainstBaseURL:", "URLComponents.queryItems",
-    "URLComponents.url", "URLQueryItem.init(name:value:", "URLRequest.url", "URLResponse.expectedContentLength",
-    "URLSession.AsyncBytes.makeAsyncIterator(", "URLSession.AsyncBytes.task", "URLSession.bytes(from:delegate:",
-    "URLSession.init(configuration:", "URLSessionConfiguration.ephemeral",
-    "URLSessionConfiguration.httpCookieAcceptPolicy", "URLSessionConfiguration.httpCookieStorage",
-    "URLSessionConfiguration.httpShouldSetCookies", "URLSessionConfiguration.requestCachePolicy",
-    "URLSessionConfiguration.timeoutIntervalForRequest", "URLSessionConfiguration.timeoutIntervalForResource",
-    "URLSessionTask.cancel(",
-    # #314 (D-209 clause 6): the kept answers' file is refused by its size before its bytes are read. A
-    # resource value of the store's own file URL; it reads no file content and reaches no network.
-    "URL.resourceValues(forKeys:", "URLResourceKey.fileSizeKey", "URLResourceValues.fileSize",
-})
+#: #242 (the backlog-gates review round 2's K1): one list per sink file, each entry seen on the shipping client or
+#: reported (`unseen_permissions`), so neither sink inherits what the other needs (measured on the shipping client,
+#: the four configurations, 2026-10-21). One shared list gave the standings store `URL.init(string:`, the session
+#: and the bundle's settings, which only the engine client uses.
+SINK_FOUNDATION_ALLOWED: dict[str, frozenset[str]] = {
+    "EngineClient.swift": frozenset({
+        "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
+        "Code.appTransportSecurityRequiresSecureConnection", "Code.dataNotAllowed", "Code.networkConnectionLost",
+        "Code.notConnectedToInternet", "Code.secureConnectionFailed", "Code.timedOut", "_BridgedStoredNSError.code",
+        # #363 (owner, 2026-10-20): `EngineClient.read`'s `data.append(byte)` (#56), unchanged; Swift 6.4 binds it
+        # to Foundation's `Data.append`, where 6.3 bound the standard library's. A local buffer.
+        "Data.append",
+        "Data.count", "Data.init(", "Data.reserveCapacity", "Error.localizedDescription",
+        "HTTPCookie.AcceptPolicy.never", "HTTPURLResponse.statusCode",
+        "JSONDecoder.decode(_:from:", "JSONDecoder.init(",
+        "NSURLRequest.CachePolicy.reloadIgnoringLocalCacheData",
+        "URL.absoluteString", "URL.appendingPathComponent", "URL.host", "URL.init(string:", "URL.made", "URL.scheme",
+        "URLComponents.init(url:resolvingAgainstBaseURL:", "URLComponents.queryItems", "URLComponents.url",
+        "URLQueryItem.init(name:value:", "URLRequest.url", "URLResponse.expectedContentLength",
+        "URLSession.AsyncBytes.makeAsyncIterator(", "URLSession.AsyncBytes.task", "URLSession.bytes(from:delegate:",
+        "URLSession.init(configuration:", "URLSessionConfiguration.ephemeral",
+        "URLSessionConfiguration.httpCookieAcceptPolicy", "URLSessionConfiguration.httpCookieStorage",
+        "URLSessionConfiguration.httpShouldSetCookies", "URLSessionConfiguration.requestCachePolicy",
+        "URLSessionConfiguration.timeoutIntervalForRequest", "URLSessionConfiguration.timeoutIntervalForResource",
+        "URLSessionTask.cancel(",
+    }),
+    "StandingsStore.swift": frozenset({
+        "Data.count", "Data.init(contentsOf:options:", "Data.write(to:options:", "NSData.WritingOptions.atomic",
+        "Date.init(", "Date.timeIntervalSince",
+        "FileManager.SearchPathDirectory.cachesDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
+        "FileManager.createDirectory(at:withIntermediateDirectories:attributes:", "FileManager.default",
+        "FileManager.temporaryDirectory", "FileManager.urls(for:in:",
+        "JSONDecoder.decode(_:from:", "JSONDecoder.init(", "JSONEncoder.encode", "JSONEncoder.init(",
+        "URL.appendingPathComponent", "URL.appendingPathComponent(_:isDirectory:", "URL.deletingLastPathComponent(",
+        "URL.isFileURL", "URL.made",
+        # #314 (D-209 clause 6): the kept answers' file is refused by its size before its bytes are read. A
+        # resource value of the store's own file URL; it reads no file content and reaches no network.
+        "URL.resourceValues(forKeys:", "URLResourceKey.fileSizeKey", "URLResourceValues.fileSize",
+    }),
+}
+#: #242 (G-1): every declaration of another module the code a privacy sink runs in another file may reference,
+#: matched whole, each with the body that needs it (measured on the shipping client, the four configurations,
+#: 2026-10-21). Any other, a Foundation object's shared state or a Swift-module class among them, is refused by
+#: absence, so a new one is a reviewed edit; each entry is seen on the shipping client or reported. It stands
+#: beside `FOUNDATION_SHARED`, which still runs.
+SINK_RUNS_ALLOWED: dict[str, str] = {
+    "Foundation.Data.count": "`FetchedStandings.init(payload:)` measures the engine's bytes against its ceiling",
+    "Foundation.JSONDecoder.decode(_:from:": "`FetchedStandings.init(payload:)` decodes the engine's bytes",
+    "Foundation.JSONDecoder.init(": "`FetchedStandings.init(payload:)` decodes the engine's bytes",
+    "Foundation.JSONEncoder.OutputFormatting.sortedKeys": "`FetchedStandings.init(payload:)` re-encodes what it decoded",
+    "Foundation.JSONEncoder.encode": "`FetchedStandings.init(payload:)` re-encodes what it decoded",
+    "Foundation.JSONEncoder.init(": "`FetchedStandings.init(payload:)` re-encodes what it decoded",
+    "Foundation.JSONEncoder.outputFormatting": "`FetchedStandings.init(payload:)` re-encodes what it decoded, keys sorted",
+    "Swift.Decoder.singleValueContainer(": "`JSONValue.init(from:)`, a served fact's decoding witness",
+    "Swift.SingleValueDecodingContainer.decode": "`JSONValue.init(from:)`, a served fact's decoding witness",
+    "Swift.SingleValueDecodingContainer.decodeNil(": "`JSONValue.init(from:)`, a served fact's decoding witness",
+    "Swift.Encoder.singleValueContainer(": "`JSONValue.encode(to:)`, a served fact's encoding witness",
+    "Swift.SingleValueEncodingContainer.encode": "`JSONValue.encode(to:)`, a served fact's encoding witness",
+    "Swift.SingleValueEncodingContainer.encodeNil(": "`JSONValue.encode(to:)`, a served fact's encoding witness",
+    "Swift.DefaultStringInterpolation.appendInterpolation":
+        "`UIText.engineAddress(_:_:)` and `FetchedStandings.init(payload:)` put their own values in text",
+    "Swift.DefaultStringInterpolation.appendLiteral":
+        "`UIText.engineAddress(_:_:)` and `FetchedStandings.init(payload:)` put their own values in text",
+    "Swift.Equatable.==": "`UIText.engineAddress(_:_:)` compares its language argument",
+    "Swift.Int.<=": "`FetchedStandings.init(payload:)` compares the payload's size with the ceiling",
+}
+#: #242 (G-1): the types of a constant (a `let` at file scope, or `static`) another file declares that a privacy
+#: sink, or the code it runs, may read. Each holds a value no other file can change; an object, or a value behind
+#: a widened type (`Any`, an array of objects, a struct holding one), is refused by absence. Each is seen on the
+#: shipping client or reported.
+SINK_CONSTANT_TYPES: dict[str, str] = {
+    "Int": "`FetchedStandings.init(payload:)` reads the engine client's `maxStandingsBytes`",
+    "String": "the standings store reads `KeptAnswers`' two route names",
+}
 #: A Swift standard-library type that holds process-wide state a sink may not read (B1).
 SINK_SWIFT_REFUSED = ("CommandLine",)
 #: The M21-W3 review's B1: a constant another file declares, at file scope or `static`, holds shared
@@ -1029,6 +1089,8 @@ class _SinkReach:
         self.lines: dict[tuple[str, str], list[int]] = {}
         self.members: dict[str, list[tuple[object, ...]]] = {}
         self.mutable: dict[tuple[str, int, int], str] = {}
+        #: #242 (G-1): every stored `let` at file scope or `static`, with its type.
+        self.constants: dict[tuple[str, int, int], tuple[str, str]] = {}
         self.protocols: set[str] = set()
         self.witnesses: list[tuple[object, ...]] = []
         self.classes = {m.group(2).split(".")[-1] for root in roots for node in root.walk()
@@ -1085,6 +1147,8 @@ class _SinkReach:
         shared = scope in ("source_file", "class_decl") or static
         if shared and ("writeImpl=stored" in node.line or closure or _holds_an_object(node.line, scope, self.classes)):
             self.mutable[key] = named.group(1)
+        elif (scope == "source_file" or static) and "readImpl=stored" in node.line and typed is not None:
+            self.constants[key] = (named.group(1), typed.group(1))
 
     def reached(self, node: _Node) -> Iterator[tuple[object, ...]]:
         """The bodies `node` calls or reads: by location, by the function's name and line, and every
@@ -1113,6 +1177,9 @@ class _SinkReach:
             (_file_of(root), f"main.<sink runs>.{_file_of(root)} uses {used.group(1)}@Foundation")
             for root in self.roots if _file_of(root) in SINK_FILES
             for item in root.walk() for used in FOUNDATION_SHARED.finditer(item.line)]
+        # #242 (G-1): a constant another file declares, read in a sink itself.
+        found += [fact for root in self.roots if _file_of(root) in SINK_FILES
+                  for fact in self.constant_reads(_file_of(root), "", root)]
         while queue:
             key = queue.pop()
             if key in seen or key not in self.bodies:
@@ -1127,8 +1194,46 @@ class _SinkReach:
                                     int(reference.group(4)))) in self.mutable]
             found += [(file, f"main.<sink runs>.{shown} uses {used.group(1)}@Foundation")
                       for item in node.walk() for used in FOUNDATION_SHARED.finditer(item.line)]
+            found += self.constant_reads(file, shown, node) + _sink_runs_references(file, shown, node)
             queue += list(self.reached(node))
         return found
+
+    def constant_reads(self, file: str, shown: str, node: _Node) -> list[tuple[str, str]]:
+        """#242 (G-1): each constant `node` reads that is not already refused as mutable: its type admitted by
+        `SINK_CONSTANT_TYPES` (a fact `unseen_permissions` reads) or refused. A sink's own constants are its own;
+        the code a sink runs in another file reads none but an admitted one, its own file's included."""
+        found: list[tuple[str, str]] = []
+        for item in node.walk():
+            for reference in FLOW_REF.finditer(item.line):
+                where = (pathlib.Path(reference.group(2)).name, int(reference.group(3)), int(reference.group(4)))
+                if where not in self.constants or where in self.mutable or (not shown and where[0] == file):
+                    continue
+                constant, typed = self.constants[where]
+                if typed.rstrip("?") in SINK_CONSTANT_TYPES:
+                    found.append((file, f"main.<sink reads constant type>.{typed.rstrip('?')}"))
+                else:
+                    found.append((file, f"main.<sink reads constant>.{shown}|{constant}|{typed}@{where[0]}"))
+        return found
+
+
+def _symbol(symbol: str) -> str:
+    """A resolved symbol as `references` records it: a member added in an extension under its type's name."""
+    symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
+    return re.sub(r"(^|\.)extension\.", r"\1", symbol).rstrip(".")
+
+
+def _sink_runs_references(file: str, shown: str, node: _Node) -> list[tuple[str, str]]:
+    """#242 (G-1): each declaration of another module the code a sink runs references: on `SINK_RUNS_ALLOWED` (a
+    fact `unseen_permissions` reads), or refused."""
+    found: list[tuple[str, str]] = []
+    for item in node.walk():
+        for module, symbol in DECL.findall(item.line):
+            if module == "main":
+                continue
+            declared = f"{module}.{_symbol(symbol)}"
+            found.append((file, f"main.<sink runs uses>.{declared}" if declared in SINK_RUNS_ALLOWED
+                          else f"main.<sink runs off list>.{shown}|{declared}"))
+    return found
 
 
 def sink_facts(ast: str) -> dict[str, set[str]]:
@@ -2082,6 +2187,16 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 for entry in sorted(allowed) if f"Foundation.{entry}" not in found.get(name, set())]
     missing += [f"{name}: `{entry}` on the engine client's list" for name, allowed in ENGINE_CLIENT_REACHABLE.items()
                 for entry in sorted(allowed) if f"main.{entry}" not in found.get(name, set())]
+    # #242 (the backlog-gates review round 2's K1, G-1): each sink's own Foundation list, what the code a sink runs
+    # may reference, and the constant types a sink may read.
+    missing += [f"{name}: `{entry}` on the sink's own list of Foundation declarations" for name, allowed in SINK_FOUNDATION_ALLOWED.items()
+                for entry in sorted(allowed) if not any(f"{module}.{entry}" in found.get(name, set()) for module in SINK_MODULES)]
+    seen_runs = {fact.split(">.", 1)[1] for facts in found.values() for fact in facts
+                 if fact.startswith(("main.<sink runs uses>.", "main.<sink reads constant type>."))}
+    missing += [f"`{entry}` on the list of what the code a sink runs may reference" for entry in sorted(SINK_RUNS_ALLOWED)
+                if entry not in seen_runs]
+    missing += [f"`{typed}` on the list of constant types a sink may read" for typed in sorted(SINK_CONSTANT_TYPES)
+                if typed not in seen_runs]
     # #322 (M2): the kept answers' allowed sides. Rename `keep`, the load path or a kept type, and its rule
     # matched nothing while the gate passed.
     seen_kept = {(name, fact.split(">.", 1)[1].rpartition("@")[0])
@@ -2140,6 +2255,17 @@ def _kept_problem(name: str, fact: str, subject: str) -> str | None:
         body, _, used = subject.partition(" uses ")
         return (f"{name}: `{body}`, code a privacy sink runs, uses `{used.partition('@')[0]}`, Foundation's shared "
                 "state any file can set, so whatever sets it reaches the sink (D-180, #172)")
+    if fact == "<sink runs off list":
+        body, _, declared = subject.partition("|")
+        return (f"{name}: `{body}`, code a privacy sink runs, references `{declared}`, which is not on the list of what "
+                "that code may reference (`SINK_RUNS_ALLOWED`); a new one is a reviewed edit (D-180, #242)")
+    if fact == "<sink reads constant":
+        detail, _, declared = subject.rpartition("@")
+        body, constant, typed = detail.split("|", 2)
+        who = f"`{body}`, code a privacy sink runs, reads" if body else "reads"
+        return (f"{name}: {who} `{constant}`, a constant of type `{typed}` declared in {declared}; a privacy sink and "
+                f"the code it runs read only constants of a plain value type ({', '.join(sorted(SINK_CONSTANT_TYPES))}), "
+                "since another file can change an object held in one (D-180, #242)")
     if fact == "<sink runs":
         body, _, read = subject.partition(" reads ")
         variable, _, declared = read.partition("@")
@@ -2279,7 +2405,8 @@ def _sink_module_problem(name: str, module: str, symbol: str) -> str | None:
     declarations on its list, and none of the standard library's process-wide state."""
     if name not in SINK_FILES or symbol == "<imported>":
         return None
-    listed = symbol in SINK_FOUNDATION_ALLOWED or any(entry.startswith(f"{symbol}.") for entry in SINK_FOUNDATION_ALLOWED)
+    allowed = SINK_FOUNDATION_ALLOWED.get(name, frozenset())
+    listed = symbol in allowed or any(entry.startswith(f"{symbol}.") for entry in allowed)
     if module in SINK_MODULES and not listed:
         return (f"{name}: `{module}.{symbol}` is not on the list of Foundation declarations a privacy sink may "
                 f"reference ({SINK_FILES[name]}); what it is built from widens only by a reviewed edit (D-180, "

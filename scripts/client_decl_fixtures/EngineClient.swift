@@ -1,4 +1,4 @@
-// #51: the one network door, which the gate must ALLOW: a connection, and a decoded URL.
+// #51: the one network door, which the network rule ALLOWS: a connection, and a decoded URL (#242: the sink's own list refuses the decode, which the shipping client does not make).
 import Foundation
 
 func fixtureClientFetches(_ address: URL) async throws -> Int64 {

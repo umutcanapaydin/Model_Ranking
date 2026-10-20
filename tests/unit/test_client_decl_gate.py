@@ -52,7 +52,9 @@ def test_a_url_decoded_outside_the_engine_client_is_the_network() -> None:
     assert "Foundation.URL.decoded" in found["ContentView.swift"], found
     refused = gate.problems(found)
     assert any("ContentView.swift" in line and "network" in line for line in refused), refused
-    assert gate.problems({"EngineClient.swift": found["ContentView.swift"]}) == []
+    # #242: the network rule allows the door its decode; the engine client's own Foundation list (measured on the
+    # shipping client, which decodes no URL) refuses it, which is more refused, never less.
+    assert not [line for line in gate.problems({"EngineClient.swift": found["ContentView.swift"]}) if "network" in line]
 
 
 @pytest.mark.needs("xcode")  # the fixture is compiled
@@ -570,7 +572,9 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
     assert gate.main() == 1, "a client that uses none of the permissions passed the gate"
     # The control: with no permission granted, the same client passes, so the failure above is theirs.
     for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED",
-                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES"):
+                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES",
+                  # #242: each sink's own list, what the code a sink runs may reference, the constants it may read.
+                  "SINK_FOUNDATION_ALLOWED", "SINK_RUNS_ALLOWED", "SINK_CONSTANT_TYPES"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
 
@@ -630,7 +634,10 @@ def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_
     runs = [line for line in refused if line.startswith("Detail.swift:") and "code a privacy sink runs" in line]
     assert any("`ProbeHolder.suffix`" in line and "`probeNote`" in line for line in runs), refused
     assert any("`ProbeTagger.tag()`" in line and "`probeNote`" in line for line in runs), refused
-    assert len(refused) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
+    # #242: what those bodies reference off `SINK_RUNS_ALLOWED` is refused too (the probe's `+`, `Data(_:)` and
+    # `.utf8` in `Models.swift`); more refused, never less. The reads are the two bodies'.
+    reads = [line for line in refused if "SINK_RUNS_ALLOWED" not in line]
+    assert len(reads) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
 
 
 def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not() -> None:
@@ -952,8 +959,12 @@ def test_a_store_makes_a_url_only_from_the_file_systems_folders(store: str, make
     # `StandingsStore.swift` is also a privacy sink, whose Foundation list refuses most of these first.
     reasons = ("a store makes a URL only", "not on the list of Foundation declarations a privacy sink")
     assert any(line.startswith(f"{store}:") and any(r in line for r in reasons) for line in refused), refused
-    if store == "FrontDoor.swift" or maker in {"Foundation.URL.init(string:", "Foundation.URL.decoded"}:
+    if store == "FrontDoor.swift":
         assert any("a store makes a URL only" in line for line in refused), refused
+    else:
+        # #242 (the backlog-gates review round 2's K1): the standings store has its own Foundation list, so it no
+        # longer inherits `URL.init(string:` and `URL.decoded` from the engine client's, and that list names each.
+        assert any(f"`{maker}` is not on the list of Foundation declarations a privacy sink" in line for line in refused), refused
 
 
 def test_the_stores_shipping_urls_pass() -> None:
@@ -1095,11 +1106,11 @@ def test_242_each_sink_has_its_own_lists_and_a_stale_entry_fails_the_gate() -> N
     assert set(gate.SINK_FOUNDATION_ALLOWED) == set(gate.SINK_FILES)
     for sink, allowed in gate.SINK_FOUNDATION_ALLOWED.items():
         found = {sink: {f"Foundation.{entry}" for entry in allowed}}
-        assert not [line for line in gate.unseen_permissions(found) if "sink's Foundation list" in line]
+        assert not [line for line in gate.unseen_permissions(found) if line.startswith(f"{sink}:") and "sink's own list" in line]
         dropped = sorted(allowed)[0]
         found[sink].discard(f"Foundation.{dropped}")
         assert [line for line in gate.unseen_permissions(found)
-                if line.startswith(f"{sink}:") and f"`{dropped}`" in line and "sink's Foundation list" in line]
+                if line.startswith(f"{sink}:") and f"`{dropped}`" in line and "sink's own list" in line]
     runs = {"Models.swift": {f"main.<sink runs uses>.{entry}" for entry in gate.SINK_RUNS_ALLOWED}}
     assert not [line for line in gate.unseen_permissions(runs) if "the code a sink runs" in line]
     dropped = sorted(gate.SINK_RUNS_ALLOWED)[0]
