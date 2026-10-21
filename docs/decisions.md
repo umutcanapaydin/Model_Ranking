@@ -5889,6 +5889,14 @@ fewer than 15 models. A board under half linked to the catalogue is not served u
    board fits one.
 4. **Credits:** each served publisher, with its link and its terms as read above.
 
+**As built (2026-10-22).** Measured on a copy of the Mac's artifact with each board ingested through its registered
+ingest (`docs/reviews/issue-379-new-boards-calibration.md`): OSWorld-Verified 15 of 20 names linked, METR 20 of 26,
+LiveBench 42 of 49, SimpleBench 91 of 106, all priced. LiveBench's `minimax-m3.1-flash` first read as MiniMax M3: the
+curated rule took any `minimax-m3` prefix, and now stops before a point release, as MiniMax M2's does. `long-tasks`
+ranks 20 models; its floor was 223.7 minutes, `close_call` 43.7 (twice METR's median published error, 21.862), and
+`value_window` 401.5, ending in the 48.7-minute gap below the fifth model
+(`docs/research/issue-379-long-tasks-calibration.json`).
+
 **Rationale.** Golden Rules 1 and 3: every board the owner's rule admits, from its publisher's own data, read each
 night with no secret; every board it does not, named with its reason.
 
