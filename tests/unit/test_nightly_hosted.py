@@ -93,7 +93,7 @@ def test_the_refresh_refuses_to_run_beside_a_secret(tmp_path: Path, secret: str)
     assert not calls.exists()
 
 
-@pytest.mark.parametrize("args", [[], ["refresh"], ["deploy"], ["publish", "x"], ["refresh", "x", "y"]])
+@pytest.mark.parametrize("args", [[], ["refresh"], ["prepare"], ["deploy"], ["publish", "x"], ["refresh", "x", "y"]])
 def test_anything_but_one_mode_and_one_state_is_refused(tmp_path: Path, args: list[str]) -> None:
     env, calls, _output = _refresh_env(tmp_path, 0)
     assert _run(env, *args).returncode == 2
@@ -153,42 +153,118 @@ def _scratch(tmp_path: Path, *, stale: bool = False, health: str | None = None,
     return repo, state, calls, env
 
 
-def _deploy(repo: Path, state: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    return _run(env, "deploy", str(state), script=repo / "scripts" / "nightly_hosted.sh")
+def _prepare(repo: Path, state: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    """The refresh job's second step: derive the public copy and its stamp, with no token (#389)."""
+    quiet = {k: v for k, v in env.items() if k != "FLY_API_TOKEN"}
+    return _run(quiet, "prepare", str(state), script=repo / "scripts" / "nightly_hosted.sh")
 
 
-def test_a_night_with_current_verdicts_deploys_the_kept_state_and_checks_health(tmp_path: Path) -> None:
+def _deploy(repo: Path, env: dict[str, str], public: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """The deploy job: the gate, then the prepared copy shipped as it is."""
+    where = public or repo / "build" / "hosted"
+    return _run(env, "deploy", str(where), script=repo / "scripts" / "nightly_hosted.sh")
+
+
+def _night(repo: Path, state: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    prepared = _prepare(repo, state, env)
+    assert prepared.returncode == 0, prepared.stdout + prepared.stderr
+    return _deploy(repo, env)
+
+
+def test_a_night_with_current_verdicts_deploys_the_prepared_copy_and_checks_health(tmp_path: Path) -> None:
     repo, state, calls, env = _scratch(tmp_path)
-    done = _deploy(repo, state, env)
+    done = _night(repo, state, env)
     assert done.returncode == 0, done.stdout + done.stderr
     called = calls.read_text(encoding="utf-8")
     sha = _git("-C", str(repo), "rev-parse", "--short", "HEAD")
     assert "deploy " in called and f"APP_BUILD=release-{sha}-data-" in called and "--ha=false" in called, called
     assert "FLY_API_TOKEN=fly-test-token" in called
-    assert (repo / "build" / "hosted" / "advisor.db").is_file()
+    stamp = (repo / "build" / "hosted" / "build.txt").read_text(encoding="utf-8").strip()
+    assert f"APP_BUILD={stamp} " in called
+
+
+def test_the_preparation_refuses_to_run_beside_a_token(tmp_path: Path) -> None:
+    """#389: the step that opens the refresh's SQLite file holds no token."""
+    repo, state, _calls, env = _scratch(tmp_path)
+    done = _run(env, "prepare", str(state), script=repo / "scripts" / "nightly_hosted.sh")
+    assert done.returncode != 0 and "FLY_API_TOKEN" in done.stderr
+    assert not (repo / "build" / "hosted" / "advisor.db").exists()
+
+
+def test_the_token_s_step_never_opens_the_database(tmp_path: Path) -> None:
+    """#389 (the #387 security review's M3): the step that holds the token reads the prepared file's bytes
+    for its digest and ships it; it never parses it. A file that is not SQLite at all ships."""
+    import hashlib
+
+    repo, state, calls, env = _scratch(tmp_path)
+    assert _prepare(repo, state, env).returncode == 0
+    hosted = repo / "build" / "hosted"
+    stamp = (hosted / "build.txt").read_text(encoding="utf-8").strip()
+    blob = b"not a database\n"
+    (hosted / "advisor.db").write_bytes(blob)
+    digest = hashlib.sha256(blob).hexdigest()[:8]
+    (hosted / "build.txt").write_text(re.sub(r"-data-[0-9a-f]{8}-", f"-data-{digest}-", stamp) + "\n",
+                                      encoding="utf-8")
+    log, real = tmp_path / "python-calls.txt", env["PYTHON"]
+    wrapper = tmp_path / "python-wrapper"
+    wrapper.write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >> "{log}"\nexec "{real}" "$@"\n', encoding="utf-8")
+    wrapper.chmod(0o755)
+    done = _deploy(repo, env | {"PYTHON": str(wrapper)})
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert f"-data-{digest}-" in calls.read_text(encoding="utf-8")
+    ran = log.read_text(encoding="utf-8")
+    assert "sqlite" not in ran and "app.workflows" not in ran, ran
+
+
+def test_a_prepared_copy_changed_after_its_stamp_is_refused(tmp_path: Path) -> None:
+    repo, state, calls, env = _scratch(tmp_path)
+    assert _prepare(repo, state, env).returncode == 0
+    with (repo / "build" / "hosted" / "advisor.db").open("ab") as shipped:
+        shipped.write(b"\0")
+    done = _deploy(repo, env)
+    assert done.returncode != 0 and "digest" in done.stderr
+    assert not calls.exists()
+
+
+@pytest.mark.parametrize("stamp", ["release-0000000-data-00000000-from-0000000", "release-x", "",
+                                   "release-{sha}-data-{digest}-from-0000000",
+                                   "release-{sha}-data-{digest}-from-unknown"])
+def test_a_stamp_that_names_other_code_or_other_data_is_refused(tmp_path: Path, stamp: str) -> None:
+    """The stamp the token's step ships must name this commit, the file's own digest, and data this
+    release built: the preparation's refusals are not undone by an edited stamp."""
+    import hashlib
+
+    repo, state, calls, env = _scratch(tmp_path)
+    assert _prepare(repo, state, env).returncode == 0
+    hosted = repo / "build" / "hosted"
+    sha = _git("-C", str(repo), "rev-parse", "--short", "HEAD")
+    digest = hashlib.sha256((hosted / "advisor.db").read_bytes()).hexdigest()[:8]
+    (hosted / "build.txt").write_text(stamp.format(sha=sha, digest=digest) + "\n", encoding="utf-8")
+    done = _deploy(repo, env)
+    assert done.returncode != 0
+    assert not calls.exists()
 
 
 def test_a_stale_gate_deploys_nothing_and_fails_the_night(tmp_path: Path) -> None:
     """D-217 clause 4: unreviewed code on main ships with no night's data."""
     repo, state, calls, env = _scratch(tmp_path, stale=True)
-    done = _deploy(repo, state, env)
+    done = _night(repo, state, env)
     assert done.returncode != 0
     assert not calls.exists()
     assert "deploy-check FAIL" in done.stdout + done.stderr
-    assert not (repo / "build" / "hosted" / "advisor.db").exists()
 
 
 def test_a_build_fly_already_serves_is_not_deployed_again(tmp_path: Path) -> None:
     """D-217 clause 5: a night deploys only what is new."""
     repo, state, _calls, env = _scratch(tmp_path)
-    probe = _run(env, "deploy", str(state), script=repo / "scripts" / "nightly_hosted.sh")
+    probe = _night(repo, state, env)
     assert probe.returncode == 0, probe.stdout + probe.stderr
     live = re.search(r"APP_BUILD=(\S+)", (tmp_path / "fly-calls.txt").read_text(encoding="utf-8"))
     assert live
     (tmp_path / "fly-calls.txt").unlink()
     (tmp_path / "bin" / "curl").write_text(f"#!/bin/sh\necho '{{\"build\": \"{live.group(1)}\"}}'\n",
                                            encoding="utf-8")
-    again = _deploy(repo, state, env)
+    again = _deploy(repo, env)
     assert again.returncode == 0, again.stdout + again.stderr
     assert not (tmp_path / "fly-calls.txt").exists()
     assert "already serves" in again.stdout
@@ -197,8 +273,9 @@ def test_a_build_fly_already_serves_is_not_deployed_again(tmp_path: Path) -> Non
 def test_data_another_release_built_is_refused_whatever_the_environment_accepts(tmp_path: Path) -> None:
     """D-217 clause 5: the night never sets DEPLOY_ACCEPT_DATA_FROM, and drops one it was given."""
     repo, state, calls, env = _scratch(tmp_path, data_by="release-0000000")
-    done = _deploy(repo, state, env | {"DEPLOY_ACCEPT_DATA_FROM": "release-0000000"})
+    done = _prepare(repo, state, env | {"DEPLOY_ACCEPT_DATA_FROM": "release-0000000"})
     assert done.returncode != 0 and "release-0000000" in done.stdout + done.stderr
+    assert not (repo / "build" / "hosted" / "build.txt").exists()
     assert not calls.exists()
 
 
@@ -208,16 +285,26 @@ def test_the_tree_the_gate_judged_is_the_tree_that_ships(tmp_path: Path) -> None
     repo, state, calls, env = _scratch(tmp_path)
     elsewhere = tmp_path / "unreviewed"
     elsewhere.mkdir()
-    done = _deploy(repo, state, env | {"MODEL_RANKING_REPO": str(elsewhere)})
+    done = _night(repo, state, env | {"MODEL_RANKING_REPO": str(elsewhere)})
     assert done.returncode == 0, done.stdout + done.stderr
     assert calls.exists() and (repo / "build" / "hosted" / "advisor.db").is_file()
     assert not (elsewhere / "build").exists()
 
 
-def test_a_deploy_with_no_kept_state_is_refused(tmp_path: Path) -> None:
+def test_the_public_copy_downloaded_elsewhere_is_shipped_from_the_build_context(tmp_path: Path) -> None:
+    """The deploy job downloads the prepared copy; it ships from build/hosted, the file the image copies."""
     repo, state, calls, env = _scratch(tmp_path)
-    (state / "advisor.db").unlink()
-    done = _deploy(repo, state, env)
+    assert _prepare(repo, state, env).returncode == 0
+    downloaded = tmp_path / "downloaded"
+    shutil.move(str(repo / "build" / "hosted"), str(downloaded))
+    done = _deploy(repo, env, public=downloaded)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert calls.exists() and (repo / "build" / "hosted" / "advisor.db").is_file()
+
+
+def test_a_deploy_with_nothing_prepared_is_refused(tmp_path: Path) -> None:
+    repo, _state, calls, env = _scratch(tmp_path)
+    done = _deploy(repo, env)
     assert done.returncode != 0 and not calls.exists()
 
 
@@ -278,19 +365,26 @@ def test_the_refresh_job_holds_no_secret_and_keeps_no_credential() -> None:
     for step in refresh["steps"]:
         if str(step.get("uses", "")).startswith("actions/checkout@"):
             assert step["with"]["persist-credentials"] is False
-        if "nightly_hosted.sh refresh" in str(step.get("run", "")):
-            assert not step.get("env"), "the cycle runs with no token in its environment"
+        if re.search(r"nightly_hosted\.sh (refresh|prepare)", str(step.get("run", ""))):
+            assert not step.get("env"), "the cycle and the preparation run with no token in their environment"
         if "GITHUB_TOKEN" in yaml.safe_dump(step):
             assert "nightly_hosted.sh" not in str(step.get("run", "")), "the token reaches only its own step"
-    assert any("nightly_hosted.sh refresh" in str(s.get("run", "")) for s in refresh["steps"])
+    runs = [str(s.get("run", "")) for s in refresh["steps"]]
+    cycle = next(i for i, r in enumerate(runs) if "nightly_hosted.sh refresh" in r)
+    prepare = next(i for i, r in enumerate(runs) if "nightly_hosted.sh prepare" in r)
+    assert cycle < prepare, "#389: the public copy is derived in the job that holds no token"
 
 
 def test_only_a_night_that_kept_its_data_is_uploaded_for_ninety_days() -> None:
     """D-217 clause 3."""
-    uploads = [s for s in _steps("refresh") if str(s.get("uses", "")).startswith("actions/upload-artifact@")]
-    assert len(uploads) == 1
-    upload = uploads[0]
-    assert upload["with"]["name"] == "hosted-state" and int(upload["with"]["retention-days"]) == 90
+    uploads = {s["with"]["name"]: s for s in _steps("refresh")
+               if str(s.get("uses", "")).startswith("actions/upload-artifact@")}
+    assert set(uploads) == {"hosted-state", "hosted-public"}
+    upload = uploads["hosted-state"]
+    assert int(upload["with"]["retention-days"]) == 90
+    public = uploads["hosted-public"]
+    assert set(str(public["with"]["path"]).split()) == {"build/hosted/advisor.db", "build/hosted/build.txt"}
+    assert "if" not in public or "always()" not in str(public["if"])
     assert "if" not in upload or "always()" not in str(upload["if"]), "a failed night uploads nothing"
     outputs = _workflow()["jobs"]["refresh"]["outputs"]
     assert "outcome" in outputs
@@ -339,6 +433,12 @@ def test_the_deploy_job_holds_the_token_and_runs_the_night_after_the_refresh() -
         if str(step.get("uses", "")).startswith("actions/checkout@"):
             assert step["with"]["persist-credentials"] is False
             assert step["with"]["fetch-depth"] == 0, "the gate compares the reviewed heads with HEAD"
+    text = yaml.safe_dump(deploy)
+    assert "hosted-state" not in text, "#389: the deploy job never takes the refresh's database"
+    assert "requirements/" not in text, "#389: the deploy job installs nothing that reads a database"
+    downloads = [s for s in deploy["steps"] if str(s.get("uses", "")).startswith("actions/download-artifact@")]
+    assert len(downloads) == 1 and downloads[0]["with"]["name"] == "hosted-public"
+    assert "nightly_hosted.sh deploy build/hosted" in str(runs[0]["run"])
 
 
 def test_every_action_is_pinned_to_a_commit_and_nothing_is_allowed_to_fail() -> None:
