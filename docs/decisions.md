@@ -4438,6 +4438,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-216 (2026-10-21)**: clause 3's table -- `epoch_deepswe_external` is replaced by `datacurve_deepswe` (Datacurve's own leaderboard) and no longer built (#265).
 
+**Amended by D-219 (2026-10-22, proposed)**: clause 3's licence record -- #379's ten boards, read under D-215: OSWorld-Verified, METR's time horizons, LiveBench and SimpleBench served; Humanity's Last Exam, DeepResearch Bench, SciCode, Vending-Bench 2, Video-MME and GDPval skipped, each for its reason (#379).
+
 **Amended by D-217 (2026-10-21, proposed)**: clause 2 -- the hosted image's artifact is built by a scheduled GitHub Actions job each night as well as on the Mac; clause 5 -- that job, the owner's workflow, deploys it, never the agent (#387).
 
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
@@ -4614,6 +4616,8 @@ for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 
 **Amended by D-194 (2026-10-13)**: clause 1's table -- `computer-use` and `abstract` rank on licensed boards (`terminalbench_4`, `arc_agi_2`), and `terminalbench_4` takes Epoch's TB 2.0 copy's place in `agentic-coding`'s family (#265).
 
 **Amended by D-216 (2026-10-21)**: clause 1's table -- `agentic-coding`'s family is `datacurve_deepswe`, `terminalbench_4`, `arena_agent`: Datacurve's own DeepSWE board in place of Epoch's copy (#265).
+
+**Amended by D-219 (2026-10-22, proposed)**: clause 1's table -- `computer-use` adds `osworld_verified`, `everyday` adds `simplebench` and `livebench`, and `long-tasks` is METR's time-horizon board alone (#379).
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -5821,3 +5825,79 @@ moves to a public release (then the state's retention and the deploy cadence are
 - a per-unit price source for images or video is settled (clause 1);
 - a new surface's board drops below 15 models (clauses 2 and 3);
 - the public release is cut (clause 5).
+
+---
+
+## D-219 — #379's new boards, read under D-215: four served, six skipped, each for its reason
+
+**Status:** proposed
+**Amends** D-185 clause 3's table (the licence record) and D-188 clause 1's families table · from #379.
+
+**Context.** #379 asked for ten more boards, each licence-checked and then served or skipped with its reason:
+OSWorld-Verified, METR's time horizons, Humanity's Last Exam and DeepResearch Bench first, then SciCode, LiveBench,
+SimpleBench, Vending-Bench 2, Video-MME and GDPval. The licence rule is D-215's, applied board by board, and needs no
+new owner ruling. This ADR carries out the run's ruling for #379: D-218 clause 2 opens a `long-tasks` surface for METR, and clause 3 opens a surface for a board that
+fits none, when D-215 admits it and it ranks at least 15 models. A board D-215 does not clearly admit is skipped, and
+so is one behind a sign-in, a token or a click-through, one that lives only in a paper's tables, and one that ranks
+fewer than 15 models. A board under half linked to the catalogue is not served until its aliases are fixed.
+
+**Decision.**
+1. **The licence record, read on 2026-10-22,** board by board. "Linked" counts the board's names that reconcile to a
+   catalogue model against a copy of the Mac's artifact (`registry.reconcile`), before any alias was added.
+
+   | board | publisher | licence or terms | link | read | verdict |
+   |---|---|---|---|---|---|
+   | OSWorld-Verified | XLANG Lab (the OSWorld team) | the site is "licensed under a Creative Commons Attribution-ShareAlike 4.0 International License"; the results workbook is served from the site | https://os-world.github.io/ | 2026-10-22 | **served**, `osworld_verified`: 20 general models at 100 steps, 15 linked |
+   | METR time horizons (TH 1.1) | METR | no licence and no terms published (`metr.org/terms` answers 404); the page offers its raw data for download; robots allow it; the analysis repository names no licence | https://metr.org/time-horizons/ | 2026-10-22 | **served**, `metr_time_horizons`: 26 models, 20 linked |
+   | Humanity's Last Exam | Center for AI Safety and Scale AI | lastexam.ai's own table ranks 10 models; Scale's terms (2021-08-25) limit use of its site "for your own internal purposes"; CAIS's terms (2023-03-13) admit not-for-profit reuse, but its dashboard publishes the scores only inside its compiled app code, at an address that changes with each deploy; the questions' dataset is gated | https://lastexam.ai/ | 2026-10-22 | **skipped**: the publisher's own table ranks fewer than 15 models, Scale's terms do not clearly admit the use, and CAIS publishes no file the nightly refresh can read |
+   | DeepResearch Bench | its authors (USTC), on the `muset-ai/DeepResearch-Bench-Leaderboard` Space | the Space is tagged Apache-2.0 (its code); `data/leaderboard.csv` is public | https://huggingface.co/spaces/muset-ai/DeepResearch-Bench-Leaderboard | 2026-10-22 | **skipped**: 8 of 45 entries link, under half; the entries are research products, not catalogue models, so no alias can fix it |
+   | SciCode | the SciCode team | the repository is Apache-2.0 (its code); the leaderboard is a table on its page only | https://scicode-bench.github.io/leaderboard/ | 2026-10-22 | **skipped**: 10 of 20 rows link, 8 distinct models, fewer than 15 ranked; its newest model is o3-mini (January 2025) |
+   | LiveBench 2.0 | LiveBench (Abacus.AI and its co-authors) | no data licence published; the code is Apache-2.0; robots allow every agent | https://livebench.ai/ | 2026-10-22 | **served**, `livebench`: 49 models, 43 linked |
+   | SimpleBench | the SimpleBench Team (AI Explained) | no licence on the site; the repository is MIT (its code and public questions) | https://simple-bench.com/ | 2026-10-22 | **served**, `simplebench`: 106 models, 91 linked |
+   | Vending-Bench 2 | Andon Labs | "© 2026 Andon Labs Inc. All rights reserved", no terms beyond a privacy policy | https://andonlabs.com/evals/vending-bench-2 | 2026-10-22 | **skipped**: the page ranks 10 models; the other 61 sit only inside the site's compiled code, at addresses that change with each build |
+   | Video-MME | the Video-MME team | "Video-MME is only used for academic research. Commercial use in any form is prohibited." | https://github.com/MME-Benchmarks/Video-MME | 2026-10-22 | **skipped**: D-215 does not clearly admit a use outside academic research |
+   | GDPval | OpenAI | "The OpenAI-hosted GDPval leaderboard is no longer active"; its numbers stand in its paper and announcement; the third-party copy it points to (Artificial Analysis) needs an API key | https://evals.openai.com/gdpval/leaderboard | 2026-10-22 | **skipped**: no live board, only a paper's numbers, and the copy needs a secret |
+
+2. **How each served board is read.** Each is a declared remote source (`app.workflows.sources`), read from its
+   publisher's own host with no token, optional (D-121), with a floor of half the board as recorded, so a cut file
+   fails the night and the refresh carries the previous one (D-156).
+   - `osworld_verified`: the results workbook the page loads (`static/data/osworld_verified_results.xlsx`), read
+     with the standard library. The rows the page's default "Foundation E2E GUI" tab shows that a catalogue can
+     sell: approach type `General model`, no extra accessibility tree, no coding action. At 100 steps, the budget
+     most rows report: a run at 15 or 50 steps is another measurement. A model's score is the mean of its runs, as
+     the page shows it, dated by its latest run. Specialized GUI models and agentic frameworks are not read: a
+     framework names a harness over a model, and the specialized models are not catalogue models (with them, 15 of
+     32 link, under half).
+   - `livebench`: release 2026-10-14 (LiveBench 2.0), `table.csv` with `categories.json`. The site computes its
+     overall score in the browser and stores none: "mean of category averages". The source computes it the same
+     way, rounded to two places as the site rounds, so the board's own rule, not a weighting of ours, ranks it. A row
+     missing a category is skipped and counted. Rows are dated by the release. The release is pinned, as Datacurve's
+     `v1.1` is: a new release is a code edit.
+   - `simplebench`: the leaderboard file the page loads (`static/js/leaderboard-data.js`), one row per ranked model
+     at its AVG@5 score, dated by the date the row was added; the human baselines are not models and are skipped.
+   - `metr_time_horizons`: Time Horizon 1.1 (`assets/benchmark_results_1_1.yaml`), each model's 50% time horizon in
+     minutes. Undated: its `release_date` is a model's release, never an evaluation date (D-139).
+3. **Placement (D-188 clause 1's families).** OSWorld-Verified stands in `computer-use` after `terminalbench_4`;
+   SimpleBench and LiveBench in `everyday` after `epoch_mmlu`. Each primary stays, so no surface's thresholds move.
+   METR opens `long-tasks` (D-218 clause 2), its only board, titled "Long tasks" (`Uzun görevler` in Turkish), with a router
+   hint, examples in English and Turkish and probes, and its thresholds calibrated by D-194 clause 4's rule
+   (`scripts/calibrate_surface.py`) with METR's own published 95% intervals as the error. `score_anchor` stays
+   unset: the engine pins it on an Elo surface only (D-162). No board opens a surface under clause 3: each served
+   board fits one.
+4. **Credits:** each served publisher, with its link and its terms as read above.
+
+**Rationale.** Golden Rules 1 and 3: every board the owner's rule admits, from its publisher's own data, read each
+night with no secret; every board it does not, named with its reason.
+
+**The alternatives not taken.** Epoch's copies of OSWorld, SimpleBench and METR: a copy keeps its publisher's terms,
+and the publisher's own file is fresher. Scraping CAIS's or Andon Labs' compiled app code: an address that changes
+with each deploy is a broken night waiting. Computing LiveBench's overall with weights of our own: a number the board
+never published.
+
+**Mitigation if violated:** a served board with no credit is refused by `credits_for`. A publisher that objects or
+changes its terms is taken out by its own ADR. A board that falls under half linked shows in the unlinked count of the
+night's report.
+
+**Revisit when:** a skipped board's terms or data change (HLE's publishers post a file, Vending-Bench 2 publishes its
+whole board, GDPval's leaderboard returns); LiveBench publishes a new release; METR publishes a new time-horizon
+version; the app takes payment (D-215's revisit).
