@@ -1153,3 +1153,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scripts/nightly_hosted.sh` is now a brief deploy command, so the Bash guard judges it. It already refused a `bash -n` of the deploy script during this work.
 - The Security-Reviewer's round 1 was BLOCKING (B1): once installed, a writer could dispatch the workflow on any branch, with the repository's token in reach. The token is now a `fly-production` environment's secret that only `main` reaches, and both jobs run only on main. M1, M2, M4, M5 and R2 are fixed on the branch; M3, R1 and R3 are filed (#389, #391, #392), and the guard half of M1 is filed too (#390).
 - Lesson: when a job moves to CI, list every writer of what the next run reads back; artifacts are shared across workflows and forks, so read them by the run that made them, never by name.
+
+## 2026-10-21 — fix/issue-389-token-apart: the nightly deploy job opens no database beside the token (#389)
+
+- Run queue-1021, stacked on #388. The #387 Security-Reviewer's M3: the deploy job derived the public copy from the refresh's SQLite file while `FLY_API_TOKEN` was in its environment.
+- Red first: 17 tests. Among them, the token's step ships a file that is not SQLite at all, and a logging interpreter shows that no `sqlite` and no `app.workflows` ran. A copy changed after its stamp is refused, and so is a stamp naming other code or other data.
+- Fixed by job, not by step. Steps of one job share a disk, so a compromised token-free step could rewrite the scripts the token's step runs next. The `refresh` job now also runs `prepare` (the deploy script's dry run, which now writes the copy's stamp beside it). The `deploy` job installs no package and runs `--ship`, which only hashes the copy and checks the stamp. `--if-new` is gone, folded into `--ship`.
+- Lesson: isolate a secret by job or by machine, never by step; steps that share a disk share whatever the first one plants.

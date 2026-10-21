@@ -5784,6 +5784,8 @@ from a data centre, Fly's deploy token scope changes, a source goes into `LEFT_O
 publish it), the repository goes private (the deploy's anonymous `git fetch` then needs a credential), or the app
 moves to a public release (then the state's retention and the deploy cadence are read again).
 
+**Amended before merge (2026-10-21, #389, run queue-1021)**: clause 2's queued item is done -- the `refresh` job, which holds no secret, also derives the public copy and its stamp (`scripts/nightly_hosted.sh prepare`, `hosted-public`); the `deploy` job installs no package and opens no database: `scripts/deploy_hosted_engine.sh --ship` reads the copy only for its digest, checks it against the stamp (this commit, the stamp writer's word that this release built the data, the copy's digest), and ships it. The stamp proves the copy and the stamp agree, not where they came from: the night trusts the refresh job that wrote both, as it did before. Steps of one job share a disk, so the split is by job, not by step.
+
 ## D-218 — Run queue-1021's rulings: the media surfaces on quality, new surfaces for new boards, #371's rule, and the first release's name
 
 **Status:** proposed

@@ -520,9 +520,11 @@ Fly.io (D-116, D-185, D-217): deployed by the owner, or by the owner's nightly w
   .github/workflows/nightly-hosted.yml   the owner applies scripts/ci/nightly-hosted.yml (D-217):
                                     job `refresh` (no secret) runs scripts/nightly_hosted.sh refresh on the
                                     last good night's state (the `hosted-state` Actions artifact, 90 days)
-                                    and keeps the new state; job `deploy` (FLY_API_TOKEN) runs
-                                    scripts/nightly_hosted.sh deploy: the deploy gate, then the script
-                                    below with --if-new
+                                    and keeps the new state, then `prepare` derives the public copy and
+                                    its stamp (`hosted-public`, the script below with --dry-run); job
+                                    `deploy` (FLY_API_TOKEN) installs nothing and opens no database
+                                    (#389): the deploy gate, then the script below with --ship, which
+                                    checks the copy against its stamp and ships it
   scripts/deploy_hosted_engine.sh   origin/main's tip only, a clean tree; derives the public artifact,
                                     stamps APP_BUILD=release-<sha>-data-<digest>-from-<sha>
                                     (the release that built the data, #198; data another release
