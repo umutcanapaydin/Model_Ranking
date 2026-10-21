@@ -71,3 +71,14 @@ func fixtureStoreKeyPathHeld(_ held: FixtureAddressHolderAgain) -> GapRegisterSt
     let path = \FixtureAddressHolderAgain.address
     return GapRegisterStore(url: held[keyPath: path])
 }
+
+// #374 (G-13): the register's store built on a URL another file's type hands out through a subscript, and through a
+// `@dynamicMemberLookup` wrapper. REFUSED, each: a URL-typed declaration of another file, read by any form, is
+// received, not made.
+func fixtureStoreSubscript(_ table: FixtureAddressTable) -> GapRegisterStore {
+    GapRegisterStore(url: table[0])
+}
+
+func fixtureStoreDynamicMember(_ wrapped: FixtureAddressWrapper) -> GapRegisterStore {
+    GapRegisterStore(url: wrapped.address)
+}

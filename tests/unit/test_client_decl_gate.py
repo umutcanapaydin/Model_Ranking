@@ -1397,3 +1397,19 @@ def test_373_a_served_number_reached_by_a_key_path_from_its_struct_or_a_curried_
                if found.startswith(f"Arithmetic.swift:{line}:") and phrase in found]
     assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as {phrase}"
     assert ("Arithmetic.swift", phrase) in gate.FIXTURE_REFUSALS, f"the self-test does not hold {shape}"
+
+
+@pytest.mark.parametrize(("text", "declared"), [
+    ("GapRegisterStore(url: table[0])", "FixtureAddressTable.subscript(_:)"),
+    ("GapRegisterStore(url: wrapped.address)", "FixtureAddressWrapper.subscript(dynamicMember:)"),
+])
+def test_374_a_store_receives_a_url_through_another_files_subscript_or_dynamic_member(text: str, declared: str) -> None:
+    """#374 (G-13): `_store_received` read a direct reference, a member read and a key path, not a subscript, so the
+    register's store built on a URL another file's type hands out through a subscript (`table[0]`) or a
+    `@dynamicMemberLookup` wrapper (`wrapped.address`) passed in all four configurations. Each is refused as received,
+    and the self-test asks the same of all four configurations. # covers D-214, REQ-GAP-001"""
+    line = _marked_in("FrontDoor.swift", text)
+    phrase = f"receives a URL, by `{declared}`, declared in ContentView.swift"
+    assert [found for found in gate.problems(gate.references(FLOW_AST))
+            if found.startswith(f"FrontDoor.swift:{line}:") and phrase in found], f"FrontDoor.swift:{line} is not refused"
+    assert ("FrontDoor.swift", phrase) in gate.FIXTURE_REFUSALS, f"the self-test does not hold {text}"
