@@ -40,8 +40,8 @@ The queue in order (D-214): #367 first, filed at the run's first push (two CA ad
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
 | issue-367 | fix/issue-367-ca-bundle | #368 | none | stacked |
-| issue-242 | enhancement/issue-242-allowlists | none | none | queued |
-| issue-355 | none | none | none | queued |
+| issue-242 | enhancement/issue-242-allowlists | #372 | none | stopped |
+| issue-355 | none | none | none | running |
 
 <!-- Wave: `m<N>-w<W>` (heavy) or `issue-<n>` (light, Close record `none`). Status: `queued` ·
      `running` · `stacked` (closed with `/close-wave`, merged into the integration branch, its
@@ -52,6 +52,7 @@ The queue in order (D-214): #367 first, filed at the run's first push (two CA ad
 
 | When | Wave | Class | What the owner decides | Continued on |
 |---|---|---|---|---|
+| 2026-10-21 | issue-242 | not-assumable | The Security-Reviewer is BLOCKING on B1 for a third round: a served number still reaches a declaration through a key path walked through the struct or a curried call on the type, none of which passed before #242 and nothing loosened; accept those forms in an ADR and merge #372, or open the remaining fix as its own issue first. | issue-355 |
 
 <!-- One row per stop, in order. Class is one of AGENTS.md §3's Escalate-NOW events --
      `secret` · `scanner-suppression` · `blocking-high` · `silent-fault` · `control-change` ·
