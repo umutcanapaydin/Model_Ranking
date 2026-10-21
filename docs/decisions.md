@@ -4541,7 +4541,7 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | `coding` | `swebench`, `epoch_swe_bench_verified`, `aider`, `arena_text_coding` |
    | `agentic-coding` | `datacurve_deepswe`, `terminalbench_4`, `arena_agent` |
    | `assistant` | `arena` |
-   | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu`, `livebench` |
+   | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu`, `livebench`, `simplebench` |
    | `expert` | `epoch_gpqa`, `arena_text_expert`, `epoch_mmlu` |
    | `mathematics` | `epoch_aime`, `epoch_frontiermath`, `epoch_frontiermath_t4`, `arena_text_math` |
    | `computer-use` | `terminalbench_4`, `osworld_verified`, `arena_agent` |

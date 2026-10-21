@@ -28,6 +28,7 @@ from app.workflows.board_tables import (
     METR_SITE_URL,
     OSWORLD_SITE_URL,
     RETIRED_EXTERNAL_ATTRIBUTION,
+    SIMPLEBENCH_SITE_URL,
 )
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
@@ -73,6 +74,8 @@ OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard
 METR_ATTRIBUTION = f"Time-horizon scores: METR's Time Horizon 1.1, {METR_SITE_URL}"
 #: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
 LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release 2026-10-14), {LIVEBENCH_SITE_URL}"
+#: #379 (D-219): SimpleBench's leaderboard. No licence on its site; its public numbers are used with this credit.
+SIMPLEBENCH_ATTRIBUTION = f"SimpleBench scores: the SimpleBench Team's leaderboard, {SIMPLEBENCH_SITE_URL}"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
@@ -84,6 +87,7 @@ ATTRIBUTIONS = (
     OSWORLD_ATTRIBUTION,
     METR_ATTRIBUTION,
     LIVEBENCH_ATTRIBUTION,
+    SIMPLEBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
     *RETIRED_EXTERNAL_ATTRIBUTION.values(),
@@ -125,6 +129,7 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "osworld_verified": OSWORLD_ATTRIBUTION,
     "metr_time_horizons": METR_ATTRIBUTION,
     "livebench": LIVEBENCH_ATTRIBUTION,
+    "simplebench": SIMPLEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     # D-127's boards. All seven come out of the same owner-placed Epoch bundle, and are listed
     # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
@@ -167,6 +172,7 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     OSWORLD_ATTRIBUTION: ("osworld",),
     METR_ATTRIBUTION: ("metr",),
     LIVEBENCH_ATTRIBUTION: ("livebench",),
+    SIMPLEBENCH_ATTRIBUTION: ("simplebench",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).

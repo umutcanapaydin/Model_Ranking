@@ -26,6 +26,7 @@ from app.clients.metr import parse_metr
 from app.clients.models_dev import parse_models_dev
 from app.clients.osworld import parse_osworld
 from app.clients.protocols import RawSource, SourceError
+from app.clients.simplebench import parse_simplebench
 from app.clients.swebench import parse_verified
 from app.clients.terminalbench import parse_terminalbench_4
 from app.workflows.registry import resolve_effort
@@ -236,6 +237,15 @@ def ingest_metr(conn: sqlite3.Connection, source: RawSource, run: RunContext) ->
 def ingest_osworld(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse the OSWorld-Verified workbook and replace its working set (REQ-SRC-013, D-219)."""
     rows, skipped = parse_osworld(source.fetch_raw(), source=source.name)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
+    run.reports.append(report)
+    return report
+
+
+def ingest_simplebench(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse SimpleBench's leaderboard file and replace its working set (REQ-SRC-013, D-219)."""
+    rows, skipped = parse_simplebench(source.fetch_raw(), source=source.name)
     unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
     run.reports.append(report)

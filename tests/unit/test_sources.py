@@ -134,6 +134,7 @@ def test_arena_is_the_only_optional_source() -> None:
         "osworld_verified",
         "metr_time_horizons",
         "livebench",
+        "simplebench",
     }, (
         f"D-121 + D-144 name the LMArena boards, D-216 Datacurve's and D-219 #379's, as the only optional ones; "
         f"found {optional}"

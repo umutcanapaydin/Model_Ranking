@@ -78,6 +78,8 @@ CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 METR_SITE_URL = "https://metr.org/time-horizons/"
 #: #379 (D-219): LiveBench's site, whose pinned release `everyday` reads.
 LIVEBENCH_SITE_URL = "https://livebench.ai/"
+#: #379 (D-219): SimpleBench's site, whose leaderboard file `everyday` reads.
+SIMPLEBENCH_SITE_URL = "https://simple-bench.com/"
 #: How a publisher that states no licence is credited (D-215).
 NO_LICENCE_D215 = "No licence published. Public numbers, used with attribution (D-215)"
 
@@ -155,6 +157,8 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            OSWORLD_SITE_URL, "CC BY-SA 4.0", CC_BY_SA_4_URL),
     Credit("livebench", "LiveBench (Abacus.AI and its co-authors)", "LiveBench 2.0, release 2026-10-14",
            LIVEBENCH_SITE_URL, NO_LICENCE_D215, None),
+    Credit("simplebench", "SimpleBench Team", "SimpleBench leaderboard: each model's AVG@5 score", SIMPLEBENCH_SITE_URL,
+           NO_LICENCE_D215, None),
     Credit("metr", "METR", "Time Horizon 1.1: each model's 50% time horizon", METR_SITE_URL, NO_LICENCE_D215, None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",

@@ -25,7 +25,8 @@ registered ingest from the recorded fixture (`tests/fixtures/`), then the build'
 |---|---|---:|---:|---:|---:|---|
 | OSWorld-Verified | `osworld_verified` | 20 | 1 | 15 | 15 | `doubao-1-5-thinking-vision-pro-250428`, `doubao-1-5-thinking-vision-pro-250717`, `kimi-vl-a3b`, `UI-TARS-250705`, `qwen3-vl-flash-2025-10-25` |
 | METR time horizons | `metr_time_horizons` | 26 | 0 | 20 | 20 | `davinci-002`, `gpt2`, `gpt-4-1106`, `gpt-4-turbo`, `o1`, `claude-mythos-preview-early` |
-| LiveBench 2.0 | `livebench` | 49 | 0 | 43 | 42 | `beam-1.0`, `deepseek-v4-flash-vision`, `deepseek-v4.1-flash-1017`, `nemotron-lightning-3.5`, `nemotron-super-vl-3.5`, `nemotron-ultra-3` |
+| LiveBench 2.0 | `livebench` | 49 | 0 | 42 | 42 | `beam-1.0`, `deepseek-v4-flash-vision`, `deepseek-v4.1-flash-1017`, `minimax-m3.1-flash`, `nemotron-lightning-3.5`, `nemotron-super-vl-3.5`, `nemotron-ultra-3` |
+| SimpleBench | `simplebench` | 106 | 2 | 91 | 85 | `Claude Fable`, `Ox Alpha`, `Nemotron 3 Ultra`, `Claude 3.5 Sonnet 10-22`, `Claude 3.5 Sonnet 06-20`, `o1-2024-12-17 (med)`, `o1-mini`, `GPT-4.5`, `GPT-4 Turbo`, `GPT-4o mini`, `Gemini 2.0 Flash Thinking`, `Gemini 2.0 Flash Exp`, `Gemini 1.5 Pro 002`, `Mistral Large v2`, `Command R+` |
 
 - OSWorld-Verified's skipped row is Coasty CUA v1, whose run used an extra accessibility tree or coding action
   (D-219 clause 2). The unlinked names are models no catalogue entry prices.
@@ -33,9 +34,15 @@ registered ingest from the recorded fixture (`tests/fixtures/`), then the build'
   the registry does not read as a priced model (`o1`, `gpt-4-turbo`, `gpt-4-1106`); each is a model of 2024 or
   earlier but the preview, so no surface's leaders are missing.
 
-- LiveBench's 43 linked names reach 42 models: `minimax-m3.1-flash` read as MiniMax M3, a curated rule that took
-  any `minimax-m3` prefix. The rule now stops before a point release, as MiniMax M2's does, so M3.1 Flash is its
-  own model and MiniMax M3 keeps its own score.
+- LiveBench's `minimax-m3.1-flash` first read as MiniMax M3: the curated rule took any `minimax-m3` prefix. The rule
+  now stops before a point release, as MiniMax M2's does, so M3.1 Flash is unlinked until a catalogue prices it, and
+  MiniMax M3 keeps its own score. The count above is after that fix.
+- SimpleBench's two skipped rows are its human baselines. Its 91 linked names reach 85 models: a dated snapshot
+  (Gemini 2.5 Pro's 03-25 and 06-05, DeepSeek R1's 05/28, DeepSeek V3's 03-24), a thinking or preview run beside the
+  plain one, and `GPT-5.6 Sol Pro (xhigh)` beside `GPT-5.6 Sol (xhigh)`, which the registry reads as one model as it
+  reads Sol's Pro mode on every board (Epoch's `_promax` rows, the catalogue's `-pro` alias at Sol's price). A board
+  ranks a model by its best row, as on every board. Most of the unlinked names are models of 2024 no catalogue
+  prices now.
 
 ## `long-tasks` (D-218 clause 2)
 

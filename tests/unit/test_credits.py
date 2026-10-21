@@ -238,6 +238,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "osworld": ("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"),
         "metr": ("No licence published. Public numbers, used with attribution (D-215)", None),
         "livebench": ("No licence published. Public numbers, used with attribution (D-215)", None),
+        "simplebench": ("No licence published. Public numbers, used with attribution (D-215)", None),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
                  "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
         "arena_site": ("Arena Terms of Use", "https://help.arena.ai/articles/5629909088-terms-of-use"),

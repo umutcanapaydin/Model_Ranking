@@ -84,6 +84,18 @@ def test_real_livebench_release_satisfies_parser_contract() -> None:
     assert all(0 <= r.score <= 100 for r in rows)
 
 
+def test_real_simplebench_file_satisfies_parser_contract() -> None:
+    """REQ-SRC-013 acceptance (#379, D-219): SimpleBench's live leaderboard file, from its own host with no token,
+    parses above the floor."""
+    from app.clients.simplebench import SimpleBenchClient, parse_simplebench
+    from app.workflows.sources import REMOTE_SOURCES
+
+    rows, skipped = parse_simplebench(SimpleBenchClient().fetch_raw())
+    floor = next(s for s in REMOTE_SOURCES if s.name == "simplebench").minimum_rows
+    assert len(rows) >= floor, f"{len(rows)} rows, {skipped} skipped"
+    assert all(0 <= r.score <= 100 for r in rows)
+
+
 def test_the_committed_arc_agi_2_derivation_is_the_datasets_current_revision() -> None:
     """REQ-SRC-012 acceptance (#265): ARC Prize has not moved its public-evaluation dataset past the revision
     `data/arc-agi-2-public-eval.json` was derived at. When it has, re-run `scripts/derive_arc_public_eval.py`."""
