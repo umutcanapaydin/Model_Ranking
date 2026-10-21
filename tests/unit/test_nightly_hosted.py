@@ -32,7 +32,7 @@ SCRIPT = REPO / "scripts" / "nightly_hosted.sh"
 PROPOSAL = REPO / "scripts" / "ci" / "nightly-hosted.yml"
 INSTALLED = REPO / ".github" / "workflows" / "nightly-hosted.yml"
 _CLEAN_GIT_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-_COPIED = ("fly.toml", "docs/project-brief.md", "scripts/nightly_hosted.sh", "scripts/deploy_hosted_engine.sh",
+_COPIED = (".gitignore", "fly.toml", "docs/project-brief.md", "scripts/nightly_hosted.sh", "scripts/deploy_hosted_engine.sh",
            "scripts/deploy_gate.py", "scripts/brief_fields.py")
 
 

@@ -1,0 +1,120 @@
+# The hosted engine's night (#387, D-217): refresh on a runner, deploy to Fly.io, with no Mac.
+#
+# THE AGENT'S PROPOSAL. The installed copy is `.github/workflows/nightly-hosted.yml`, the owner's to apply
+# (AGENTS.md section 3): `cp scripts/ci/nightly-hosted.yml .github/workflows/`. tests/unit/test_nightly_hosted.py
+# holds this file's shape, and holds the installed copy equal to it once it exists.
+#
+# Two jobs, and only the second holds a secret (D-217 clause 2):
+#   refresh  fetches and parses every source, builds the artifact, and keeps it as `hosted-state` for the
+#            next night's carry-forward (D-156). No secret; the checkout keeps no credential; the token that
+#            reads the previous state reaches only that step.
+#   deploy   never fetches a source: it takes refresh's state, runs the deploy gate, and deploys it to Fly
+#            only when /health does not already answer its build (`scripts/nightly_hosted.sh deploy`).
+# A failed night uploads and deploys nothing: Fly keeps serving the last good image, the last good state stands.
+name: nightly-hosted
+
+on:
+  schedule:
+    - cron: '30 21 * * *'  # 00:30 in Istanbul; GitHub may start a scheduled run late
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-hosted
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45  # the cycle ends itself at 27 minutes (D-154)
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      outcome: ${{ steps.night.outputs.outcome }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Install (D-177, the locks the Mac's engine service installs)
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -q --require-hashes -r requirements/ingest.lock -r requirements/build.lock
+          .venv/bin/python -m pip install -q --no-deps --no-build-isolation -e .
+      - name: Fetch the last good night's state
+        # Only this workflow's own runs on main, started by the schedule or by hand, are read: a pull
+        # request's run, a fork's included, can upload an artifact of the same name.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ runner.temp }}/state
+        run: |
+          mkdir -p "$STATE"
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/nightly-hosted.yml/runs?branch=main&per_page=40" \
+            --jq '.workflow_runs[] | select((.event == "schedule" or .event == "workflow_dispatch")
+                    and .head_repository.full_name == env.GITHUB_REPOSITORY) | .id')
+          for run in $runs; do
+            [ "$run" = "$GITHUB_RUN_ID" ] && continue
+            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/artifacts" \
+              --jq '[.artifacts[] | select(.name == "hosted-state" and .expired == false)][0].id // empty')
+            if [ -n "$id" ]; then
+              gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/state.zip"
+              unzip -o -q "$RUNNER_TEMP/state.zip" advisor.db advisor.db.refresh.json -d "$STATE"
+              rm -f "$RUNNER_TEMP/state.zip"
+              echo "the state of run $run"
+              exit 0
+            fi
+          done
+          echo "::notice::no kept state: tonight is a first publish"
+      - name: The night's refresh
+        id: night
+        run: scripts/nightly_hosted.sh refresh "$RUNNER_TEMP/state"
+      - name: Keep the state for the next night
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: hosted-state
+          path: |
+            ${{ runner.temp }}/state/advisor.db
+            ${{ runner.temp }}/state/advisor.db.refresh.json
+          retention-days: 90
+          if-no-files-found: error
+
+  deploy:
+    needs: refresh
+    if: needs.refresh.outputs.outcome == 'published' || needs.refresh.outputs.outcome == 'unchanged'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Install (the serving image's locks)
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -q --require-hashes -r requirements/serve.lock -r requirements/build.lock
+          .venv/bin/python -m pip install -q --no-deps --no-build-isolation -e .
+      - name: Take tonight's state
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: hosted-state
+          path: ${{ runner.temp }}/state
+      - uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be  # 1.5
+      - name: Put fly on the PATH
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          command -v fly >/dev/null || ln -s "$(command -v flyctl)" "$RUNNER_TEMP/bin/fly"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: The night's deploy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: scripts/nightly_hosted.sh deploy "$RUNNER_TEMP/state"
