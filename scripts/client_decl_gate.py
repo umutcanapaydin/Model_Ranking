@@ -308,6 +308,11 @@ BY_NAME = (
 #: `ObjectiveC`, which the module rule refuses whole. Each match is refused unless `BY_NAME_ALLOWED` names it.
 BY_NAME_LABEL = re.compile(r"[(:](?:forKey|forKeyPath|forKeys|forUndefinedKey|selector|aSelector):|"
                            r"ForKey(?:s|Path)?(?:\(|$)|^Bundle\.(?:classNamed|principalClass)\b")
+#: #242, the security review's M3: a key labelled `key:` or `keyPath:` on a Foundation declaration
+#: (`NSSortDescriptor(key:ascending:)`), and, read from the reference's type rather than its label, a declaration
+#: that takes a `Selector` (`Thread.detachNewThreadSelector(_:toTarget:with:)`, `RunLoop.perform(_:target:…)`).
+FOUNDATION_KEY_LABEL = re.compile(r"[(:](?:key|keyPath):")
+TAKES_A_SELECTOR = re.compile(r"\bSelector\b")
 #: #242 (G-12): the declarations the by-name labels match that the client may reference, matched whole, each with its
 #: reason (measured on the shipping client, the four configurations, 2026-10-21); each is seen there or reported.
 BY_NAME_ALLOWED: dict[str, str] = {
@@ -743,6 +748,9 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
     # #242 (G-12): a selector made from text and asked of an object, both `ObjectiveC`'s (the module rule).
     ("ContentView.swift", "`ObjectiveC.Selector.init(_:` in `ObjectiveC`"),
+    # #242, the security review's M3: a selector passed unlabelled, and a key labelled `key:`.
+    ("ContentView.swift", "(it takes a `Selector`, whatever its label)"),
+    ("ContentView.swift", "(a key labelled `key:` or `keyPath:`)"),
     ("ContentView.swift", "`ObjectiveC.NSObject.responds(to:` in `ObjectiveC`"),
     # #242 (G-2): what a served number meets off its list.
     ("Arithmetic.swift", "`Swift.abs` on a served position"),
@@ -801,6 +809,8 @@ FIXTURE_RULES: dict[str, str] = {
     "every argument into the engine client": "the argument 0 (unlabelled) of `EngineClient.ask`",
     # #242 (G-12).
     "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
+    "a selector by its type": "(it takes a `Selector`, whatever its label)",
+    "a key labelled `key:`": "(a key labelled `key:` or `keyPath:`)",
     # #242 (G-13).
     "what a served number may meet": "`Swift.abs` on a served position",
     "a function value called with a served number": "`a function value` on a served position",
@@ -937,7 +947,8 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
     for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items(),
-                        *request_facts(ast).items(), *kept_answer_facts(ast).items(), *store_url_facts(ast).items()):
+                        *request_facts(ast).items(), *kept_answer_facts(ast).items(), *store_url_facts(ast).items(),
+                        *selector_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -1013,6 +1024,31 @@ def url_facts(ast: str) -> dict[str, set[str]]:
               or CASTS_URL.match(line)):
             facts.setdefault(current, set()).add("Foundation.URL.made")
     return facts
+
+
+def selector_facts(ast: str) -> dict[str, set[str]]:
+    """#242, the security review's M3: `{file: {"main.<takes a selector>.Module.symbol"}}` for each declaration of an
+    allowed module whose reference's type takes a `Selector`, whatever its labels say; a module off the allowlist
+    (`ObjectiveC`) is refused whole already."""
+    facts: dict[str, set[str]] = {}
+    current = ""
+    for line in ast.splitlines():
+        if line.startswith("(source_file"):
+            current = pathlib.Path(line.split('"')[1]).name
+        elif (named := DECL.search(line)) and named.group(1) in MODULES - {"main"} \
+                and (typed := TYPE_OF["type"].search(line)) and TAKES_A_SELECTOR.search(typed.group(1)):
+            facts.setdefault(current, set()).add(f"main.<takes a selector>.{named.group(1)}.{_symbol(named.group(2))}")
+    return facts
+
+
+def _selector_problem(name: str, symbol: str) -> str | None:
+    """#242, the security review's M3: a declaration that takes a `Selector`, unless the by-label rule refuses it
+    already or `BY_NAME_ALLOWED` names it."""
+    fact, _, declared = symbol.partition(">.")
+    if fact != "<takes a selector" or declared in BY_NAME_ALLOWED or BY_NAME_LABEL.search(declared.partition(".")[2]):
+        return None
+    return (f"{name}: `{declared}` reaches a value, a class or a selector by name (it takes a `Selector`, whatever "
+            "its label); only the declarations `BY_NAME_ALLOWED` names take one (G-12, #242)")
 
 
 def store_url_facts(ast: str) -> dict[str, set[str]]:
@@ -2764,6 +2800,9 @@ def _reach_anything_problem(name: str, symbol: str, head: str, decl: str) -> str
         return (f"{name}: `{decl}` reaches a value, a class or a selector by name (an argument labelled for a key or a "
                 "selector, or a class-by-name entry point); only the declarations `BY_NAME_ALLOWED` names take one "
                 "(G-12, #242)")
+    if decl.startswith("Foundation.") and FOUNDATION_KEY_LABEL.search(symbol) and decl not in BY_NAME_ALLOWED:
+        return (f"{name}: `{decl}` reaches a value, a class or a selector by name (a key labelled `key:` or "
+                "`keyPath:`); only the declarations `BY_NAME_ALLOWED` names take one (G-12, #242)")
     if any(part.startswith(UNSAFE) for part in head.split(".")):
         return (f"{name}: `{decl}` touches memory unsafely, which can rewrite any value, a privacy sink's "
                 "own included; the client uses none (D-180, the second W2 review's U9)")
@@ -2870,7 +2909,7 @@ def problems(found: dict[str, set[str]]) -> list[str]:
             if module == "main" and symbol.startswith("<"):
                 if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)
                         or _request_problem(name, symbol) or _kept_answer_problem(name, symbol)
-                        or _store_problem(name, symbol)) is not None:
+                        or _store_problem(name, symbol) or _selector_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
             problem = (_module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)
