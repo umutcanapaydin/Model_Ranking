@@ -70,6 +70,7 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
 
 from __future__ import annotations
 
+import hashlib
 import os
 import pathlib
 import platform
@@ -615,11 +616,19 @@ FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
 #: compares it with the fixture's compile (the second W2 review's K1); `--snapshot` writes it again.
 SNAPSHOT = ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt"
 #: #242 (D-214 clause 1, no loosening): every refusal the fixture made before #242 turned the deny-lists into
-#: allowlists, one per line: `all` or `release` (the Release configurations only), a tab, the refusal. The
-#: self-test fails in any configuration that no longer makes one of them, so a rule rewritten as an allowlist
-#: cannot refuse less than the list it replaced. Lines are added, never removed; the fixture is extended at
-#: the end of a file, so no pinned line moves.
+#: allowlists, one per line: `all` or `release` (the Release configurations only), then (#375) its key, tab-separated:
+#: the file, the planted line (the fixture's source line it is made on, stripped; `-` for a refusal made on no line),
+#: which of the file's identical lines that is (0 for none), and the refusal's text after its file and line number. A
+#: line moved by an insertion keeps its key. The self-test fails in any configuration that no longer makes one of them,
+#: so a rule rewritten as an allowlist cannot refuse less than the list it replaced. Lines are added, never removed.
 PINNED_REFUSALS = ROOT / "tests" / "unit" / "data" / "client_decl_refusals_before_242.txt"
+#: #375: the pin as it was made before #242, its first `PINNED_COUNT` lines, by their SHA-256. A pin edited, cut,
+#: reordered or regenerated fails the self-test unless every one of those lines is still there as it was.
+PINNED_COUNT = 183
+PINNED_SHA256 = "b05b262f704b6d27af859d063708f5259bc27ef791529b0e5cf43414b80abeef"
+#: #375: a refusal's file, its line (none for a refusal made on no line), and its text.
+REFUSAL_PLACE = re.compile(r"^(\w+\.swift)(?::(\d+))?: (.+)$", re.DOTALL)
+_PinKey = tuple[str, str, int, str]
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
@@ -3083,32 +3092,79 @@ def _snapshot_drift(ast: str) -> list[str]:
             f"{len(set(refused_kept) - set(refused_now))} gone); write it again with `--snapshot`"]
 
 
-def pinned_refusals(release: bool) -> list[str] | None:
-    """#242 (D-214): the refusals `PINNED_REFUSALS` holds for a Release or a Debug configuration, or None when
-    the file is missing, empty or has a line of another shape, which fails the self-test (fail closed)."""
+def pinned_refusals(release: bool) -> list[_PinKey] | None:
+    """#242 (D-214): the refusals `PINNED_REFUSALS` holds for a Release or a Debug configuration, by their keys (#375),
+    or None when the file is missing, empty or has a line of another shape, which fails the self-test (fail closed)."""
     try:
         lines = PINNED_REFUSALS.read_text(encoding="utf-8").splitlines()
     except OSError:
         return None
-    pinned: list[str] = []
+    pinned: list[_PinKey] = []
     for line in lines:
-        scope, tab, refusal = line.partition("\t")
-        if not tab or scope not in ("all", "release") or not refusal.strip():
+        fields = line.split("\t")
+        if len(fields) != 5:
+            return None
+        scope, file, planted, occurrence, text = fields
+        if scope not in ("all", "release") or not file.endswith(".swift") or not planted.strip() \
+                or not occurrence.isdigit() or (planted == "-") != (occurrence == "0") or not text.strip():
             return None
         if scope == "all" or release:
-            pinned.append(refusal)
+            pinned.append((file, planted, int(occurrence), text))
     return pinned or None
 
 
+def refusal_keys(refused: list[str]) -> set[_PinKey]:
+    """#375: each refusal by its key, its line read in the fixture as `FIXTURES` holds it: the planted line, stripped,
+    and which of the file's identical lines it is, so a refusal moved with its line keeps its key."""
+    sources: dict[str, list[str]] = {}
+    keys: set[_PinKey] = set()
+    for refusal in refused:
+        if (found := REFUSAL_PLACE.match(refusal)) is None:
+            continue
+        file, line, text = found.groups()
+        if line is None:
+            keys.add((file, "-", 0, text))
+            continue
+        if file not in sources:
+            try:
+                sources[file] = [row.strip() for row in (FIXTURES / file).read_text(encoding="utf-8").splitlines()]
+            except OSError:
+                sources[file] = []
+        rows, row = sources[file], int(line)
+        if 1 <= row <= len(rows):
+            keys.add((file, rows[row - 1], rows[:row].count(rows[row - 1]), text))
+    return keys
+
+
+def _pin_intact() -> bool:
+    """#375: whether the pin's first `PINNED_COUNT` lines are the ones made before #242, as they were."""
+    try:
+        lines = PINNED_REFUSALS.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    kept = "\n".join(lines[:PINNED_COUNT]).encode("utf-8")
+    return len(lines) >= PINNED_COUNT and hashlib.sha256(kept).hexdigest() == PINNED_SHA256
+
+
+def pin_shown(key: _PinKey) -> str:
+    """#375: a pinned refusal as a reader finds it: its file, its planted line and its text."""
+    file, planted, occurrence, text = key
+    return f"{file}: {text}" if occurrence == 0 else f"{file}, on `{planted}` (#{occurrence} of that line): {text}"
+
+
 def _pin_broken(label: str, refused: list[str]) -> list[str]:
-    """#242 (D-214 clause 1): each pinned refusal one configuration no longer makes."""
+    """#242 (D-214 clause 1): each pinned refusal one configuration no longer makes, by its key (#375); and the pin
+    itself, when its lines made before #242 are not all there as they were."""
     pinned = pinned_refusals("release" in label)
     if pinned is None:
         return [f"({label}) {PINNED_REFUSALS.name} is missing, empty or malformed, so nothing holds that the gate "
                 "refuses what it refused before #242 (D-214)"]
-    made = set(refused)
-    return [f"({label}) a refusal the fixture made before #242 is gone (D-214, no loosening): {line}"
-            for line in pinned if line not in made]
+    broken = [] if _pin_intact() else [
+        f"({label}) the first {PINNED_COUNT} lines of {PINNED_REFUSALS.name} are not those pinned before #242: one was "
+        "edited, removed or moved, or the pin was regenerated; every one must still be there as it was (D-214, #375)"]
+    made = refusal_keys(refused)
+    return broken + [f"({label}) a refusal the fixture made before #242 is gone (D-214, no loosening): {pin_shown(key)}"
+                     for key in pinned if key not in made]
 
 
 def self_test() -> list[str] | None:

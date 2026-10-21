@@ -1046,7 +1046,7 @@ def test_a_store_entry_is_seen_only_by_its_own_declaration() -> None:
 # --- #242 (D-214 clause 1): the deny-lists become allowlists, and nothing is loosened -----------------------------
 
 
-def _pinned(release: bool = True) -> list[str]:
+def _pinned(release: bool = True) -> list[tuple[str, str, int, str]]:
     pinned = gate.pinned_refusals(release)
     assert pinned, f"{gate.PINNED_REFUSALS.name} is missing, empty or malformed"
     return pinned
@@ -1061,7 +1061,7 @@ def test_the_fixture_still_refuses_everything_it_refused_before_242() -> None:
     pinned = _pinned()
     assert len(pinned) == 183, len(pinned)
     assert len(_pinned(release=False)) == 182, "the Debug configurations make all but the Release-only hook's"
-    gone = [line for line in pinned if line not in made]
+    gone = [key for key in pinned if key not in gate.refusal_keys(sorted(made))]
     assert not gone, gone
 
 
@@ -1073,8 +1073,9 @@ def test_the_self_test_fails_when_a_pinned_refusal_is_gone(monkeypatch: pytest.M
     assert gate.self_test() == []
     dropped = _pinned()[0]
     real = gate.problems
-    monkeypatch.setattr(gate, "problems", lambda found: [line for line in real(found) if line != dropped])
-    gone = [line for line in gate.self_test() or [] if "is gone" in line and line.endswith(dropped)]
+    monkeypatch.setattr(gate, "problems", lambda found: [line for line in real(found)
+                                                         if gate.refusal_keys([line]) != {dropped}])
+    gone = [line for line in gate.self_test() or [] if "is gone" in line and line.endswith(gate.pin_shown(dropped))]
     assert len(gone) == len(gate.CONFIGURATIONS), gone
     monkeypatch.setattr(gate, "problems", real)
     for name, content in (("missing.txt", None), ("empty.txt", ""), ("malformed.txt", "sometimes\tx\n"),
@@ -1430,7 +1431,7 @@ def test_375_a_fixture_line_moved_by_an_insertion_keeps_the_pin(monkeypatch: pyt
     fixtures = tmp_path / "fixtures"
     fixtures.mkdir()
     for source in gate.FIXTURES.glob("*.swift"):
-        text = source.read_text(encoding="utf-8")
+        text = source.read_text(encoding="utf-8")  # raw: the gate's own fixture, copied whole as the compiler reads it
         (fixtures / source.name).write_text(("// #375: one line inserted\n" + text) if source.name == "Arithmetic.swift"
                                             else text, encoding="utf-8")
     monkeypatch.setattr(gate, "FIXTURES", fixtures)

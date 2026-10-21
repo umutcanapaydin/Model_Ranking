@@ -241,7 +241,10 @@ they name became allowlists, each list measured on the shipping client and repor
 longer used, and every twin the reviews named for them is planted in the fixture and refused. Nothing was
 loosened: every refusal the fixture made before (183 in the Release configurations, 182 in Debug) is
 pinned in `tests/unit/data/client_decl_refusals_before_242.txt`, and the self-test fails in any
-configuration that stops making one. What each gap still does not hold is written in its row.
+configuration that stops making one. Since #375 each is keyed by its file, its planted line and its text
+rather than its line number, so a line moved by an insertion keeps its key, and the pin's own lines are held
+by their SHA-256: one edited, removed or reordered, or the pin regenerated, fails the self-test. What each gap
+still does not hold is written in its row.
 
 ## Retired ids
 
