@@ -77,7 +77,7 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "ios" / "ModelRanking"
@@ -753,6 +753,11 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
     # #242, the security review's M2: a URL of another file's type, read through a key path.
     ("FrontDoor.swift", "receives a URL, by `FixtureAddressHolder.address`, declared in ContentView.swift"),
+    # #242, the security review's round 2: a key path not written in place, in a store and on a served number; and
+    # a method referenced on a served number without a call.
+    ("FrontDoor.swift", "reads a URL through a key path not written in place"),
+    ("Arithmetic.swift", "`a key path not written in place` on a served position"),
+    ("Arithmetic.swift", "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeMethodHeld`"),
     # #242 (G-12): a selector made from text and asked of an object, both `ObjectiveC`'s (the module rule).
     ("ContentView.swift", "`ObjectiveC.Selector.init(_:` in `ObjectiveC`"),
     # #242, the security review's M3: a selector passed unlabelled, and a key labelled `key:`.
@@ -822,6 +827,9 @@ FIXTURE_RULES: dict[str, str] = {
     "what a served number may meet": "`Swift.abs` on a served position",
     "a function value called with a served number": "`a function value` on a served position",
     "a key path on a served number": "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`",
+    "a key path not written in place": "`a key path not written in place` on a served position",
+    "a method referenced without a call": "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeMethodHeld`",
+    "a store's key path not written in place": "reads a URL through a key path not written in place",
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
     "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
@@ -1131,6 +1139,10 @@ def _store_received(file: str, node: _Node, line: str) -> list[str]:
     judges): directly, as a member, or (the security review's M2) through a key path, whose members it names."""
     if node.kind == "keypath_application_expr" and len(node.kids) >= 2 and (typed := TYPE_OF["type"].search(line)) \
             and re.search(r"\bURL\b", typed.group(1)):
+        if _top(node.kids[1]).kind != "keypath_expr":
+            # The security review's round 2, M2: a key path bound to a name or handed in, whose members the gate
+            # cannot read, is refused (fail closed).
+            return [f"main.<store url>.through a key path not written in place@{_line(node)}"]
         return [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"
                 for item in node.kids[1].walk() for place in MAIN_REF.finditer(item.line)
                 if (declared := pathlib.Path(place.group(2)).name) != file]
@@ -1774,6 +1786,10 @@ class _Flow:
             self.functions.setdefault((file, name), []).append(line)
         self.stored, self.requirements, self.witnesses = _members(roots)
         self.carriers: _Carriers = {}
+        #: #242, the security review's round 2: every expression called on the spot, so a method referenced and
+        #: not called (`let g = x.advanced(by:)`) can be told from one that is.
+        self.callees = {id(_top(node.kids[0])) for root in roots for node in root.walk()
+                        if node.kind in ("call_expr", "binary_expr", "prefix_unary_expr", "postfix_unary_expr") and node.kids}
 
     def declared(self, file: str, name: str, row: int) -> int | None:
         """The line of the function `name` a reference at `row` names: the nearest one at or above it,
@@ -2045,7 +2061,7 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
             arithmetic = _arithmetic(node, flow, function)
             # #242 (G-2): what the arithmetic rule does not judge, the list of what a served number may meet does, in
             # the place it names: a function, or a computed property (the security review's R1).
-            for fact in arithmetic or _meets(node, flow, file, place):
+            for fact in arithmetic or _meets(node, flow, file, function, place):
                 facts.setdefault(file, set()).add(fact)
             if (ordering := _ordering(node)) is not None:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
@@ -2193,21 +2209,50 @@ def _calls_a_value(node: _Node, flow: _Flow) -> bool:
     return not any(row - 3 <= declared <= row for declared in flow.functions.get((path, name), []))
 
 
-def _meets(node: _Node, flow: _Flow, file: str, function: str | None) -> list[str]:
-    """#242 (G-2, INV-76): a declaration of another module a served number meets, as its receiver or an argument:
-    `main.<meets listed>` when `SERVED_MAY_MEET` admits it there (a fact `unseen_permissions` reads), nothing in a
-    place `ARITHMETIC_PERMITTED` names or a rule admits, and `main.<meets>` to be refused otherwise. Since the
-    security review's B1, by reference too: a key path applied to one, a function or a key path handed to an
-    element-passing method in place of a closure the flow follows, and a function value called with one."""
-    where, line = function or "-", _line(node)
+def _met_by_reference(node: _Node, flow: _Flow, file: str, where: str, line: int,
+                      permitted: Callable[[str], bool]) -> list[str] | None:
+    """#242, the security review's rounds 1 and 2 (B1): a key path applied to a served number (refused when it is not
+    written in place, since the gate cannot read it), a method referenced on one without a call (judged as its call
+    is: the compiler wraps it in an implicit thunk that calls it), and a function value called with one. None for
+    any other node."""
     if node.kind == "keypath_application_expr" and len(node.kids) >= 2:
-        return [fact for kind in sorted(_served_operand(flow, node.kids[0])) if not _arithmetic_permitted(file, kind, where)
-                for fact in _by_reference(node.kids[1], kind, file, where, line)]
+        applied = [kind for kind in sorted(_served_operand(flow, node.kids[0])) if not permitted(kind)]
+        if _top(node.kids[1]).kind != "keypath_expr":
+            return [f"main.<meets>.{kind}@{line} a key path not written in place|receiver in {where}" for kind in applied]
+        return [fact for kind in applied for fact in _by_reference(node.kids[1], kind, file, where, line)]
+    if node.kind == "dot_syntax_call_expr" and id(node) not in flow.callees and node.kids:
+        named = next((m for item in node.kids[0].walk() if (m := DECL.search(item.line)) and m.group(1) != "main"), None)
+        listed = next((kid for kid in node.kids[1:] if kid.kind == "argument_list"), None)
+        kinds = set().union(set(), *(_served_operand(flow, operand) for operand in _operands(listed)))
+        if named is None or not kinds:
+            return None
+        declared = f"{named.group(1)}.{_symbol(named.group(2))}"
+        return [fact for kind in sorted(kinds) if not permitted(kind)
+                if (fact := _meeting(declared, "receiver", kind, file, where, line)) is not None]
     if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list" \
             and _calls_a_value(node, flow):
         kinds = set().union(set(), *(_served_operand(flow, operand) for operand in _operands(node.kids[1])))
         return [f"main.<meets>.{kind}@{line} a function value|argument in {where}" for kind in sorted(kinds)
-                if not _arithmetic_permitted(file, kind, where)]
+                if not permitted(kind)]
+    return None
+
+
+def _meets(node: _Node, flow: _Flow, file: str, function: str | None, place: str | None = None) -> list[str]:
+    """#242 (G-2, INV-76): a declaration of another module a served number meets, as its receiver or an argument:
+    `main.<meets listed>` when `SERVED_MAY_MEET` admits it there (a fact `unseen_permissions` reads), nothing in a
+    place `ARITHMETIC_PERMITTED` names or a rule admits, and `main.<meets>` to be refused otherwise. Since the
+    security review's B1, by reference too: a key path applied to one, a function or a key path handed to an
+    element-passing method in place of a closure the flow follows, and a function value called with one. Since its
+    round 2, failing closed: a key path not written in place, which the gate cannot read, is refused, and a method
+    referenced on one without a call is judged as its call is. The place is the function or the computed property
+    (`_placed`); a ruling's permission is read by the function alone, as the arithmetic rule reads it (R5)."""
+    where, line = place or function or "-", _line(node)
+
+    def permitted(kind: str) -> bool:
+        return _arithmetic_permitted(file, kind, function or "-")
+
+    if (referenced := _met_by_reference(node, flow, file, where, line, permitted)) is not None:
+        return referenced
     if (applied := _application(node)) is None:
         return []
     head, receivers, arguments = applied
@@ -2217,7 +2262,7 @@ def _meets(node: _Node, flow: _Flow, file: str, function: str | None) -> list[st
     found: list[str] = []
     for role, operands in (("receiver", receivers), ("argument", arguments)):
         for kind in sorted(set().union(set(), *(_served_operand(flow, operand) for operand in operands))):
-            if _arithmetic_permitted(file, kind, where):
+            if permitted(kind):
                 continue
             if role == "receiver" and SERVED_PASSES_ELEMENTS.search(head.line):
                 found += [fact for argument in arguments if not _followed(argument)
@@ -2573,7 +2618,8 @@ def _store_problem(name: str, symbol: str) -> str | None:
     if fact == "<store url":
         how = "by a cast" if detail == "a cast" else f"by {detail}" if detail.startswith("`") or detail.startswith("an ") \
             else detail
-        verb = "receives a URL," if ", declared in " in detail else "makes a URL"
+        verb = "receives a URL," if ", declared in " in detail else "reads a URL" if detail.startswith("through ") \
+            else "makes a URL"
         return (f"{name}:{line}: {verb} {how}; a store makes a URL only from the file manager's folders "
                 f"(`STORE_FOLDER_MAKERS`) or by a function of its own file that is not generic over it, since its read "
                 "fetches an https address as readily as a file (G-13, #242)")
