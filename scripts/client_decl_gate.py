@@ -746,6 +746,9 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "`ObjectiveC.NSObject.responds(to:` in `ObjectiveC`"),
     # #242 (G-2): what a served number meets off its list.
     ("Arithmetic.swift", "`Swift.abs` on a served position"),
+    # #242, the security review's B1: met by reference, through a function value and a key path.
+    ("Arithmetic.swift", "`a function value` on a served position"),
+    ("Arithmetic.swift", "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -800,6 +803,8 @@ FIXTURE_RULES: dict[str, str] = {
     "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
     # #242 (G-13).
     "what a served number may meet": "`Swift.abs` on a served position",
+    "a function value called with a served number": "`a function value` on a served position",
+    "a key path on a served number": "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`",
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
     "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
@@ -2072,29 +2077,92 @@ def _served_operand(flow: _Flow, operand: _Node) -> set[str]:
     return flow.carried(operand, closures=False)
 
 
+def _meeting(declared: str, role: str, kind: str, file: str, where: str, line: int) -> str | None:
+    """#242 (G-2): one meeting of a served number with a declaration of another module: None when a rule admits it,
+    `main.<meets listed>` when `SERVED_MAY_MEET` does there, and `main.<meets>` to be refused otherwise."""
+    if any(role == by and rule.match(declared) for by, rule in SERVED_MAY_MEET_BY_RULE.values()):
+        return None
+    places, _ = SERVED_MAY_MEET.get((declared, role), (frozenset(), ""))
+    if places is None or (file, where) in places:
+        return f"main.<meets listed>.{declared}|{role}|{where}"
+    return f"main.<meets>.{kind}@{line} {declared}|{role} in {where}"
+
+
+def _followed(argument: _Node) -> bool:
+    """#242, the security review's B1: a closure written in the source, which `_Flow.closure` follows. An implicit
+    one (a function or a key path handed by name, `Int.init(truncatingIfNeeded:)`, `\\.magnitude`) is not."""
+    top = _top(argument)
+    return top.kind == "closure_expr" and " implicit " not in top.line
+
+
+def _by_reference(argument: _Node, kind: str, file: str, where: str, line: int) -> list[str]:
+    """#242, the security review's B1: what a served number meets through a function-typed or key-path argument
+    that is not a closure the flow follows: each declaration of another module named in it (a key path's member
+    as its receiver), and a function of the app's own handed by name, which the flow does not follow."""
+    typed = TYPE_OF["type"].search(_top(argument).line)
+    if typed is None or not ("->" in typed.group(1) or "KeyPath<" in typed.group(1)):
+        return []
+    found: list[str] = []
+    for item in argument.walk():
+        for module, symbol in DECL.findall(item.line):
+            if module == "main":
+                item_type = TYPE_OF["type"].search(item.line)
+                if item.kind in ("declref_expr", "member_ref_expr") and " implicit " not in item.line \
+                        and item_type is not None and "->" in item_type.group(1):
+                    found.append(f"main.<meets>.{kind}@{line} main.{_symbol(symbol)}|argument in {where}")
+                continue
+            role = "receiver" if item.kind == "member" else "argument"
+            if (fact := _meeting(f"{module}.{_symbol(symbol)}", role, kind, file, where, line)) is not None:
+                found.append(fact)
+    return found
+
+
+def _calls_a_value(node: _Node, flow: _Flow) -> bool:
+    """#242, the security review's B1: a call whose callee is a function value, not a function the flow follows: a
+    closure written on the spot, or a constant, a variable or a parameter of the app's own holding a function
+    (`let f = abs; f(x)`), as `_operator_as_value` treats an operator."""
+    callee = _top(node.kids[0])
+    if callee.kind in ("closure_expr", "autoclosure_expr"):
+        return True
+    if callee.kind not in ("declref_expr", "member_ref_expr") or (place := MAIN_REF.search(callee.line)) is None:
+        return False
+    symbol, path, row = place.group(1), pathlib.Path(place.group(2)).name, int(place.group(3))
+    name = _base(re.sub(r"[\w.]+ extension\.", "", symbol).split(".")[-1])
+    return not any(row - 3 <= declared <= row for declared in flow.functions.get((path, name), []))
+
+
 def _meets(node: _Node, flow: _Flow, file: str, function: str | None) -> list[str]:
     """#242 (G-2, INV-76): a declaration of another module a served number meets, as its receiver or an argument:
     `main.<meets listed>` when `SERVED_MAY_MEET` admits it there (a fact `unseen_permissions` reads), nothing in a
-    place `ARITHMETIC_PERMITTED` names, and `main.<meets>` to be refused otherwise."""
+    place `ARITHMETIC_PERMITTED` names or a rule admits, and `main.<meets>` to be refused otherwise. Since the
+    security review's B1, by reference too: a key path applied to one, a function or a key path handed to an
+    element-passing method in place of a closure the flow follows, and a function value called with one."""
+    where, line = function or "-", _line(node)
+    if node.kind == "keypath_application_expr" and len(node.kids) >= 2:
+        return [fact for kind in sorted(_served_operand(flow, node.kids[0])) if not _arithmetic_permitted(file, kind, where)
+                for fact in _by_reference(node.kids[1], kind, file, where, line)]
+    if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list" \
+            and _calls_a_value(node, flow):
+        kinds = set().union(set(), *(_served_operand(flow, operand) for operand in _operands(node.kids[1])))
+        return [f"main.<meets>.{kind}@{line} a function value|argument in {where}" for kind in sorted(kinds)
+                if not _arithmetic_permitted(file, kind, where)]
     if (applied := _application(node)) is None:
         return []
     head, receivers, arguments = applied
     if (named := DECL.search(head.line)) is None or named.group(1) == "main":
         return []
-    declared, where, line = f"{named.group(1)}.{_symbol(named.group(2))}", function or "-", _line(node)
+    declared = f"{named.group(1)}.{_symbol(named.group(2))}"
     found: list[str] = []
     for role, operands in (("receiver", receivers), ("argument", arguments)):
         for kind in sorted(set().union(set(), *(_served_operand(flow, operand) for operand in operands))):
             if _arithmetic_permitted(file, kind, where):
                 continue
-            if any(role == by and rule.match(declared) for by, rule in SERVED_MAY_MEET_BY_RULE.values()) or (
-                    role == "receiver" and SERVED_PASSES_ELEMENTS.search(head.line)):
+            if role == "receiver" and SERVED_PASSES_ELEMENTS.search(head.line):
+                found += [fact for argument in arguments if not _followed(argument)
+                          for fact in _by_reference(argument, kind, file, where, line)]
                 continue
-            places, _ = SERVED_MAY_MEET.get((declared, role), (frozenset(), ""))
-            if places is None or (file, where) in places:
-                found.append(f"main.<meets listed>.{declared}|{role}|{where}")
-            else:
-                found.append(f"main.<meets>.{kind}@{line} {declared}|{role} in {where}")
+            if (fact := _meeting(declared, role, kind, file, where, line)) is not None:
+                found.append(fact)
     return found
 
 
