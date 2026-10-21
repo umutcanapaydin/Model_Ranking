@@ -57,8 +57,6 @@ def test_every_need_ci_marks_is_what_the_workflow_gives_its_test_job() -> None:
          "    runs-on: macos-latest\n    timeout-minutes: 15\n", {"xcode", "macos"}),
         (OFFLINE_STEP, OFFLINE_STEP + '        env:\n          RUN_CONTRACT_TESTS: "1"\n', {"contract"}),
         (OFFLINE_STEP, OFFLINE_STEP + "        env:\n          EPOCH_DATA_DIR: /data/epoch\n", {"epoch"}),
-        # D-216 (#265): a token handed to the step would let the Datacurve contract test run there.
-        (OFFLINE_STEP, OFFLINE_STEP + "        env:\n          HF_TOKEN: ${{ secrets.HF_TOKEN }}\n", {"hf_token"}),
         # #122: the step as it was before the owner's patch, on the runner's own network.
         (OFFLINE_STEP, TEST_STEP, {"offline"}),
         # The namespace kept, but the inner `sudo` no longer drops to the runner user: pytest runs as root.
@@ -71,7 +69,7 @@ def test_every_need_ci_marks_is_what_the_workflow_gives_its_test_job() -> None:
         (TEST_CHECKOUT, CHECKOUT + SETUP, {"git_history"}),
         (TEST_CHECKOUT, TEST_CHECKOUT.replace("fetch-depth: 0 ", "fetch-depth: 2 "), {"git_history"}),
     ],
-    ids=["macos-runner", "contract-env", "epoch-env", "hf-token-env", "offline-patch", "sudo", "built-db", "no-checkout",
+    ids=["macos-runner", "contract-env", "epoch-env", "offline-patch", "sudo", "built-db", "no-checkout",
          "no-history", "two-commits"],
 )
 def test_a_planted_change_to_the_test_job_flips_its_need_and_only_that(old: str, new: str, flipped: set[str]) -> None:

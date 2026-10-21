@@ -27,8 +27,6 @@ EXTERNAL = {
 #: A source under a Creative Commons licence -> the link to its material (CC BY §3(a)(1)(A)(v)).
 CREATIVE_COMMONS = {
     "arena": "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
-    # D-216 (#265): Datacurve's own dataset, in place of Epoch's copy of its board (now retired).
-    "datacurve_deepswe": "https://huggingface.co/datasets/datacurve/deep-swe-leaderboard",
     "epoch_eci": "https://epoch.ai/benchmarks",
     "swebench": "https://www.swebench.com",
 }

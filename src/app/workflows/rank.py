@@ -19,10 +19,8 @@ from pathlib import Path
 from app.workflows.board_tables import (
     ARENA_ATTRIBUTION,
     ARENA_SLICES,
-    CC_BY_4,
     CC_BY_NC_4,
     CREDITS,
-    DATACURVE_DATASET_URL,
     DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
@@ -62,10 +60,9 @@ ARC_ATTRIBUTION = ("ARC-AGI-2 scores: ARC Prize's public evaluation runs, "
 #: D-194 (#265): TB 4.0's leaderboard, read from its repository in place of Epoch's copy of TB 2.0.
 TERMINALBENCH_ATTRIBUTION = ("Terminal-Bench 4.0 scores: Terminal-Bench leaderboard submissions, "
                              "https://github.com/harbor-framework/terminal-bench (Apache-2.0)")
-#: D-216 (#265): Datacurve's own DeepSWE board, in place of Epoch's copy: its leaderboard (no licence published; public
-#: numbers used with attribution, D-215), and its dataset, the fallback, under CC BY 4.0.
-DATACURVE_ATTRIBUTION = (f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE leaderboard, {DATACURVE_SITE_URL}, "
-                         f"and its leaderboard dataset, {DATACURVE_DATASET_URL} ({CC_BY_4})")
+#: D-216 (#265): Datacurve's own DeepSWE leaderboard, in place of Epoch's copy. It publishes no licence; its public
+#: numbers are used with this attribution (D-215).
+DATACURVE_ATTRIBUTION = f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE leaderboard, {DATACURVE_SITE_URL}"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
@@ -144,7 +141,7 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     AIDER_ATTRIBUTION: ("aider",),
     TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
     ARC_ATTRIBUTION: ("arc_prize", "arc_prize_solutions"),
-    DATACURVE_ATTRIBUTION: ("datacurve_site", "datacurve"),
+    DATACURVE_ATTRIBUTION: ("datacurve_site",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).

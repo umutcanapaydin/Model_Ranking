@@ -141,19 +141,12 @@ SWEBENCH = json.dumps(
 
 # The agentic-coding board publishes RELEASE dates, never evaluation dates — that is the whole
 # reason it is a separate surface (D-105) and the weakness Ruling A requires the payload to state.
-#: `agentic-coding`'s board, shaped as Datacurve's job files carry it (D-216, #265): three runs at `high`. The
-#: result file has no finish date here, so the evidence is undated, as Epoch's copy was; the real job's date
-#: is held by `test_datacurve.py`.
+#: `agentic-coding`'s board, shaped as Datacurve's leaderboard carries it (D-216, #265): three rows at `high`,
+#: undated, as the leaderboard's rows are.
 DEEPSWE_RUNS = {"claude-4-5-opus": 0.68, "gpt-5": 0.61, "deepseek-v3.2": 0.52}
-DEEPSWE = json.dumps({
-    "job": "20260606-deep-swe-leaderboard-all-4x",
-    "result": json.dumps({"stats": {"evals": {
-        f"mini-swe-agent__{model}__high__deep-swe": {"n_trials": 452, "metrics": [{"mean": mean}]}
-        for model, mean in DEEPSWE_RUNS.items()}}}),
-    "config": json.dumps({"agents": [
-        {"name": "mini-swe-agent", "model_name": model, "kwargs": {"reasoning_effort": "high"}}
-        for model in DEEPSWE_RUNS]}),
-})
+DEEPSWE = json.dumps({"rows": [
+    {"model": model, "harness": "mini-swe-agent", "reasoning_effort": "high", "source": "deep-swe", "pass_at_1": mean}
+    for model, mean in DEEPSWE_RUNS.items()]})
 
 
 def _seeded_db(path: Path) -> None:

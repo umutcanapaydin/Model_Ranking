@@ -81,10 +81,6 @@ NEEDS: dict[str, Need] = {
                             ["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
                             capture_output=True, text=True, check=False).stdout.strip() == "false",
                         True, "the test job's checkout fetches the whole history (fetch-depth: 0, #278)"),
-    # D-216 (#265): Datacurve's dataset is gated; its contract test reads it with the owner's token.
-    "hf_token": Need("the owner's Hugging Face read token (HF_TOKEN, or the owner's token file)",
-                     lambda: __import__("app.clients.datacurve", fromlist=["token_available"]).token_available(),
-                     False, "CI holds no Hugging Face token: it is the owner's secret, on the owner's Mac (D-216)"),
     "not_root": Need("a user that is not root", lambda: not (hasattr(os, "geteuid") and os.geteuid() == 0), True,
                      "the job runs as the runner user; root reads a mode-000 file"),
 }
@@ -119,8 +115,6 @@ def ci_job_facts(workflow_text: str) -> dict[str, bool]:
         "git": any(str(step.get("uses", "")).startswith("actions/checkout@") for step in before),
         "git_history": any(str(step.get("uses", "")).startswith("actions/checkout@")
                            and str((step.get("with") or {}).get("fetch-depth", "")) == "0" for step in before),
-        # D-216: a Hugging Face token handed to the step; the owner's file is never on a runner.
-        "hf_token": bool(env.get("HF_TOKEN")),
         # Root unless the last `sudo` before pytest drops to a user (`-u`), as #122's patch does.
         "not_root": "container" not in job and not (sudo and not re.search(r"\s-u\s", sudo[-1])),
     }

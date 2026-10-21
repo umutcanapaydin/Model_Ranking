@@ -68,10 +68,8 @@ RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
     )
 }
 
-#: D-216 (#265): Datacurve's own DeepSWE board, `agentic-coding`'s: its site's leaderboard first, and its dataset on
-#: Hugging Face when the site fails.
+#: D-216 (#265): Datacurve's own DeepSWE leaderboard, `agentic-coding`'s board.
 DATACURVE_SITE_URL = "https://deepswe.datacurve.ai/"
-DATACURVE_DATASET_URL = "https://huggingface.co/datasets/datacurve/deep-swe-leaderboard"
 
 #: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
 #: process and the client read one string (W-125).
@@ -137,13 +135,11 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("arc_prize_solutions", "ARC Prize Foundation", "ARC-AGI-2 public evaluation tasks and solutions, "
            "which this app scores the runs against", "https://github.com/arcprize/ARC-AGI-2", "Apache-2.0",
            "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE", "Copyright 2019 ARC Prize Foundation."),
-    # D-216 (#265): Datacurve's own leaderboard and dataset, in place of Epoch's copy of the leaderboard. The
-    # leaderboard publishes no licence; its numbers are used with this credit under D-215.
+    # D-216 (#265): Datacurve's own leaderboard, in place of Epoch's copy of it. It publishes no licence; its
+    # numbers are used with this credit under D-215.
     Credit("datacurve_site", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard (v1.1), as its site publishes it",
            DATACURVE_SITE_URL, "\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)",
            None),
-    Credit("datacurve", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard dataset: each run's results",
-           DATACURVE_DATASET_URL, "CC BY 4.0", _CC_BY_URL),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
            "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
