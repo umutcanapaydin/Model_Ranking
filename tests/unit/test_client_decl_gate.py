@@ -1361,3 +1361,11 @@ def test_242_a_store_reads_a_url_only_through_a_key_path_written_in_place() -> N
     line = _marked_in("FrontDoor.swift", "return GapRegisterStore(url: held[keyPath: path])")
     assert [found for found in gate.problems(gate.references(FLOW_AST))
             if found.startswith(f"FrontDoor.swift:{line}:") and "a key path not written in place" in found]
+
+
+def test_242_a_computed_property_named_like_a_permitted_function_does_not_inherit_its_permission() -> None:
+    """#242, the security review's round 2, R5: since `_placed` names a computed property as a place, a property named
+    `priceInPages` was read as REQ-CMP-002's permitted function and skipped `_meets`. A ruling's permission is read by
+    the function alone. Watched failing: the gate at `b93470f` refuses nothing on this line. # covers D-214"""
+    line = _marked_in("Router.swift", "// shape: property-named-like-a-ruling")
+    assert [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Router.swift:{line}:")]

@@ -12021,7 +12021,25 @@
             (argument
               (declref_expr type="Double" location=/x/Router.swift:11:12 range=[/x/Router.swift:11:12 - line:11:12] decl="main.(file).fixtureRouterDiscounts(_:).price@/x/Router.swift:10:9" function_ref=unapplied))
             (argument
-              (float_literal_expr type="Double" location=/x/Router.swift:11:20 range=[/x/Router.swift:11:20 - line:11:20] value="0.8" builtin_initializer="Swift.(file).Double extension.init(_builtinFloatLiteral:)" initializer="**NULL**" builtin_type="Builtin.FPIEEE64"))))))))
+              (float_literal_expr type="Double" location=/x/Router.swift:11:20 range=[/x/Router.swift:11:20 - line:11:20] value="0.8" builtin_initializer="Swift.(file).Double extension.init(_builtinFloatLiteral:)" initializer="**NULL**" builtin_type="Builtin.FPIEEE64")))))))
+  (extension_decl range=[/x/Router.swift:16:1 - line:18:1] "Pick"
+    (pattern_binding_decl range=[/x/Router.swift:17:5 - line:17:49]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="Double"
+          (pattern_named type="Double" "priceInPages")
+          (type_unqualified_ident id="Double" bind="Swift.(file).Double"))))
+    (var_decl range=[/x/Router.swift:17:9 - line:17:9] "priceInPages" interface_type="Double" access=internal readImpl=getter immutable
+      (accessor_decl range=[/x/Router.swift:17:30 - line:17:49] <anonymous @ 0x0> interface_type="(Pick) -> () -> Double" access=internal get for="priceInPages"
+        (parameter "self" interface_type="Pick") result="Double" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt range=[/x/Router.swift:17:30 - line:17:49]
+          (return_stmt implicit range=[/x/Router.swift:17:32 - line:17:47]
+            (call_expr type="Double" location=/x/Router.swift:17:32 range=[/x/Router.swift:17:32 - line:17:47] nothrow isolation_crossing="none"
+              (declref_expr type="(Double) -> Double" location=/x/Router.swift:17:32 range=[/x/Router.swift:17:32 - line:17:32] decl="Swift.(file).abs [with (substitution_map generic_signature=<T where T : Comparable, T : SignedNumeric> T -> Double)]" function_ref=single apply)
+              (argument_list
+                (argument
+                  (member_ref_expr type="Double" location=/x/Router.swift:17:36 range=[/x/Router.swift:17:36 - line:17:36] decl="main.(file).Pick.blendedPerM@/x/Models.swift:13:9"
+                    (declref_expr implicit type="Pick" location=/x/Router.swift:17:36 range=[/x/Router.swift:17:36 - line:17:36] decl="main.(file).Pick extension.<anonymous>.self@/x/Router.swift:17:30" function_ref=unapplied)))))))))))
 (source_file "/x/StandingsStore.swift"
   (import_decl range=[/x/StandingsStore.swift:2:1 - line:2:8] module="Foundation")
   (func_decl range=[/x/StandingsStore.swift:4:1 - line:6:1] "fixtureStoreFolder()" interface_type="() -> URL" access=internal result="URL" thrown_type="<null>"
