@@ -9,7 +9,7 @@
 
 Mode: light
 Started: 2026-10-21
-Ended: open
+Ended: 2026-10-21 — stopped at not-assumable, nothing independent left
 Integration branch: `integration/run-night-1021` · PR: #370
 Plan PR: #369
 Rulings: D-214
@@ -26,7 +26,7 @@ The queue in order (D-214): #367 first, filed at the run's first push (two CA ad
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | c4df42b | issues | running |
+| 1 | queue | c4df42b | issues | stopped |
 
 <!-- Base: the integration-branch sha the milestone's first wave was cut from (`none` until it
      starts); the milestone Tester and the last wave's cross-wave review take their range from it. Status: `queued` ·
@@ -41,7 +41,7 @@ The queue in order (D-214): #367 first, filed at the run's first push (two CA ad
 |---|---|---|---|---|
 | issue-367 | fix/issue-367-ca-bundle | #368 | none | stacked |
 | issue-242 | enhancement/issue-242-allowlists | #372 | none | stopped |
-| issue-355 | none | none | none | running |
+| issue-355 | integration/run-night-1021 | #370 | none | stacked |
 
 <!-- Wave: `m<N>-w<W>` (heavy) or `issue-<n>` (light, Close record `none`). Status: `queued` ·
      `running` · `stacked` (closed with `/close-wave`, merged into the integration branch, its
@@ -68,3 +68,8 @@ The queue in order (D-214): #367 first, filed at the run's first push (two CA ad
 
 <!-- What the morning needs, in order: the plan PR, the integration PR (merge commit, never a
      squash), each stop's question. Rewrite in place; this is a live document, not a log. -->
+
+1. Merge #368 (the CA-bundle lock fix for #367, severity:high) first.
+2. Merge the plan PR #369: it carries D-214, the run's rulings.
+3. Merge the integration PR #370 with a **merge commit, never a squash**. It carries #368 and m25's judgement (`docs/research/reading-heldout-m25-result.md`): searches 249/301 (82.7%), non-searches 177/210 (84.3%) on macOS 27.0.1 (26A434), AFM 3 Core Advanced. The bar is met, and #351 and #355 are closed with the result.
+4. Stop, #242 (#372): decide B1. Either accept the round-3 forms in an ADR and merge #372, or open the remaining fix as its own issue first. #371 holds two further gate classes, filed from the same review.
