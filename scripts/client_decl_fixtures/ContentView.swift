@@ -438,3 +438,8 @@ func fixtureViewUnlabelledSelectors(_ named: Selector, _ target: NSObject, _ typ
     RunLoop.main.perform(named, target: target, argument: nil, order: 0, modes: [.default])
     _ = NSSortDescriptor(key: typed, ascending: true).compare(a, to: b)
 }
+
+// #242, the security review's M2: a URL the register's file reads through a key path off a type this file declares.
+struct FixtureAddressHolder {
+    let address: URL
+}

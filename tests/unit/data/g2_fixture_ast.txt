@@ -6991,7 +6991,26 @@
               (erasure_expr implicit type="Any" location=/x/ContentView.swift:439:70 range=[/x/ContentView.swift:439:70 - line:439:70]
                 (normal_conformance type="NSObject" protocol="Copyable" explicit nonisolated lazy)
                 (normal_conformance type="NSObject" protocol="Escapable" explicit nonisolated lazy)
-                (declref_expr type="NSObject" location=/x/ContentView.swift:439:70 range=[/x/ContentView.swift:439:70 - line:439:70] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).b@/x/ContentView.swift:436:110" function_ref=unapplied)))))))))
+                (declref_expr type="NSObject" location=/x/ContentView.swift:439:70 range=[/x/ContentView.swift:439:70 - line:439:70] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).b@/x/ContentView.swift:436:110" function_ref=unapplied))))))))
+  (struct_decl range=[/x/ContentView.swift:443:1 - line:445:1] "FixtureAddressHolder" interface_type="FixtureAddressHolder.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/ContentView.swift:444:5 - line:444:18]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="URL"
+          (pattern_named type="URL" "address")
+          (type_unqualified_ident id="URL" bind="Foundation.(file).URL"))))
+    (var_decl range=[/x/ContentView.swift:444:9 - line:444:9] "address" interface_type="URL" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/ContentView.swift:444:9 - line:444:9] <anonymous @ 0x0> interface_type="(FixtureAddressHolder) -> () -> URL" access=internal get for="address"
+        (parameter "self" interface_type="FixtureAddressHolder") result="URL" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:444:9 - line:444:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="URL" decl="main.(file).FixtureAddressHolder.address@/x/ContentView.swift:444:9" direct_to_storage
+              (declref_expr implicit type="FixtureAddressHolder" decl="main.(file).FixtureAddressHolder.<anonymous>.self@/x/ContentView.swift:444:9" function_ref=unapplied))))))
+    (constructor_decl implicit range=[/x/ContentView.swift:443:8 - line:443:8] "init(address:)" interface_type="(FixtureAddressHolder.Type) -> (URL) -> FixtureAddressHolder" access=internal designated
+      (parameter "self" interface_type="FixtureAddressHolder" inout) thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:443:8 - line:443:8]
+        (parameter "address" apiName="address" interface_type="URL")))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")
@@ -9470,7 +9489,27 @@
                   (type_expr type="GapRegisterStore.Type" location=/x/FrontDoor.swift:58:9 range=[/x/FrontDoor.swift:58:9 - line:58:9] typerepr="GapRegisterStore"))))
             (argument_list labels="url:"
               (argument label="url"
-                (declref_expr type="URL" location=/x/FrontDoor.swift:58:31 range=[/x/FrontDoor.swift:58:31 - line:58:31] decl="main.(file).GapRegisterStore extension.fixtureAt(_:).place@/x/FrontDoor.swift:57:29" function_ref=unapplied)))))))))
+                (declref_expr type="URL" location=/x/FrontDoor.swift:58:31 range=[/x/FrontDoor.swift:58:31 - line:58:31] decl="main.(file).GapRegisterStore extension.fixtureAt(_:).place@/x/FrontDoor.swift:57:29" function_ref=unapplied))))))))
+  (func_decl range=[/x/FrontDoor.swift:64:1 - line:66:1] "fixtureStoreKeyPath(_:)" interface_type="(FixtureAddressHolder) -> GapRegisterStore" access=internal result="GapRegisterStore" thrown_type="<null>"
+    (parameter_list range=[/x/FrontDoor.swift:64:25 - line:64:54]
+      (parameter "held" interface_type="FixtureAddressHolder"))
+    (brace_stmt range=[/x/FrontDoor.swift:64:76 - line:66:1]
+      (return_stmt implicit range=[/x/FrontDoor.swift:65:5 - line:65:71]
+        (call_expr type="GapRegisterStore" location=/x/FrontDoor.swift:65:5 range=[/x/FrontDoor.swift:65:5 - line:65:71] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="(URL) -> GapRegisterStore" location=/x/FrontDoor.swift:65:5 range=[/x/FrontDoor.swift:65:5 - line:65:5] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" location=/x/FrontDoor.swift:65:5 range=[/x/FrontDoor.swift:65:5 - line:65:5] decl="main.(file).GapRegisterStore.init(url:)@/x/FrontDoor.swift:40:8" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="GapRegisterStore.Type" location=/x/FrontDoor.swift:65:5 range=[/x/FrontDoor.swift:65:5 - line:65:5] typerepr="GapRegisterStore"))))
+          (argument_list labels="url:"
+            (argument label="url"
+              (keypath_application_expr type="URL" location=/x/FrontDoor.swift:65:31 range=[/x/FrontDoor.swift:65:27 - line:65:70]
+                (declref_expr type="FixtureAddressHolder" location=/x/FrontDoor.swift:65:27 range=[/x/FrontDoor.swift:65:27 - line:65:27] decl="main.(file).fixtureStoreKeyPath(_:).held@/x/FrontDoor.swift:64:28" function_ref=unapplied)
+                (keypath_expr type="KeyPath<FixtureAddressHolder, URL>" location=/x/FrontDoor.swift:65:41 range=[/x/FrontDoor.swift:65:41 - line:65:63]
+                  (components
+                    (member decl="main.(file).FixtureAddressHolder.address@/x/ContentView.swift:444:9" type="URL"))
+                  (parsed_root=unresolved_dot_expr type="<null>" field="address" function_ref=unapplied
+                    (type_expr type="<null>" typerepr="FixtureAddressHolder")))))))))))
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")

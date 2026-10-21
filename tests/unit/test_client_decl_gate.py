@@ -1313,3 +1313,10 @@ def test_242_a_selector_unlabelled_or_a_key_labelled_key_is_refused(declared: st
     labelled `key:`. A declaration whose type takes a `Selector`, whatever its label, and a Foundation declaration
     labelled `key:` or `keyPath:` are refused unless `BY_NAME_ALLOWED` names them. # covers D-214"""
     assert _refused_in("ContentView.swift", f"`{declared}` reaches a value, a class or a selector by name")
+
+
+def test_242_a_url_a_store_reads_through_a_key_path_off_another_files_type_is_refused() -> None:
+    """#242, the security review's M2 (G-13): `_store_received` read only a direct reference or a member read, so a
+    URL-typed declaration of another file read through a key path (`held[keyPath: \\Holder.address]`) passed, and the
+    register's store was built on it. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("FrontDoor.swift", "receives a URL, `FixtureAddressHolder.address`, declared in ContentView.swift")

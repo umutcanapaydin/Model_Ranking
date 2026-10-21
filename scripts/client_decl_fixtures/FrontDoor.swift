@@ -58,3 +58,9 @@ extension GapRegisterStore {
         GapRegisterStore(url: place)
     }
 }
+
+// #242, the security review's M2: the register's store built on a URL read through a key path off another file's
+// type. REFUSED: a URL-typed declaration of another file, read by any form, is received, not made.
+func fixtureStoreKeyPath(_ held: FixtureAddressHolder) -> GapRegisterStore {
+    GapRegisterStore(url: held[keyPath: \FixtureAddressHolder.address])
+}
