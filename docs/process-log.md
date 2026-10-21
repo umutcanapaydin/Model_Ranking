@@ -1080,3 +1080,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Measured question by question against `main` on the same OS: m24 154 → 156 of 173 (4 fixed, 2 broken, p = 0.69; not a search 51 → 55, searches 103 → 101), golden 43 → 44 of 49; all 10 probe instructions are no longer searches, and the 3 real searches that name an AI stay searches.
 - The macOS 27 baseline (154) is new: the same code read 139 on macOS 26. Every measurement from now on compares on one OS.
 - Lesson: test an issue's remedy against the model of the day before writing it; an OS upgrade can move the failure from the code to the model.
+
+## 2026-10-21 — fix/issue-367-ca-bundle: the locks leave a CA root with compromised intermediates (#367)
+
+- Run night-1021's first push met two advisories published that day: certifi 2026.7.22 (PYSEC-2026-4320) and uv 0.12.23 (GHSA-hq85-5cpj-mr62) both trust `emSign ECC Root CA - G3`, whose eMudhra intermediates' keys leaked. `deps` refused every push.
+- `make lock` (D-177's one writer) re-resolved every lock: certifi 2026.10.19 and uv 0.13.4, and with them the rest moved to their latest (fastapi 0.142 → 0.156, pyarrow 25 → 26, pydantic 2.13 → 2.14 among them). `make gate` is green on the new set, every suite included.
+- No red test of its own: the reproduction is the `deps` leg itself, which refused before the change and passes after it.
+- Lesson: `deps` grades the day's advisory feed, not the change, so a run's first push can be refused by news; fix the locks first and stack everything else on that fix.
