@@ -1160,3 +1160,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red first: 17 tests. Among them, the token's step ships a file that is not SQLite at all, and a logging interpreter shows that no `sqlite` and no `app.workflows` ran. A copy changed after its stamp is refused, and so is a stamp naming other code or other data.
 - Fixed by job, not by step. Steps of one job share a disk, so a compromised token-free step could rewrite the scripts the token's step runs next. The `refresh` job now also runs `prepare` (the deploy script's dry run, which now writes the copy's stamp beside it). The `deploy` job installs no package and runs `--ship`, which only hashes the copy and checks the stamp. `--if-new` is gone, folded into `--ship`.
 - Lesson: isolate a secret by job or by machine, never by step; steps that share a disk share whatever the first one plants.
+
+## 2026-10-21 — fix/issue-391-repo-pin: the hosted deploy script ships only its own checkout (#391)
+
+- Run queue-1021. This was the #387 Security-Reviewer's R1. The Bash guard runs the deploy gate on the tree a call runs in, but the deploy script built and deployed whatever tree `MODEL_RANKING_REPO` named.
+- Red first: a clean clone of the same origin, named in `MODEL_RANKING_REPO`, got the build while the judged checkout did not. The script now reads no `MODEL_RANKING_REPO`.
+- The deploy tests set that variable to point the script at their scratch repositories. They now copy the script into each scratch repository and run it there, as the nightly tests already did.
+- Lesson: a test hook that redirects a guarded script to another tree is a bypass the gate cannot see; run the copy in the tree instead of pointing the original at it.
