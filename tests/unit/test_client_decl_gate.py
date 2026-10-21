@@ -1278,3 +1278,28 @@ def test_242_a_served_number_meeting_a_declaration_by_reference_is_refused(shape
     line = _marked(f"// shape: {shape}")
     refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
     assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+@pytest.mark.parametrize("table", ["SINK_CONSTANT_TYPES", "STORE_FOLDER_MAKERS", "STORE_READS"])
+def test_242_an_unused_constant_type_folder_maker_or_store_read_fails_the_gate(table: str) -> None:
+    """#242, the security review's M4: `unseen_permissions` reports an entry of these three tables the shipping
+    client no longer uses, and no test watched it: with the three reports replaced by `pass`, every test passed.
+    Each table is read here with every entry seen, then with one taken away. # covers D-214"""
+    seen: dict[str, set[str]] = {"Models.swift": {f"main.<sink reads constant type>.{typed}" for typed in gate.SINK_CONSTANT_TYPES}}
+    for name, makers in gate.STORE_FOLDER_MAKERS.items():
+        seen.setdefault(name, set()).update(f"main.<store url listed>.{maker}" for maker in makers)
+    for name, read in gate.STORE_READS.items():
+        seen.setdefault(name, set()).add(f"main.<store reads listed>.{read}")
+    words = {"SINK_CONSTANT_TYPES": "constant types a sink may read", "STORE_FOLDER_MAKERS": "the store's list of URL makers",
+             "STORE_READS": "the store's one read"}[table]
+    assert not [line for line in gate.unseen_permissions(seen) if words in line]
+    if table == "SINK_CONSTANT_TYPES":
+        seen["Models.swift"].discard("main.<sink reads constant type>.Int")
+        dropped = "`Int`"
+    elif table == "STORE_FOLDER_MAKERS":
+        seen["FrontDoor.swift"].discard("main.<store url listed>.Foundation.URL.deletingLastPathComponent(")
+        dropped = "`Foundation.URL.deletingLastPathComponent(`"
+    else:
+        seen["StandingsStore.swift"].discard("main.<store reads listed>.StandingsStore.url")
+        dropped = "`StandingsStore.url`"
+    assert [line for line in gate.unseen_permissions(seen) if words in line and dropped in line], (table, dropped)
