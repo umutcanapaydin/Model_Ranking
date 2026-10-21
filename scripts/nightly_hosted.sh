@@ -13,7 +13,8 @@
 #   only when the night published or kept its data, so the workflow keeps the state of that night alone.
 # deploy: `scripts/deploy_gate.py --check` first; while a release verdict is stale nothing deploys and the
 #   night fails (D-217 clause 4). Then the deploy script with --if-new on the kept state, which Fly
-#   deploys only when /health does not already answer its build. DEPLOY_ACCEPT_DATA_FROM is never passed.
+#   deploys only when /health does not already answer its build. DEPLOY_ACCEPT_DATA_FROM is never passed, and
+#   neither is MODEL_RANKING_REPO, so the tree the gate judged is the tree that ships (the #387 review's M2).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="${PYTHON:-$REPO/.venv/bin/python}"
@@ -64,5 +65,5 @@ if ! "$PYTHON" scripts/deploy_gate.py --check; then
   echo "        review, and the next night deploys (D-217)" >&2
   exit 1
 fi
-env -u DEPLOY_ACCEPT_DATA_FROM MODEL_RANKING_SERVED="$STATE/advisor.db" PYTHON="$PYTHON" \
+env -u DEPLOY_ACCEPT_DATA_FROM -u MODEL_RANKING_REPO MODEL_RANKING_SERVED="$STATE/advisor.db" PYTHON="$PYTHON" \
   scripts/deploy_hosted_engine.sh --if-new

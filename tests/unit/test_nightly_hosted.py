@@ -202,6 +202,18 @@ def test_data_another_release_built_is_refused_whatever_the_environment_accepts(
     assert not calls.exists()
 
 
+def test_the_tree_the_gate_judged_is_the_tree_that_ships(tmp_path: Path) -> None:
+    """The #387 security review's M2: MODEL_RANKING_REPO, passed through, pointed the deploy script at
+    another tree than the one the night's gate had just judged."""
+    repo, state, calls, env = _scratch(tmp_path)
+    elsewhere = tmp_path / "unreviewed"
+    elsewhere.mkdir()
+    done = _deploy(repo, state, env | {"MODEL_RANKING_REPO": str(elsewhere)})
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert calls.exists() and (repo / "build" / "hosted" / "advisor.db").is_file()
+    assert not (elsewhere / "build").exists()
+
+
 def test_a_deploy_with_no_kept_state_is_refused(tmp_path: Path) -> None:
     repo, state, calls, env = _scratch(tmp_path)
     (state / "advisor.db").unlink()
@@ -218,6 +230,18 @@ def test_the_night_is_a_deploy_command_the_gate_judges() -> None:
         sys.path.remove(str(REPO / "scripts"))
     assert deploy_gate.deploy_in([["scripts/nightly_hosted.sh", "deploy", "state"]], REPO)
     assert deploy_gate.deploy_in([["/abs/scripts/nightly_hosted.sh", "refresh", "state"]], REPO)
+    # The #387 security review's M1: starting the workflow by hand is a deploy as well.
+    assert deploy_gate.deploy_in([["gh", "workflow", "run", "nightly-hosted.yml", "--ref", "main"]], REPO)
+
+
+def test_the_kept_state_is_public_so_it_may_hold_nothing_the_public_copy_leaves_out() -> None:
+    """The #387 security review's M4: the repository is public, so any signed-in GitHub user can download
+    the `hosted-state` artifact, the full artifact before `app.workflows.public` strips it. That is safe
+    only while nothing is left out (D-186, D-193). A source put in LEFT_OUT fails this test until the night
+    keeps only the public copy, or keeps the state somewhere private (D-217, revisit)."""
+    from app.workflows.public import LEFT_OUT
+
+    assert not LEFT_OUT, LEFT_OUT
 
 
 # --- the workflow --------------------------------------------------------------------------------------
@@ -270,6 +294,37 @@ def test_only_a_night_that_kept_its_data_is_uploaded_for_ninety_days() -> None:
     assert "if" not in upload or "always()" not in str(upload["if"]), "a failed night uploads nothing"
     outputs = _workflow()["jobs"]["refresh"]["outputs"]
     assert "outcome" in outputs
+
+
+def test_both_jobs_run_only_on_main_and_the_token_is_an_environment_s_only_main_reaches() -> None:
+    """The #387 security review's B1: a run dispatched on another branch ran that branch's scripts with
+    the repository's token in reach. The token is the `fly-production` environment's secret, which the
+    owner limits to main (docs/owner-actions.md), and neither job runs off main."""
+    jobs = _workflow()["jobs"]
+    for name in ("refresh", "deploy"):
+        assert "github.ref == 'refs/heads/main'" in str(jobs[name]["if"]), name
+    assert jobs["deploy"]["environment"] == "fly-production"
+    assert "environment" not in jobs["refresh"]
+
+
+def test_the_state_is_read_only_from_this_file_s_runs_whose_commit_is_on_main() -> None:
+    """D-217 clause 3, and the #387 security review's R2: an artifact of the same name from a pull
+    request's run, a fork's, another workflow's or a tag named `main` is never read."""
+    fetch = [s for s in _steps("refresh") if "hosted-state" in str(s.get("run", ""))]
+    assert len(fetch) == 1
+    run = fetch[0]["run"]
+    for held in ('.event == "schedule" or .event == "workflow_dispatch"',
+                 ".head_repository.full_name == env.GITHUB_REPOSITORY",
+                 '.path == ".github/workflows/nightly-hosted.yml"', 'compare/$sha...main',
+                 "identical|ahead", '.expired == false', '"$GITHUB_RUN_ID"',
+                 "advisor.db advisor.db.refresh.json"):
+        assert held in run, held
+
+
+def test_the_fly_binary_that_receives_the_token_is_pinned() -> None:
+    """The #387 security review's M5: `setup-flyctl` installs the latest flyctl unless told."""
+    setup = [s for s in _steps("deploy") if str(s.get("uses", "")).startswith("superfly/flyctl-actions/")]
+    assert len(setup) == 1 and re.fullmatch(r"\d+\.\d+\.\d+", str(setup[0]["with"]["version"]))
 
 
 def test_the_deploy_job_holds_the_token_and_runs_the_night_after_the_refresh() -> None:

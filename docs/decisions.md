@@ -5710,7 +5710,7 @@ objects to this use; or the default runs need a label of their own.
 
 ## D-217 — The hosted engine is refreshed and deployed each night by a GitHub Actions workflow, not from the Mac
 
-**Status:** proposed
+**Status:** proposed. Revised once before merge on 2026-10-21, on the Security-Reviewer's round 1 (`docs/reviews/fix-issue-387-security.md`): the token became an environment's secret only `main` reaches (B1), starting the workflow by hand became a deploy command (M1), and clauses 2, 3 and the revisit say what the review found (M3, M4, R2, R4).
 **Owner ruling:** 2026-10-21, in chat, on #387: "The engine has to be deployed somewhere; it cannot keep running on my Mac" *(translated)*. Asked three questions, the owner chose a scheduled GitHub Actions job, the previous night's artifact kept as an Actions artifact, and the deploy gate run every night with a stale gate skipping the deploy.
 **Amends** D-116 clause 2, D-185 clauses 2 and 5, and answers D-154's revisit.
 
@@ -5730,10 +5730,17 @@ the Mac.
    `GITHUB_TOKEN` it reads the previous state with reaches only that step, and it is read-only (`contents: read`,
    `actions: read`). It fetches the sources, parses them, and builds the artifact. `deploy` holds the owner's
    deploy-scoped `FLY_API_TOKEN`; it never fetches a source, it receives `refresh`'s artifact, derives the public copy
-   (`app.workflows.public`) and deploys. The code that parses untrusted data never runs beside the token.
+   (`app.workflows.public`) and deploys. The code that parses fetched data never runs beside the token; the deploy
+   still opens the refresh's SQLite output and record beside it (queued, #389). The token is the secret of the
+   `fly-production` environment, which the owner limits to `main`, never a repository secret, and both jobs run only
+   on `main`: a run dispatched on another branch reaches no token.
 3. **The previous night's artifact and its record are an Actions artifact,** `hosted-state`, uploaded by `refresh`
    after a night that published or kept its data (exit 0 or 1), and downloaded by the next night as the live artifact
-   carry-forward reads. Retention is 90 days, three times D-156's 30-day carry window. A failed night (2, 3 or 4)
+   carry-forward reads. Retention is 90 days, three times D-156's 30-day carry window. It is read only from this
+   workflow file's own runs, started by the schedule or by hand in this repository, whose commit is on `main`: a pull
+   request's run, a fork's included, can upload an artifact of the same name. The repository is public, so any
+   signed-in GitHub user can download the state: it is the full artifact, which is safe only while the public copy
+   leaves nothing out (`LEFT_OUT` empty, D-186, D-193), and a test fails the day a source goes into it. A failed night (2, 3 or 4)
    uploads nothing, so the last good state stands. With no state (the first night, or 90 days without a good night),
    the night is a first publish: a required source that fails it fails the night, and nothing deploys.
 4. **The deploy gate runs every night, first.** `deploy` runs `scripts/deploy_gate.py --check`; while the release
@@ -5743,8 +5750,9 @@ the Mac.
 5. **A night deploys only what is new.** The build stamp (`release-<sha>-data-<digest>-from-<sha>`) is compared with
    `/health`'s; when Fly already serves it, nothing is deployed. Data another release built is refused as the deploy
    script refuses it today; the workflow never sets `DEPLOY_ACCEPT_DATA_FROM`.
-6. **`scripts/nightly_hosted.sh` is a deploy command** in the brief, beside `fly deploy` and the deploy script, so
-   the Bash guard judges an agent that runs it as it judges them.
+6. **`scripts/nightly_hosted.sh` and `gh workflow run nightly-hosted.yml` are deploy commands** in the brief, beside
+   `fly deploy` and the deploy script, so the Bash guard judges an agent that runs them as it judges them. The
+   `dispatches` API and other spellings of a dispatch are not judged yet (#390).
 7. **The workflow is the owner's to apply** (`.github/workflows/**`): the agent commits the proposal at
    `scripts/ci/nightly-hosted.yml`, a test holds its shape and, once the owner copies it, that the installed workflow is
    the proposal. The owner creates the token (`fly tokens create deploy`) and the repository secret.
@@ -5762,7 +5770,8 @@ and carry-forward then loses every source.
 
 **The alternatives not taken.** A second, private Fly machine that ingests and hands the artifact over: storage the
 two machines share, or a deploy from inside Fly. A refresh inside the serving machine: it reverses D-116 clause 2.
-A GitHub release asset for the state: public and permanent for a file only the next night needs. A data-only deploy
+A GitHub release asset for the state: as public as the Actions artifact, and permanent, for a file only the next
+night needs, where the artifact expires. A data-only deploy
 without the gate: unreviewed code would ship with it.
 
 **The cost.** A red scheduled run every night between a code merge and its delta review. GitHub may delay a scheduled
@@ -5771,5 +5780,6 @@ D-158); each is a failed source, carried. A night whose data is unchanged after 
 release's name on its data and is refused until a night changes it.
 
 **Revisit when:** the runner's nights fail more often than the Mac's, a source's terms forbid automated fetching
-from a data centre, Fly's deploy token scope changes, or the app moves to a public release (then the state's
-retention and the deploy cadence are read again).
+from a data centre, Fly's deploy token scope changes, a source goes into `LEFT_OUT` (the public state would then
+publish it), the repository goes private (the deploy's anonymous `git fetch` then needs a credential), or the app
+moves to a public release (then the state's retention and the deploy cadence are read again).
