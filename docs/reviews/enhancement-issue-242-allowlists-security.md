@@ -17,7 +17,7 @@ recomputed the pre-#242 refusals with the pre-#242 gate. I planted 43 twins in s
 the worktree and ran three staleness checks as mutants in a separate scratch copy.
 **Date:** 2026-10-21
 **Release range:** `0d46032..2a75cae` (17 commits, round 1); `d528020..4aa5cee` (10 commits, round 2)
-**Reviewed head:** 4aa5ceeeb72bbde4201b1553770b28909f275e19
+**Reviewed head:** fae9d85a1d7939e4260844288c5293fd1df48d91
 **Risk tier:** MEDIUM. The brief declares no HIGH paths (`docs/project-brief.md:110`). The change rewrites the
 definition of a security gate (INV-62, INV-64, INV-66, INV-76; D-126, D-160, D-180, D-181) and touches no route, no
 `src/` code, no dependency, no CI, hook, `.claude/` or `.githooks/` file. There is no auth, PII, payment or migration
@@ -25,6 +25,106 @@ path, so §11's senior-review trigger does not fire.
 
 ## Verdict
 BLOCKING
+
+### Round 3 — re-verification at `fae9d85` (2026-10-21), the last round allowed on B1
+
+Round 3 counts: B1 still open, third BLOCKING (the review loop on B1 ends here) · M2 still open, MINOR · R5 closed ·
+M1 now carries #371 · R3 left, accepted.
+
+**Method.** The worktree was moved by the coordinator to `fae9d85`, detached, with its own venv. I read
+`git diff d4e4287..fae9d85`, ran `make client-decls`, `tests/unit/test_client_decl_gate.py` and the four gate targets,
+and recomputed the refusals in all four configurations. I re-planted all 81 twins from rounds 1 and 2, plus the
+round-3 ones below, in scratch copies outside the worktree.
+
+**No loosening (D-214 clause 1): still holds.** At `fae9d85` the fixture makes 289 refusals (Release) and 288
+(Debug). Every one of the pre-#242 gate's 183 and 182 is still made, in all four configurations: 0 missing in each.
+`make client-decls` gives `client-decls PASS: 22 client file(s) in 4 configuration(s)`, so the pin self-test is
+green. `tests/unit/test_client_decl_gate.py` gives `213 passed`.
+
+**What round 3 closed.** Every round-2 residual is refused now:
+- a key path bound to a local, in a closure, or passed as a parameter, gives "`a key path not written in place` on a
+  served position";
+- `let g = s.position.advanced(by:)`, `distance(to:)` and `signum` give "`Swift.Int.advanced(by:` / `distance(to:` /
+  `signum(` on a served position (its receiver)";
+- `[1, 2].map(s.position.advanced(by:))` is refused;
+- a stored closure, a defaulted function parameter, and `let f = Int.advanced(by:); f(s.position)(1)` each give
+  "a function value";
+- the store's key path held in a local gives "reads a URL through a key path not written in place".
+
+Every earlier twin the rounds reported as refused is still refused.
+
+**B1, still open: third BLOCKING.** The new gate refuses none of these four forms (`scripts/client_decl_gate.py:2218-2232`):
+```swift
+func r3KPS(_ s: Standing) -> UInt { s[keyPath: \Standing.position.magnitude] }
+func r3MapS(_ s: Standing) -> [UInt] { [s].map(\.position.magnitude) }
+func r3Curried(_ s: Standing) -> Int { Int.advanced(by:)(s.position)(1) }
+func r3CurriedSig(_ s: Standing) -> Int { Int.signum(s.position)() }
+```
+`[s].map(\.position.words.count)` passes too.
+- **A key path whose root is the served value, not the number.** It names the served field and then a member of
+  another module: `\Standing.position.magnitude`. The key-path rule judges members only when the receiver is itself a
+  number (`_served_operand(flow, node.kids[0])`, `:2219`). The element rule does the same (`[s]` is `[Standing]`). So
+  `.magnitude`, a twin the issue names, passes through a literal key path written in place. The flow does know the
+  path reads a served number: `s[keyPath: \Standing.position] + 1` is refused for its `+`.
+- **A curried static reference that takes a served number as `self`.** `Int.signum(s.position)()` and
+  `Int.advanced(by:)(s.position)(1)`. The inner call's callee is the type-qualified member, which `_application`
+  (`:2130`) does not name. It is the same by-reference class as round 2's `let g = s.position.advanced(by:)`. Held in
+  a local first, `let f = Int.advanced(by:)`, it is refused.
+
+None of these is a loosening; the pre-#242 gate passed them too. But the G-2 row (`docs/security-invariants.md:190`)
+says a key path written in place "meets its members". That holds only when its root is the number.
+
+**Remedy, if the owner wants the rule closed:**
+1. In a key path written in place, walk its components from the root. From the first component the flow marks as
+   served (here `Standing.position`), judge each later member of another module as the served number meeting it as
+   its receiver. Do this for `x[keyPath:]` and for a key path handed to an element-passing method.
+2. Judge a call whose callee is a type-qualified member reference (`Int.signum`, `Int.advanced(by:)`) with a served
+   argument as that number meeting the member as its receiver.
+3. Plant the five lines.
+
+**The loop ends here** (`/fix-issue` step 6, `.agents/rules/practices.md:61`): no fourth round. B1 goes to the owner
+through `/triage-issue`; the owner's answer is an ADR or a `docs/refusals.md` row.
+- **Every round has been the same finding:** a served number meets a declaration through a spelling the gate does
+  not read as an application (rounds 1 to 3: function references, key paths held in names, unapplied methods, and
+  now key paths through a struct and curried static references). Each round's fix was correct and the twins it named
+  are refused. The class stays open while the allowlist is keyed to the syntactic forms `_meets` knows, rather than
+  to every expression that carries a served number into a declaration of another module.
+- **This finding does not dispute the allowlists themselves.** They refuse strictly more than the deny-lists they
+  replaced (the pin above). Keeping them with these forms named is not "a weaker rule" in D-214's terms; reverting
+  them would be. The disputed part is the claim that by-reference meetings are held. The owner chooses: name the
+  residue in G-2 and accept it in an ADR, or open the fix above as its own issue.
+
+**M2, still open (MINOR).** A store reads a URL from another file's declaration through a subscript, so the read is a
+`subscript_expr` and `_store_received` (`:1137`) never sees it. These pass:
+```swift
+// ContentView.swift
+struct R3Table { let all: [URL]; subscript(i: Int) -> URL { all[i] } }
+@dynamicMemberLookup struct R3Wrap { let h: R3Holder3; subscript<T>(dynamicMember k: KeyPath<R3Holder3, T>) -> T { h[keyPath: k] } }
+// FrontDoor.swift
+func r3StoreSub(_ t: R3Table) -> GapRegisterStore { GapRegisterStore(url: t[0]) }
+func r3Store3(_ w: R3Wrap) -> GapRegisterStore { GapRegisterStore(url: w.address) }
+```
+The G-13 row (`docs/security-invariants.md:197`) does not name a subscript. The round-1 reasons still apply:
+`ContentView.swift` cannot make a URL, and the `isFileURL` guard and the text pin stay. The remedy: in `_store_received`
+judge a `subscript_expr` whose declaration is in another file and whose type is a URL, as a member read is judged,
+or name it in G-13.
+
+**Closed or carried.**
+- **R5:** `_meets` now reads a ruling's permission by the function alone (`permitted`, `:2251-2252`). The test
+  `test_242_a_computed_property_named_like_a_permitted_function_does_not_inherit_its_permission`
+  (`tests/unit/test_client_decl_gate.py:1366`) holds it. Closed.
+- **M1:** G-2 cites #371, now filed and open ("client-decls G-2: a served number inside an app generic, or rebuilt
+  from comparisons, passes the arithmetic rules"). R4 is closed. The generic and comparison twins still pass, as #371
+  says.
+- **R3:** left, accepted.
+- **Author's note:** the `85e304b` message says "Five fixture rules" where three were added, as the author noted.
+  The code and `FIXTURE_RULES` agree with three; this is not a finding.
+
+**Gate lines at `fae9d85`:**
+- `make secrets`: `INF no leaks found`
+- `make deps`: `No known vulnerabilities found`
+- `make slopsquat` (`DEVFLOW_FRESH=1`): `slopsquat PASS: 20 declared dependency(ies), 0 suspect`
+- `make conformance`: `conformance PASS: 33 test(s) derived from conformance/, 0 failing, 0 caller-liveness finding(s)`
 
 ### Round 2 — re-verification at `4aa5cee` (2026-10-21)
 
