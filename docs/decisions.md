@@ -4428,6 +4428,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-194 (2026-10-13)**: clause 3's table -- `epoch_arc_agi`, `epoch_terminalbench` and `openrouter` are replaced by their publishers' licensed data and no longer built; `epoch_deepswe_external` waits for the owner's Hugging Face token (#265). The table notes each replacement.
 
+**Amended by D-216 (2026-10-21)**: clause 3's table -- `epoch_deepswe_external` is replaced by `datacurve_deepswe`, Datacurve's CC BY 4.0 dataset read with the owner's Hugging Face token, and no longer built (#265).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -4947,6 +4949,8 @@ darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refuse
 **Revisit when:** the owner's Hugging Face token is in place (DeepSWE moves), ARC Prize publishes new runs
 (re-derive), a publisher changes its licence, or ARC Prize publishes its leaderboard's scores under a
 licence.
+
+**Amended by D-216 (2026-10-21)**: clauses 1 and 2 -- the owner's token is in place; DeepSWE moves to Datacurve's CC BY 4.0 dataset (`datacurve_deepswe`), which takes `epoch_deepswe_external`'s place in `agentic-coding`'s family (#265).
 
 ## D-195 — D-189 applied to #232's candidates; GPT-5.6's Pro is a mode, not a release
 
@@ -5586,3 +5590,70 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** An allowlist that refuses less than the deny-list did would open a hole the reviews already closed: the before/after test fails. Tuning on m25 would spend the held-out set: a new one is written.
 
 **Revisit when:** m25 has judged, or the next review plants a twin that the allowlists pass.
+
+---
+
+## D-216 — `agentic-coding` ranks on Datacurve's CC BY 4.0 DeepSWE dataset, read with the owner's token
+
+**Status:** proposed
+**Owner ruling:** 2026-10-21, on #265: the owner accepted the dataset's terms, put a read token on the Mac, and told us to work the move now (the re-triage of 2026-10-21 pinned its scope)
+**Amends** D-194 clauses 1 and 2 (DeepSWE waited for the token; `agentic-coding`'s family) and D-185 clause 3's table. The id after D-215, which #376's open branch has taken.
+
+**Context.** D-194 moved three unlicensed boards to their publishers' licensed data and kept Epoch's copy of DeepSWE
+(`epoch_deepswe_external`, no licence published) until the owner's Hugging Face token was in place, because Datacurve's
+dataset (`datacurve/deep-swe-leaderboard`, CC BY 4.0) is gated. With the token its format was read on 2026-10-21. There
+is no summary table. The board is one job directory under `raw/jobs/` (one today, `20260606-deep-swe-leaderboard-all-4x`):
+its result file holds 27 runs keyed `<agent>__<model>[__<effort>]__deep-swe`, each with its trials, errors and Pass@1,
+and its config file lists the same 27 runs, each with the `reasoning_effort` it was given, if any. The key names an
+effort only for a model run at several. Of the 16 runs it leaves without one, the config states an effort for four:
+GPT-5.4 and GPT-5.4 mini at `xhigh`, Claude Opus 4.6 at `max`, Gemini 3.5 Flash at `medium`. The other 11 were given
+none, so each ran at its model's default setting.
+
+**Decision.**
+1. **`agentic-coding` ranks on `datacurve_deepswe`,** a declared remote source in `app.clients.datacurve`. It lists the
+   job directories through Hugging Face's tree API, takes the newest (a name that starts with its date), and reads that
+   job's result and config files, so a later job needs no code change. Benchmark `DeepSWE`, metric `% resolved`, harness
+   `mini-swe-agent`, the run date the job's finish date. `epoch_deepswe_external` is no longer built; its family entry
+   becomes `datacurve_deepswe`, `terminalbench_4`, `arena_agent`.
+2. **Effort, under D-194 clause 1's rule (the surface ranks at `high`).** A run keeps the effort its config states, so
+   no `xhigh`, `max` or `medium` run is ranked as a `high` one. A run the config gives no effort ran at the model's
+   default setting and is stored at `high`, the rule the re-triage wrote for these rows, and the level Epoch's copy of
+   the same board gave Gemini 3.1 Pro's default run. A run whose effort is unknown or outside the schema is skipped and
+   counted.
+3. **The token** is read from `HF_TOKEN`, or else from the owner's file
+   `~/Library/Application Support/model-ranking/hf-token`; a file its group or others can read is refused. It is sent
+   only to `huggingface.co` (the fetch refuses any other host, redirects included), and never logged, stored in the
+   artifact or committed. Without it the source fails with a message that says where the token goes.
+4. **The source is optional** (D-121): its failure carries its last good rows (D-156), or else the build exits 3 and
+   `agentic-coding` says it has no evidence. It never serves an empty board, and it never fails another source's night.
+5. **Calibration** follows D-194 clause 4 on the ranked population, with Datacurve's own standard error: its published
+   95% run-to-run interval per run, halved by 1.96, median over the runs. The record is a JSON file under
+   `docs/research/`; the note is under `docs/reviews/`.
+6. **Credits:** Datacurve, CC BY 4.0, for its dataset, with its link. Epoch's copy stays attributed and credited as D-193
+   credited it, as a retired source (D-194 clause 6), so an artifact an older release built still boots.
+7. **The calls are a new external API from production code, with a secret** (`permission-matrix.md` §3, ASK). The
+   owner's ruling on #265 is the answer; the fetch goes through `app.clients` with the bounded fetch and a host list.
+
+**Rationale.** Golden Rule 1 (D-210): the board comes from its publisher, under an open licence. The job's config is
+the publisher's own statement of each run's effort, so one more small file keeps every stated effort true.
+
+**The alternatives not taken.** Every effortless run stored at `high`, as the re-triage first assumed: it would rank
+GPT-5.4's `xhigh` run and Claude Opus 4.6's `max` run as `high` ones. Every default run stored as unspecified: honest,
+but the surface would rank four models, and treating unspecified as `high` would change five ranking queries. The
+per-run summary files, which carry the same efforts: 19 directory listings and 27 more reads a night for what the job's
+config already says. A required source: a missing token, or CI's contract job, which has none, would fail every
+source's build.
+
+**The cost.** Datacurve's dataset holds one job, of 2026-06-06, behind the live site and behind Epoch's copy:
+`agentic-coding`'s board goes from Epoch's 68 rows over 25 models (18 ranked at `high`) to 27 rows over 19 models,
+of which 15 rank at `high`. The newest models on Epoch's copy leave the surface until Datacurve publishes a new job.
+The board is dated now (the job's finish date), so the surface's evidence is no longer undated, and at 137 days it
+reads as old. The token is a new secret on the owner's Mac; the hosted engine needs none (ingestion stays on the Mac,
+D-116 clause 2).
+
+**Mitigation if violated:** A stated effort ranked as `high` would put an `xhigh` run in a `high` comparison: the
+parser's test holds each config's effort. A token sent to another host, or printed, would leak the owner's credential:
+the client's tests refuse a loose file, a missing token and a hop off the hub, and no fixture holds a token.
+
+**Revisit when:** Datacurve publishes a new job (no code change; the surface is recalibrated), the default runs need a
+label of their own, or Datacurve changes its licence.
