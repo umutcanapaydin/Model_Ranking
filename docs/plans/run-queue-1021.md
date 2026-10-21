@@ -45,8 +45,8 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 | issue-371 | fix/issue-371-generic-and-rebuilt | #398 | none | stacked |
 | issue-378 | enhancement/issue-378-arena-media | none | none | running |
 | issue-379 | enhancement/issue-379-new-boards | none | none | queued |
-| issue-390 | fix/issue-390-dispatch-spellings | none | none | queued |
-| issue-392 | fix/issue-392-ci-cache-hashes | none | none | queued |
+| issue-390 | owner/run-queue-1021-bundle | none | none | running |
+| issue-392 | owner/run-queue-1021-bundle | none | none | running |
 
 <!-- Wave: `m<N>-w<W>` (heavy) or `issue-<n>` (light, Close record `none`). Status: `queued` ·
      `running` · `stacked` (closed with `/close-wave`, merged into the integration branch, its
