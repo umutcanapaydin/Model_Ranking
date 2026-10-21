@@ -714,6 +714,8 @@ rests on.
 
 **Amended by D-185 (2026-10-07)**: the hosted engine's artifact ships inside its image (the `hosted` stage), a public copy with the sources whose terms do not permit a public app left out; the owner's Mac keeps the full one.
 
+**Amended by D-217 (2026-10-21, proposed)**: clause 2 -- ingestion for the hosted engine runs on a scheduled GitHub Actions runner in a job that holds no secret; it still never runs on the serving host (#387).
+
 ## D-117 — Scoped inter-wave commit and push authority for the lead agent
 
 **Status:** ratified — owner directive, 2026-08-17: *"You may also use git to push between waves."*
@@ -2478,6 +2480,8 @@ service's wrapper (`scripts/engine_service.sh`, D-170), not by `ios/app.sh`.
 **Amended by D-173 (2026-10-04)**: clause 4's `scripts/retire_refresh.sh` is removed with the retired refresher (clause 7), and the child inherits the serving-bound variables (clause 4).
 
 **Amended by D-170 (2026-09-29)**: clause 2 -- the engine runs as a launchd service, from a deployed release of `main` (added at M21-W4, #200).
+
+**Amended by D-217 (2026-10-21, proposed)**: the revisit has come -- the hosted engine's refresh runs on a GitHub Actions runner, a third place that is neither the Mac nor a serving host; the refresh switch stays refused outside the relaxed environments (#387).
 
 ---
 
@@ -4434,6 +4438,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-216 (2026-10-21)**: clause 3's table -- `epoch_deepswe_external` is replaced by `datacurve_deepswe` (Datacurve's own leaderboard) and no longer built (#265).
 
+**Amended by D-217 (2026-10-21, proposed)**: clause 2 -- the hosted image's artifact is built by a scheduled GitHub Actions job each night as well as on the Mac; clause 5 -- that job, the owner's workflow, deploys it, never the agent (#387).
+
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
 **Status:** accepted -- decided by the owner on 2026-10-08, from the TestFlight build ("remove D-185;
@@ -5701,3 +5707,69 @@ host, is a failed night, carried like any other: the client's tests hold both.
 
 **Revisit when:** Datacurve publishes a licence or terms for its leaderboard, moves it to a new version (`v1.2`), or
 objects to this use; or the default runs need a label of their own.
+
+## D-217 — The hosted engine is refreshed and deployed each night by a GitHub Actions workflow, not from the Mac
+
+**Status:** proposed
+**Owner ruling:** 2026-10-21, in chat, on #387: "The engine has to be deployed somewhere; it cannot keep running on my Mac" *(translated)*. Asked three questions, the owner chose a scheduled GitHub Actions job, the previous night's artifact kept as an Actions artifact, and the deploy gate run every night with a stale gate skipping the deploy.
+**Amends** D-116 clause 2, D-185 clauses 2 and 5, and answers D-154's revisit.
+
+**Context.** `model-ranking.fly.dev` serves TestFlight from the artifact baked into its image (D-185 clause 2). The
+refresh runs only in the Mac's launchd service (D-154, D-170), and Fly changes only when the owner runs
+`scripts/deploy_hosted_engine.sh`, so the app's data goes stale when the Mac is off or nobody deploys. D-116 clause 2
+keeps ingestion off the serving host so the network-fetching code, and the untrusted-producer boundary W-005 guards,
+stay off the public surface. No source's permission is tied to the Mac, and the refresh reads no token (D-215, D-216).
+The refresh's carry-forward (D-156) reads the live artifact and its `.refresh.json` record, which today exist only on
+the Mac.
+
+**Decision.**
+1. **A scheduled workflow, `nightly-hosted.yml`, refreshes and deploys the hosted engine** once a night (and on
+   `workflow_dispatch`). Ingestion runs on a GitHub-hosted runner: neither the serving host nor the Mac. The serving
+   image is unchanged: it still carries no client, refresh or ingest dependency.
+2. **Two jobs, and only the second holds a secret.** `refresh` holds none: its checkout keeps no credential, the
+   `GITHUB_TOKEN` it reads the previous state with reaches only that step, and it is read-only (`contents: read`,
+   `actions: read`). It fetches the sources, parses them, and builds the artifact. `deploy` holds the owner's
+   deploy-scoped `FLY_API_TOKEN`; it never fetches a source, it receives `refresh`'s artifact, derives the public copy
+   (`app.workflows.public`) and deploys. The code that parses untrusted data never runs beside the token.
+3. **The previous night's artifact and its record are an Actions artifact,** `hosted-state`, uploaded by `refresh`
+   after a night that published or kept its data (exit 0 or 1), and downloaded by the next night as the live artifact
+   carry-forward reads. Retention is 90 days, three times D-156's 30-day carry window. A failed night (2, 3 or 4)
+   uploads nothing, so the last good state stands. With no state (the first night, or 90 days without a good night),
+   the night is a first publish: a required source that fails it fails the night, and nothing deploys.
+4. **The deploy gate runs every night, first.** `deploy` runs `scripts/deploy_gate.py --check`; while the release
+   security review or the Tester has not seen every code change on `main`, the night deploys nothing and the job
+   fails, naming the stale verdict, so the owner hears of it. The workflow and its script are code, so their own
+   merge makes the gate stale until `/going-live`'s delta review: nothing deploys before that review.
+5. **A night deploys only what is new.** The build stamp (`release-<sha>-data-<digest>-from-<sha>`) is compared with
+   `/health`'s; when Fly already serves it, nothing is deployed. Data another release built is refused as the deploy
+   script refuses it today; the workflow never sets `DEPLOY_ACCEPT_DATA_FROM`.
+6. **`scripts/nightly_hosted.sh` is a deploy command** in the brief, beside `fly deploy` and the deploy script, so
+   the Bash guard judges an agent that runs it as it judges them.
+7. **The workflow is the owner's to apply** (`.github/workflows/**`): the agent commits the proposal at
+   `scripts/ci/nightly-hosted.yml`, a test holds its shape and, once the owner copies it, that the installed workflow is
+   the proposal. The owner creates the token (`fly tokens create deploy`) and the repository secret.
+8. **The Mac keeps its own nightly refresh** for the engine it serves; it no longer feeds the hosted engine, and the
+   owner's manual deploy stays available.
+
+**Rationale.** The owner's ruling, and Golden Rule 3: the list is only as correct as the data is fresh. A runner keeps
+ingestion off the public surface, which is D-116 clause 2's reason, and the two-job split keeps the one secret away
+from the parsers. The Actions artifact needs no new store or secret. The gate every night keeps D-199's rule that
+unreviewed code never ships.
+
+**Mitigation if violated:** a token beside the parsers is one parser bug from a hostile deploy; a night deploying
+without the gate ships unreviewed code; an upload after a failed night replaces the last good state with a broken one,
+and carry-forward then loses every source.
+
+**The alternatives not taken.** A second, private Fly machine that ingests and hands the artifact over: storage the
+two machines share, or a deploy from inside Fly. A refresh inside the serving machine: it reverses D-116 clause 2.
+A GitHub release asset for the state: public and permanent for a file only the next night needs. A data-only deploy
+without the gate: unreviewed code would ship with it.
+
+**The cost.** A red scheduled run every night between a code merge and its delta review. GitHub may delay a scheduled
+run, and shared runner addresses may meet anonymous rate limits (Hugging Face, GitHub's API) or a 403 (epoch.ai,
+D-158); each is a failed source, carried. A night whose data is unchanged after a reviewed code merge keeps the older
+release's name on its data and is refused until a night changes it.
+
+**Revisit when:** the runner's nights fail more often than the Mac's, a source's terms forbid automated fetching
+from a data centre, Fly's deploy token scope changes, or the app moves to a public release (then the state's
+retention and the deploy cadence are read again).
