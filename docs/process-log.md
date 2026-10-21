@@ -1093,3 +1093,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The queue, in the order of D-214: #367, then #242, then #355. #368 stacked. #242's allowlists (#372) went through three rounds with the Security-Reviewer. Each round's fixes held, and no pre-#242 refusal was lost. The third BLOCKING on B1 ended the loop, so #242 is a stop for the owner, and #371 holds the classes the review named but did not block on.
 - m25 judged once on the final head 8bd3da5, on macOS 27.0.1 (26A434) with AFM 3 Core Advanced. Searches were 249/301 (82.7%, Wilson 78.0–86.6%) and non-searches 177/210 (84.3%, Wilson 78.8–88.6%). The bar is met on observed rates, so #351 and #355 close (`docs/research/reading-heldout-m25-result.md`). The set stays out of the repository and is loaded for this one run from outside it.
 - Lesson: a gate that reads spellings meets a new spelling every round; when a reviewer's BLOCKINGs keep finding new forms of one class rather than a wrong fix, the third round is the owner's question of where the class ends, not a fourth patch.
+
+## 2026-10-21 — fix/issue-376-licence-ruling: the owner's licence rule (D-215), Epoch's WebDev copy and LiteLLM's OpenRouter copies removed (#376)
+
+- D-215 came first, in its own commit: the app is free and non-commercial, so a public leaderboard's numbers are served when the publisher is credited with a link and its terms do not forbid non-commercial use. It amends D-101, D-185 and D-210 (Golden Rule 1 widened in `AGENTS.md`), and its watchlist row is the first real one.
+- `epoch_webdev` is no longer declared or built; `/v1/boards` drops it. Its citation and `arena_site` credit moved to the retired sources, as `epoch_arc_agi`'s did, so an engine still boots on an older artifact.
+- LiteLLM's `openrouter/` entries are skipped at ingest. The public artifact drops any an older artifact still holds through a new `RETIRED_COPIES`, so INV-87's `_COPIES_OF` test stays untouched: a first attempt that renamed it broke the invariant's citation.
+- MMLU/HELM and SWE-bench stay served and credited; SWE-bench's email is owed before any payment, in D-215, not in code.
+- Lesson: before reshaping a structure a security-invariant test reaches into, grep `docs/security-invariants.md` for the test; extend beside it rather than edit it.
