@@ -91,7 +91,7 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     # is the only population this engine can recommend from. Everything else it found was refused
     # here — every image and video board ranks ZERO (priced per image), and the `*_style_control`
     # boards are the same boards with style effects controlled for, which is a second answer to one
-    # question rather than a new one.
+    # question rather than a new one. (#378 opened the image and video boards on quality only.)
     "vision": ArenaBoard("arena_vision", "vision", "Arena vision", 60),
     # 152 rows, 41 rankable. 60 is well below any real day for a board this size.
     "search": ArenaBoard("arena_search", "search", "Arena search", 20),
@@ -103,6 +103,16 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     # of it (`epoch_webdev`) is no longer built: D-215 retired it as a duplicate (#376). 141 rows on the
     # overall board of 2026-10-08, 91 of them ranked; 70 is below any real day and far above a truncation.
     "webdev": ArenaBoard("arena_webdev", "webdev", "Arena WebDev", 70),
+    # #378 (D-218 clause 1): LMArena's five image and video boards, ranked on quality only. The M15-W1
+    # survey refused them because none of their models carries a per-token price; the owner ruled that
+    # they open without one. Each floor is about half of the overall board recorded on 2026-10-21
+    # (`tests/fixtures/arena_media/`): 60, 82, 48, 48 and 10 models. The four `*_style_control`
+    # configs are not read: each is a board already read, with style effects controlled for.
+    "image_edit": ArenaBoard("arena_image_edit", "image_edit", "Arena image edit", 30),
+    "text_to_image": ArenaBoard("arena_text_to_image", "text_to_image", "Arena text-to-image", 40),
+    "image_to_video": ArenaBoard("arena_image_to_video", "image_to_video", "Arena image-to-video", 24),
+    "text_to_video": ArenaBoard("arena_text_to_video", "text_to_video", "Arena text-to-video", 24),
+    "video_edit": ArenaBoard("arena_video_edit", "video_edit", "Arena video edit", 5),
 }
 _PAGE = 100
 _MAX_PAGES = 50  # safety valve: latest split is a few hundred rows
@@ -471,3 +481,48 @@ class ArenaFactualityClient(ArenaClient):
 
     def __init__(self, split: str = "latest") -> None:
         super().__init__(config="text_factuality", split=split)
+
+
+class ArenaImageEditClient(ArenaClient):
+    """The `image_edit` board: which model edits a picture best (#378)."""
+
+    name = "arena_image_edit"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="image_edit", split=split)
+
+
+class ArenaTextToImageClient(ArenaClient):
+    """The `text_to_image` board: which model makes the best picture from a description (#378)."""
+
+    name = "arena_text_to_image"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="text_to_image", split=split)
+
+
+class ArenaImageToVideoClient(ArenaClient):
+    """The `image_to_video` board: which model turns a picture into the best video (#378)."""
+
+    name = "arena_image_to_video"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="image_to_video", split=split)
+
+
+class ArenaTextToVideoClient(ArenaClient):
+    """The `text_to_video` board: which model makes the best video from a description (#378)."""
+
+    name = "arena_text_to_video"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="text_to_video", split=split)
+
+
+class ArenaVideoEditClient(ArenaClient):
+    """The `video_edit` board: which model edits a video best (#378)."""
+
+    name = "arena_video_edit"
+
+    def __init__(self, split: str = "latest") -> None:
+        super().__init__(config="video_edit", split=split)

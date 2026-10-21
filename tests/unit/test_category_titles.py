@@ -89,6 +89,12 @@ def test_the_ids_are_unchanged_because_they_are_the_contract() -> None:
         "vision",
         "search",
         "search_factuality",
+        # #378 (D-218 clause 1): the five image and video surfaces, ranked on quality only.
+        "text_to_image",
+        "image_edit",
+        "text_to_video",
+        "image_to_video",
+        "video_edit",
     }
 
 

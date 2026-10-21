@@ -1,0 +1,23 @@
+{
+  "board_distinct_models": 60,
+  "floor_shipped": 1357.8,
+  "board_third_D145": 1357.8,
+  "config": "image_edit",
+  "source": "arena_image_edit",
+  "benchmark": "Arena image edit",
+  "board_rows": 60,
+  "skipped": 0,
+  "ranked_population": 59,
+  "rankable_board_names": 59,
+  "dropped": [
+    "ChatGPT Image Latest (High Fidelity, 20251216)"
+  ],
+  "overlapping_pairs": 58,
+  "rating_min": 996.4,
+  "rating_max": 1514.4,
+  "threshold_candidates": {
+    "min_quality": 1347.0,
+    "close_call": 3.4
+  },
+  "priced": false
+}

@@ -87,19 +87,23 @@ public func priceTag(_ blendedPerM: Double) -> String {
     return "$\(formatter.string(from: NSNumber(value: blendedPerM)) ?? "\(blendedPerM)")/1M"
 }
 
-/// The figures line of a card or a row: the score where one may be shown, and always the price.
+/// The figures line of a card or a row: the score where one may be shown, and the price where there
+/// is one. A surface ranked on quality only has none (#378), and its line says nothing about a price
+/// rather than a dash a reader could take for "free".
 ///
 /// `ranked` says whether the caller shows a rank beside it, and it has no default on purpose. C1
 /// replaced ECI's number WITH its rank; a card that has no rank to show would then place the model
 /// nowhere at all (M13-W4 review MINOR-8). Without a rank, a rank-only metric keeps the engine's own
 /// number and label, the form it had before D-140.
 public func figuresLine(
-    score: Double, metric: String, blendedPerM: Double, _ language: Language, ranked: Bool,
+    score: Double, metric: String, blendedPerM: Double?, _ language: Language, ranked: Bool,
     anchor: Double? = nil
 ) -> String {
     var shown = scoreText(score, metric: metric, language, anchor: anchor)
     if shown == nil, !ranked, scoreForm(for: metric) == .rankOnly, let value = number(score) {
         shown = "\(value) \(localisedUnit(metric, in: language))"
     }
-    return [shown, priceTag(blendedPerM)].compactMap { $0 }.joined(separator: "  ·  ")
+    var parts = [shown]
+    if let price = blendedPerM { parts.append(priceTag(price)) }
+    return parts.compactMap { $0 }.joined(separator: "  ·  ")
 }

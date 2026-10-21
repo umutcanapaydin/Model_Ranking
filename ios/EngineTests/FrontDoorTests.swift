@@ -35,6 +35,8 @@ private let served = [
     "coding", "agentic-coding", "assistant", "everyday", "expert",
     "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
     "vision", "search", "search_factuality",
+    // #378 (D-218 clause 1): the image and video surfaces
+    "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit",
 ]
 
 // MARK: - REQ-ASK-004
@@ -180,12 +182,12 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
     /// this tier both questions went to `everyday` as MEASURED answers.
     private let shipping = TieredRouter(model: nil, similarity: SimilarityRouter())
 
-    /// D-187 (the owner's ruling, 2026-10-08): an image job is answered from `vision`, the board of
-    /// the models that read images best, not told "not measured".
+    /// D-187 (the owner's ruling, 2026-10-08): an image job is never told "not measured". Since #378
+    /// (D-218 clause 1) it is answered from the image-editing board, which `vision` stood in for.
     func testAnImageJobIsAnsweredFromTheImageBoard() async {
         let outcome = await shipping.route("make my profile photo look better", within: served)
 
-        XCTAssertEqual(outcome.categoryID, "vision")
+        XCTAssertEqual(outcome.categoryID, "image_edit")
         XCTAssertFalse(outcome.unmeasured, "an understood image job was told it is not measured")
         XCTAssertFalse(routingNotice(outcome, .english).contains("cannot tell you which model is best"))
     }
@@ -324,9 +326,9 @@ final class UnmeasuredQuestionTests: OfflineTestCase {
             XCTAssertEqual(outcome?.categoryID, "vision", question)
             XCTAssertEqual(outcome?.unmeasured, false, question)
         }
-        // D-187: MAKING one is answered from the same board now, not declined
+        // #378 (D-218 clause 1): MAKING one is answered from the image board, not from `vision`
         let made = await SimilarityRouter().route("generate an image of a cat", within: served)
-        XCTAssertEqual(made?.categoryID, "vision")
+        XCTAssertEqual(made?.categoryID, "text_to_image")
         XCTAssertEqual(made?.unmeasured, false)
     }
 

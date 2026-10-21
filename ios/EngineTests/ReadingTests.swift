@@ -204,6 +204,11 @@ final class ReadingTests: OfflineTestCase {
                 if !Self.genuineQuestionsOfFact.contains(question) {
                     XCTAssertFalse(InputSignals.asksAFact(question), "\(name): \(question)")
                 }
+                // #378 (D-218 clause 1): a row expected on an image or video surface is measured by the
+                // probe, as the image sets' rows are.
+                if ["text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"].contains(expected) {
+                    continue
+                }
                 if (expected == "DECLINE" && question.contains("photo")) || expected == "UNMEASURED" {
                     if name.hasPrefix("image") { continue }  // measured by the probe, not asserted here
                     XCTAssertTrue(InputSignals.makesAnImage(question), "\(name): \(question)")

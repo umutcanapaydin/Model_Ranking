@@ -54,7 +54,8 @@ final class ProbeRowTests: OfflineTestCase {
 final class WordingTierReachTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     // #222's general-ask rule is taken out after the second review (M1, D-191): its task words have a
     // second reading ("yaz" is summer, "öğrenci" a student, "bot" boots), so an ask for "the best one"
@@ -84,7 +85,8 @@ final class ModelNameReviewTests: OfflineTestCase {
 final class TurkishReadingReviewTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     /// M4: an ask with no task and no model ("which is best for coffee", "where is best for a holiday")
     /// is no general question.
@@ -108,7 +110,8 @@ final class TurkishReadingReviewTests: OfflineTestCase {
 final class ModelComparisonRouteTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     func testAComparisonOfFamiliesOutsideTheTwelveBrandsIsEveryday() async {
         // The Tester's M4: a comparison of two families with a second reading ("glm", "minimax") is still a

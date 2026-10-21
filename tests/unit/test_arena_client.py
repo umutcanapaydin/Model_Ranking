@@ -280,9 +280,9 @@ def test_an_unregistered_board_is_refused_and_never_defaulted() -> None:
     from app.clients.protocols import SourceError
 
     # M15-W3 registered `vision`, so the example moved: these are real configs of the dataset that
-    # this product deliberately does NOT read (the image boards rank nobody; `webdev` is read since
-    # M21-W1, #185), plus two spellings that are not configs at all.
-    for unknown in ("image_edit", "text_to_video", "document_style_control", "", "TEXT"):
+    # this product deliberately does NOT read (the `*_style_control` duplicates; `webdev` is read since
+    # M21-W1, #185, and the image and video boards since #378), plus two spellings that are not configs.
+    for unknown in ("text_style_control", "vision_style_control", "document_style_control", "", "TEXT"):
         try:
             ArenaClient(config=unknown)
         except SourceError as exc:
@@ -368,11 +368,14 @@ MEASURED_BOARD_ROWS = {
     "text": 402, "text_factuality": 171, "document": 44,
     "vision": 152, "search": 34, "search_factuality": 32,
     "webdev": 141,  # M21-W1 (#185): the overall board on 2026-10-08
+    # #378: the overall boards recorded on 2026-10-21 (`tests/fixtures/arena_media/`)
+    "image_edit": 60, "text_to_image": 82, "image_to_video": 48, "text_to_video": 48, "video_edit": 10,
 }
 PINNED_ROW_FLOORS = {
     "text": 250, "text_factuality": 25, "document": 25,
     "vision": 60, "search": 20, "search_factuality": 20,
     "webdev": 70,
+    "image_edit": 30, "text_to_image": 40, "image_to_video": 24, "text_to_video": 24, "video_edit": 5,
 }
 
 
@@ -420,6 +423,11 @@ def test_ingest_stores_each_board_under_its_own_benchmark() -> None:
         "arena_search": "Arena search",
         "arena_search_factuality": "Arena search factuality",
         "arena_webdev": "Arena WebDev",
+        "arena_image_edit": "Arena image edit",
+        "arena_text_to_image": "Arena text-to-image",
+        "arena_image_to_video": "Arena image-to-video",
+        "arena_text_to_video": "Arena text-to-video",
+        "arena_video_edit": "Arena video edit",
     }
 
 
@@ -437,6 +445,6 @@ def test_ingest_refuses_a_source_no_board_claims() -> None:
     with pytest.raises(SourceError, match="no registered board"):
         ingest_arena(
             connect(),
-            FakeRawSource("arena_image_edit", json.dumps({"rows": []})),
+            FakeRawSource("arena_text_style_control", json.dumps({"rows": []})),
             RunContext(observed_at="2026-09-20T00:00:00Z"),
         )

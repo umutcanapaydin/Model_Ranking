@@ -60,6 +60,9 @@ struct Category: Codable, Identifiable, Equatable {
     let minQuality: Double?
     /// D-153 (M16-W1). A code for what the price leaves out, on the search surfaces only.
     let priceExcludes: String?
+    /// #378 (D-218 clause 1). `false` on a surface ranked on quality only, whose rows carry no price.
+    /// `nil` from an engine older than #378, where every surface is priced.
+    let priced: Bool?
     /// D-168 (M17-W5). The board this surface ranks on, by id: the first board a question selecting
     /// this surface combines. `nil` from an engine older than W5, which then combines nothing.
     let primaryBoard: String?
@@ -83,10 +86,18 @@ struct Category: Codable, Identifiable, Equatable {
         case scoreAnchor = "score_anchor"
         case minQuality = "min_quality"
         case priceExcludes = "price_excludes"
+        case priced
         case primaryBoard = "primary_board"
         case boards
         case refinedBoard = "refined_board"
     }
+}
+
+extension Category {
+    /// The code every price-bearing view words beside a price (D-153): what the price leaves out, or,
+    /// on a surface ranked on quality only, that the price is not measured (#378), which this build
+    /// words and the engine never sends as a sentence.
+    var priceNote: String? { priced == false ? "not_measured" : priceExcludes }
 }
 
 struct CategoryList: Codable {
@@ -163,9 +174,10 @@ struct RankedModel: Codable, Identifiable, Equatable {
     let score: Double
     let metric: String
     let secondaryScore: Double?
-    let blendedPerM: Double
-    let inputPerM: Double
-    let outputPerM: Double
+    /// `nil` on a surface ranked on quality only (#378, D-218 clause 1): no price, never a zero.
+    let blendedPerM: Double?
+    let inputPerM: Double?
+    let outputPerM: Double?
     let evidenceDate: String?
     let harness: String
     let effort: String?
@@ -217,9 +229,10 @@ struct Pick: Codable, Identifiable {
     let score: Double
     let metric: String
     let secondaryScore: Double?
-    let blendedPerM: Double
-    let inputPerM: Double
-    let outputPerM: Double
+    /// `nil` on a surface ranked on quality only (#378, D-218 clause 1).
+    let blendedPerM: Double?
+    let inputPerM: Double?
+    let outputPerM: Double?
     let evidenceDate: String?
     let harness: String
     let effort: String?
@@ -361,15 +374,22 @@ struct Standings: Codable, Equatable {
     /// that predates them, so a phone ahead of its engine still reads the boards. A `let`: the store
     /// reads it, and a privacy sink reads no mutable state (INV-66).
     let credits: [Credit]?
+    /// #378 (D-218 clause 1): the models only a quality-only board names, listed apart with no price.
+    /// `nil` from an engine older than #378.
+    let unpricedModels: [StandingModel]?
 
     init(apiVersion: String, attributions: [String], boards: [BoardStandings], models: [StandingModel],
-         credits: [Credit]? = nil) {
+         credits: [Credit]? = nil, unpricedModels: [StandingModel]? = nil) {
         self.apiVersion = apiVersion
         self.attributions = attributions
         self.boards = boards
         self.models = models
         self.credits = credits
+        self.unpricedModels = unpricedModels
     }
+
+    /// Every model a board stands, priced or not: what a combined list looks a standing up in.
+    var everyModel: [StandingModel] { models + (unpricedModels ?? []) }
 
     enum CodingKeys: String, CodingKey {
         case apiVersion = "api_version"
@@ -377,6 +397,7 @@ struct Standings: Codable, Equatable {
         case boards
         case models
         case credits
+        case unpricedModels = "unpriced_models"
     }
 }
 
@@ -758,7 +779,8 @@ struct StandingModel: Codable, Equatable, Identifiable {
     let id: String
     let display: String
     let vendor: String
-    let blendedPerM: Double
+    /// `nil` for a model only a quality-only board names (#378): nobody prices it per token.
+    let blendedPerM: Double?
     let accessibility: String?
 
     enum CodingKeys: String, CodingKey {

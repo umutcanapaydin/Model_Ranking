@@ -11,7 +11,8 @@ import XCTest
 final class ScreenPathFixtureTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     private struct Path: Decodable {
         let q: String

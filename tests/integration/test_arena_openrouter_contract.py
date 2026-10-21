@@ -40,7 +40,10 @@ def test_real_arena_latest_satisfies_parser_contract() -> None:
     assert all(r.metric == "elo" and r.harness == "arena-crowd" for r in rows)
 
 
-@pytest.mark.parametrize("config", ["vision", "search", "search_factuality"])
+@pytest.mark.parametrize("config", ["vision", "search", "search_factuality",
+                                    # #378 (D-218 clause 1): the five image and video boards
+                                    "image_edit", "text_to_image", "image_to_video", "text_to_video",
+                                    "video_edit"])
 def test_every_m15_arena_board_satisfies_the_parser_contract(config: str) -> None:
     """V3C-44 for the three M15 boards (M15-W3 review m-2): each live board parses, nothing is
     skipped wholesale, and it clears its own truncation floor."""
