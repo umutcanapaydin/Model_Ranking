@@ -24,6 +24,9 @@ JOBS = f"{HUB}/api/datasets/datacurve/deep-swe-leaderboard/tree/main/raw/jobs"
 FILES = f"{HUB}/datasets/datacurve/deep-swe-leaderboard/resolve/main/raw/jobs"
 #: A stand-in, shaped like nothing Hugging Face issues: the owner's token never enters a test.
 TOKEN = "stand-in-token-for-tests"
+#: D-216 (revised): Datacurve's own leaderboard, the JSON its site loads, read first and with no token.
+SITE = "https://deepswe.datacurve.ai/"
+LIVE = "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json"
 
 
 def _dc():  # imported lazily, so this file collects before the module exists
@@ -40,6 +43,10 @@ def _envelope(result: object | None = None, config: object | None = None, job: o
         "result": _text("result.json") if result is None else json.dumps(result),
         "config": _text("config.json") if config is None else json.dumps(config),
     })
+
+
+def _live(board: object | None = None) -> str:
+    return json.dumps({"leaderboard": _text("leaderboard-live.json") if board is None else json.dumps(board)})
 
 
 def _parse(raw: str):
@@ -154,13 +161,118 @@ def test_an_envelope_or_a_file_that_is_not_the_boards_fails_the_source(raw: str)
         _parse(raw)
 
 
+# --- the leaderboard, Datacurve's own and newest list (D-216, revised) ---------------------------------------------
+
+def test_each_leaderboard_row_is_a_row_at_its_pass_at_1_harness_and_stated_effort() -> None:
+    """covers REQ-SRC-012 (D-216 clauses 1, 3, 4): 70 configurations, none skipped; the score is Pass@1 in points; a
+    row keeps the effort Datacurve states, and the one that states none ran at its default and stands at `high`. The
+    list gathers jobs of several dates and names none per row, so its rows are undated."""
+    rows, skipped = _parse(_live())
+    assert (len(rows), skipped) == (70, 0)
+    top = _by_key(rows)[("gpt-6-astra", "xhigh")]
+    assert (round(top.score, 2), top.harness, top.run_date, top.source_url) == (74.12, "mini-swe-agent", None, SITE)
+    assert (top.benchmark, top.metric, top.source) == ("DeepSWE", "% resolved", "datacurve_deepswe")
+    assert _by_key(rows)[("kimi-k2-7-code", "high")].score == pytest.approx(30.53, abs=0.01)
+    assert sorted(effort for name, effort in _by_key(rows) if name == "gpt-6-astra") == [
+        "high", "low", "max", "medium", "xhigh"]
+    assert sum(1 for row in rows if row.effort == "high") == 19
+
+
+@pytest.mark.parametrize("change", [
+    {"pass_at_1": 1.5}, {"pass_at_1": "0.7"}, {"pass_at_1": None}, {"reasoning_effort": "ultra"},
+    {"source": "swe-bench"}, {"model": ""}, {"harness": None},
+], ids=["above-one", "text", "missing", "unknown-effort", "another-benchmark", "no-model", "no-harness"])
+def test_a_leaderboard_row_that_is_not_a_usable_deepswe_score_is_skipped_and_counted(change: dict[str, object]) -> None:
+    board = json.loads(_text("leaderboard-live.json"))
+    board["rows"][0] |= change  # gpt-6-astra at xhigh
+    rows, skipped = _parse(_live(board))
+    assert (len(rows), skipped) == (69, 1)
+    assert ("gpt-6-astra", "xhigh") not in _by_key(rows)
+
+
+@pytest.mark.parametrize("board", [[], {"rows": "none"}, {"rows": []}, {"no_rows": 1}],
+                         ids=["a-list", "rows-not-a-list", "no-rows", "no-rows-key"])
+def test_a_leaderboard_that_is_not_the_boards_fails_the_source(board: object) -> None:
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError):
+        _parse(_live(board))
+
+
+@pytest.mark.respx(assert_all_called=False)
+def test_the_client_reads_the_leaderboard_first_with_no_token_and_never_the_hub(
+    respx_mock: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+    no_token_file: Path,
+) -> None:
+    """covers REQ-SRC-012 (D-216 clauses 1 and 5): the site's list needs no token, so none is read or sent, and the
+    dataset is not asked while the site answers."""
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    site = respx_mock.get(LIVE).mock(return_value=httpx.Response(200, text=_text("leaderboard-live.json")))
+    hub = respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
+    rows, skipped = _parse(_dc().DatacurveClient(token_file=no_token_file).fetch_raw())
+    assert (len(rows), skipped) == (70, 0)
+    assert site.call_count == 1 and "authorization" not in site.calls.last.request.headers
+    assert not hub.called
+
+
+@pytest.mark.respx(assert_all_called=False)
+@pytest.mark.parametrize("site", [
+    httpx.Response(503, text="unavailable"),
+    httpx.Response(200, text="<html>not json</html>"),
+    httpx.Response(200, json={"rows": []}),
+    httpx.Response(302, headers={"location": "https://elsewhere.example.net/leaderboard-live.json"}),
+], ids=["down", "not-json", "empty", "redirected-off-the-site"])
+def test_when_the_leaderboard_fails_the_client_falls_back_to_the_datasets_newest_job(
+    respx_mock: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+    no_token_file: Path,
+    site: httpx.Response,
+) -> None:
+    """covers REQ-SRC-012 (D-216 clause 1): a site that fails, answers with something that is not the board, or
+    sends the request elsewhere, is not trusted; the dataset's job is read, with the token, from the hub alone."""
+    monkeypatch.setenv("HF_TOKEN", TOKEN)
+    respx_mock.get(LIVE).mock(return_value=site)
+    elsewhere = respx_mock.get("https://elsewhere.example.net/leaderboard-live.json").mock(
+        return_value=httpx.Response(200, text=_text("leaderboard-live.json")))
+    respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
+    respx_mock.get(f"{FILES}/{JOB}/result.json").mock(return_value=httpx.Response(200, text=_text("result.json")))
+    respx_mock.get(f"{FILES}/{JOB}/config.json").mock(return_value=httpx.Response(200, text=_text("config.json")))
+    rows, skipped = _parse(_dc().DatacurveClient(token_file=no_token_file).fetch_raw())
+    assert (len(rows), skipped) == (27, 0) and {row.run_date for row in rows} == {"2026-06-06"}
+    assert not elsewhere.called
+
+
+@pytest.mark.respx(assert_all_called=False)
+def test_when_both_fail_the_source_fails_and_names_both(
+    respx_mock: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+    no_token_file: Path,
+) -> None:
+    """covers REQ-SRC-012 (D-216 clause 6): the leaderboard down and no token is a failed source, never an empty
+    board, and its message says what failed and where the token goes."""
+    from app.clients.protocols import SourceError
+
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    _site_down(respx_mock)
+    with pytest.raises(SourceError, match="leaderboard") as raised:
+        _dc().DatacurveClient(token_file=no_token_file).fetch_raw()
+    assert "HF_TOKEN" in str(raised.value)
+
+
 # --- the client, against the canonical double (respx on the bounded fetch) -----------------------------------------
 
 def _listing(*names: str) -> list[dict[str, object]]:
     return [{"type": "directory", "oid": "0" * 40, "size": 0, "path": f"raw/jobs/{name}"} for name in names]
 
 
+def _site_down(router: respx.MockRouter) -> respx.Route:
+    return router.get(LIVE).mock(return_value=httpx.Response(503, text="unavailable"))
+
+
 def _hub(router: respx.MockRouter, listing: object, job: str = JOB) -> dict[str, respx.Route]:
+    """The dataset's job, with the site's leaderboard down, so the client reads its fallback."""
+    _site_down(router)
     return {
         "jobs": router.get(JOBS).mock(return_value=httpx.Response(200, json=listing)),
         "result": router.get(f"{FILES}/{job}/result.json").mock(return_value=httpx.Response(200, text=_text("result.json"))),
@@ -186,7 +298,7 @@ def test_the_client_reads_the_newest_job_with_the_token_sent_to_the_hub_alone(
                {"type": "file", "oid": "0" * 40, "size": 9, "path": "raw/jobs/20991231-a-file-not-a-job"}]
     routes = _hub(respx_mock, listing, job=newer)
     client = _dc().DatacurveClient(token_file=no_token_file)
-    assert client.name == "datacurve_deepswe" and tuple(client.hosts) == ("huggingface.co",)
+    assert client.name == "datacurve_deepswe" and set(client.hosts) == {"deepswe.datacurve.ai", "huggingface.co"}
     rows, skipped = _parse(client.fetch_raw())
     assert (len(rows), skipped) == (27, 0)
     assert {row.source_url.rsplit("/", 1)[1] for row in rows} == {newer}
@@ -259,6 +371,7 @@ def test_a_refused_token_fails_the_source_and_the_message_never_holds_it(
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", TOKEN)
+    _site_down(respx_mock)
     respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
     respx_mock.get(f"{FILES}/{JOB}/result.json").mock(return_value=httpx.Response(401, text="Access to dataset is restricted"))
     with pytest.raises(SourceError) as raised:
@@ -275,6 +388,7 @@ def test_a_redirect_off_the_hub_is_refused_and_never_requested(
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", TOKEN)
+    _site_down(respx_mock)
     respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
     respx_mock.get(f"{FILES}/{JOB}/result.json").mock(
         return_value=httpx.Response(302, headers={"location": "https://cdn.example.net/result.json"}))
@@ -293,6 +407,7 @@ def test_a_listing_with_no_dated_job_fails_the_source(
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", TOKEN)
+    _site_down(respx_mock)
     respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=listing))
     with pytest.raises(SourceError):
         _dc().DatacurveClient(token_file=no_token_file).fetch_raw()

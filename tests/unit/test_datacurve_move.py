@@ -32,6 +32,11 @@ def _envelope() -> str:
                                       for name in ("result", "config")}})
 
 
+def _leaderboard() -> str:
+    """D-216 (revised): Datacurve's own leaderboard, the list the source reads first."""
+    return json.dumps({"leaderboard": (FIXTURES / "leaderboard-live.json").read_text(encoding="utf-8")})
+
+
 def test_agentic_coding_ranks_on_datacurve_and_epochs_copy_is_not_built() -> None:
     """covers REQ-SRC-012 (D-216 clause 1): the surface, its family and the registry; nothing builds Epoch's copy."""
     from app.workflows import categories, families, sources
@@ -72,18 +77,20 @@ def test_epochs_copy_stays_attributed_and_credited_as_a_retired_source() -> None
     assert board_tables.CREDITS["datacurve_leaderboard"].licence == "© Datacurve; no licence published"
 
 
-def _built(path: Path) -> None:
-    """The board through the build's own ingest, with a LiteLLM price for every model the job names."""
+def _built(path: Path, payload: str | None = None) -> None:
+    """The board through the build's own ingest, with a LiteLLM price for every model either file names."""
     from app.workflows import sources
 
+    payload = _envelope() if payload is None else payload
     models = {key.split("__")[1] for key in json.loads((FIXTURES / "result.json").read_text(encoding="utf-8"))["stats"]["evals"]}
+    models |= {row["model"] for row in json.loads((FIXTURES / "leaderboard-live.json").read_text(encoding="utf-8"))["rows"]}
     prices = json.dumps({name: {"mode": "chat", "input_cost_per_token": 3e-06, "output_cost_per_token": 1.5e-05}
                          for name in sorted(models)})
     conn = connect(str(path))
     run = RunContext(observed_at="2026-10-21T00:00:00+00:00")
     ingest_litellm(conn, FakeRawSource("litellm", prices), run)
     declared = next(s for s in sources.REMOTE_SOURCES if s.name == "datacurve_deepswe")
-    assert declared.ingest(conn, FakeRawSource("datacurve_deepswe", _envelope()), run).stored == 27
+    assert declared.ingest(conn, FakeRawSource("datacurve_deepswe", payload), run).stored in (27, 70)
     reconcile(conn)
     build_price_medians(conn)
     conn.commit()
@@ -115,3 +122,35 @@ def test_agentic_coding_answers_from_the_datacurve_board_at_high_effort(
     assert any("Datacurve" in source for source in answer["sources"]), answer["sources"]
     top = answer["picks"][0]
     assert top["label"] == "best_quality" and top["score"] == 61.9, top
+
+
+def test_every_model_on_the_leaderboard_links_a_catalogue_model(tmp_path: Path) -> None:
+    """covers REQ-SRC-012 (D-216, revised): the leaderboard's 70 rows name 28 models, and the alias rules link each."""
+    db = tmp_path / "built.db"
+    _built(db, _leaderboard())
+    with sqlite3.connect(db) as conn:
+        linked = dict(conn.execute("SELECT raw_name, model_id FROM scores WHERE source = 'datacurve_deepswe'"))
+    assert len(linked) == 28 and all(linked.values()), linked
+    assert linked["gpt-6-astra"] == "gpt6-astra" and linked["claude-opus-5"] == "claude-5-opus"
+
+
+def test_agentic_coding_answers_from_the_leaderboard_at_high_effort(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """covers REQ-SRC-012 (D-216, revised): from the list the source reads first, the surface's best `high` run is
+    Gemini 3.8 Flash's 73.8; GPT-6 Astra's `xhigh` 74.1, the board's top score, is not ranked as a `high` one."""
+    from app.adapter import main
+
+    db = tmp_path / "built.db"
+    _built(db, _leaderboard())
+    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
+    answer = TestClient(main.app).get("/v1/recommendations?task=agentic-coding").json()["answers"][0]
+    assert answer["unavailable_reason_code"] is None, answer
+    top = answer["picks"][0]
+    assert top["label"] == "best_quality" and top["score"] == 73.8, top
+
+
+def test_the_surface_was_calibrated_on_the_leaderboard_it_reads_first() -> None:
+    """covers REQ-SRC-012 (D-216 clause 7): the record measured Datacurve's leaderboard, not the June dataset job."""
+    written = json.loads(Path("docs/research/d216-agentic-coding-calibration.json").read_text(encoding="utf-8"))
+    assert "leaderboard" in written["stderr_from"] and written["ranked_population"] >= 19, written
