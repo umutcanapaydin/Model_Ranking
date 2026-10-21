@@ -48,6 +48,18 @@ def test_real_datacurve_leaderboard_satisfies_parser_contract() -> None:
     assert all(0 <= r.score <= 100 and r.harness for r in rows)
 
 
+def test_real_osworld_verified_workbook_satisfies_parser_contract() -> None:
+    """REQ-SRC-013 acceptance (#379, D-219): the live OSWorld-Verified workbook, from the site's own host with no token,
+    reads into general models at 100 steps, above the floor."""
+    from app.clients.osworld import OSWorldClient, parse_osworld
+    from app.workflows.sources import REMOTE_SOURCES
+
+    rows, skipped = parse_osworld(OSWorldClient().fetch_raw())
+    floor = next(s for s in REMOTE_SOURCES if s.name == "osworld_verified").minimum_rows
+    assert len(rows) >= floor, f"{len(rows)} rows, {skipped} skipped"
+    assert all(0 <= r.score <= 100 and r.harness == "OSWorld (100 steps)" for r in rows)
+
+
 def test_the_committed_arc_agi_2_derivation_is_the_datasets_current_revision() -> None:
     """REQ-SRC-012 acceptance (#265): ARC Prize has not moved its public-evaluation dataset past the revision
     `data/arc-agi-2-public-eval.json` was derived at. When it has, re-run `scripts/derive_arc_public_eval.py`."""

@@ -1,0 +1,250 @@
+"""OSWorld-Verified from its own results workbook: client + parser (REQ-SRC-013, D-219).
+
+The OSWorld team (XLANG Lab) publishes its verified board as one workbook, `osworld_verified_results.xlsx`, which its
+page loads and averages in the browser. The site is "licensed under a Creative Commons Attribution-ShareAlike 4.0
+International License"; it moved from `os-world.github.io`, which now redirects over plain HTTP, to
+`osworld-v1.xlang.ai`, the one host this client asks.
+
+D-219 clause 2 reads the rows the page's default "Foundation E2E GUI" tab shows that a catalogue can sell: approach type
+`General model`, no extra accessibility tree and no coding action, at 100 steps, the budget most rows report (a run at
+15 or 50 steps is another measurement). A model's score is the mean of its runs, as the page shows it, dated by its
+latest run. Specialized GUI models and agentic frameworks are not read: a framework names a harness over a model, and
+the specialized models are not catalogue models.
+
+The workbook is read with the standard library (`zipfile` and `xml.parsers.expat`), so no dependency is added. The
+parser refuses a document type and any entity declaration as it meets them, as `defusedxml` does, and a member that
+unpacks past `MAX_MEMBER_BYTES` is refused before it is read.
+The client hands the parser the sheet's rows as one JSON list, so the build's one-string `RawSource` holds.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import io
+import json
+import math
+import re
+import zipfile
+from dataclasses import dataclass, field
+from typing import Any
+from xml.parsers import expat
+
+from app.clients.protocols import SourceError, fetch_bounded_bytes
+from app.workflows.schema import ScoreRow
+
+SOURCE_NAME = "osworld_verified"
+BENCHMARK = "OSWorld-Verified"
+#: The share of tasks a run finished: the scale `% resolved` names on every task board here.
+METRIC = "% resolved"
+HARNESS = "OSWorld (100 steps)"
+SITE_URL = "https://osworld-v1.xlang.ai/"
+WORKBOOK_URL = "https://osworld-v1.xlang.ai/static/data/osworld_verified_results.xlsx"
+_TIMEOUT_S = 60.0
+#: The budget D-219 clause 2 reads: the one most rows report.
+STEP_BUDGET = "100"
+_APPROACH = "General model"
+#: A member of the workbook may not unpack past this: the recorded sheet is under 2 MB.
+MAX_MEMBER_BYTES = 16 * 1024 * 1024
+_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main "
+_SHEET = re.compile(r"xl/worksheets/sheet\d+\.xml")
+_COLUMN = re.compile(r"[A-Z]+")
+#: Excel's day zero for the 1900 date system, as a workbook's serial dates count from it.
+_EXCEL_EPOCH = dt.date(1899, 12, 30)
+
+
+class OSWorldClient:
+    """Production RawSource for the OSWorld-Verified workbook (D-001): one public file, from the site's own host."""
+
+    name = SOURCE_NAME
+    url = WORKBOOK_URL
+    hosts: tuple[str, ...] = ("osworld-v1.xlang.ai",)
+
+    def fetch_raw(self) -> str:
+        data = fetch_bounded_bytes(WORKBOOK_URL, self.name, _TIMEOUT_S, hosts=self.hosts)
+        return json.dumps(workbook_rows(data))
+
+
+@dataclass
+class _Node:
+    """One element of a workbook part: what the reader below needs of a tree, and nothing else."""
+
+    tag: str
+    attrs: dict[str, str]
+    children: list[_Node] = field(default_factory=list)
+    text: str = ""
+
+    def iter(self, tag: str) -> list[_Node]:
+        found = [self] if self.tag == tag else []
+        for child in self.children:
+            found.extend(child.iter(tag))
+        return found
+
+    def find(self, tag: str) -> _Node | None:
+        return next((child for child in self.children if child.tag == tag), None)
+
+
+def _refuse(*_: object) -> None:
+    msg = f"{SOURCE_NAME}: a workbook part declares a document type or an entity, which a workbook never needs"
+    raise SourceError(msg)
+
+
+def _parse_xml(body: bytes, name: str) -> _Node:
+    """A part's elements, read with expat and every document type and entity refused (no expansion bomb)."""
+    parser = expat.ParserCreate(namespace_separator=" ")
+    root = _Node("", {})
+    stack = [root]
+
+    def start(tag: str, attrs: dict[str, str]) -> None:
+        node = _Node(tag, attrs)
+        stack[-1].children.append(node)
+        stack.append(node)
+
+    def end(_: str) -> None:
+        stack.pop()
+
+    def text(data: str) -> None:
+        stack[-1].text += data
+
+    parser.StartElementHandler = start
+    parser.EndElementHandler = end
+    parser.CharacterDataHandler = text
+    parser.StartDoctypeDeclHandler = _refuse
+    parser.EntityDeclHandler = _refuse
+    parser.UnparsedEntityDeclHandler = _refuse
+    parser.ExternalEntityRefHandler = _refuse  # type: ignore[assignment]
+    try:
+        parser.Parse(body, True)
+    except expat.ExpatError as exc:
+        msg = f"{SOURCE_NAME}: {name} is not well-formed XML: {exc}"
+        raise SourceError(msg) from exc
+    if not root.children:
+        msg = f"{SOURCE_NAME}: {name} holds no element"
+        raise SourceError(msg)
+    return root.children[0]
+
+
+def _member(archive: zipfile.ZipFile, name: str) -> _Node:
+    info = archive.getinfo(name)
+    if info.file_size > MAX_MEMBER_BYTES:
+        msg = f"{SOURCE_NAME}: {name} unpacks to {info.file_size} bytes, past the cap of {MAX_MEMBER_BYTES}"
+        raise SourceError(msg)
+    return _parse_xml(archive.read(name), name)
+
+
+def _text(element: _Node) -> str:
+    return "".join(node.text for node in element.iter(f"{_NS}t"))
+
+
+def workbook_rows(data: bytes) -> list[dict[str, str | None]]:
+    """The first sheet's rows, each keyed by the header row's names; every value as the cell's text."""
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as exc:
+        msg = f"{SOURCE_NAME}: the file is not a workbook: {exc}"
+        raise SourceError(msg) from exc
+    with archive:
+        names = archive.namelist()
+        sheets = sorted(name for name in names if _SHEET.fullmatch(name))
+        if not sheets:
+            msg = f"{SOURCE_NAME}: the workbook holds no sheet"
+            raise SourceError(msg)
+        shared = ([_text(item) for item in _member(archive, "xl/sharedStrings.xml").iter(f"{_NS}si")]
+                  if "xl/sharedStrings.xml" in names else [])
+        grid: list[dict[str, str | None]] = []
+        for row in _member(archive, sheets[0]).iter(f"{_NS}row"):
+            cells: dict[str, str | None] = {}
+            for cell in row.iter(f"{_NS}c"):
+                column = _COLUMN.match(cell.attrs.get("r", ""))
+                if column is None:
+                    continue
+                value = cell.find(f"{_NS}v")
+                kind = cell.attrs.get("t")
+                if kind == "s" and value is not None and (value.text or "").isdigit() and int(value.text or 0) < len(shared):
+                    cells[column.group()] = shared[int(value.text or 0)]
+                elif kind == "inlineStr":
+                    cells[column.group()] = _text(cell)
+                else:
+                    cells[column.group()] = value.text if value is not None else None
+            grid.append(cells)
+    if not grid:
+        msg = f"{SOURCE_NAME}: the sheet holds no rows"
+        raise SourceError(msg)
+    header = grid[0]
+    return [{str(header.get(column) or column): value for column, value in cells.items()} for cells in grid[1:]]
+
+
+def _yes(value: object) -> bool:
+    return str(value).strip().lower() in {"yes", "true", "1", "y"}
+
+
+def _score(value: object) -> float | None:
+    try:
+        score = float(str(value).strip())
+    except ValueError:
+        return None
+    return score if math.isfinite(score) and 0 <= score <= 100 else None
+
+
+def _date(value: object) -> str | None:
+    try:
+        serial = int(float(str(value)))
+    except ValueError:
+        return None
+    return (_EXCEL_EPOCH + dt.timedelta(days=serial)).isoformat() if 0 < serial < 100_000 else None
+
+
+def parse_osworld(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreRow], int]:
+    """Parse the workbook's rows into one row a general model at 100 steps; returns (rows, skipped).
+
+    A run of a general model at 100 steps that is not a usable end-to-end score (no number, out of range, an extra
+    accessibility tree or coding action) is skipped and counted, and so is the model it belongs to; a payload that is
+    not the board fails the source.
+    """
+    try:
+        workbook: Any = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        msg = f"{source}: the workbook's rows are not valid JSON: {exc}"
+        raise SourceError(msg) from exc
+    if not isinstance(workbook, list):
+        msg = f"{source}: the workbook's rows are not a list"
+        raise SourceError(msg)
+    runs: dict[str, list[float]] = {}
+    dates: dict[str, list[str]] = {}
+    refused: set[str] = set()
+    skipped = 0
+    for entry in workbook:
+        if not isinstance(entry, dict) or entry.get("Approach type") != _APPROACH:
+            continue
+        if str(entry.get("Max steps")).strip() != STEP_BUDGET:
+            continue
+        model = entry.get("Model")
+        if not isinstance(model, str) or not model.strip():
+            continue
+        name = model.strip()
+        score = _score(entry.get("Success rate"))
+        if score is None or _yes(entry.get("Additional a11y tree used")) or _yes(
+                entry.get("Additional coding-based action")):
+            skipped += 1
+            refused.add(name)
+            continue
+        runs.setdefault(name, []).append(score)
+        if (date := _date(entry.get("Date"))) is not None:
+            dates.setdefault(name, []).append(date)
+    rows = [
+        ScoreRow(
+            raw_name=name,
+            benchmark=BENCHMARK,
+            metric=METRIC,
+            score=sum(scores) / len(scores),
+            harness=HARNESS,
+            run_date=max(dates[name]) if name in dates else None,
+            cost_total=None,
+            source=source,
+            source_url=SITE_URL,
+        )
+        for name, scores in runs.items() if name not in refused
+    ]
+    if not rows:
+        msg = f"{source}: the workbook holds no general model's run at {STEP_BUDGET} steps"
+        raise SourceError(msg)
+    return rows, skipped

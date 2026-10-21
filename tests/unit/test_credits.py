@@ -234,6 +234,8 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "arc_prize_solutions": ("Apache-2.0", "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE"),
         "datacurve_site": ("\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)", None),
         "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
+        # #379 (D-219 clause 1): the licence each new publisher's site states, as read on 2026-10-22.
+        "osworld": ("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
                  "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
         "arena_site": ("Arena Terms of Use", "https://help.arena.ai/articles/5629909088-terms-of-use"),

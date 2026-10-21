@@ -51,7 +51,7 @@ def test_each_general_model_at_100_steps_is_a_row_at_the_mean_of_its_runs_dated_
     fable = _by_name(rows)["claude-fable-5[1m]"]
     assert (round(fable.score, 2), fable.run_date, fable.harness) == (85.96, "2026-08-01", "OSWorld (100 steps)")
     assert (fable.benchmark, fable.metric, fable.source, fable.source_url) == (
-        "OSWorld-Verified", "% success", "osworld_verified", SITE)
+        "OSWorld-Verified", "% resolved", "osworld_verified", SITE)
     assert _by_name(rows)["claude-sonnet-4-6"].run_date == "2026-03-08"
     assert round(_by_name(rows)["o3"].score, 2) == 23.0
     assert "Coasty CUA v1" not in _by_name(rows)

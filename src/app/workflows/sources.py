@@ -47,6 +47,7 @@ from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
 from app.clients.models_dev import ModelsDevClient, parse_models_dev
+from app.clients.osworld import OSWorldClient, parse_osworld
 from app.clients.protocols import RawSource
 from app.clients.swebench import SweBenchClient, parse_verified
 from app.clients.terminalbench import TerminalBench4Client, parse_terminalbench_4
@@ -61,6 +62,7 @@ from app.workflows.ingest import (
     ingest_epoch,
     ingest_litellm,
     ingest_models_dev,
+    ingest_osworld,
     ingest_swebench,
     ingest_terminalbench_4,
 )
@@ -293,6 +295,17 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
             ("text_to_video", ArenaTextToVideoClient),
             ("video_edit", ArenaVideoEditClient),
         )
+    ),
+    # #379 (D-219): OSWorld-Verified's own workbook, `computer-use`'s second board: 20 general models at 100
+    # steps on 2026-10-22. OPTIONAL (D-121): a night the site fails is carried by the refresh (D-156), and
+    # the surface still answers from its primary. The floor is half the recorded board: below it, a cut file.
+    RemoteSource(
+        name="osworld_verified",
+        client=OSWorldClient,
+        ingest=ingest_osworld,
+        parse=parse_osworld,
+        minimum_rows=10,
+        required=False,
     ),
 )
 

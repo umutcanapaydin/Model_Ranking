@@ -71,6 +71,10 @@ RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
 #: D-216 (#265): Datacurve's own DeepSWE leaderboard, `agentic-coding`'s board.
 DATACURVE_SITE_URL = "https://deepswe.datacurve.ai/"
 
+#: #379 (D-219): the OSWorld team's site, whose workbook `computer-use`'s second board reads.
+OSWORLD_SITE_URL = "https://osworld-v1.xlang.ai/"
+CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+
 #: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
 #: process and the client read one string (W-125).
 ARENA_ATTRIBUTION = (
@@ -140,6 +144,9 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("datacurve_site", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard (v1.1), as its site publishes it",
            DATACURVE_SITE_URL, "\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)",
            None),
+    # #379 (D-219 clauses 1 and 4): the site states CC BY-SA 4.0, and the workbook is served from it.
+    Credit("osworld", "XLANG Lab (OSWorld)", "OSWorld-Verified leaderboard: the general models' runs at 100 steps",
+           OSWORLD_SITE_URL, "CC BY-SA 4.0", CC_BY_SA_4_URL),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
            "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
