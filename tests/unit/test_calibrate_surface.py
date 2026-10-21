@@ -16,7 +16,9 @@ from pathlib import Path
 import pytest
 
 RECORDS = {"computer-use": "docs/research/d194-computer-use-calibration.json",
-           "abstract": "docs/research/d194-abstract-calibration.json"}
+           "abstract": "docs/research/d194-abstract-calibration.json",
+           # D-216 clause 5 (#265): `agentic-coding` on Datacurve's own DeepSWE dataset.
+           "agentic-coding": "docs/research/d216-agentic-coding-calibration.json"}
 
 
 def _script():  # imported lazily, so this file collects before the script exists
