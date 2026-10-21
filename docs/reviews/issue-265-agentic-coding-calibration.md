@@ -8,10 +8,9 @@ date: 2026-10-21
 # #265 — how `agentic-coding`'s thresholds were derived on Datacurve's own DeepSWE leaderboard (D-216)
 
 **Cited by `src/app/workflows/categories.py`.** D-216 moves `agentic-coding` from Epoch's copy of the DeepSWE board
-(`epoch_deepswe_external`) to Datacurve itself (`datacurve_deepswe`): the leaderboard its site loads first, its CC BY
-4.0 dataset when that fails. A threshold measured on one board does not transfer to another (D-105), so the surface
+(`epoch_deepswe_external`) to Datacurve's own leaderboard (`datacurve_deepswe`), the JSON its site loads. A threshold measured on one board does not transfer to another (D-105), so the surface
 was calibrated again, by the rule D-194 clause 4 applied to `computer-use` and `abstract`, on the list the source
-reads first. The record the script wrote is `docs/research/d216-agentic-coding-calibration.json`, and
+reads. The record the script wrote is `docs/research/d216-agentic-coding-calibration.json`, and
 `tests/unit/test_calibrate_surface.py` pins the shipped pair to it and the record to the rule.
 
 ## The board measured
@@ -22,7 +21,7 @@ reads first. The record the script wrote is `docs/research/d216-agentic-coding-c
 - **The board.** Datacurve's leaderboard v1.1 (`leaderboard-live.json`), compiled 2026-09-22, newest job 2026-09-01:
   70 configurations over 28 models, all `mini-swe-agent`, 113 tasks each. Stored 70, skipped 0, effort unknown 0.
 - **Ids.** All 70 rows link a catalogue model and all 28 models carry a price, through the curated rules and the
-  derived identities (D-157). No alias was added. (The dataset fallback's job, 27 runs over 19 models, links whole too.)
+  derived identities (D-157). No alias was added.
 - **Efforts** (D-216 clause 3), as the leaderboard states them: 18 rows at `high`, and Kimi K2.7 Code, which states
   none and ran at its default, stands at `high` too; 14 `xhigh`, 14 `max`, 12 `medium`, 11 `low`.
 
@@ -56,6 +55,5 @@ they are not carried over.
   stand above the floor but outside the window, because the board tells them apart from the leaders.
 - **Undated evidence.** The leaderboard names no date per row (D-216 clause 4), so the surface says its evidence is
   undated, as it did on Epoch's copy.
-- **On a fallback night** the board is the dataset's June job (DeepSWE v1.0), on which these thresholds were not
-  measured. The source reads the leaderboard again the next night.
-- **When Datacurve publishes a new leaderboard version or job,** this calibration is run again.
+- **A night the site fails** is carried by the refresh (D-156): the previous night's rows, these thresholds.
+- **When Datacurve publishes a new leaderboard version,** this calibration is run again.

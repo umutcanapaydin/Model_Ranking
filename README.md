@@ -77,9 +77,8 @@ Two boards Epoch compiles from other publishers (WebDev Arena and MMLU) keep the
 licences, as Epoch says; each is credited to its source in the payloads that carry it (#124). Since
 D-194 (#265) ARC-AGI-2 is read from ARC Prize's own public-evaluation runs (MIT), Terminal-Bench 4.0
 from its leaderboard repository (Apache-2.0), and the second price source is models.dev (MIT), in place
-of OpenRouter. Since D-216 (#265) DeepSWE is read from Datacurve itself, in place of Epoch's copy: its
-leaderboard, https://deepswe.datacurve.ai/ (© Datacurve; public numbers, attributed), and its dataset
-(CC BY 4.0), https://huggingface.co/datasets/datacurve/deep-swe-leaderboard, when the leaderboard fails.
+of OpenRouter. Since D-216 (#265) DeepSWE is read from Datacurve's own leaderboard,
+https://deepswe.datacurve.ai/ (© Datacurve; public numbers, attributed), in place of Epoch's copy.
 This citation also travels in every ranking export and recommendation payload source list
 (REQ-LIC-001).
 The app's Credits screen names every publisher the served boards credit, with its licence or terms and
