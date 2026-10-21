@@ -21,6 +21,7 @@ from .test_api_v1 import _seeded_db
 
 REPO = Path(__file__).resolve().parents[2]
 SCRIPT = REPO / "scripts" / "deploy_hosted_engine.sh"
+_UNDER_TEST = "DEPLOY_TEST_SCRATCH"  # the scratch repository's path, read by _deploy only; the script ignores it
 _CLEAN_GIT_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
 
 
@@ -30,12 +31,16 @@ def _git(*args: str) -> str:
 
 
 def _scratch(tmp_path: Path, health_build: str | None = None) -> tuple[Path, Path, Path, dict[str, str]]:
-    """A committed scratch repository holding this tree's fly.toml, a served artifact beside it, and a
-    bin of stand-ins. `health_build` is what /health answers; by default the build fly was given."""
+    """A committed scratch repository holding this tree's fly.toml and deploy script, a served artifact
+    beside it, and a bin of stand-ins. `health_build` is what /health answers; by default the build fly
+    was given. The script runs from the scratch repository, the one checkout it deploys (#391)."""
     origin, repo = tmp_path / "origin.git", tmp_path / "repo"
     _git("init", "-q", "--bare", "-b", "main", str(origin))
     _git("clone", "-q", str(origin), str(repo))
     shutil.copy(REPO / "fly.toml", repo / "fly.toml")
+    shutil.copy(REPO / ".gitignore", repo / ".gitignore")
+    (repo / "scripts").mkdir()
+    shutil.copy(SCRIPT, repo / "scripts" / SCRIPT.name)
     (repo / "README").write_text("scratch\n", encoding="utf-8")
     _git("-C", str(repo), "add", ".")
     _git("-C", str(repo), "commit", "-qm", "scratch")
@@ -55,14 +60,28 @@ def _scratch(tmp_path: Path, health_build: str | None = None) -> tuple[Path, Pat
     (bin_dir / "curl").write_text(f"#!/bin/sh\n{answer}\n", encoding="utf-8")
     for stand_in in ("fly", "curl"):
         (bin_dir / stand_in).chmod(0o755)
-    env = {**_CLEAN_GIT_ENV, "PATH": f"{bin_dir}:{os.environ['PATH']}", "MODEL_RANKING_REPO": str(repo),
+    env = {**_CLEAN_GIT_ENV, "PATH": f"{bin_dir}:{os.environ['PATH']}", _UNDER_TEST: str(repo),
            "MODEL_RANKING_SERVED": str(served), "PYTHON": sys.executable, "DEPLOY_HEALTH_TRIES": "1"}
+    env.pop("MODEL_RANKING_REPO", None)
     return repo, served, calls, env
 
 
 def _deploy(env: dict[str, str], *flags: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["/bin/bash", str(SCRIPT), *flags], capture_output=True, text=True, timeout=120,
+    script = Path(env[_UNDER_TEST]) / "scripts" / SCRIPT.name
+    return subprocess.run(["/bin/bash", str(script), *flags], capture_output=True, text=True, timeout=120,
                           env=env, check=False)
+
+
+def test_the_deploy_ships_its_own_checkout_whatever_model_ranking_repo_names(tmp_path: Path) -> None:
+    """#391 (the #387 security review's R1): the deploy gate judges the tree the call runs in, so a
+    MODEL_RANKING_REPO naming another clone shipped a tree nobody had judged."""
+    repo, _served, calls, env = _scratch(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    _git("clone", "-q", str(tmp_path / "origin.git"), str(elsewhere))
+    done = _deploy(env | {"MODEL_RANKING_REPO": str(elsewhere)})
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert calls.exists() and (repo / "build" / "hosted" / "advisor.db").is_file()
+    assert not (elsewhere / "build").exists()
 
 
 def test_a_deploy_stamps_the_commit_ships_the_public_artifact_and_checks_health(tmp_path: Path) -> None:

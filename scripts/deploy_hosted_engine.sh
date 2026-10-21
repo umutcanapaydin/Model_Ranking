@@ -31,7 +31,9 @@
 # The first time, the owner's own steps (D-123): `fly auth login`, a payment method on the Fly
 # account, and `fly apps create <app>` with the `app` name in fly.toml.
 set -euo pipefail
-REPO="${MODEL_RANKING_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
+# The checkout this script lives in, and no other: the deploy gate judges the tree the call runs in, so
+# MODEL_RANKING_REPO, which pointed it at another clone, is not read (#391).
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SERVED="${MODEL_RANKING_SERVED:-$HOME/Library/Application Support/model-ranking/engine/data/advisor.db}"
 PYTHON="${PYTHON:-$REPO/.venv/bin/python}"
 TRIES="${DEPLOY_HEALTH_TRIES:-12}"
