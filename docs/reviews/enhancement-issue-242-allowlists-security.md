@@ -16,8 +16,8 @@ the whole diff, ran the gate (self-test and the shipping client, four configurat
 recomputed the pre-#242 refusals with the pre-#242 gate. I planted 43 twins in scratch copies of the fixture outside
 the worktree and ran three staleness checks as mutants in a separate scratch copy.
 **Date:** 2026-10-21
-**Release range:** `0d46032..2a75cae` (17 commits)
-**Reviewed head:** 2a75caecac998f8b41772451471780e4e53c1977
+**Release range:** `0d46032..2a75cae` (17 commits, round 1); `d528020..4aa5cee` (10 commits, round 2)
+**Reviewed head:** 4aa5ceeeb72bbde4201b1553770b28909f275e19
 **Risk tier:** MEDIUM. The brief declares no HIGH paths (`docs/project-brief.md:110`). The change rewrites the
 definition of a security gate (INV-62, INV-64, INV-66, INV-76; D-126, D-160, D-180, D-181) and touches no route, no
 `src/` code, no dependency, no CI, hook, `.claude/` or `.githooks/` file. There is no auth, PII, payment or migration
@@ -25,6 +25,116 @@ path, so §11's senior-review trigger does not fire.
 
 ## Verdict
 BLOCKING
+
+### Round 2 — re-verification at `4aa5cee` (2026-10-21)
+
+Round 2 counts: B1 still open, narrowed (round 2 of 3 on this finding) · M2 still open, narrowed · M1, M3, M4, R1 and
+R2 closed · R3 left, accepted.
+
+**Method.** The worktree was moved by the coordinator to `4aa5cee`, detached. It keeps its own venv, and the main
+checkout and the service were not touched. I read `git diff d528020..4aa5cee`, ran `make client-decls` (self-test and
+shipping client) and `tests/unit/test_client_decl_gate.py`, recomputed the refusals in all four configurations, and
+re-planted every round-1 twin plus 21 new ones with the same harness in scratch copies outside the worktree.
+
+**No loosening (D-214 clause 1): still holds.** At `4aa5cee` the fixture makes 281 refusals (Release) and 280
+(Debug). Every one of the pre-#242 gate's 183 and 182 is still made, in all four configurations: 0 missing in each.
+`make client-decls` gives `client-decls PASS: 22 client file(s) in 4 configuration(s)`, so the pin self-test is
+green. `tests/unit/test_client_decl_gate.py` gives `205 passed`.
+
+**B1, still open, narrowed.** The seven round-1 lines are now refused: `map(abs)`, `let f = abs; f(x)`, `max` held
+in a value, `map(\.magnitude)`, `x[keyPath: \.magnitude]`, `map(\.words.count)` and
+`map(Int.init(truncatingIfNeeded:))`. So are these new forms:
+- `[x].first.map(abs)`;
+- `map(abs as (Int) -> Int)`;
+- `compactMap(UInt.init(exactly:))`;
+- a function held in a struct's field;
+- an app function passed by name.
+
+Two by-reference forms still pass the new gate. The pre-#242 gate passed them too, so neither is a loosening:
+- **A key path held in a name.** `_meets` judges a key path only when it is written at the application
+  (`scripts/client_decl_gate.py:2203`, `_by_reference` at `:2160-2180`). Bound to a local first, or passed as a
+  parameter, its members are never read. `_by_reference` flags a `main` reference only when its type has `->`, and
+  `KeyPath<Int, UInt>` has none:
+  ```swift
+  func r2KPVar(_ s: Standing) -> UInt { let kp = \Int.magnitude; return s.position[keyPath: kp] }
+  func r2KPVarC(_ s: Standing) -> [UInt] { let kp = \Int.magnitude; return [s.position].map { $0[keyPath: kp] } }
+  func r2KPP(_ s: Standing, _ kp: KeyPath<Int, UInt>) -> UInt { s.position[keyPath: kp] }
+  func r2KPPUse(_ s: Standing) -> UInt { r2KPP(s, \.magnitude) }
+  ```
+  This is `.magnitude`, an issue-named twin, written with its key path bound to a name first: the form #242 exists to
+  end. The register overclaims at `docs/security-invariants.md:190`: "a key path applied to one
+  (`x[keyPath: \.magnitude]`) meets its members". That holds only for a key path written in place.
+- **A method of a served number referenced without being applied.** The served number is captured as the receiver,
+  and the call that follows carries no served argument, so neither `_calls_a_value` (`:2182`) nor `_application`
+  (`:2114`) sees it:
+  ```swift
+  func r2Partial(_ s: Standing) -> Int { let g = s.position.advanced(by:); return g(1) }
+  func r2Dist(_ s: Standing) -> Int { let g = s.position.distance(to:); return g(10) }
+  func r2Sig(_ s: Standing) -> Int { let sg = s.position.signum; return sg() }
+  ```
+  `.advanced` applied directly is a fixture shape the arithmetic rule refuses. It is the same by-reference class as
+  B1's `let f = abs`.
+
+**Remedy.**
+1. Refuse a `keypath_application_expr` on a served number whose key path is not a `keypath_expr` written in place,
+   since the gate cannot read it. Alternatively, judge every `keypath_expr` over a numeric root wherever it stands, as
+   #244 does for a request's key paths.
+2. Judge a method reference whose receiver is served and which is not the callee of a call on the spot (an unapplied
+   `dot_syntax_call_expr`) as the served number meeting that method as its receiver, by `_meets` and by the
+   arithmetic rule's list.
+3. Plant the seven lines above as `shape:` lines, and qualify G-2's sentence.
+
+The next BLOCKING on this finding is its third, which ends the loop (`/close-wave` step 3).
+
+**M2, still open, narrowed (MINOR).** A key path written in place in a store is now refused:
+`h[keyPath: \TwHolder3.address]` gives `receives a URL, by TwHolder3.address, declared in ContentView.swift`
+(`scripts/client_decl_gate.py:1132-1136`). The same key path bound to a local first passes, for the same reason as
+B1's first form. Only `node.kids[1]`'s subtree is read, and a local `k` is declared in the store's own file:
+```swift
+// ContentView.swift
+struct R2Holder6 { let address: URL }
+// FrontDoor.swift
+func r2KPStore6(_ h: R2Holder6) -> GapRegisterStore { let k = \R2Holder6.address; return GapRegisterStore(url: h[keyPath: k]) }
+```
+The G-13 row (`docs/security-invariants.md:197`) now says "through a key path" without that qualification. It stays
+MINOR for the round-1 reasons: other files cannot make a URL, the runtime `isFileURL` guard and the text pin stay.
+The same remedy applies: judge the `keypath_expr` in a store wherever it stands, or refuse a key-path application
+whose key path is not written in place. If neither is done, name the form in G-13.
+
+**Closed.**
+- **M1:** both classes are named in G-2's "still not held" (`docs/security-invariants.md:190`: M1a, generic; M1b,
+  rebuilt from comparisons). Re-planted, both still pass, as the register now says. The issue the author says will be
+  filed is not yet filed: queued as R4.
+- **M3:** in `Detail.swift`, away from the fixture's own copies, three forms are now refused:
+  - `Thread.detachNewThreadSelector(_:toTarget:with:` and `RunLoop.perform(_:target:argument:order:modes:` give "it
+    takes a `Selector`, whatever its label" (`selector_facts`, `_selector_problem`);
+  - `NSSortDescriptor.init(key:ascending:` gives "a key labelled `key:` or `keyPath:`".
+
+  `NSObject.perform(_:with:afterDelay:` is refused by the type rule too.
+- **M4:** I re-ran the round-1 mutant (the three staleness checks replaced with `pass`). It now fails
+  `test_242_an_unused_constant_type_folder_maker_or_store_read_fails_the_gate[SINK_CONSTANT_TYPES]`,
+  `[STORE_FOLDER_MAKERS]` and `[STORE_READS]` (3 failed).
+- **R1:** `Set(_:)` is scoped to `("AnswerPlan.swift", "disclosures")`, now that `_placed` names a computed property's
+  getter as its place (`scripts/client_decl_gate.py:559`).
+- **R2:** `String(_:)`, `ClosedRange.contains`, `Array.subscript` and `sorted` are each place-scoped
+  (`:531-547`). The shipping client still passes the stale-entry check in all four configurations.
+
+**Gate lines at `4aa5cee`:**
+- `make secrets`: `INF no leaks found`
+- `make deps`: `No known vulnerabilities found`
+- `make slopsquat` (`DEVFLOW_FRESH=1`): `slopsquat PASS: 20 declared dependency(ies), 0 suspect`
+- `make conformance`: `conformance PASS: 33 test(s) derived from conformance/, 0 failing, 0 caller-liveness finding(s)`
+
+**Risks queued (round 2).**
+- **R3** (round 1): left, accepted.
+- **R4:** the issue for M1a (generic parameters read through the call's substitution map) and M1b is to be filed.
+  Until it is, the two classes live only in the register.
+- **R5:** `_placed` passes a computed property's name as the place to `_arithmetic_permitted`
+  (`scripts/client_decl_gate.py:2043-2048`). A computed property named like a permitted function of the same file
+  would skip `_meets` there; before, such a property's place was `-`. I found no collision on the shipping client,
+  where every entry is seen. This is narrow, and worth a line in `ARITHMETIC_PERMITTED`'s comment.
+
+### Round 1 — at `2a75cae`
 
 BLOCKING 1 · MINOR 4 · risks queued 3.
 
