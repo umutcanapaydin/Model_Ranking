@@ -528,18 +528,23 @@ ARITHMETIC_PERMITTED: dict[tuple[str, str, str | None], str] = {
 _Places = frozenset[tuple[str, str]] | None
 SERVED_MAY_MEET: dict[tuple[str, str], tuple[_Places, str]] = {
     # A test reads a number and changes none (a comparison operator is admitted by rule, `SERVED_MAY_MEET_BY_RULE`).
-    ("Swift.ClosedRange.contains", "argument"): (None, "a comparison: whether a range of the app's own holds it"),
+    ("Swift.ClosedRange.contains", "argument"): (frozenset({("Uncertainty.swift", "evidenceBreadth")}),
+                                                 "a comparison: whether a range of the app's own holds a board's age"),
     ("Swift.Double.isFinite", "receiver"): (None, "a test: whether it is a number at all"),
     # Display: the number written as it is.
     ("Swift.DefaultStringInterpolation.appendInterpolation", "argument"): (None, "display: written into text"),
     ("SwiftUICore.LocalizedStringKey.StringInterpolation.appendInterpolation", "argument"): (
         None, "display: written into a localised text"),
-    ("Swift.String.init(_:", "argument"): (None, "display: the number as text"),
+    ("Swift.String.init(_:", "argument"): (
+        frozenset({("Language.swift", "number"), ("Language.swift", "wholeNumber"), ("Notices.swift", "staleSentence")}),
+        "display: the number as text, and the sources' ages listed"),
     # Passed along unchanged: the flow follows what is passed (`_Flow`); a method that hands each element to a
     # closure is admitted by rule (`SERVED_PASSES_ELEMENTS`).
     ("Swift.??", "argument"): (None, "passed along: the served number, or a default of the app's own"),
-    ("Swift.Array.subscript(_:", "receiver"): (None, "passed along: an element of a list of served numbers"),
-    ("Swift.Sequence.sorted(", "receiver"): (None, "ordered, which `SORTS_PERMITTED` counts per file"),
+    ("Swift.Array.subscript(_:", "receiver"): (frozenset({("Notices.swift", "staleSentence")}),
+                                               "passed along: the freshest source's age, written into its sentence"),
+    ("Swift.Sequence.sorted(", "receiver"): (frozenset({("Notices.swift", "staleSentence")}),
+                                             "ordered, which `SORTS_PERMITTED` counts per file: the sources' ages"),
     # Only where the shipping client needs it, each place named.
     ("Swift.Double.init(_:", "argument"): (frozenset({("Language.swift", "number")}),
                                            "display: a whole count checked against the range a sentence may show"),
@@ -551,7 +556,7 @@ SERVED_MAY_MEET: dict[tuple[str, str], tuple[_Places, str]] = {
         "(`money`, REQ-CMP-002)"),
     ("Foundation.NSNumber.init(value:", "argument"): (frozenset({("Scores.swift", "priceTag")}),
                                                       "display: the price handed to its number formatter"),
-    ("Swift.Set.init(_:", "argument"): (frozenset({("AnswerPlan.swift", "-")}),
+    ("Swift.Set.init(_:", "argument"): (frozenset({("AnswerPlan.swift", "disclosures")}),
                                         "counted: whether two rows share a place (a tie notice)"),
 }
 #: #242 (G-2): what a served number may meet by rule, whatever type declares it, each rule with its reason: a
@@ -2014,6 +2019,19 @@ def _scoped(node: _Node, function: str | None = None) -> Iterator[tuple[_Node, s
         yield from _scoped(kid, function)
 
 
+def _placed(node: _Node, function: str | None = None,
+            place: str | None = None) -> Iterator[tuple[_Node, str | None, str | None]]:
+    """Every node with the function it is in, as `_scoped` gives it, and (#242, the security review's R1) its place:
+    that function, or the computed property whose getter it is in."""
+    if named := FUNCTION.match(node.line):
+        function = place = named.group(2)
+    elif node.kind == "var_decl" and "readImpl=getter" in node.line and (variable := VAR_NAME.match(node.line)):
+        place = variable.group(1)
+    yield node, function, place
+    for kid in node.kids:
+        yield from _placed(kid, function, place)
+
+
 def flow_facts(ast: str) -> dict[str, set[str]]:
     """#60 (G-2): `{file name: {"main.<...>", ...}}`, the arithmetic on served numbers and the sorts
     each file makes, resolved by the compiler and followed to a fixed point, for `problems` to judge."""
@@ -2023,10 +2041,11 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     sorts: dict[tuple[str, str, str], int] = {}
     for root in flow.roots:
         file = _file_of(root)
-        for node, function in _scoped(root):
+        for node, function, place in _placed(root):
             arithmetic = _arithmetic(node, flow, function)
-            # #242 (G-2): what the arithmetic rule does not judge, the list of what a served number may meet does.
-            for fact in arithmetic or _meets(node, flow, file, function):
+            # #242 (G-2): what the arithmetic rule does not judge, the list of what a served number may meet does, in
+            # the place it names: a function, or a computed property (the security review's R1).
+            for fact in arithmetic or _meets(node, flow, file, place):
                 facts.setdefault(file, set()).add(fact)
             if (ordering := _ordering(node)) is not None:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
