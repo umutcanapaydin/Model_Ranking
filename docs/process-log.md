@@ -1153,3 +1153,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scripts/nightly_hosted.sh` is now a brief deploy command, so the Bash guard judges it. It already refused a `bash -n` of the deploy script during this work.
 - The Security-Reviewer's round 1 was BLOCKING (B1): once installed, a writer could dispatch the workflow on any branch, with the repository's token in reach. The token is now a `fly-production` environment's secret that only `main` reaches, and both jobs run only on main. M1, M2, M4, M5 and R2 are fixed on the branch; M3, R1 and R3 are filed (#389, #391, #392), and the guard half of M1 is filed too (#390).
 - Lesson: when a job moves to CI, list every writer of what the next run reads back; artifacts are shared across workflows and forks, so read them by the run that made them, never by name.
+
+## 2026-10-21 — enhancement/issue-378-arena-media: LMArena's image and video boards open as five surfaces ranked on quality only (#378)
+
+- D-218 clause 1 was the plan's first phase, so no new ADR. Five `ArenaBoard` entries come with fixtures recorded from the real dataset, parser tests and a live contract test. The four `*_style_control` configs stay unread.
+- No media model has a per-token price, and D-157 registers a derived model only when it has a price and a score. So these boards link their names in a pass of their own. No text rule enters it: `kling-o3-pro` used to read as OpenAI's `o3-pro`. A quality-only surface joins no price and has no value window or budget filter. Its one pick is the best quality. `/v1` publishes `priced: false` and null prices.
+- The installed app decodes every price as a number. One null in `/v1/boards` `models` would break its combined lists on every surface. So the unpriced models arrive under a new `unpriced_models` key, and only the media answers carry nulls.
+- Router: hints, examples, keyword rules before `vision`, and the retired image decline. The on-device model tier routed every probe right. The wording tier held the tuning and retired sets at 520 against 518. Adding 30 examples moved a few far questions through the centring mean.
+- Phases 3 and 4 were split as engine plus routing, then screens, because the hint-pairing test binds a served surface to its hint.
+- Lesson: before a served field may become null, check what an installed client decodes it as; a new key beside the old one keeps an old build working where a null in place breaks it.
