@@ -274,12 +274,12 @@ enum CategoryHints {
                        "remove an object from this video", "speed up the boring parts of my video",
                        "replace the background in my video", "cut and restyle this clip"],
         // #379 (D-218 clause 2): how long a job the AI can carry alone, in a reader's words.
-        "long-tasks": ["which ai can work on one task for hours without help",
-                       "an assistant that can finish a project that takes a person a whole day",
-                       "which model handles the longest tasks on its own",
-                       "give the model a job that takes hours and let it run unattended",
-                       "which ai stays on track through a long task with many steps",
-                       "an ai for work that takes an expert several hours"],
+        "long-tasks": ["an agent that keeps working for eight hours straight",
+                       "run it overnight on a twelve hour job",
+                       "how many hours of a skilled person's work can it do alone",
+                       "a multi day project it should carry to the end by itself",
+                       "the length of task it completes half the time",
+                       "work through a whole afternoon of steps without anyone checking in"],
     ]
 
     /// #222 (the reading wave of 2026-10-14): the same six questions per surface (eight for #293's
@@ -358,12 +358,12 @@ enum CategoryHints {
         "video_edit": ["bu video klibi düzenle", "videomun tarzını değiştir", "bu videodan bir nesneyi kaldır",
                        "tatil videomu kurgula", "videomun renklerini düzelt", "bu video klibini kesip yeniden stillendir"],
         // #379 (D-218 clause 2)
-        "long-tasks": ["hangi yapay zeka tek bir görev üzerinde saatlerce yardımsız çalışabilir",
-                       "bir insanın bütün gününü alan bir projeyi bitirebilen asistan",
-                       "en uzun görevleri kendi başına hangi model yapar",
-                       "modele saatler sürecek bir iş ver ve kendi başına yürütsün",
-                       "çok adımlı uzun bir görevde yolundan sapmayan yapay zeka hangisi",
-                       "bir uzmanın birkaç saatini alan işler için bir yapay zeka"],
+        "long-tasks": ["sekiz saat aralıksız çalışmaya devam eden bir ajan",
+                       "on iki saatlik bir işte gece boyunca çalışsın",
+                       "deneyimli bir insanın kaç saatlik işini tek başına yapabilir",
+                       "birkaç gün sürecek bir projeyi kendi başına sonuna kadar götürsün",
+                       "yarısını bitirebildiği görevlerin süresi ne kadar uzun",
+                       "kimse kontrol etmeden bütün bir öğleden sonra boyunca adım adım çalışsın"],
     ]
 }
 
