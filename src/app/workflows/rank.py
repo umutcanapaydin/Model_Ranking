@@ -24,6 +24,7 @@ from app.workflows.board_tables import (
     DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
+    LIVEBENCH_SITE_URL,
     METR_SITE_URL,
     OSWORLD_SITE_URL,
     RETIRED_EXTERNAL_ATTRIBUTION,
@@ -70,6 +71,8 @@ OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard
                        "(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/)")
 #: #379 (D-219): METR's time horizons. METR publishes no licence; its public numbers are used with this credit (D-215).
 METR_ATTRIBUTION = f"Time-horizon scores: METR's Time Horizon 1.1, {METR_SITE_URL}"
+#: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
+LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release 2026-10-14), {LIVEBENCH_SITE_URL}"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
@@ -80,6 +83,7 @@ ATTRIBUTIONS = (
     DATACURVE_ATTRIBUTION,
     OSWORLD_ATTRIBUTION,
     METR_ATTRIBUTION,
+    LIVEBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
     *RETIRED_EXTERNAL_ATTRIBUTION.values(),
@@ -120,6 +124,7 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "datacurve_deepswe": DATACURVE_ATTRIBUTION,
     "osworld_verified": OSWORLD_ATTRIBUTION,
     "metr_time_horizons": METR_ATTRIBUTION,
+    "livebench": LIVEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     # D-127's boards. All seven come out of the same owner-placed Epoch bundle, and are listed
     # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
@@ -161,6 +166,7 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     DATACURVE_ATTRIBUTION: ("datacurve_site",),
     OSWORLD_ATTRIBUTION: ("osworld",),
     METR_ATTRIBUTION: ("metr",),
+    LIVEBENCH_ATTRIBUTION: ("livebench",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).

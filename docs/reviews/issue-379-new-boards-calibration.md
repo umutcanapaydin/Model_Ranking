@@ -25,12 +25,17 @@ registered ingest from the recorded fixture (`tests/fixtures/`), then the build'
 |---|---|---:|---:|---:|---:|---|
 | OSWorld-Verified | `osworld_verified` | 20 | 1 | 15 | 15 | `doubao-1-5-thinking-vision-pro-250428`, `doubao-1-5-thinking-vision-pro-250717`, `kimi-vl-a3b`, `UI-TARS-250705`, `qwen3-vl-flash-2025-10-25` |
 | METR time horizons | `metr_time_horizons` | 26 | 0 | 20 | 20 | `davinci-002`, `gpt2`, `gpt-4-1106`, `gpt-4-turbo`, `o1`, `claude-mythos-preview-early` |
+| LiveBench 2.0 | `livebench` | 49 | 0 | 43 | 42 | `beam-1.0`, `deepseek-v4-flash-vision`, `deepseek-v4.1-flash-1017`, `nemotron-lightning-3.5`, `nemotron-super-vl-3.5`, `nemotron-ultra-3` |
 
 - OSWorld-Verified's skipped row is Coasty CUA v1, whose run used an extra accessibility tree or coding action
   (D-219 clause 2). The unlinked names are models no catalogue entry prices.
 - METR's unlinked names are models no catalogue entry prices today (GPT-2, davinci-002, an early preview) or spellings
   the registry does not read as a priced model (`o1`, `gpt-4-turbo`, `gpt-4-1106`); each is a model of 2024 or
   earlier but the preview, so no surface's leaders are missing.
+
+- LiveBench's 43 linked names reach 42 models: `minimax-m3.1-flash` read as MiniMax M3, a curated rule that took
+  any `minimax-m3` prefix. The rule now stops before a point release, as MiniMax M2's does, so M3.1 Flash is its
+  own model and MiniMax M3 keeps its own score.
 
 ## `long-tasks` (D-218 clause 2)
 

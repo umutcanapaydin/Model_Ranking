@@ -46,6 +46,7 @@ from app.clients.datacurve import DatacurveClient, parse_datacurve
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
+from app.clients.livebench import LiveBenchClient, parse_livebench
 from app.clients.metr import MetrClient, parse_metr
 from app.clients.models_dev import ModelsDevClient, parse_models_dev
 from app.clients.osworld import OSWorldClient, parse_osworld
@@ -62,6 +63,7 @@ from app.workflows.ingest import (
     ingest_datacurve,
     ingest_epoch,
     ingest_litellm,
+    ingest_livebench,
     ingest_metr,
     ingest_models_dev,
     ingest_osworld,
@@ -318,6 +320,16 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_metr,
         parse=parse_metr,
         minimum_rows=13,
+        required=False,
+    ),
+    # #379 (D-219): LiveBench 2.0's own release files, a board of `everyday`: 49 models in release 2026-10-14.
+    # OPTIONAL (D-121): a night the site fails is carried (D-156), and the surface answers from its primary.
+    RemoteSource(
+        name="livebench",
+        client=LiveBenchClient,
+        ingest=ingest_livebench,
+        parse=parse_livebench,
+        minimum_rows=24,
         required=False,
     ),
 )

@@ -21,6 +21,7 @@ from app.clients.epoch import (
 )
 from app.clients.epoch import validate_last_verified
 from app.clients.litellm import parse_pricing
+from app.clients.livebench import parse_livebench
 from app.clients.metr import parse_metr
 from app.clients.models_dev import parse_models_dev
 from app.clients.osworld import parse_osworld
@@ -208,6 +209,15 @@ def ingest_terminalbench_4(conn: sqlite3.Connection, source: RawSource, run: Run
 def ingest_datacurve(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse Datacurve's DeepSWE job and replace its working set (REQ-SRC-012, D-216)."""
     rows, skipped = parse_datacurve(source.fetch_raw(), source=source.name)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
+    run.reports.append(report)
+    return report
+
+
+def ingest_livebench(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse LiveBench's pinned release and replace its working set (REQ-SRC-013, D-219)."""
+    rows, skipped = parse_livebench(source.fetch_raw(), source=source.name)
     unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
     run.reports.append(report)
