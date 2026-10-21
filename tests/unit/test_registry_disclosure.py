@@ -19,7 +19,7 @@ from app.workflows.refresh import EXIT_PUBLISHED, RefreshOutcome, refresh, statu
 from .test_build import AIDER, PRICING
 from .test_refresh_carry import _sources, _use
 
-WITH_GPT6 = json.dumps({**json.loads(PRICING), "openrouter/openai/gpt-6-astra": {
+WITH_GPT6 = json.dumps({**json.loads(PRICING), "openai/gpt-6-astra": {
     "mode": "chat", "input_cost_per_token": 2e-06, "output_cost_per_token": 1.6e-05}})
 AIDER_GPT6 = json.dumps([*json.loads(AIDER),
                          {"model": "gpt-6-astra", "pass_rate_2": 80.0, "edit_format": "diff"},

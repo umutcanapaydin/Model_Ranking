@@ -24,7 +24,7 @@ PRICING = json.dumps(
     {
         # three providers for gpt-5: median must beat the outlier (REQ-CAN-003)
         "gpt-5": {"mode": "chat", "input_cost_per_token": 1.25e-06, "output_cost_per_token": 1e-05},
-        "openrouter/gpt-5": {
+        "azure/gpt-5": {
             "mode": "chat",
             "input_cost_per_token": 1.30e-06,
             "output_cost_per_token": 1.1e-05,

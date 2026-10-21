@@ -36,10 +36,37 @@ def test_the_webdev_board_is_an_optional_source_as_every_arena_board_is() -> Non
     assert entry.minimum_rows == ARENA_BOARDS["webdev"].minimum_rows
 
 
-def test_the_family_reads_one_webdev_vote_and_epochs_copy_stands_outside() -> None:
-    """D-188 clause 1: Epoch's copy is the same vote as LMArena's board, so the family holds LMArena's."""
+def test_the_family_reads_one_webdev_vote_and_epochs_copy_is_retired() -> None:
+    """D-188 clause 1: Epoch's copy is the same vote as LMArena's board, so the family holds LMArena's.
+    #376 (D-215 clause 3): the copy is a duplicate, so it is neither declared nor kept outside a family;
+    its citation stays a retired source's, for an artifact an older release built."""
+    from app.workflows.board_tables import EPOCH_BOARDS, RETIRED_EXTERNAL_ATTRIBUTION
+
     assert families.FAMILIES["web-dev"] == ("arena_webdev", "arena_text_coding")
-    assert "epoch_webdev" in families.OUTSIDE_FAMILIES
+    assert "epoch_webdev" not in families.OUTSIDE_FAMILIES
+    assert "epoch_webdev" not in {board.source_name for board in EPOCH_BOARDS}
+    assert "epoch_webdev" not in SOURCE_ATTRIBUTION
+    assert "arena.ai/leaderboard" in RETIRED_EXTERNAL_ATTRIBUTION["epoch_webdev"]
+
+
+def test_the_build_stores_no_row_of_epochs_webdev_copy(tmp_path: Path) -> None:
+    """#376 (D-215 clause 3): a bundle that still carries `webdev_arena_external.csv` builds no
+    `epoch_webdev` row, so no built artifact, and no public one derived from it, holds the board."""
+    from app.workflows import build as build_mod
+    from app.workflows.schema import connect
+
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    (bundle / "webdev_arena_external.csv").write_text(
+        "Model version,Arena Score\nclaude-opus-4-8,1500\ngpt-5.4,1450\n", encoding="utf-8")
+    conn = connect(":memory:")
+    try:
+        reports, _missing = build_mod._ingest_boards(conn, bundle, build_mod.RunContext())
+        stored = conn.execute("SELECT count(*) FROM scores WHERE source = 'epoch_webdev'").fetchone()[0]
+    finally:
+        conn.close()
+    assert stored == 0
+    assert "epoch_webdev" not in {report.source for report in reports}
 
 
 def test_the_public_artifact_keeps_web_devs_board_under_d185s_table(

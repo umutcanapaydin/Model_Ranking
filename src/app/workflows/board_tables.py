@@ -49,20 +49,21 @@ EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
         ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
                        "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model makers' "
                        "technical reports Epoch names for its other rows"),
-        ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
     )
 }
 
 #: The #265 review's B2: boards D-194 stopped building, attributed as they were. An artifact an older release
 #: built still holds them, and a citation missing from every map refuses the engine's start, so the install
 #: rolled back before the startup refresh could replace that artifact. Kept for the artifacts that still
-#: hold them; never declared, so no build writes them again.
+#: hold them; never declared, so no build writes them again. #376 (D-215): Epoch's WebDev copy joins them,
+#: a duplicate of `arena_webdev`.
 RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
     source: f"{credit}. Via {EPOCH_CITATION}"
     for source, credit in (
         ("epoch_arc_agi", "ARC-AGI scores: ARC Prize leaderboard, https://arcprize.org/leaderboard"),
         ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
                                 "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
+        ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
     )
 }
 
@@ -140,7 +141,7 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
            "https://github.com/stanford-crfm/helm/blob/main/LICENSE", "Copyright 2022 Stanford University"),
     # The #265 review's B2: the publishers of the retired sources, as D-193 credited them, for an artifact
-    # an older release built (`RETIRED_EXTERNAL_ATTRIBUTION`).
+    # an older release built (`RETIRED_EXTERNAL_ATTRIBUTION`; `arena_site` since D-215, #376).
     Credit("arc_prize_leaderboard", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI",
            "https://arcprize.org/leaderboard", "ARC Prize Terms", "https://arcprize.org/terms"),
     Credit("terminal_bench_2", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
@@ -393,15 +394,6 @@ EPOCH_BOARDS: tuple[EpochBoard, ...] = (
         metric="% correct",
         score_column="mean_score",
         date_column="Started at",
-    ),
-    EpochBoard(
-        file="webdev_arena_external.csv",
-        source_name="epoch_webdev",
-        benchmark="WebDev Arena",
-        metric="elo",
-        score_column="Arena Score",
-        scale="raw",
-        maximum=None,
     ),
     EpochBoard(
         file="mmlu_external.csv",

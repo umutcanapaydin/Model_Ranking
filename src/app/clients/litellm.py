@@ -7,6 +7,8 @@ GitHub raw URL (documented data endpoint — NOT scraping) and parses it into
 Parsing rules (REQ-ING-001):
 - only chat-capable entries (``mode`` in {None, "chat", "responses"});
 - an entry missing EITHER input or output cost is SKIPPED, never stored as zero;
+- an ``openrouter/`` entry is SKIPPED: it is LiteLLM's copy of OpenRouter's price, stale since D-194,
+  and D-215 removes it (#376);
 - prices are converted from $/token to $/1M tokens.
 """
 
@@ -25,6 +27,8 @@ LITELLM_URL = (
     "https://raw.githubusercontent.com/BerriAI/litellm/main/" "model_prices_and_context_window.json"
 )
 _CHAT_MODES = (None, "chat", "responses")
+#: #376 (D-215): LiteLLM's copies of OpenRouter's prices, which no artifact stores.
+_OPENROUTER_COPY = "openrouter/"
 _TIMEOUT_S = 30.0
 
 
@@ -51,7 +55,8 @@ def parse_pricing(
     """Parse the LiteLLM JSON into pricing rows.
 
     Returns ``(rows, skipped)`` where ``skipped`` counts entries dropped for
-    missing prices or non-chat mode (REQ-ING-001: never stored as zero).
+    missing prices or non-chat mode (REQ-ING-001: never stored as zero), and
+    LiteLLM's ``openrouter/`` copies (D-215).
     """
     try:
         # Annotated `Any`, not `dict[str, Any]`, and the distinction is the bug's whole history:
@@ -74,6 +79,9 @@ def parse_pricing(
     rows: list[PricingRow] = []
     skipped = 0
     for alias, info in data.items():
+        if alias.startswith(_OPENROUTER_COPY):
+            skipped += 1
+            continue
         if not isinstance(info, dict) or info.get("mode") not in _CHAT_MODES:
             skipped += 1
             continue
