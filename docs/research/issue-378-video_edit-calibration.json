@@ -1,0 +1,21 @@
+{
+  "board_distinct_models": 10,
+  "floor_shipped": 1392.2,
+  "board_third_D145": 1392.2,
+  "config": "video_edit",
+  "source": "arena_video_edit",
+  "benchmark": "Arena video edit",
+  "board_rows": 10,
+  "skipped": 0,
+  "ranked_population": 10,
+  "rankable_board_names": 10,
+  "dropped": [],
+  "overlapping_pairs": 8,
+  "rating_min": 1182.2,
+  "rating_max": 1414.1,
+  "threshold_candidates": {
+    "min_quality": 1392.2,
+    "close_call": 16.3
+  },
+  "priced": false
+}

@@ -34,6 +34,12 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "vision": ("arena_vision",),
     "search": ("arena_search",),
     "search_factuality": ("arena_search_factuality",),
+    # #378 (D-218 clause 1): each image and video surface is its own board, ranked on quality only.
+    "text_to_image": ("arena_text_to_image",),
+    "image_edit": ("arena_image_edit",),
+    "text_to_video": ("arena_text_to_video",),
+    "image_to_video": ("arena_image_to_video",),
+    "video_edit": ("arena_video_edit",),
 }
 
 #: surface -> the board a refinement takes the place of: the family's board of Arena's text vote. Every
@@ -95,8 +101,4 @@ OUTSIDE_FAMILIES: dict[str, str] = {
     "arena_vision_entity_recognition": _VISION_FACET,
     "arena_vision_homework": _VISION_FACET,
     "arena_vision_humor": _VISION_FACET,
-    # #378: read since phase 2; each becomes its own surface's family in phase 3.
-    **{board: "an image or video board whose quality-only surface is not served yet (#378)" for board in (
-        "arena_image_edit", "arena_text_to_image", "arena_image_to_video", "arena_text_to_video",
-        "arena_video_edit")},
 }

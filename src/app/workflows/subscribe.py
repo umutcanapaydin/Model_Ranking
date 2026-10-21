@@ -429,6 +429,11 @@ def recommend_subscription(
 ) -> SubscriptionRecommendation | None:
     """Three plan answers for a task; None when no rankable plan fits the budget."""
     spec = get_category(task)
+    if spec.value_window is None:
+        # D-218 clause 1 (#378): a surface ranked on quality only has no value window, and no plan is
+        # priced for what it measures, so it gives no plan answer.
+        return None
+    window = spec.value_window
     cap = _budget_cap(conn, budget)
     ranking = plan_ranking(conn, spec)
     unscored = _unscored(conn, {r.plan_id for r in ranking})
@@ -442,7 +447,7 @@ def recommend_subscription(
     quality = frontier[0]
     unit = spec.score_unit
 
-    value_pool = [r for r in frontier if quality.score - r.score <= spec.value_window]
+    value_pool = [r for r in frontier if quality.score - r.score <= window]
     value = first_cheapest_plan(value_pool)
 
     floor = derived_floor(conn, spec)  # D-159: from the served board
@@ -568,7 +573,7 @@ def recommend_subscription(
             spec,
             why=(
                 f"On the score-price Pareto frontier, the cheapest plan within "
-                f"{spec.value_window:g} {unit} of the leader."
+                f"{window:g} {unit} of the leader."
             ),
             trade_off=(
                 None

@@ -4550,6 +4550,11 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | `vision` | `arena_vision` |
    | `search` | `arena_search` |
    | `search_factuality` | `arena_search_factuality` |
+   | `text_to_image` | `arena_text_to_image` |
+   | `image_edit` | `arena_image_edit` |
+   | `text_to_video` | `arena_text_to_video` |
+   | `image_to_video` | `arena_image_to_video` |
+   | `video_edit` | `arena_video_edit` |
 
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after

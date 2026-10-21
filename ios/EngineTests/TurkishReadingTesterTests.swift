@@ -8,7 +8,8 @@ import NaturalLanguage
 final class TurkishReadingTesterTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     private func requireTheEmbedding() throws {
         struct NoEmbedding: Error {}
@@ -33,15 +34,16 @@ final class TurkishReadingTesterTests: OfflineTestCase {
         }
     }
 
-    /// T6: D-196 clause 1 reads the decline groups in plain letters too. With the lettered groups only,
-    /// these plain-typed requests to change an image read as `abstract`.
-    func testATurkishRequestToChangeAnImageTypedPlainReachesVision() async throws {
+    /// T6: D-196 clause 1 reads the Turkish examples in plain letters too. With the lettered ones only,
+    /// these plain-typed requests to change an image read as `abstract`. Since #378 (D-218 clause 1)
+    /// they reach the image-editing board, which `vision` answered for before.
+    func testATurkishRequestToChangeAnImageTypedPlainReachesTheImageEditingBoard() async throws {
         try requireTheEmbedding()
         for question in ["bu fotodaki arka plani bulaniklastir", "portremi cizgi film gibi yap"] {
             XCTAssertTrue(SimilarityRouter.readsTurkish(question), question)
             XCTAssertNil(CategoryHints.namedSurface(question, within: known), question)
             let outcome = await SimilarityRouter().route(question, within: known)
-            XCTAssertEqual(outcome?.categoryID, "vision", question)
+            XCTAssertEqual(outcome?.categoryID, "image_edit", question)
         }
     }
 

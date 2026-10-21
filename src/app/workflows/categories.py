@@ -30,7 +30,9 @@ class CategorySpec:
     # Engine thresholds on the category's NATIVE scale (M2-W4 review: data, not code branches).
     # The FLOOR is not one of them: since D-159 (M17-W1) it is derived from the served board by
     # `app.workflows.floors`, under D-148 clause 1, every time it is read.
-    value_window: float  # Best Value: within N of the leader
+    # Best Value: within N of the leader. None on a surface ranked on quality only (`priced`), which
+    # has no Best Value to size (D-218 clause 1).
+    value_window: float | None
     close_call: float  # near-tie disclosure threshold
     ranking_effort: str | None = None  # named comparable level; None = board has no effort policy
     # D-153 (W-119): what this surface's price does NOT include, as a CODE the app words in its own
@@ -38,6 +40,11 @@ class CategorySpec:
     # fee is not in the blended per-token price, because this catalogue does not carry one: the
     # registry reconciles a search SKU to its base family. Never a sentence from the server.
     price_excludes: str | None = None
+    # D-218 clause 1 (#378): False on a surface ranked on QUALITY ONLY -- the image and video boards,
+    # whose models are not priced per token. Such a surface ranks every model its board names, with
+    # no price, no value window and no budget filter, and its one pick is the best quality. It is a
+    # declared fact the API publishes, never a price of zero: a model nobody prices is not free.
+    priced: bool = True
 
 
 #: **The floor is not here.** It is the top third of the WHOLE board's ROWS, as the parser stores them,
@@ -79,6 +86,15 @@ class CategorySpec:
 #
 # The IDs are untouched. They are the contract (`/v1/categories`, D-127); the titles are the
 # product.
+
+#: #378: each media surface's tie margin, measured as the note above `text_to_image` says.
+_MEDIA_CLOSE_CALL: dict[str, float] = {
+    "text_to_image": 3.8,  # 82 models, 166 overlapping pairs
+    "image_edit": 3.4,  # 59 of 60 names ranked (one moving `-latest` alias, D-166), 58 pairs
+    "text_to_video": 12.3,  # 48 models, 133 pairs
+    "image_to_video": 9.9,  # 48 models, 94 pairs
+    "video_edit": 16.3,  # 10 models, 8 pairs: the smallest board, so the widest margin
+}
 
 CATEGORIES: dict[str, CategorySpec] = {
     "coding": CategorySpec(
@@ -333,6 +349,40 @@ CATEGORIES: dict[str, CategorySpec] = {
         close_call=4.9,
         price_excludes="search_call",  # D-153
     ),
+    # ── #378 (D-218 clause 1): LMArena's image and video boards, ranked on quality only ─────────
+    #
+    # The owner's ruling of 2026-10-21: each opens as its own surface with no price column, no value
+    # window and no budget filter, because none of their models is priced per token (a picture is
+    # priced per image, a video per second), and a per-token price would rank on a number that does
+    # not measure them. A price in each surface's own unit is its own issue.
+    #
+    # The floor is the top third of the board's rows (D-148 clause 1, derived since D-159), and on an
+    # Elo surface the score anchor is that floor (D-162). `close_call` is the M14 rule the other Arena
+    # surfaces ship: the median rating gap among pairs whose PUBLISHED 95% intervals overlap, over one
+    # name per model, measured by `scripts/calibrate_board.py --config <board>` on the boards of
+    # 2026-10-21 (records: `docs/research/issue-378-<board>-calibration.json`; the D-148 note:
+    # `docs/reviews/issue-378-media-calibration.md`). There is no window to size.
+    **{spec.id: spec for spec in (
+        CategorySpec(
+            id=surface,
+            title=title,
+            primary_benchmark=benchmark,
+            metric="elo",
+            score_unit="Elo",
+            secondary_benchmark=None,
+            primary_source=f"arena_{surface}",
+            value_window=None,
+            close_call=close_call,
+            priced=False,
+        )
+        for surface, title, benchmark, close_call in (
+            ("text_to_image", "Making images", "Arena text-to-image", _MEDIA_CLOSE_CALL["text_to_image"]),
+            ("image_edit", "Photo editing", "Arena image edit", _MEDIA_CLOSE_CALL["image_edit"]),
+            ("text_to_video", "Creating videos", "Arena text-to-video", _MEDIA_CLOSE_CALL["text_to_video"]),
+            ("image_to_video", "Animating a photo", "Arena image-to-video", _MEDIA_CLOSE_CALL["image_to_video"]),
+            ("video_edit", "Video editing", "Arena video edit", _MEDIA_CLOSE_CALL["video_edit"]),
+        )
+    )},
 }
 
 

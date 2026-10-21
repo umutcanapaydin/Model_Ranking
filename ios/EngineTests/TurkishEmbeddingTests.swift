@@ -11,7 +11,8 @@ import NaturalLanguage
 final class TurkishEmbeddingTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     private var embeddingLoads: Bool {
         NLContextualEmbedding(language: .turkish)?.hasAvailableAssets ?? false
@@ -122,14 +123,15 @@ final class TurkishEmbeddingTests: OfflineTestCase {
         }
     }
 
-    /// The review's N3: a request to change an image is answered from `vision` through the Turkish
-    /// decline groups. Without them it read as `assistant` in the tuning run.
-    func testATurkishRequestToChangeAnImageIsAnsweredFromVision() async throws {
+    /// The review's N3: a request to change an image was answered from `vision` through the Turkish
+    /// decline groups; without them it read as `assistant`. Since #378 (D-218 clause 1) it is answered
+    /// from the image-editing board, through its Turkish examples.
+    func testATurkishRequestToChangeAnImageIsAnsweredFromTheImageEditingBoard() async throws {
         try requireTheEmbedding()
         let question = "selfiemdeki k\u{0131}rm\u{0131}z\u{0131} g\u{00F6}zleri d\u{00FC}zelt"
         XCTAssertNil(CategoryHints.namedSurface(question, within: known))
         let outcome = await SimilarityRouter().route(question, within: known)
-        XCTAssertEqual(outcome?.categoryID, "vision")
+        XCTAssertEqual(outcome?.categoryID, "image_edit")
     }
 
     /// The review's N2: the model's "none of these" on a question it read as a search goes to the wording
@@ -176,7 +178,8 @@ final class TurkishEmbeddingTests: OfflineTestCase {
 final class PlainRequestReadingTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     /// Where the assets do not load, these tests fail rather than pass asserting nothing.
     private func requireTheEmbedding() throws {

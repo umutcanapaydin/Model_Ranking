@@ -10,7 +10,8 @@ import NaturalLanguage
 final class UnsureLanguageTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     /// Each is read as some language other than English at less than `confidentLanguage`, and none names
     /// a surface or a model, so only the reading decides its path.
