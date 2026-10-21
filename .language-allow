@@ -151,6 +151,7 @@ docs/research/reading-wave-m22-runs/  # #222 (D-196): the probe's runs on the wa
 ios/EngineTests/TurkishEmbeddingTests.swift  # #222 (D-196): asserts how Turkish questions are read, by their words, for the reason ReadingTests does
 ios/EngineTests/TurkishReadingTesterTests.swift  # the reading wave's Tester: asserts Turkish questions by their words, for the same reason
 ios/EngineTests/MediaRoutingTests.swift  # #378 (D-218 clause 1): asserts Turkish requests to make or change a picture or a video by their words, for the reason ReadingTests does
+ios/EngineTests/MediaScreenTests.swift  # #378 (D-218 clause 1): asserts the Turkish surface names and the price-not-measured line word for word, for the reason LanguageTests does
 ios/EngineTests/Golden/golden-questions.json  # #289 (D-202 clause 2): the golden question set, a third of it Turkish
                                   # as readers type it; the Turkish questions ARE the data the router is checked on
 ios/EngineTests/UnsureLanguageTests.swift  # #273, #218: asserts how questions in other languages (Kurmanji, Albanian) and short Turkish ones are read, by their words, for the reason ReadingTests does
