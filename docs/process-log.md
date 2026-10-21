@@ -1087,3 +1087,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `make lock` (D-177's one writer) re-resolved every lock: certifi 2026.10.19 and uv 0.13.4, and with them the rest moved to their latest (fastapi 0.142 → 0.156, pyarrow 25 → 26, pydantic 2.13 → 2.14 among them). `make gate` is green on the new set, every suite included.
 - No red test of its own: the reproduction is the `deps` leg itself, which refused before the change and passes after it.
 - Lesson: `deps` grades the day's advisory feed, not the change, so a run's first push can be refused by news; fix the locks first and stack everything else on that fix.
+
+## 2026-10-21 — integration/run-night-1021: #367's lock fix stacked, m25 judged once, #242 stopped on its third BLOCKING
+
+- The queue, in the order of D-214: #367, then #242, then #355. #368 stacked. #242's allowlists (#372) went through three rounds with the Security-Reviewer. Each round's fixes held, and no pre-#242 refusal was lost. The third BLOCKING on B1 ended the loop, so #242 is a stop for the owner, and #371 holds the classes the review named but did not block on.
+- m25 judged once on the final head 8bd3da5, on macOS 27.0.1 (26A434) with AFM 3 Core Advanced. Searches were 249/301 (82.7%, Wilson 78.0–86.6%) and non-searches 177/210 (84.3%, Wilson 78.8–88.6%). The bar is met on observed rates, so #351 and #355 close (`docs/research/reading-heldout-m25-result.md`). The set stays out of the repository and is loaded for this one run from outside it.
+- Lesson: a gate that reads spellings meets a new spelling every round; when a reviewer's BLOCKINGs keep finding new forms of one class rather than a wrong fix, the third round is the owner's question of where the class ends, not a fourth patch.
