@@ -1,0 +1,908 @@
+{
+ "_note": "Recorded 2026-10-21 from https://datasets-server.huggingface.co/rows?dataset=lmarena-ai/leaderboard-dataset&config=text_to_image&split=latest (LMArena, CC-BY-4.0): the whole overall board, as ArenaClient.fetch_raw merges it, trimmed to the fields this project reads.",
+ "rows": [
+  {
+   "row_idx": 0,
+   "row": {
+    "model_name": "gpt-image-2.5-sunburst",
+    "rating": 1424.5539886327658,
+    "rating_lower": 1417.728086984543,
+    "rating_upper": 1431.3798902809883,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 1,
+   "row": {
+    "model_name": "gpt-image-2.5-flare",
+    "rating": 1397.6245129951133,
+    "rating_lower": 1390.8614981286673,
+    "rating_upper": 1404.3875278615594,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 2,
+   "row": {
+    "model_name": "gpt-image-2 (medium)",
+    "rating": 1383.0374000262734,
+    "rating_lower": 1378.9547654137152,
+    "rating_upper": 1387.1200346388318,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 3,
+   "row": {
+    "model_name": "grok-imagine-image-2.0 (canvas)",
+    "rating": 1333.5425615470726,
+    "rating_lower": 1321.9830667098124,
+    "rating_upper": 1345.1020563843326,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 4,
+   "row": {
+    "model_name": "mai-image-2.6",
+    "rating": 1332.1016706522835,
+    "rating_lower": 1326.6857563087758,
+    "rating_upper": 1337.5175849957911,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 5,
+   "row": {
+    "model_name": "gemini-nano-banana-2.1",
+    "rating": 1327.7839011200813,
+    "rating_lower": 1319.0209704869621,
+    "rating_upper": 1336.5468317532002,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 6,
+   "row": {
+    "model_name": "reve-2.1",
+    "rating": 1301.7100559093121,
+    "rating_lower": 1294.1977850732067,
+    "rating_upper": 1309.2223267454174,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 7,
+   "row": {
+    "model_name": "grok-imagine-image-2.0 (20260801)",
+    "rating": 1294.214695721037,
+    "rating_lower": 1287.8521086220267,
+    "rating_upper": 1300.5772828200475,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 8,
+   "row": {
+    "model_name": "muse-image",
+    "rating": 1274.0358987115633,
+    "rating_lower": 1268.9358716075892,
+    "rating_upper": 1279.1359258155371,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 9,
+   "row": {
+    "model_name": "reve-2.0",
+    "rating": 1269.1994436280024,
+    "rating_lower": 1263.0172794590508,
+    "rating_upper": 1275.381607796954,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 10,
+   "row": {
+    "model_name": "gemini-3.1-flash-image (nano-banana-2) [web-search]",
+    "rating": 1261.7578572114878,
+    "rating_lower": 1257.590853839451,
+    "rating_upper": 1265.9248605835246,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 11,
+   "row": {
+    "model_name": "seedream-5.0-pro",
+    "rating": 1255.4963853790443,
+    "rating_lower": 1251.574734630583,
+    "rating_upper": 1259.4180361275057,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 12,
+   "row": {
+    "model_name": "qwen-image-3.0-pro",
+    "rating": 1255.17883661931,
+    "rating_lower": 1248.7014534818109,
+    "rating_upper": 1261.6562197568094,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 13,
+   "row": {
+    "model_name": "mai-image-2.5",
+    "rating": 1254.1656928820437,
+    "rating_lower": 1249.9942567244816,
+    "rating_upper": 1258.3371290396058,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 14,
+   "row": {
+    "model_name": "gemini-3.1-flash-lite-image (nano-banana-2-lite)",
+    "rating": 1250.2355534204482,
+    "rating_lower": 1244.2763467477057,
+    "rating_upper": 1256.1947600931908,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 15,
+   "row": {
+    "model_name": "gemini-3-pro-image-2k (nano-banana-pro)",
+    "rating": 1247.9160761342278,
+    "rating_lower": 1244.8685390468984,
+    "rating_upper": 1250.9636132215571,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 16,
+   "row": {
+    "model_name": "gpt-image-1.5-high-fidelity",
+    "rating": 1237.3662271067433,
+    "rating_lower": 1234.3017184083606,
+    "rating_upper": 1240.430735805126,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 17,
+   "row": {
+    "model_name": "gemini-3-pro-image-preview (nano-banana-pro)",
+    "rating": 1234.0680818406342,
+    "rating_lower": 1229.2031632144776,
+    "rating_upper": 1238.9330004667909,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 18,
+   "row": {
+    "model_name": "qwen-image-2.1",
+    "rating": 1222.9282859359,
+    "rating_lower": 1216.2807943705886,
+    "rating_upper": 1229.5757775012114,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 19,
+   "row": {
+    "model_name": "ideogram-4.0-quality",
+    "rating": 1205.1234488353132,
+    "rating_lower": 1201.1206270252983,
+    "rating_upper": 1209.1262706453283,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 20,
+   "row": {
+    "model_name": "qwen-image-2.0-pro-2026-06-22",
+    "rating": 1191.7524360271145,
+    "rating_lower": 1185.9032024474188,
+    "rating_upper": 1197.6016696068102,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 21,
+   "row": {
+    "model_name": "uni-1.1-max",
+    "rating": 1189.2936965914348,
+    "rating_lower": 1183.1332748730008,
+    "rating_upper": 1195.454118309869,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 22,
+   "row": {
+    "model_name": "uni-1.1",
+    "rating": 1184.2958333350243,
+    "rating_lower": 1179.9323861607534,
+    "rating_upper": 1188.6592805092953,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 23,
+   "row": {
+    "model_name": "mai-image-2",
+    "rating": 1183.8355389977744,
+    "rating_lower": 1179.3002627124413,
+    "rating_upper": 1188.3708152831077,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 24,
+   "row": {
+    "model_name": "grok-imagine-image",
+    "rating": 1169.6834389632859,
+    "rating_lower": 1167.0374447784466,
+    "rating_upper": 1172.3294331481252,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 25,
+   "row": {
+    "model_name": "recraft-v4.1-utility-pro",
+    "rating": 1169.167021341792,
+    "rating_lower": 1158.2727881304158,
+    "rating_upper": 1180.0612545531678,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 26,
+   "row": {
+    "model_name": "Cosmos3-Super-Text2Image (Agentic)",
+    "rating": 1165.4768422544082,
+    "rating_lower": 1158.4287070046423,
+    "rating_upper": 1172.5249775041743,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 27,
+   "row": {
+    "model_name": "grok-imagine-image-pro",
+    "rating": 1162.379526740266,
+    "rating_lower": 1158.6334429408466,
+    "rating_upper": 1166.1256105396858,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 28,
+   "row": {
+    "model_name": "flux-2-max",
+    "rating": 1162.0767400638867,
+    "rating_lower": 1158.5823626524661,
+    "rating_upper": 1165.5711174753076,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 29,
+   "row": {
+    "model_name": "flux-2-flex",
+    "rating": 1156.56521180093,
+    "rating_lower": 1153.2085828357879,
+    "rating_upper": 1159.9218407660721,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 30,
+   "row": {
+    "model_name": "reve-v1.5",
+    "rating": 1155.3146354663622,
+    "rating_lower": 1151.1018507301806,
+    "rating_upper": 1159.527420202544,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 31,
+   "row": {
+    "model_name": "flux-2-pro",
+    "rating": 1153.3198148196232,
+    "rating_lower": 1150.5090134642398,
+    "rating_upper": 1156.1306161750063,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 32,
+   "row": {
+    "model_name": "Cosmos3-Super-Text2Image",
+    "rating": 1151.5596235841535,
+    "rating_lower": 1145.7124323164487,
+    "rating_upper": 1157.4068148518584,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 33,
+   "row": {
+    "model_name": "gemini-2.5-flash-image-preview (nano-banana)",
+    "rating": 1150.3001706719388,
+    "rating_lower": 1147.9325925776395,
+    "rating_upper": 1152.6677487662382,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 34,
+   "row": {
+    "model_name": "hunyuan-image-3.0",
+    "rating": 1149.5019702497289,
+    "rating_lower": 1146.1799709737504,
+    "rating_upper": 1152.8239695257073,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 35,
+   "row": {
+    "model_name": "seedream-4.5",
+    "rating": 1148.511910121181,
+    "rating_lower": 1145.9584093267254,
+    "rating_upper": 1151.0654109156367,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 36,
+   "row": {
+    "model_name": "imagen-ultra-4.0-generate-001",
+    "rating": 1147.6883317498996,
+    "rating_lower": 1143.3579661142214,
+    "rating_upper": 1152.0186973855775,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 37,
+   "row": {
+    "model_name": "flux-2-dev",
+    "rating": 1145.7703186822487,
+    "rating_lower": 1141.6232865632555,
+    "rating_upper": 1149.9173508012418,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 38,
+   "row": {
+    "model_name": "seedream-4-2k",
+    "rating": 1139.869177130931,
+    "rating_lower": 1133.3030246048577,
+    "rating_upper": 1146.435329657004,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 39,
+   "row": {
+    "model_name": "seedream-5.0-lite",
+    "rating": 1137.9270658811556,
+    "rating_lower": 1134.743002830407,
+    "rating_upper": 1141.1111289319042,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 40,
+   "row": {
+    "model_name": "wan2.6-t2i",
+    "rating": 1137.4883482455705,
+    "rating_lower": 1134.6933373422348,
+    "rating_upper": 1140.2833591489064,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 41,
+   "row": {
+    "model_name": "recraft-v4.1-pro",
+    "rating": 1133.0114730930939,
+    "rating_lower": 1122.5525754554988,
+    "rating_upper": 1143.470370730689,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 42,
+   "row": {
+    "model_name": "imagen-4.0-generate-001",
+    "rating": 1129.048665277892,
+    "rating_lower": 1126.3452419989205,
+    "rating_upper": 1131.7520885568633,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 43,
+   "row": {
+    "model_name": "qwen-image-2512",
+    "rating": 1125.4155321690264,
+    "rating_lower": 1121.975443710228,
+    "rating_upper": 1128.8556206278247,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 44,
+   "row": {
+    "model_name": "krea-2-medium",
+    "rating": 1124.2177752213272,
+    "rating_lower": 1120.0588920206083,
+    "rating_upper": 1128.376658422046,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 45,
+   "row": {
+    "model_name": "seedream-4-fal",
+    "rating": 1116.564326439259,
+    "rating_lower": 1110.0343064236306,
+    "rating_upper": 1123.0943464548873,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 46,
+   "row": {
+    "model_name": "hidream-o1-image",
+    "rating": 1116.178581378334,
+    "rating_lower": 1112.4775905506044,
+    "rating_upper": 1119.8795722060634,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 47,
+   "row": {
+    "model_name": "wan2.5-t2i-preview",
+    "rating": 1115.6462189410342,
+    "rating_lower": 1112.9064745940489,
+    "rating_upper": 1118.3859632880199,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 48,
+   "row": {
+    "model_name": "gpt-image-1",
+    "rating": 1115.5957480756792,
+    "rating_lower": 1112.468485993546,
+    "rating_upper": 1118.7230101578125,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 49,
+   "row": {
+    "model_name": "recraft-v4",
+    "rating": 1114.9153957174956,
+    "rating_lower": 1111.7024091388212,
+    "rating_upper": 1118.12838229617,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 50,
+   "row": {
+    "model_name": "seedream-4-high-res-fal",
+    "rating": 1113.4478557835337,
+    "rating_lower": 1110.226012913256,
+    "rating_upper": 1116.669698653811,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 51,
+   "row": {
+    "model_name": "krea-2-turbo",
+    "rating": 1113.1755255491064,
+    "rating_lower": 1108.7111891360678,
+    "rating_upper": 1117.6398619621452,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 52,
+   "row": {
+    "model_name": "krea-2-large",
+    "rating": 1111.5161320512998,
+    "rating_lower": 1107.3537532006233,
+    "rating_upper": 1115.678510901976,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 53,
+   "row": {
+    "model_name": "gpt-image-1-mini",
+    "rating": 1109.7654555027893,
+    "rating_lower": 1106.5914363446282,
+    "rating_upper": 1112.9394746609505,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 54,
+   "row": {
+    "model_name": "wan2.7-image-pro",
+    "rating": 1103.5429577650907,
+    "rating_lower": 1098.5133045493058,
+    "rating_upper": 1108.5726109808759,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 55,
+   "row": {
+    "model_name": "wan2.7-image",
+    "rating": 1101.1350748989096,
+    "rating_lower": 1096.1210841663024,
+    "rating_upper": 1106.149065631517,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 56,
+   "row": {
+    "model_name": "recraft-v4.1-flash",
+    "rating": 1099.4954311820882,
+    "rating_lower": 1090.027549211303,
+    "rating_upper": 1108.963313152873,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 57,
+   "row": {
+    "model_name": "mai-image-1",
+    "rating": 1092.6620817314283,
+    "rating_lower": 1089.047579612193,
+    "rating_upper": 1096.2765838506637,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 58,
+   "row": {
+    "model_name": "z-image-turbo",
+    "rating": 1083.4963498301272,
+    "rating_lower": 1078.1954990327044,
+    "rating_upper": 1088.7972006275502,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 59,
+   "row": {
+    "model_name": "seedream-3",
+    "rating": 1081.5807118965924,
+    "rating_lower": 1076.6105120637237,
+    "rating_upper": 1086.5509117294612,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 60,
+   "row": {
+    "model_name": "flux-1-kontext-max",
+    "rating": 1074.4319802557025,
+    "rating_lower": 1071.2415500734605,
+    "rating_upper": 1077.6224104379444,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 61,
+   "row": {
+    "model_name": "flux-2-klein-9b",
+    "rating": 1070.28637832039,
+    "rating_lower": 1067.0904173072001,
+    "rating_upper": 1073.4823393335798,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 62,
+   "row": {
+    "model_name": "qwen-image-prompt-extend",
+    "rating": 1060.2971447114646,
+    "rating_lower": 1057.6205621704348,
+    "rating_upper": 1062.9737272524947,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 63,
+   "row": {
+    "model_name": "flux-1-kontext-pro",
+    "rating": 1058.7200057577065,
+    "rating_lower": 1055.3268422930978,
+    "rating_upper": 1062.1131692223155,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 64,
+   "row": {
+    "model_name": "imagen-3.0-generate-002",
+    "rating": 1058.0160799183423,
+    "rating_lower": 1054.815986659179,
+    "rating_upper": 1061.2161731775052,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 65,
+   "row": {
+    "model_name": "qwen-image",
+    "rating": 1056.8208577011058,
+    "rating_lower": 1054.246803309234,
+    "rating_upper": 1059.3949120929776,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 66,
+   "row": {
+    "model_name": "ideogram-v3-quality",
+    "rating": 1048.4479816975381,
+    "rating_lower": 1044.7092079921063,
+    "rating_upper": 1052.18675540297,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 67,
+   "row": {
+    "model_name": "photon",
+    "rating": 1035.7066612932733,
+    "rating_lower": 1032.0242986830976,
+    "rating_upper": 1039.389023903449,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 68,
+   "row": {
+    "model_name": "p-image",
+    "rating": 1033.227131696122,
+    "rating_lower": 1029.7675868464441,
+    "rating_upper": 1036.6866765457999,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 69,
+   "row": {
+    "model_name": "flux-2-klein-4b",
+    "rating": 1030.0155420619526,
+    "rating_lower": 1026.8022039748153,
+    "rating_upper": 1033.2288801490897,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 70,
+   "row": {
+    "model_name": "runway-gen4",
+    "rating": 1024.2276277501173,
+    "rating_lower": 1019.807381521502,
+    "rating_upper": 1028.6478739787328,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 71,
+   "row": {
+    "model_name": "recraft-v3",
+    "rating": 1020.6216253245301,
+    "rating_lower": 1016.9828215446373,
+    "rating_upper": 1024.2604291044229,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 72,
+   "row": {
+    "model_name": "flux-1.1-pro",
+    "rating": 1015.6184356495064,
+    "rating_lower": 1012.1118493807812,
+    "rating_upper": 1019.1250219182317,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 73,
+   "row": {
+    "model_name": "ideogram-v2",
+    "rating": 1013.3295642815727,
+    "rating_lower": 1009.7607646048875,
+    "rating_upper": 1016.8983639582578,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 74,
+   "row": {
+    "model_name": "lucid-origin",
+    "rating": 1013.0369045886498,
+    "rating_lower": 1009.7195300051332,
+    "rating_upper": 1016.3542791721665,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 75,
+   "row": {
+    "model_name": "glm-image",
+    "rating": 1012.0967586506788,
+    "rating_lower": 1003.222890069548,
+    "rating_upper": 1020.9706272318095,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 76,
+   "row": {
+    "model_name": "gemini-2.0-flash-preview-image-generation",
+    "rating": 975.2761917189896,
+    "rating_lower": 971.8741133683885,
+    "rating_upper": 978.6782700695908,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 77,
+   "row": {
+    "model_name": "flux-1-dev-fp8",
+    "rating": 969.3811696437589,
+    "rating_lower": 965.6281819970226,
+    "rating_upper": 973.1341572904952,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 78,
+   "row": {
+    "model_name": "dall-e-3",
+    "rating": 967.7905071879426,
+    "rating_lower": 964.0793728522037,
+    "rating_upper": 971.5016415236815,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 79,
+   "row": {
+    "model_name": "flux-1-kontext-dev",
+    "rating": 941.0559693704766,
+    "rating_lower": 937.2743423766375,
+    "rating_upper": 944.8375963643158,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 80,
+   "row": {
+    "model_name": "stable-diffusion-v35-large",
+    "rating": 938.2718023761549,
+    "rating_lower": 933.7579623497016,
+    "rating_upper": 942.7856424026081,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  },
+  {
+   "row_idx": 81,
+   "row": {
+    "model_name": "bagel",
+    "rating": 897.8307627509183,
+    "rating_lower": 892.142267127789,
+    "rating_upper": 903.5192583740478,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-10-07"
+   }
+  }
+ ],
+ "num_rows_total": 680
+}

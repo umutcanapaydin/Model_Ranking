@@ -1,0 +1,116 @@
+{
+ "_note": "Recorded 2026-10-21 from https://datasets-server.huggingface.co/rows?dataset=lmarena-ai/leaderboard-dataset&config=video_edit&split=latest (LMArena, CC-BY-4.0): the whole overall board, as ArenaClient.fetch_raw merges it, trimmed to the fields this project reads.",
+ "rows": [
+  {
+   "row_idx": 0,
+   "row": {
+    "model_name": "wan3.0",
+    "rating": 1414.095289163477,
+    "rating_lower": 1388.4292982558716,
+    "rating_upper": 1439.7612800710824,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 1,
+   "row": {
+    "model_name": "dreamina-seedance-2.5-720p",
+    "rating": 1409.7503090972486,
+    "rating_lower": 1383.3267752238519,
+    "rating_upper": 1436.1738429706454,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 2,
+   "row": {
+    "model_name": "minimax-h3",
+    "rating": 1392.2043859236758,
+    "rating_lower": 1373.5763087074401,
+    "rating_upper": 1410.8324631399112,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 3,
+   "row": {
+    "model_name": "gemini-omni-flash",
+    "rating": 1366.6414580476812,
+    "rating_lower": 1352.0397980836985,
+    "rating_upper": 1381.2431180116641,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 4,
+   "row": {
+    "model_name": "dreamina-seedance-2.0-720p",
+    "rating": 1364.5967938768213,
+    "rating_lower": 1350.2787145173795,
+    "rating_upper": 1378.914873236263,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 5,
+   "row": {
+    "model_name": "happyhorse-1.0",
+    "rating": 1306.7015072374713,
+    "rating_lower": 1293.1228602571975,
+    "rating_upper": 1320.2801542177453,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 6,
+   "row": {
+    "model_name": "grok-imagine-video",
+    "rating": 1257.7952513663483,
+    "rating_lower": 1247.4631852151556,
+    "rating_upper": 1268.1273175175409,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 7,
+   "row": {
+    "model_name": "kling-o3-pro",
+    "rating": 1255.3438187312747,
+    "rating_lower": 1243.8971038898503,
+    "rating_upper": 1266.790533572699,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 8,
+   "row": {
+    "model_name": "kling-o1-pro",
+    "rating": 1197.343376978992,
+    "rating_lower": 1186.8685374451331,
+    "rating_upper": 1207.818216512851,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  },
+  {
+   "row_idx": 9,
+   "row": {
+    "model_name": "runway-gen4-aleph",
+    "rating": 1182.2022640588377,
+    "rating_lower": 1173.507022663058,
+    "rating_upper": 1190.8975054546174,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-08-27"
+   }
+  }
+ ],
+ "num_rows_total": 10
+}
