@@ -421,7 +421,7 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "search": "arena_search",
         "search_factuality": "arena_search_factuality",
         "coding": "swebench",
-        "agentic-coding": "epoch_deepswe_external",
+        "agentic-coding": "datacurve_deepswe",  # D-216 (#265): Datacurve's own dataset, CC BY 4.0
         "everyday": "epoch_eci",
         "expert": "epoch_gpqa",
         "mathematics": "epoch_aime",

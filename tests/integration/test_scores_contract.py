@@ -36,6 +36,20 @@ def test_real_terminalbench_4_submissions_satisfy_parser_contract() -> None:
     assert skipped == 0 and all(0 <= r.score <= 100 for r in rows)
 
 
+@pytest.mark.needs("hf_token")
+def test_real_datacurve_job_satisfies_parser_contract() -> None:
+    """REQ-SRC-012 acceptance (#265, D-216): the newest job of Datacurve's gated dataset, read with the owner's
+    token, parses whole: every run a row, at an effort its key or the job's config states, above the floor."""
+    from app.clients.datacurve import DatacurveClient, parse_datacurve
+    from app.workflows.sources import REMOTE_SOURCES
+
+    rows, skipped = parse_datacurve(DatacurveClient().fetch_raw())
+    floor = next(s for s in REMOTE_SOURCES if s.name == "datacurve_deepswe").minimum_rows
+    assert len(rows) >= floor and skipped == 0, f"{len(rows)} rows, {skipped} skipped"
+    assert {r.harness for r in rows} == {"mini-swe-agent"}
+    assert all(0 <= r.score <= 100 and r.run_date for r in rows)
+
+
 def test_the_committed_arc_agi_2_derivation_is_the_datasets_current_revision() -> None:
     """REQ-SRC-012 acceptance (#265): ARC Prize has not moved its public-evaluation dataset past the revision
     `data/arc-agi-2-public-eval.json` was derived at. When it has, re-run `scripts/derive_arc_public_eval.py`."""

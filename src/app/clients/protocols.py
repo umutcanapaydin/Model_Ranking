@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 import threading
 import time
-from collections.abc import Callable, Collection, Iterator
+from collections.abc import Callable, Collection, Iterator, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
@@ -115,6 +115,7 @@ def bounded_get(
     url: str, name: str, timeout: float, params: dict[str, str] | None = None,
     *, limit: int = MAX_RESPONSE_BYTES, deadline: float | None = None,
     follow_redirects: bool = True, hosts: Collection[str] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> Fetched:
     """GET a source payload inside every bound this project keeps on a download.
 
@@ -126,7 +127,10 @@ def bounded_get(
     - **How long:** `deadline` (by default `DEADLINE_FACTOR` x `timeout`) bounds the WHOLE fetch:
       the connection, the headers, every redirect hop and the body. httpx's `timeout` is per
       operation, so a header drip or a chain of slow redirects never trips it (#25), and the
-      deadline used to start only at the body (M16-W4 security pass, F4). The fetch runs in a
+      deadline used to start only at the body (M16-W4 security pass, F4).
+    - **What it sends:** `headers` go with the first request and with each redirect hop the host list
+      admits; httpx itself drops an `Authorization` header on a hop to another origin. A credential is
+      sent only to a host list that names its issuer alone (D-216: the Hugging Face token). The fetch runs in a
       worker thread; past the deadline the caller gets a `SourceError` at once, and the client is
       closed under the worker, which then ends at its next read.
 
@@ -154,7 +158,8 @@ def bounded_get(
 
     def fetch() -> None:
         try:
-            answer = _read(client, url, params, name, limit, lambda: time.monotonic() - started > total)
+            answer = _read(client, url, params, name, limit, lambda: time.monotonic() - started > total,
+                           headers)
             if answer is not None:
                 outcome["answer"] = answer
         except BaseException as exc:  # handed to the caller, which turns it into a SourceError
@@ -182,10 +187,10 @@ def bounded_get(
 
 def _read(
     client: httpx.Client, url: str, params: dict[str, str] | None, name: str, limit: int,
-    expired: Callable[[], bool],
+    expired: Callable[[], bool], headers: Mapping[str, str] | None = None,
 ) -> Fetched | None:
     """One streamed GET, its body capped while it is read; None once the deadline has passed."""
-    with client.stream("GET", url, params=params) as response:
+    with client.stream("GET", url, params=params, headers=headers) as response:
         if response.status_code != 429:  # a 429 is an answer: its caller decides on the retry
             response.raise_for_status()
         chunks: list[bytes] = []
@@ -219,10 +224,11 @@ def fetch_bounded_bytes(
     url: str, name: str, timeout: float, params: dict[str, str] | None = None,
     *, limit: int = MAX_RESPONSE_BYTES, deadline: float | None = None,
     follow_redirects: bool = True, hosts: Collection[str] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> bytes:
     """`bounded_get`'s body, for a source that treats every non-2xx answer as a failure."""
     answer = bounded_get(url, name, timeout, params, limit=limit, deadline=deadline,
-                         follow_redirects=follow_redirects, hosts=hosts)
+                         follow_redirects=follow_redirects, hosts=hosts, headers=headers)
     if answer.status == 429:
         msg = f"{name} fetch failed: 429 Too Many Requests"
         raise SourceError(msg)
@@ -231,7 +237,7 @@ def fetch_bounded_bytes(
 
 def fetch_bounded(
     url: str, name: str, timeout: float, params: dict[str, str] | None = None,
-    *, hosts: Collection[str] | None = None,
+    *, hosts: Collection[str] | None = None, headers: Mapping[str, str] | None = None,
 ) -> str:
     """`fetch_bounded_bytes`, decoded: every text source reads through this."""
-    return fetch_bounded_bytes(url, name, timeout, params, hosts=hosts).decode("utf-8", "replace")
+    return fetch_bounded_bytes(url, name, timeout, params, hosts=hosts, headers=headers).decode("utf-8", "replace")

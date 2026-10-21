@@ -1,4 +1,8 @@
-"""W3 DeepSWE source wiring and real-engine measurement (REQ-ING-011b/-SUB-007)."""
+"""W3 DeepSWE source wiring and real-engine measurement (REQ-ING-011b/-SUB-007).
+
+D-216 (#265): no build reads Epoch's DeepSWE file any more, and its local client is gone. The ingest and the
+M5 measurement below still read that file, through the canonical fake, as it was signed.
+"""
 
 from __future__ import annotations
 
@@ -9,11 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from app.clients.deepswe import (
-    EPOCH_DEEPSWE_FILE,
-    SOURCE_NAME,
-    DeepSWEClient,
-)
+from app.clients.deepswe import EPOCH_DEEPSWE_FILE, SOURCE_NAME
 from app.clients.epoch import EPOCH_BUNDLE_URL, EpochClient
 from app.clients.fakes import FakeRawSource
 from app.clients.protocols import SourceError
@@ -44,31 +44,6 @@ def _source(payload: str = DEEPSWE_CSV, **kwargs: object) -> FakeRawSource:
         url=SOURCE_URL,
         last_verified=kwargs.get("last_verified", "2026-08-15"),
     )
-
-
-def test_local_client_reads_only_the_allowlisted_board(tmp_path: Path) -> None:
-    """REQ-ING-010: runtime reads an explicit local board with its own clock."""
-    (tmp_path / EPOCH_DEEPSWE_FILE).write_text(DEEPSWE_CSV, encoding="utf-8")
-    (tmp_path / "other.csv").write_text("secret", encoding="utf-8")
-
-    client = DeepSWEClient(tmp_path, last_verified="2026-08-15")
-
-    assert (client.name, client.url, client.last_verified) == (
-        SOURCE_NAME,
-        SOURCE_URL,
-        "2026-08-15",
-    )
-    assert client.fetch_raw() == DEEPSWE_CSV
-
-
-def test_local_client_rejects_urls_bad_clock_and_missing_board(tmp_path: Path) -> None:
-    """REQ-ING-010 negative boundary: no fetch fallback and no invented clock."""
-    with pytest.raises(SourceError, match="local unpacked bundle"):
-        DeepSWEClient(EPOCH_BUNDLE_URL, last_verified="2026-08-15")
-    with pytest.raises(SourceError, match=f"{SOURCE_NAME}: last_verified"):
-        DeepSWEClient(tmp_path, last_verified="15/08/2026")
-    with pytest.raises(SourceError, match="missing CSV"):
-        DeepSWEClient(tmp_path, last_verified="2026-08-15").fetch_raw()
 
 
 def test_ingest_publishes_effort_accounting_and_keeps_release_dates_out() -> None:
@@ -170,7 +145,8 @@ def test_real_board_reproduces_signed_coverage_and_undated_health(
     ingest_plans(conn, (root / "data/plans.yaml").read_text(encoding="utf-8"), run)
     ingest_rosters(conn, (root / "data/rosters.yaml").read_text(encoding="utf-8"), run)
     ingest_epoch(conn, EpochClient(bundle, last_verified="2026-08-15"), run)
-    report = ingest_deepswe(conn, DeepSWEClient(bundle, last_verified="2026-08-15"), run)
+    board = (bundle / EPOCH_DEEPSWE_FILE).read_text(encoding="utf-8-sig")
+    report = ingest_deepswe(conn, _source(board), run)
     plan_links = reconcile_plans(conn)
     scores = reconcile(conn)
 

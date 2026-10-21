@@ -263,8 +263,10 @@ def test_cli_reports_three_when_a_surface_lost_its_evidence(
 ) -> None:
     """Exit 3 is 'built but NOT servable' — the D-120 contract this module deliberately mirrors.
 
-    With no --epoch-dir the artifact is real and usable for coding, and agentic-coding has no
-    primary evidence. That is not a success and it is not a failure; it is exactly what 3 means.
+    With no --epoch-dir the artifact is real and usable for coding, and the surfaces the bundle's
+    boards rank (`everyday` among them) have no primary evidence. That is not a success and it is
+    not a failure; it is exactly what 3 means. (`agentic-coding` was the example until D-216 moved it
+    to Datacurve's dataset, a remote source.)
     """
     monkeypatch.setattr(build_mod, "REMOTE_SOURCES", _sources())
     monkeypatch.setattr(build_mod, "MINIMUM_MODELS_REGISTERED", 2)
@@ -277,7 +279,7 @@ def test_cli_reports_three_when_a_surface_lost_its_evidence(
     payload = json.loads(capsys.readouterr().out)
     assert payload["built"] is True
     assert payload["verified_from_artifact"]["px_median"] > 0
-    assert any("agentic-coding" in a for a in payload["required_operator_actions"])
+    assert any("everyday" in a for a in payload["required_operator_actions"])
 
 
 def test_cli_reports_zero_when_nothing_is_missing(
@@ -420,8 +422,9 @@ def test_a_missing_bundle_directory_is_reported_not_skipped() -> None:
     report = _build(conn, bundle_dir=None)
 
     actions = " ".join(report.required_operator_actions)
-    assert "epoch_deepswe_external" in actions
-    assert "agentic-coding" in actions, "the blinded SURFACE must be named, not just the source"
+    assert "epoch_swe_bench_verified" in actions
+    # D-216 (#265): `agentic-coding` no longer reads the bundle; `everyday` ranks on one of its boards.
+    assert "everyday" in actions, "the blinded SURFACE must be named, not just the source"
 
 
 def test_a_bundle_directory_without_the_allowlisted_files_is_reported(tmp_path: Path) -> None:
@@ -430,7 +433,7 @@ def test_a_bundle_directory_without_the_allowlisted_files_is_reported(tmp_path: 
     report = _build(conn, bundle_dir=tmp_path)
 
     assert report.required_operator_actions
-    assert "agentic-coding" in " ".join(report.required_operator_actions)
+    assert "everyday" in " ".join(report.required_operator_actions)
 
 
 def test_the_blinded_surface_list_is_derived_from_categories_not_typed() -> None:
@@ -470,7 +473,7 @@ def test_the_bundle_and_board_parameters_are_honoured_over_the_module_registry(
             self.last_verified = last_verified
 
     injected = LocalBundle(
-        name="epoch_deepswe_external",
+        name="epoch_swe_bench_verified",
         client_type=_Client,
         ingest=lambda *_a, **_k: SourceReport(source="injected-bundle", stored=4, skipped=0),
         reason="fixture",
@@ -482,7 +485,7 @@ def test_the_bundle_and_board_parameters_are_honoured_over_the_module_registry(
         "the module registry was used instead of the injected bundles"
     )
     assert any(r.source == "injected-bundle" and r.stored == 4 for r in report.sources)
-    assert not any(r.source.startswith("epoch_") and r.source != "epoch_deepswe_external"
+    assert not any(r.source.startswith("epoch_") and r.source != "epoch_swe_bench_verified"
                    for r in report.sources), (
         "the module board registry was read despite boards=() -- the seam does not reach the call"
     )

@@ -57,7 +57,9 @@ def test_a_board_missing_from_a_bundle_that_arrived_is_drift(tmp_path: Path) -> 
     report = _build_with_bundle(tmp_path, bundle)
     drifted = {line.split(":")[0] for line in report.drift}  # type: ignore[attr-defined]
     assert "epoch_eci" in drifted
-    assert "epoch_deepswe_external" in drifted, "the two bundle clients report drift like the boards"
+    # D-216 (#265): one bundle client is left since Epoch's DeepSWE copy moved to Datacurve's dataset.
+    assert "epoch_swe_bench_verified" in drifted, "the bundle client reports drift like the boards"
+    assert "epoch_deepswe_external" not in drifted
     assert "epoch_gpqa" not in drifted
     assert report.sources_json()["drift"] == report.drift  # type: ignore[attr-defined]
 

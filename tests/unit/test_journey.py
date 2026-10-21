@@ -84,7 +84,7 @@ def test_every_journey_step_passes_on_the_public_artifact(tmp_path: Path, monkey
 def test_the_journey_fails_when_coding_answers_with_no_pick(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Not vacuous: the round trip refuses a deploy whose coding surfaces both answer with nothing
     (W-023's shape), here a public artifact with every coding board left out (planted)."""
-    planted = dict.fromkeys(("swebench", "epoch_swe_bench_verified", "epoch_deepswe_external"), "planted")
+    planted = dict.fromkeys(("swebench", "epoch_swe_bench_verified", "datacurve_deepswe"), "planted")
     monkeypatch.setattr(public, "LEFT_OUT", {**public.LEFT_OUT, **planted})
     journey = _journey_on(_public_artifact(tmp_path), monkeypatch)
     step = dict(journey.STEPS)["paying-customer round trip (asserts CONTENT)"]

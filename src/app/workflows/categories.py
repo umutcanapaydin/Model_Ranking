@@ -116,7 +116,8 @@ CATEGORIES: dict[str, CategorySpec] = {
         metric="% resolved",
         score_unit="points",
         secondary_benchmark=None,
-        primary_source="epoch_deepswe_external",
+        # D-216 (#265): Datacurve's own CC BY 4.0 dataset, in place of Epoch's copy of the board.
+        primary_source="datacurve_deepswe",
         # The floor is taken over every effort level on the board, like every surface (D-148, D-159;
         # the owner ruled 2026-09-23: no exception), though the surface ranks at `high`.
         value_window=6.0,

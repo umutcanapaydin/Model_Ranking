@@ -14,6 +14,7 @@ from datetime import date
 from app.clients.aider import parse_polyglot, staleness_flag
 from app.clients.arc_prize import parse_arc_agi_2
 from app.clients.arena import ARENA_BOARDS, parse_arena
+from app.clients.datacurve import parse_datacurve
 from app.clients.deepswe import parse_deepswe
 from app.clients.epoch import (
     parse_swe_bench_verified as parse_epoch_swe_bench_verified,
@@ -196,6 +197,15 @@ def ingest_arc_agi_2(conn: sqlite3.Connection, source: RawSource, run: RunContex
 def ingest_terminalbench_4(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
     """Fetch + parse TB 4.0's leaderboard submissions and replace their working set (REQ-SRC-012)."""
     rows, skipped = parse_terminalbench_4(source.fetch_raw(), source=source.name, source_url=source.url)
+    unclassified = _store_scores(conn, source.name, rows, run)
+    report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
+    run.reports.append(report)
+    return report
+
+
+def ingest_datacurve(conn: sqlite3.Connection, source: RawSource, run: RunContext) -> SourceReport:
+    """Fetch + parse Datacurve's DeepSWE job and replace its working set (REQ-SRC-012, D-216)."""
+    rows, skipped = parse_datacurve(source.fetch_raw(), source=source.name)
     unclassified = _store_scores(conn, source.name, rows, run)
     report = SourceReport(source=source.name, stored=len(rows), skipped=skipped, effort_unknown=unclassified)
     run.reports.append(report)

@@ -21,7 +21,6 @@ from app.workflows.rank import ATTRIBUTIONS, PRICING_ATTRIBUTION, SOURCE_ATTRIBU
 
 #: Each board Epoch compiles from another publisher -> the name and link its `Source` column gives.
 EXTERNAL = {
-    "epoch_deepswe_external": ("DeepSWE", "https://deepswe.datacurve.ai/"),
     "epoch_webdev": ("WebDev Arena", "https://arena.ai/leaderboard"),
     "epoch_mmlu": ("Stanford CRFM", "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu"),
 }
@@ -29,6 +28,8 @@ EXTERNAL = {
 #: A source under a Creative Commons licence -> the link to its material (CC BY §3(a)(1)(A)(v)).
 CREATIVE_COMMONS = {
     "arena": "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+    # D-216 (#265): Datacurve's own dataset, in place of Epoch's copy of its board (now retired).
+    "datacurve_deepswe": "https://huggingface.co/datasets/datacurve/deep-swe-leaderboard",
     "epoch_eci": "https://epoch.ai/benchmarks",
     "swebench": "https://www.swebench.com",
 }

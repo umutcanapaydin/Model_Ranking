@@ -20,7 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.clients.fakes import FakeRawSource
-from app.workflows.ingest import RunContext, ingest_deepswe, ingest_litellm, ingest_swebench
+from app.workflows.ingest import RunContext, ingest_datacurve, ingest_litellm, ingest_swebench
 from app.workflows.rank import build_price_medians
 from app.workflows.registry import reconcile
 from app.workflows.schema import connect
@@ -141,11 +141,19 @@ SWEBENCH = json.dumps(
 
 # The agentic-coding board publishes RELEASE dates, never evaluation dates — that is the whole
 # reason it is a separate surface (D-105) and the weakness Ruling A requires the payload to state.
-DEEPSWE = """Model version,Pass@1,Harness,Reasoning effort,Release date
-claude-4-5-opus_high,0.68,mini-swe-agent,high,2026-07-01
-gpt-5_high,0.61,mini-swe-agent,high,2026-07-09
-deepseek-v3.2_high,0.52,mini-swe-agent,high,2026-06-20
-"""
+#: `agentic-coding`'s board, shaped as Datacurve's job files carry it (D-216, #265): three runs at `high`. The
+#: result file has no finish date here, so the evidence is undated, as Epoch's copy was; the real job's date
+#: is held by `test_datacurve.py`.
+DEEPSWE_RUNS = {"claude-4-5-opus": 0.68, "gpt-5": 0.61, "deepseek-v3.2": 0.52}
+DEEPSWE = json.dumps({
+    "job": "20260606-deep-swe-leaderboard-all-4x",
+    "result": json.dumps({"stats": {"evals": {
+        f"mini-swe-agent__{model}__high__deep-swe": {"n_trials": 452, "metrics": [{"mean": mean}]}
+        for model, mean in DEEPSWE_RUNS.items()}}}),
+    "config": json.dumps({"agents": [
+        {"name": "mini-swe-agent", "model_name": model, "kwargs": {"reasoning_effort": "high"}}
+        for model in DEEPSWE_RUNS]}),
+})
 
 
 def _seeded_db(path: Path) -> None:
@@ -154,16 +162,7 @@ def _seeded_db(path: Path) -> None:
     run = RunContext(observed_at="2026-08-16T00:00:00+00:00")
     ingest_litellm(conn, FakeRawSource("litellm", PRICING), run)
     ingest_swebench(conn, FakeRawSource("swebench", SWEBENCH), run)
-    ingest_deepswe(
-        conn,
-        FakeRawSource(
-            "epoch_deepswe_external",
-            DEEPSWE,
-            url="https://epoch.ai/#deepswe",
-            last_verified="2026-08-15",
-        ),
-        run,
-    )
+    ingest_datacurve(conn, FakeRawSource("datacurve_deepswe", DEEPSWE), run)
     reconcile(conn)
     # M7-W2: production builds the price medians in `app.workflows.build`, not inside
     # `recommend()`. A fixture that reconciles is standing in for that build, so it does

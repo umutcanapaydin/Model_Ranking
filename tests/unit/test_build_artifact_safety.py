@@ -351,7 +351,7 @@ def test_a_bundle_that_stores_zero_rows_is_a_missing_bundle(
         "LOCAL_BUNDLES",
         (
             LocalBundle(
-                name="epoch_deepswe_external",
+                name="epoch_eci",  # D-216: a source a surface ranks on (`everyday`)
                 client_type=_EmptyClient,
                 ingest=lambda *_a, **_k: SourceReport(source="x", stored=0, skipped=0),
                 reason="fixture",
@@ -362,7 +362,7 @@ def test_a_bundle_that_stores_zero_rows_is_a_missing_bundle(
 
     assert main(["--db", str(target), "--epoch-dir", str(tmp_path)]) == 3
     actions = json.loads(capsys.readouterr().out)["required_operator_actions"]
-    assert any("agentic-coding" in a for a in actions)
+    assert any("everyday" in a for a in actions)
 
 
 def test_a_bundle_that_ingests_successfully_is_counted(
@@ -385,7 +385,7 @@ def test_a_bundle_that_ingests_successfully_is_counted(
         "LOCAL_BUNDLES",
         (
             LocalBundle(
-                name="epoch_deepswe_external",
+                name="epoch_eci",  # D-216: a source a surface ranks on (`everyday`)
                 client_type=_Client,
                 ingest=lambda *_a, **_k: SourceReport(source="deepswe", stored=7, skipped=0),
                 reason="fixture",
@@ -417,7 +417,7 @@ def test_a_source_error_from_a_bundle_does_not_kill_the_build(tmp_path: Path,
         "LOCAL_BUNDLES",
         (
             LocalBundle(
-                name="epoch_deepswe_external",
+                name="epoch_eci",  # D-216: a source a surface ranks on (`everyday`)
                 client_type=_Broken,
                 ingest=lambda *_a, **_k: None,
                 reason="fixture",
@@ -429,7 +429,7 @@ def test_a_source_error_from_a_bundle_does_not_kill_the_build(tmp_path: Path,
     assert main(["--db", str(target), "--epoch-dir", str(tmp_path)]) == 3
     assert target.exists(), "a degradable bundle failure destroyed the artifact"
     assert any(
-        "agentic-coding" in a
+        "everyday" in a
         for a in json.loads(capsys.readouterr().out)["required_operator_actions"]
     )
 

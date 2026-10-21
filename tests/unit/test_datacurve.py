@@ -160,11 +160,11 @@ def _listing(*names: str) -> list[dict[str, object]]:
     return [{"type": "directory", "oid": "0" * 40, "size": 0, "path": f"raw/jobs/{name}"} for name in names]
 
 
-def _hub(listing: object, job: str = JOB) -> dict[str, respx.Route]:
+def _hub(router: respx.MockRouter, listing: object, job: str = JOB) -> dict[str, respx.Route]:
     return {
-        "jobs": respx.get(JOBS).mock(return_value=httpx.Response(200, json=listing)),
-        "result": respx.get(f"{FILES}/{job}/result.json").mock(return_value=httpx.Response(200, text=_text("result.json"))),
-        "config": respx.get(f"{FILES}/{job}/config.json").mock(return_value=httpx.Response(200, text=_text("config.json"))),
+        "jobs": router.get(JOBS).mock(return_value=httpx.Response(200, json=listing)),
+        "result": router.get(f"{FILES}/{job}/result.json").mock(return_value=httpx.Response(200, text=_text("result.json"))),
+        "config": router.get(f"{FILES}/{job}/config.json").mock(return_value=httpx.Response(200, text=_text("config.json"))),
     }
 
 
@@ -173,8 +173,9 @@ def no_token_file(tmp_path: Path) -> Path:
     return tmp_path / "absent" / "hf-token"
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 def test_the_client_reads_the_newest_job_with_the_token_sent_to_the_hub_alone(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, no_token_file: Path,
 ) -> None:
     """covers REQ-SRC-012 (D-216 clauses 1 and 3): the tree API lists the jobs, the newest by its date is read, and
@@ -183,7 +184,7 @@ def test_the_client_reads_the_newest_job_with_the_token_sent_to_the_hub_alone(
     newer = "20261001-deep-swe-leaderboard-all-4x"
     listing = [*_listing(JOB, newer, "not-a-dated-job"),
                {"type": "file", "oid": "0" * 40, "size": 9, "path": "raw/jobs/20991231-a-file-not-a-job"}]
-    routes = _hub(listing, job=newer)
+    routes = _hub(respx_mock, listing, job=newer)
     client = _dc().DatacurveClient(token_file=no_token_file)
     assert client.name == "datacurve_deepswe" and tuple(client.hosts) == ("huggingface.co",)
     rows, skipped = _parse(client.fetch_raw())
@@ -194,23 +195,25 @@ def test_the_client_reads_the_newest_job_with_the_token_sent_to_the_hub_alone(
         assert route.calls.last.request.headers["authorization"] == f"Bearer {TOKEN}"
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 def test_without_a_token_the_source_fails_loudly_and_asks_nothing_of_the_hub(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, no_token_file: Path,
 ) -> None:
     """covers REQ-SRC-012 (D-216 clause 3): no token is a failed source that says where the token goes."""
     from app.clients.protocols import SourceError
 
     monkeypatch.delenv("HF_TOKEN", raising=False)
-    routes = _hub(_listing(JOB))
+    routes = _hub(respx_mock, _listing(JOB))
     with pytest.raises(SourceError, match="HF_TOKEN") as raised:
         _dc().DatacurveClient(token_file=no_token_file).fetch_raw()
     assert str(no_token_file) in str(raised.value)
     assert not any(route.called for route in routes.values())
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 def test_the_owners_token_file_is_read_and_one_others_can_read_is_refused(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     """covers REQ-SRC-012 (D-216 clause 3): the file is the owner's alone (mode 600), as the owner made it."""
@@ -219,7 +222,7 @@ def test_the_owners_token_file_is_read_and_one_others_can_read_is_refused(
     monkeypatch.delenv("HF_TOKEN", raising=False)
     token_file = tmp_path / "hf-token"
     token_file.write_text(TOKEN + "\n", encoding="utf-8")
-    routes = _hub(_listing(JOB))
+    routes = _hub(respx_mock, _listing(JOB))
     for loose in (0o644, 0o640, 0o604):
         token_file.chmod(loose)
         with pytest.raises(SourceError, match="chmod 600"):
@@ -230,15 +233,16 @@ def test_the_owners_token_file_is_read_and_one_others_can_read_is_refused(
     assert routes["result"].calls.last.request.headers["authorization"] == f"Bearer {TOKEN}"
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 @pytest.mark.parametrize("bad", ["", "   \n", "two words", "line\nbreak", "x" * 400])
 def test_a_token_that_is_not_one_is_refused_without_echoing_it(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, no_token_file: Path, bad: str,
 ) -> None:
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", bad)
-    routes = _hub(_listing(JOB))
+    routes = _hub(respx_mock, _listing(JOB))
     with pytest.raises(SourceError) as raised:
         _dc().DatacurveClient(token_file=no_token_file).fetch_raw()
     assert not any(route.called for route in routes.values())
@@ -246,47 +250,50 @@ def test_a_token_that_is_not_one_is_refused_without_echoing_it(
         assert bad not in str(raised.value)
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 def test_a_refused_token_fails_the_source_and_the_message_never_holds_it(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, no_token_file: Path,
 ) -> None:
     """covers REQ-SRC-012 (D-216 clause 3): a 401 from the hub is a failed source; the token is never echoed."""
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", TOKEN)
-    respx.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
-    respx.get(f"{FILES}/{JOB}/result.json").mock(return_value=httpx.Response(401, text="Access to dataset is restricted"))
+    respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
+    respx_mock.get(f"{FILES}/{JOB}/result.json").mock(return_value=httpx.Response(401, text="Access to dataset is restricted"))
     with pytest.raises(SourceError) as raised:
         _dc().DatacurveClient(token_file=no_token_file).fetch_raw()
     assert TOKEN not in str(raised.value)
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 def test_a_redirect_off_the_hub_is_refused_and_never_requested(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, no_token_file: Path,
 ) -> None:
     """covers REQ-SRC-012 (D-216 clause 3): the token goes to `huggingface.co` alone, redirects included."""
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", TOKEN)
-    respx.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
-    respx.get(f"{FILES}/{JOB}/result.json").mock(
+    respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=_listing(JOB)))
+    respx_mock.get(f"{FILES}/{JOB}/result.json").mock(
         return_value=httpx.Response(302, headers={"location": "https://cdn.example.net/result.json"}))
-    elsewhere = respx.get("https://cdn.example.net/result.json").mock(return_value=httpx.Response(200, text="{}"))
+    elsewhere = respx_mock.get("https://cdn.example.net/result.json").mock(return_value=httpx.Response(200, text="{}"))
     with pytest.raises(SourceError, match="refused a hop"):
         _dc().DatacurveClient(token_file=no_token_file).fetch_raw()
     assert not elsewhere.called
 
 
-@respx.mock(assert_all_called=False)
+@pytest.mark.respx(assert_all_called=False)
 @pytest.mark.parametrize("listing", [_listing("not-a-dated-job"), {"error": "rate limited"}, []])
 def test_a_listing_with_no_dated_job_fails_the_source(
+    respx_mock: respx.MockRouter,
     monkeypatch: pytest.MonkeyPatch, no_token_file: Path, listing: object,
 ) -> None:
     from app.clients.protocols import SourceError
 
     monkeypatch.setenv("HF_TOKEN", TOKEN)
-    respx.get(JOBS).mock(return_value=httpx.Response(200, json=listing))
+    respx_mock.get(JOBS).mock(return_value=httpx.Response(200, json=listing))
     with pytest.raises(SourceError):
         _dc().DatacurveClient(token_file=no_token_file).fetch_raw()
 

@@ -55,7 +55,7 @@ def test_the_public_artifact_keeps_every_source_and_every_openrouter_price(tmp_p
 def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path, planted: None) -> None:
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
-    assert {"swebench", "epoch_deepswe_external"} <= set(_rows(built, "scores")), "the fixture seeds them"
+    assert "swebench" in set(_rows(built, "scores")), "the fixture seeds it"
     counts = public.derive(built, served)
     assert not set(_rows(served, "scores")) & EXPECTED_LEFT_OUT
     assert not set(_rows(served, "pricing")) & EXPECTED_LEFT_OUT
@@ -86,7 +86,9 @@ def test_the_price_medians_are_rebuilt_from_the_kept_prices(tmp_path: Path, plan
 def test_a_surface_whose_only_source_is_left_out_says_it_has_no_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, planted: None
 ) -> None:
-    """D-121's path, not a new one: the surface answers that it has no evidence, and never a 500."""
+    """D-121's path, not a new one: the surface answers that it has no evidence, and never a 500. D-185's
+    table never named `datacurve_deepswe` (D-216 built it under CC BY 4.0), so it is planted here too."""
+    monkeypatch.setitem(public.LEFT_OUT, "datacurve_deepswe", "planted for the test")
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
     public.derive(built, served)
@@ -361,7 +363,8 @@ def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replac
     """The #265 review's B2: a release past D-194 refused to start on the artifact `main` built (its
     `epoch_arc_agi`, `epoch_terminalbench` and `openrouter` rows were unattributed), so the install rolled
     back and the startup refresh that rebuilds the artifact never ran. The retired sources stay attributed
-    and credited, as they were, for the artifact that still holds them."""
+    and credited, as they were, for the artifact that still holds them; since D-216 (#265),
+    `epoch_deepswe_external` among them."""
     from app.workflows.serving_bounds import standings_problem
     from app.workflows.standings import board_standings
 
@@ -373,6 +376,11 @@ def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replac
                          " source, source_url, observed_at) SELECT model_id, raw_name, ?, metric, score, harness, effort,"
                          " run_date, ?, 'https://epoch.ai', observed_at FROM scores WHERE source = 'swebench'",
                          (benchmark, source))
+        # D-216: Epoch's copy of DeepSWE, at the `high` effort its surface ranked it at.
+        conn.execute("INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness, effort, run_date,"
+                     " source, source_url, observed_at) SELECT model_id, raw_name || '_high', benchmark, metric, score,"
+                     " harness, 'high', NULL, 'epoch_deepswe_external', 'https://epoch.ai', observed_at FROM scores"
+                     " WHERE source = 'datacurve_deepswe'")
         conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url, observed_at)"
                      " SELECT alias, model_id, input_per_m, output_per_m, 'openrouter', 'https://openrouter.ai',"
                      " observed_at FROM pricing WHERE source = 'litellm'")
@@ -388,3 +396,4 @@ def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replac
     assert credits["arc_prize_leaderboard"] == "ARC Prize Terms"
     assert credits["terminal_bench_2"] == "No licence stated on the leaderboard"
     assert credits["openrouter"] == "OpenRouter Terms of Service"
+    assert credits["datacurve_leaderboard"] == "\u00a9 Datacurve; no licence published"

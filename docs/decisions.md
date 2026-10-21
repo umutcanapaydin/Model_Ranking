@@ -4527,7 +4527,7 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | surface | family, the primary first |
    |---|---|
    | `coding` | `swebench`, `epoch_swe_bench_verified`, `aider`, `arena_text_coding` |
-   | `agentic-coding` | `epoch_deepswe_external`, `terminalbench_4`, `arena_agent` |
+   | `agentic-coding` | `datacurve_deepswe`, `terminalbench_4`, `arena_agent` |
    | `assistant` | `arena` |
    | `everyday` | `epoch_eci`, `arena`, `epoch_mmlu` |
    | `expert` | `epoch_gpqa`, `arena_text_expert`, `epoch_mmlu` |
@@ -4597,6 +4597,8 @@ for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 
 **Amended by D-190 (2026-10-09)**: clause 1's table -- `web-dev`'s family is `arena_webdev`, `arena_text_coding`; Epoch's copy of the same board stands outside (#185).
 
 **Amended by D-194 (2026-10-13)**: clause 1's table -- `computer-use` and `abstract` rank on licensed boards (`terminalbench_4`, `arc_agi_2`), and `terminalbench_4` takes Epoch's TB 2.0 copy's place in `agentic-coding`'s family (#265).
+
+**Amended by D-216 (2026-10-21)**: clause 1's table -- `agentic-coding`'s family is `datacurve_deepswe`, `terminalbench_4`, `arena_agent`: Datacurve's own DeepSWE dataset in place of Epoch's copy (#265).
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -5597,7 +5599,7 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Status:** proposed
 **Owner ruling:** 2026-10-21, on #265: the owner accepted the dataset's terms, put a read token on the Mac, and told us to work the move now (the re-triage of 2026-10-21 pinned its scope)
-**Amends** D-194 clauses 1 and 2 (DeepSWE waited for the token; `agentic-coding`'s family) and D-185 clause 3's table. The id after D-215, which #376's open branch has taken.
+**Amends** D-194 clauses 1 and 2 (DeepSWE waited for the token; `agentic-coding`'s family), D-188 clause 1's families table, and D-185 clause 3's table. The id after D-215, which #376's open branch has taken.
 
 **Context.** D-194 moved three unlicensed boards to their publishers' licensed data and kept Epoch's copy of DeepSWE
 (`epoch_deepswe_external`, no licence published) until the owner's Hugging Face token was in place, because Datacurve's
