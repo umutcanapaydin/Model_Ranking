@@ -1087,3 +1087,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `make lock` (D-177's one writer) re-resolved every lock: certifi 2026.10.19 and uv 0.13.4, and with them the rest moved to their latest (fastapi 0.142 → 0.156, pyarrow 25 → 26, pydantic 2.13 → 2.14 among them). `make gate` is green on the new set, every suite included.
 - No red test of its own: the reproduction is the `deps` leg itself, which refused before the change and passes after it.
 - Lesson: `deps` grades the day's advisory feed, not the change, so a run's first push can be refused by news; fix the locks first and stack everything else on that fix.
+
+## 2026-10-21 — enhancement/issue-242-allowlists: the compiled client gate's five deny-lists become allowlists, nothing loosened (#242)
+
+- Phase 0 pinned the fixture's 183 refusals (182 in Debug) before any rule changed; the self-test now fails in any configuration that stops making one. No phase lost one; the fixture ends at 267 (266).
+- Sinks: one Foundation list per sink file, an allowlist of what the code a sink runs may reference (17 entries), and constants of another file admitted only as `Int` or `String`. Served numbers: every declaration a served number meets must be admitted by rule or by a measured list, some entries only in the shipping place that needs them (`rounded()` in `wholeNumber` and `money`).
+- Request surface: every argument into the engine client is read, labelled or not. By-name: matched by argument label. Stores: URLs only from the file manager's folders, reads only of the store's own `url`, and no URL parameter outside a provenance-kept initialiser.
+- Every list was measured on the shipping client from saved dumps of all four configurations, so each phase could be tried in seconds rather than a two-minute compile; each entry is reported when unused.
+- Three over-refusals and one hole were caught only by the fixture's `allowed:` lines and the twins: a comparison owner pattern that swallowed `..<`, counts and row numbers, and a store's own `init(url:)` matching `CONTENTS_OF`.
+- Lesson: when a deny-list becomes an allowlist, pin the old refusals first, measure the allowlist on the shipping code, and keep the fixture's allowed lines as the over-refusal check; the twins alone would not have caught the comparison rule admitting a range.
