@@ -94,6 +94,12 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "arena_search_factuality": ARENA_ATTRIBUTION,
     # M21-W1 (#185): LMArena's own WebDev board, the same dataset and grant.
     "arena_webdev": ARENA_ATTRIBUTION,
+    # #378 (D-218 clause 1): LMArena's five image and video boards, the same dataset and grant.
+    "arena_image_edit": ARENA_ATTRIBUTION,
+    "arena_text_to_image": ARENA_ATTRIBUTION,
+    "arena_image_to_video": ARENA_ATTRIBUTION,
+    "arena_text_to_video": ARENA_ATTRIBUTION,
+    "arena_video_edit": ARENA_ATTRIBUTION,
     # M17-W2: the 35 category slices, the same dataset and grant. Derived from the DECLARED table,
     # which is the reviewed list, and still not from an `arena_` prefix: a slice nobody declared
     # stays unattributed and raises.

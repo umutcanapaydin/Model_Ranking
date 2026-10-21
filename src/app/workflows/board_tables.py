@@ -110,7 +110,7 @@ _CC_BY_URL = "https://creativecommons.org/licenses/by/4.0/"
 #: each licence says is `docs/research/data-licences-2026-10-04.md`; the ruling is D-193.
 CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("lmarena", "LMArena", "\u00a9 LMArena. Arena leaderboard dataset: the text, vision, document, search, "
-           "WebDev and agent boards", "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+           "WebDev, agent, image and video boards", "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
            "CC BY 4.0", _CC_BY_URL),
     Credit("epoch", "Epoch AI", "Capabilities & benchmarking: the boards Epoch AI runs itself, and its "
            "model metadata", "https://epoch.ai/benchmarks", "CC BY 4.0", _CC_BY_URL),

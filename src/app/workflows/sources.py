@@ -30,8 +30,13 @@ from app.clients.arena import (
     ArenaClient,
     ArenaDocumentClient,
     ArenaFactualityClient,
+    ArenaImageEditClient,
+    ArenaImageToVideoClient,
     ArenaSearchClient,
     ArenaSearchFactualityClient,
+    ArenaTextToImageClient,
+    ArenaTextToVideoClient,
+    ArenaVideoEditClient,
     ArenaVisionClient,
     ArenaWebDevClient,
     parse_arena,
@@ -269,6 +274,25 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         parse=parse_arena,
         minimum_rows=ARENA_BOARDS["webdev"].minimum_rows,
         required=False,
+    ),
+    # #378 (D-218 clause 1): LMArena's five image and video boards, each its own surface's only
+    # evidence, ranked on quality only. OPTIONAL as every Arena board is (D-121).
+    *(
+        RemoteSource(
+            name=ARENA_BOARDS[config].id,
+            client=client,
+            ingest=ingest_arena,
+            parse=parse_arena,
+            minimum_rows=ARENA_BOARDS[config].minimum_rows,
+            required=False,
+        )
+        for config, client in (
+            ("image_edit", ArenaImageEditClient),
+            ("text_to_image", ArenaTextToImageClient),
+            ("image_to_video", ArenaImageToVideoClient),
+            ("text_to_video", ArenaTextToVideoClient),
+            ("video_edit", ArenaVideoEditClient),
+        )
     ),
 )
 

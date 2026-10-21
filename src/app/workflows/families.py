@@ -95,4 +95,8 @@ OUTSIDE_FAMILIES: dict[str, str] = {
     "arena_vision_entity_recognition": _VISION_FACET,
     "arena_vision_homework": _VISION_FACET,
     "arena_vision_humor": _VISION_FACET,
+    # #378: read since phase 2; each becomes its own surface's family in phase 3.
+    **{board: "an image or video board whose quality-only surface is not served yet (#378)" for board in (
+        "arena_image_edit", "arena_text_to_image", "arena_image_to_video", "arena_text_to_video",
+        "arena_video_edit")},
 }
