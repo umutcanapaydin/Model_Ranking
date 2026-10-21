@@ -81,10 +81,11 @@ both derive from that list:
   no evidence. `arena_webdev` is `web-dev`'s board since M21-W1 (D-190). `terminalbench_4` (required)
   is `computer-use`'s board since D-194: TB 4.0's leaderboard submissions, read from its Apache-2.0
   repository (`src/app/clients/terminalbench.py`). `datacurve_deepswe` (optional) is `agentic-coding`'s
-  board since D-216: Datacurve's own DeepSWE runs, CC BY 4.0, from the newest job of its gated Hugging
-  Face dataset, read with the owner's read token (`HF_TOKEN`, or the owner's token file under
-  `~/Library/Application Support/model-ranking/`; `src/app/clients/datacurve.py`). Without the token
-  the source fails loudly and carries its last good rows, or the surface says it has no evidence.
+  board since D-216: Datacurve's own leaderboard (the JSON its site loads, no token; public numbers used
+  with attribution, D-215), and when that fails the newest job of its gated CC BY 4.0 Hugging Face dataset,
+  read with the owner's read token (`HF_TOKEN`, or the owner's token file under
+  `~/Library/Application Support/model-ranking/`; `src/app/clients/datacurve.py`). When both fail the
+  source carries its last good rows, or the surface says it has no evidence.
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked

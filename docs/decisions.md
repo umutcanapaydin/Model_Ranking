@@ -4390,7 +4390,7 @@ testing included.
    |---|---|---|
    | `swebench` | `coding` (half its rows; Epoch's SWE-bench Verified stays) | CC BY-NC 4.0 |
    | `epoch_arc_agi` | `abstract`, its only source | ARC Prize: personal or internal use; no database without permission. **Replaced by `arc_agi_2`, ARC Prize's MIT public-evaluation runs (D-194)** |
-   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published. **Replaced by `datacurve_deepswe`, Datacurve's CC BY 4.0 dataset, read with the owner's Hugging Face token (D-216)** |
+   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published. **Replaced by `datacurve_deepswe`: Datacurve's own leaderboard (public numbers, attributed, D-215), and its CC BY 4.0 dataset read with the owner's Hugging Face token when the leaderboard fails (D-216)** |
    | `epoch_terminalbench` | `computer-use`, its only source | no licence stated. **Replaced by `terminalbench_4`, TB 4.0's Apache-2.0 leaderboard repository (D-194)** |
    | `epoch_webdev` | `web-dev`, its only source | arena.ai's terms: personal or internal business use |
    | `epoch_mmlu` | `everyday`'s secondary score, display only | no licence found |
@@ -4432,7 +4432,7 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-215 (2026-10-21)**: clause 3's licence stance -- the owner's rule for a free, non-commercial app; `epoch_webdev` and LiteLLM's `openrouter/` copies are removed as a duplicate and stale data, SWE-bench stays with an email owed before any payment (#376).
 
-**Amended by D-216 (2026-10-21)**: clause 3's table -- `epoch_deepswe_external` is replaced by `datacurve_deepswe`, Datacurve's CC BY 4.0 dataset read with the owner's Hugging Face token, and no longer built (#265).
+**Amended by D-216 (2026-10-21)**: clause 3's table -- `epoch_deepswe_external` is replaced by `datacurve_deepswe` (Datacurve's own leaderboard, with its CC BY 4.0 dataset as the fallback) and no longer built (#265).
 
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
 
@@ -4602,7 +4602,7 @@ for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 
 
 **Amended by D-194 (2026-10-13)**: clause 1's table -- `computer-use` and `abstract` rank on licensed boards (`terminalbench_4`, `arc_agi_2`), and `terminalbench_4` takes Epoch's TB 2.0 copy's place in `agentic-coding`'s family (#265).
 
-**Amended by D-216 (2026-10-21)**: clause 1's table -- `agentic-coding`'s family is `datacurve_deepswe`, `terminalbench_4`, `arena_agent`: Datacurve's own DeepSWE dataset in place of Epoch's copy (#265).
+**Amended by D-216 (2026-10-21)**: clause 1's table -- `agentic-coding`'s family is `datacurve_deepswe`, `terminalbench_4`, `arena_agent`: Datacurve's own DeepSWE board in place of Epoch's copy (#265).
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -4956,7 +4956,7 @@ darkens `abstract` and `agentic-coding`, which their ruling of 2026-10-12 refuse
 (re-derive), a publisher changes its licence, or ARC Prize publishes its leaderboard's scores under a
 licence.
 
-**Amended by D-216 (2026-10-21)**: clauses 1 and 2 -- the owner's token is in place; DeepSWE moves to Datacurve's CC BY 4.0 dataset (`datacurve_deepswe`), which takes `epoch_deepswe_external`'s place in `agentic-coding`'s family (#265).
+**Amended by D-216 (2026-10-21)**: clauses 1 and 2 -- the owner's token is in place; DeepSWE moves to Datacurve's own leaderboard, with its CC BY 4.0 dataset as the fallback (`datacurve_deepswe`), which takes `epoch_deepswe_external`'s place in `agentic-coding`'s family (#265).
 
 ## D-195 — D-189 applied to #232's candidates; GPT-5.6's Pro is a mode, not a release
 
@@ -5692,6 +5692,12 @@ site does not answer.
 against 28. Epoch's copy: the same numbers, compiled by someone else, with no licence. Every effortless dataset run
 stored at `high`, as the re-triage first assumed: it would rank GPT-5.4's `xhigh` run as a `high` one. No fallback,
 relying on carry-forward alone: on a first build, or past the carry window, the surface would have nothing.
+
+**As built (2026-10-21).** The leaderboard's 70 rows (28 models) all link a catalogue model and carry a price, with
+no alias added; 19 models rank at `high`. Calibrated on it (`docs/reviews/issue-265-agentic-coding-calibration.md`):
+floor 67.0 with five models above it, `close_call` 2.6 (twice the median published run-to-run error, 1.313),
+`value_window` 3.0. The dataset fallback's 27 runs (19 models) link too. Rounding the window to the half point had put
+it at 2.5, below its close call; `scripts/calibrate_surface.py` now takes the half point above in that case.
 
 **The cost.** On a night the site fails and the dataset answers, the board is the June job of DeepSWE v1.0 (19 models;
 its scores differ from v1.1's by a few points), until the site answers again; the build reports the night's source
