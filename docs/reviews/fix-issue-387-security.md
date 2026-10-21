@@ -12,13 +12,13 @@ date: 2026-10-21
 **Independent:** yes. I wrote none of this range's code, tests or records.
 **Date:** 2026-10-21
 **Release range:** `3eb4189a6ac04474b15a7743781367f63f5e0a0b..40b172094075c0b671c9f91eaf5489a69081c680` (4 commits, branch `fix/issue-387-hosted-refresh`, draft PR #388). Issue #387; ADR D-217 (`docs/decisions.md:5711`, proposed, with the owner's rulings of 2026-10-21).
-**Reviewed head:** 40b172094075c0b671c9f91eaf5489a69081c680
+**Reviewed head:** e4b84599d04c1e47a09a539d7d4d5161429c6081
 **Risk tier:** MEDIUM. This is deploy and gate code, and it adds a deploy credential (`FLY_API_TOKEN`) to CI. The brief declares no HIGH paths (`Paths that make a change HIGH:` is `none`), and the change touches no auth, PII, payment or migration path, so no senior review is triggered.
 
 I reviewed it in a detached worktree at the head, with its own venv (`make install`). Probes ran in throwaway repositories with stand-ins for `fly` and `curl` on `PATH`. Nothing contacted Fly.io, and no workflow was triggered. The only network calls were read-only GitHub API reads: the action tags, `setup-flyctl`'s `action.yml`, a run listing to check the `--jq` filter, and the repository's visibility. I planted four mutants and restored each from a copy; `git status` was clean afterwards.
 
 ## Verdict
-BLOCKING: BLOCKING 1 · MINOR 5 · risks queued 5.
+PASS WITH FINDINGS (round 2, at e4b8459): BLOCKING 0 · MINOR 2 open, both filed (M1's remainder #390, M3 #389) · NIT 1 · risks queued 4 (R1 #391, R3 #392, R4 in D-217's revisit, R5 until the owner applies the workflow). Round 1 was BLOCKING 1 · MINOR 5 · risks queued 5. The dispositions are under "Round 2" below.
 
 **B1 must be fixed before the owner applies the workflow.** As proposed, the workflow puts the deploy token in reach of code from any branch, and that code can deploy past the deploy gate. Several things hold:
 - The two-job split.
@@ -111,3 +111,64 @@ What holds, with evidence:
 - **R3** The refresh's "the token reaches only its own step" holds for the environment, but not against a compromised process. On GitHub-hosted runners a step has passwordless `sudo` and can read the runner process's job token (`contents`/`actions: read`, harmless in a public repo) and its runtime token. The runtime token lets it write Actions cache entries in `main`'s scope. `ci.yml:44,100` restores the `pip` cache, and its `pip install pip-audit` (`ci.yml:102`) is not hash-checked. A compromised parser could reach CI that way. This is residual and pre-existing in kind. Watch it when caches or unhashed installs are added.
 - **R4** `scripts/deploy_hosted_engine.sh:50` in CI fetches `origin main` without a credential (`persist-credentials: false`). That works only while the repository is public. If it goes private, every night fails closed at the fetch. This is a liveness risk, not a security one, and should go in D-217's revisit list.
 - **R5** Nothing on the runner is verified until the owner applies the workflow: GitHub's skip semantics, the artifact listing, `setup-flyctl` linking `fly`, and the anonymous-runner rate limits D-217 names. The first manual run (`docs/owner-actions.md:21`) is the check. B1's environment must exist before that run.
+
+## Round 2
+
+**Range:** `40b172094075c0b671c9f91eaf5489a69081c680..e4b84599d04c1e47a09a539d7d4d5161429c6081`. `26608b7` commits round 1's verdict and `e4b8459` is the fix. **Reviewed head:** `e4b84599d04c1e47a09a539d7d4d5161429c6081`.
+
+I re-verified in a new detached worktree at `e4b8459`, with its own venv (`make install`). `tests/unit/test_nightly_hosted.py`: 30 passed. I planted four new mutants and restored each from a copy; each one fails exactly one test:
+- **M2:** dropping `-u MODEL_RANKING_REPO`.
+- **B1:** deleting `environment: fly-production`.
+- **B1:** replacing the deploy job's `github.ref` condition with `true`.
+- **R2:** replacing the `identical|ahead` case with `true`.
+
+`git status` was clean afterwards, and I removed the worktree. The only network calls were read-only GitHub reads: the flyctl release tag, the four issues, and a run listing for `.path`.
+
+**B1: closed.**
+- **The secret is the environment's.** The `deploy` job runs in `environment: fly-production` (`scripts/ci/nightly-hosted.yml:100`). The owner-actions row (`docs/owner-actions.md:19`) creates the environment and limits it to `main`:
+  - `PUT .../environments/fly-production` with `custom_branch_policies: true`;
+  - `POST .../deployment-branch-policies` with `name=main`, `type=branch`.
+
+  It then stores the token with `gh secret set FLY_API_TOKEN --env fly-production` and says "never as a repository secret". GitHub enforces the branch policy on the server. A branch's edited copy of the workflow either keeps `environment:` and is refused, or drops it and gets no secret. A `type=branch` policy does not match a tag named `main`.
+- **Both jobs carry the ref condition.** `if: github.ref == 'refs/heads/main'` is on both (`:35`, `:98`), as defence in depth.
+- **A test holds it.** `tests/unit/test_nightly_hosted.py:299` (`test_both_jobs_run_only_on_main_and_the_token_is_an_environment_s_only_main_reaches`), and both B1 mutants fail it.
+- **What no test can hold:** that the owner creates no repository-level `FLY_API_TOKEN`. That is R5's check at the first manual run.
+
+**M1: partly fixed; the remainder is filed as #390 and stays MINOR.** `gh workflow run nightly-hosted.yml` is now a declared deploy (`docs/project-brief.md:107`), held at `tests/unit/test_nightly_hosted.py:234`. Through `deploy_gate.deploy_in`:
+- These are judged as deploys:
+  - `gh workflow run nightly-hosted.yml`;
+  - the same with a trailing `-R a/b`;
+  - `NIGHTLY-HOSTED.YML` (case-insensitive).
+- These are not judged:
+  - `gh -R a/b workflow run nightly-hosted.yml`, with the option before the subcommand;
+  - `gh workflow run nightly-hosted`, the workflow's name;
+  - `gh workflow run .github/workflows/nightly-hosted.yml`;
+  - the `dispatches` API.
+
+  #390 covers them (open, "The Bash guard does not judge every spelling of a nightly-hosted dispatch"). After B1, such a dispatch runs only `main`'s reviewed code behind CI's own gate, so what remains is the agent starting a deploy, not an unreviewed one.
+
+**M2: closed.** `env -u DEPLOY_ACCEPT_DATA_FROM -u MODEL_RANKING_REPO` is at `scripts/nightly_hosted.sh:68`. I re-ran round 1's probe (`probe_repo_redirect.py`, a stale tree named in `MODEL_RANKING_REPO`):
+- before the fix, the stale tree was built and `fly` was called;
+- now it prints `fly called: False` and `bad tree built: False`. The deploy script stays in the judged tree, and there it refuses the stale tree's data as another release's.
+
+The test is `tests/unit/test_nightly_hosted.py:205`, and the M2 mutant fails it.
+
+**M3: open, filed as #389 (accepted as queued).** D-217 clause 2 now states the residual exactly: "the deploy still opens the refresh's SQLite output and record beside it (queued, #389)". The claim no longer overstates, and the exploit still needs a parser compromise plus a SQLite file-format bug.
+
+**M4: closed for now.** `tests/unit/test_nightly_hosted.py:237` fails the day `LEFT_OUT` is non-empty. D-217 clauses 3, the alternatives and the revisit now say the state is public to signed-in users, and the release-asset rationale is corrected. `RETIRED_COPIES` is not tested, but a night built on the runner never carries those copies, since the current ingest drops them and the runner's first state is a fresh publish.
+
+**M5: closed.** `setup-flyctl` now has `version: 0.4.111` (`scripts/ci/nightly-hosted.yml:125`), held at `tests/unit/test_nightly_hosted.py:324`. `gh api repos/superfly/flyctl/releases/tags/v0.4.111` answers `v0.4.111 2026-09-30T19:15:08Z prerelease=false`.
+
+**R1:** filed as #391 (open). **R3:** filed as #392 (open). **R4:** now a revisit trigger in D-217 ("the repository goes private ..."). **R5:** stays open until the owner applies the workflow. It now also covers checking that only the environment holds the token.
+
+**R2: closed.**
+- **The run filter checks the file's path** (`scripts/ci/nightly-hosted.yml:66`). A real listing shows `schedule` runs with the plain `.github/workflows/<file>.yml` path, so the filter matches them.
+- **Each candidate's `head_sha` must be on `main`.** `compare/$sha...main` answers `identical` or `ahead` only when the sha is an ancestor of `main` (`:69-70`). A failed compare `continue`s, which skips that run and never trusts it.
+- **The loop runs in a pipe subshell** (`:67`), so its `exit 0` ends only the subshell. The step's tail `[ -f "$STATE/advisor.db" ] || echo ...` is right, because the runner's `-eo pipefail` still fails the step when `gh` or `unzip` fails inside the loop.
+- **The test is `tests/unit/test_nightly_hosted.py:310`**, and the R2 mutant fails it.
+
+**New in round 2:**
+- **N1** (NIT) `docs/owner-actions.md:19`: the command sits in a Markdown table, so its pipe is written `\|`. This was already true in round 1's row. Copied from the raw file rather than the rendered table, `fly tokens create ... \| gh secret set ...` passes a literal `|` to `fly` instead of piping, and the token may be printed to the screen. Fix: put the command in a fenced block below the table, or note "copy from the rendered view".
+- No other new finding. The fix adds no import, no new secret reference, no `continue-on-error` and no new trigger, and `make gate` is PASS on `e4b8459` (the coordinator's line).
+
+**Acceptance criteria (round 2):** the evidence above stands at the new head. The "deploy path still runs the deploy gate" gap that B1 opened is closed by the environment. The `/health` freshness criterion and the live failed-night behaviour remain verifiable only after the owner applies the workflow (`docs/owner-actions.md:21`).
