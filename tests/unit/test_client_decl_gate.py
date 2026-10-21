@@ -13,6 +13,7 @@ INV-62, INV-63, INV-64, INV-66, INV-67, INV-75, INV-76, INV-85 and INV-89 in
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -52,7 +53,9 @@ def test_a_url_decoded_outside_the_engine_client_is_the_network() -> None:
     assert "Foundation.URL.decoded" in found["ContentView.swift"], found
     refused = gate.problems(found)
     assert any("ContentView.swift" in line and "network" in line for line in refused), refused
-    assert gate.problems({"EngineClient.swift": found["ContentView.swift"]}) == []
+    # #242: the network rule allows the door its decode; the engine client's own Foundation list (measured on the
+    # shipping client, which decodes no URL) refuses it, which is more refused, never less.
+    assert not [line for line in gate.problems({"EngineClient.swift": found["ContentView.swift"]}) if "network" in line]
 
 
 @pytest.mark.needs("xcode")  # the fixture is compiled
@@ -570,7 +573,10 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
     assert gate.main() == 1, "a client that uses none of the permissions passed the gate"
     # The control: with no permission granted, the same client passes, so the failure above is theirs.
     for table in ("ARITHMETIC_PERMITTED", "SORTS_PERMITTED", "SINK_CALLS_PERMITTED", "NOT_SERVED",
-                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES"):
+                  "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES",
+                  # #242: each sink's own list, what the code a sink runs may reference, the constants it may read.
+                  "SINK_FOUNDATION_ALLOWED", "SINK_RUNS_ALLOWED", "SINK_CONSTANT_TYPES", "SERVED_MAY_MEET",
+                  "BY_NAME_ALLOWED", "STORE_FOLDER_MAKERS", "STORE_READS"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
 
@@ -630,7 +636,10 @@ def test_the_code_a_sink_runs_is_followed_into_computed_properties_and_protocol_
     runs = [line for line in refused if line.startswith("Detail.swift:") and "code a privacy sink runs" in line]
     assert any("`ProbeHolder.suffix`" in line and "`probeNote`" in line for line in runs), refused
     assert any("`ProbeTagger.tag()`" in line and "`probeNote`" in line for line in runs), refused
-    assert len(refused) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
+    # #242: what those bodies reference off `SINK_RUNS_ALLOWED` is refused too (the probe's `+`, `Data(_:)` and
+    # `.utf8` in `Models.swift`); more refused, never less. The reads are the two bodies'.
+    reads = [line for line in refused if "SINK_RUNS_ALLOWED" not in line]
+    assert len(reads) == 2, ("the probe's sink calls nothing it may not; only the two bodies are refused", refused)
 
 
 def test_the_fixtures_six_request_shapes_are_refused_and_its_own_request_is_not() -> None:
@@ -952,8 +961,12 @@ def test_a_store_makes_a_url_only_from_the_file_systems_folders(store: str, make
     # `StandingsStore.swift` is also a privacy sink, whose Foundation list refuses most of these first.
     reasons = ("a store makes a URL only", "not on the list of Foundation declarations a privacy sink")
     assert any(line.startswith(f"{store}:") and any(r in line for r in reasons) for line in refused), refused
-    if store == "FrontDoor.swift" or maker in {"Foundation.URL.init(string:", "Foundation.URL.decoded"}:
+    if store == "FrontDoor.swift":
         assert any("a store makes a URL only" in line for line in refused), refused
+    else:
+        # #242 (the backlog-gates review round 2's K1): the standings store has its own Foundation list, so it no
+        # longer inherits `URL.init(string:` and `URL.decoded` from the engine client's, and that list names each.
+        assert any(f"`{maker}` is not on the list of Foundation declarations a privacy sink" in line for line in refused), refused
 
 
 def test_the_stores_shipping_urls_pass() -> None:
@@ -1028,3 +1041,425 @@ def test_a_store_entry_is_seen_only_by_its_own_declaration() -> None:
     found = {"FrontDoor.swift": store - {"Foundation.URL.appendingPathComponent"}, **ENGINE_CLIENT_SHIPPING}
     missing = gate.unseen_permissions(found)
     assert any("FrontDoor.swift" in line and "`URL.appendingPathComponent`" in line for line in missing), missing
+
+
+# --- #242 (D-214 clause 1): the deny-lists become allowlists, and nothing is loosened -----------------------------
+
+
+def _pinned(release: bool = True) -> list[tuple[str, str, int, str]]:
+    pinned = gate.pinned_refusals(release)
+    assert pinned, f"{gate.PINNED_REFUSALS.name} is missing, empty or malformed"
+    return pinned
+
+
+def test_the_fixture_still_refuses_everything_it_refused_before_242() -> None:
+    """#242 (D-214 clause 1): every refusal the fixture made before #242 (183, the committed dump, the simulator's
+    Release configuration) is pinned, and every one is still made: an allowlist may refuse more than the deny-list
+    it replaces, never less. The self-test asks the same of all four configurations. # covers D-214"""
+    found = gate.references(FLOW_AST)
+    made = set(gate.problems(found)) | set(gate.release_problems(found))
+    pinned = _pinned()
+    assert len(pinned) == 183, len(pinned)
+    assert len(_pinned(release=False)) == 182, "the Debug configurations make all but the Release-only hook's"
+    gone = [key for key in pinned if key not in gate.refusal_keys(sorted(made))]
+    assert not gone, gone
+
+
+def test_the_self_test_fails_when_a_pinned_refusal_is_gone(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#242 (D-214 clause 1), watched failing: with one pinned refusal no longer made, the self-test names it in
+    every configuration; and with the pin missing, empty or malformed it fails closed. The committed dump stands
+    in for the compile, so this runs where there is no Xcode too. # covers D-214"""
+    monkeypatch.setattr(gate, "dump_ast", lambda sdk_name, flags, folder=gate.CLIENT: (FLOW_AST, 0))
+    assert gate.self_test() == []
+    dropped = _pinned()[0]
+    real = gate.problems
+    monkeypatch.setattr(gate, "problems", lambda found: [line for line in real(found)
+                                                         if gate.refusal_keys([line]) != {dropped}])
+    gone = [line for line in gate.self_test() or [] if "is gone" in line and line.endswith(gate.pin_shown(dropped))]
+    assert len(gone) == len(gate.CONFIGURATIONS), gone
+    monkeypatch.setattr(gate, "problems", real)
+    for name, content in (("missing.txt", None), ("empty.txt", ""), ("malformed.txt", "sometimes\tx\n"),
+                          ("untabbed.txt", "all x\n")):
+        pin = tmp_path / name
+        if content is not None:
+            pin.write_text(content, encoding="utf-8")
+        monkeypatch.setattr(gate, "PINNED_REFUSALS", pin)
+        broken = gate.self_test() or []
+        assert len([line for line in broken if "missing, empty or malformed" in line]) == len(gate.CONFIGURATIONS), (
+            name, broken)
+
+
+def test_242_the_sinks_twins_are_refused() -> None:
+    """#242 (G-1; the backlog-gates review round 2's K1): another file's objects behind a widened type (`Any`, an
+    array, a struct holding one) and a Swift-module object (`ManagedBuffer`) held in constants a sink reads, the
+    same buffer read by a static `let`'s initialiser the sink runs, the current calendar in a decoder no one
+    names, and a declaration the standings store inherited from the engine client's Foundation list. Each passed
+    the deny-lists. # covers D-214, D-180"""
+    for constant in ("fixtureWidened", "fixtureWidenedList", "fixtureHeld", "fixtureSharedBuffer"):
+        assert _refused_in("EngineClient.swift", f"reads `{constant}`, a constant"), constant
+    assert _refused_in("Detail.swift", "`FixtureBuffered.tag`, code a privacy sink runs, reads `fixtureSharedBuffer`")
+    assert _refused_in("Detail.swift", "references `Swift.ManagedBuffer.header`")
+    assert _refused_in("Detail.swift", "references `Foundation.Calendar.current`")
+    assert _refused_in("StandingsStore.swift", "`Foundation.Bundle.main` is not on the list of Foundation declarations")
+
+
+def test_242_each_sink_has_its_own_lists_and_a_stale_entry_fails_the_gate() -> None:
+    """#242 (the backlog-gates review round 2's K1): one Foundation list per sink file, and the list of what the
+    code a sink runs may reference, each entry seen on the shipping client or reported. # covers D-214, D-180"""
+    assert set(gate.SINK_FOUNDATION_ALLOWED) == set(gate.SINK_FILES)
+    for sink, allowed in gate.SINK_FOUNDATION_ALLOWED.items():
+        found = {sink: {f"Foundation.{entry}" for entry in allowed}}
+        assert not [line for line in gate.unseen_permissions(found) if line.startswith(f"{sink}:") and "sink's own list" in line]
+        dropped = sorted(allowed)[0]
+        found[sink].discard(f"Foundation.{dropped}")
+        assert [line for line in gate.unseen_permissions(found)
+                if line.startswith(f"{sink}:") and f"`{dropped}`" in line and "sink's own list" in line]
+    runs = {"Models.swift": {f"main.<sink runs uses>.{entry}" for entry in gate.SINK_RUNS_ALLOWED}}
+    assert not [line for line in gate.unseen_permissions(runs) if "the code a sink runs" in line]
+    dropped = sorted(gate.SINK_RUNS_ALLOWED)[0]
+    runs["Models.swift"].discard(f"main.<sink runs uses>.{dropped}")
+    assert [line for line in gate.unseen_permissions(runs) if f"`{dropped}`" in line and "the code a sink runs" in line]
+
+
+#: #242 (G-2): the twins the reviews planted past the arithmetic rule, each marked in `Arithmetic.swift`.
+SERVED_TWINS = ["abs", "min", "max", "magnitude", "rounded", "table", "bound-count", "bound-range", "bound-drop",
+                "string-repeating", "data-count", "data-repeating", "repeat-element"]
+
+
+@pytest.mark.parametrize("shape", SERVED_TWINS)
+def test_242_what_a_served_number_meets_off_its_list_is_refused(shape: str) -> None:
+    """#242 (G-2, INV-76): `abs`, `min`, `max`, `.magnitude`, `.rounded(_:)`, an app's table indexed by a served
+    number, and a list a served number sizes (`Array(repeating:count:)`, a range, `dropFirst`, `String(repeating:
+    count:)`, `Data(count:)`, `Data(repeating:count:)`, `repeatElement`), bound to a name before its count is read
+    or not. Each passed the arithmetic rule; each is refused on its own line. # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+@pytest.mark.parametrize("mark", ["compared", "shown"])
+def test_242_a_served_number_compared_or_shown_is_not_refused(mark: str) -> None:
+    """#242 (G-2): what a served number may meet includes a comparison and its display. # covers D-214"""
+    line = _marked(f"// allowed: {mark}")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_242_a_meeting_the_client_no_longer_makes_fails_the_gate() -> None:
+    """#242 (G-2): each entry of `SERVED_MAY_MEET`, in each place it names, is seen on the shipping client or
+    reported, so the list cannot outlive its code. # covers D-214"""
+    assert gate.SERVED_MAY_MEET
+    seen: dict[str, set[str]] = {}
+    for (declared, role), (places, _) in gate.SERVED_MAY_MEET.items():
+        for file, function in sorted(places or {("Language.swift", "-")}):
+            seen.setdefault(file, set()).add(f"main.<meets listed>.{declared}|{role}|{function}")
+    assert not [line for line in gate.unseen_permissions(seen) if "a served number may meet" in line]
+    (declared, role), (places, _) = sorted(gate.SERVED_MAY_MEET.items(), key=str)[0]
+    file, function = sorted(places or {("Language.swift", "-")})[0]
+    seen[file].discard(f"main.<meets listed>.{declared}|{role}|{function}")
+    assert [line for line in gate.unseen_permissions(seen) if f"`{declared}`" in line and "a served number may meet" in line]
+
+
+@pytest.mark.parametrize(("which", "member"), [
+    ("argument 0 (unlabelled)", "EngineClient.ask"),
+    ("`asking` argument", "EngineClient.init(asking:)"),
+    ("`asking` argument", "EngineClient.subscript(asking:)"),
+])
+def test_242_every_argument_of_a_call_into_the_engine_client_is_read(which: str, member: str) -> None:
+    """#242 (G-11, INV-64; the backlog-gates review's K1): `_request_call` read only the labelled arguments of a
+    method call, so an unlabelled argument, an initialiser's and a subscript's were never read; the gap was latent
+    while `ENGINE_CLIENT_REACHABLE` lists no such member. Every argument of a call into the engine client from
+    another file is now read, and refused unless `REQUEST_ARGUMENTS` names it with its declared source.
+    # covers D-214, REQ-RTR-004"""
+    assert _refused_in("ContentView.swift", f"the {which} of `{member}`")
+
+
+def test_242_the_screens_own_requests_arguments_are_not_refused_by_the_argument_rule() -> None:
+    """#242 (G-11): the screen's own request (`load()`: its surface and its budget) and `EngineClient()` pass the
+    rule that reads every argument. # covers D-214"""
+    span = _lines_of("ContentView.swift", "struct ContentView {")
+    own = [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith("ContentView.swift:")
+           and "#242" in line and "REQUEST_ARGUMENTS" in line and int(line.split(":")[1]) in (210, 213)]
+    assert 213 in span and not own, own
+    # A default the caller did not write (`session:`) is not an argument it passed.
+    assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "the `session` argument" in line]
+
+
+@pytest.mark.parametrize("declared", [
+    "Foundation.NSObject.setValuesForKeys", "Foundation.NSArray.value(forKey:", "Foundation.NSDictionary.value(forKey:",
+    "Foundation.NSSet.value(forKey:", "Foundation.Bundle.classNamed", "Foundation.Bundle.principalClass",
+    "Foundation.NotificationCenter.addObserver(_:selector:name:object:",
+    "Foundation.Timer.init(timeInterval:target:selector:userInfo:repeats:", "Foundation.Thread.init(target:selector:object:",
+])
+def test_242_a_value_a_class_or_a_selector_by_name_is_refused_by_its_label(declared: str) -> None:
+    """#242 (G-12, INV-62; the M21-W3 review's round 2, B3): `BY_NAME` matched by owner type and name, so key-value
+    coding through the collections' overrides and `setValuesForKeys(_:)`, a class by name from the bundle, and the
+    target-and-selector APIs passed. Each is refused, by its argument label or as a class-by-name entry point.
+    # covers D-214, D-126"""
+    assert _refused_in("ContentView.swift", f"`{declared}` reaches a value, a class or a selector by name")
+
+
+def test_242_a_codable_containers_key_and_the_stores_resource_keys_are_not_refused_by_name() -> None:
+    """#242 (G-12): the labels the by-name rule reads are also a Codable container's (`decode(_:forKey:)`) and the
+    standings store's resource keys (#314); `BY_NAME_ALLOWED` admits those, each with its reason, and every entry
+    is seen on the shipping client or reported. # covers D-214"""
+    shipping = {"Models.swift": {"Swift.KeyedDecodingContainer.decode(_:forKey:", "Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:"},
+                "StandingsStore.swift": {"Foundation.URL.resourceValues(forKeys:"}}
+    assert not [line for line in gate.problems(shipping) if "by name" in line]
+    assert not [line for line in gate.unseen_permissions(shipping) if "by-name" in line]
+    shipping["Models.swift"].discard("Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:")
+    assert [line for line in gate.unseen_permissions(shipping) if "by-name" in line and "decodeIfPresent" in line]
+    assert gate.problems({"Models.swift": {"Swift.KeyedEncodingContainer.encode(_:forKey:"}}), "an unlisted label passed"
+
+
+@pytest.mark.parametrize("phrase", [
+    "makes a URL by `main.fixtureStoreHelper`",          # a generic helper of the store's own, its type given
+    "makes a URL by `main.fixtureStoreInferred`",        # and inferred
+    "makes a URL by a cast",                             # `value as? URL`
+    "makes a URL by `Foundation.JSONDecoder.decode(_:from:`",  # through `typealias FixtureAddress = URL` (#276's shape)
+    "reads with `Data.init(contentsOf:options:` from GapRegisterStore.loadShadowed(_:).url",
+])
+def test_242_a_stores_url_comes_only_from_the_file_managers_folders(phrase: str) -> None:
+    """#242 (G-13, INV-62, INV-67; the backlog-gates review rounds 2 and 3, M1; #276): `URL.made` was on the store's
+    list, so a URL its own file made by a generic helper, a `typealias` or a cast passed, and so did a read of it.
+    A store now makes a URL only by the file manager's makers or a function of its own file, and reads only its
+    own `url`. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("FrontDoor.swift", phrase)
+
+
+def test_242_the_registers_store_is_built_only_in_its_own_file() -> None:
+    """#242 (G-13): the screen pointed the register's store at the engine's address, a URL no store made, and
+    `load()` read it. Only `FrontDoor.swift` builds a `GapRegisterStore`. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("ContentView.swift", "builds GapRegisterStore")
+
+
+def _marked_in(file: str, text: str) -> int:
+    """The one line of a fixture file that carries `text`."""
+    lines = (FIXTURES / file).read_text(encoding="utf-8").splitlines()
+    found = [number for number, line in enumerate(lines, start=1) if text in line]
+    assert len(found) == 1, (file, text, found)
+    return found[0]
+
+
+def test_242_the_stores_own_reads_and_folders_pass() -> None:
+    """#242 (G-13): the fixture's register store reading its own `url`, and the standings store's folder made by a
+    function of its own file, are not refused by the store rules. # covers D-214"""
+    load = range(_marked_in("FrontDoor.swift", "func load() -> Data?"), _marked_in("FrontDoor.swift", "func loadShadowed"))
+    own = [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith("FrontDoor.swift:")
+           and line.split(":")[1].isdigit() and int(line.split(":")[1]) in load]
+    assert len(load) > 2 and not own, own
+    assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "fixtureStoreFolder" in line]
+
+
+def test_242_a_store_function_takes_no_url_from_its_caller() -> None:
+    """#242 (G-13): a function in a store's file that takes a URL as a parameter can build the store on it, the
+    initialiser's call being in the store's own file, so another file chooses the address. A URL parameter is
+    admitted there only on an initialiser `PROVENANCE` keeps to that file. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL")
+    assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "init(url:)` takes a URL" in line]
+
+
+@pytest.mark.parametrize("declared", ["ObjectiveC.Selector.init(_:", "ObjectiveC.NSObject.responds(to:"])
+def test_242_a_selector_made_from_text_and_asked_of_an_object_is_refused(declared: str) -> None:
+    """#242 (G-12; the M21-W3 review's round 2, B3): `Selector.init` and `responds(to:)` are declared in
+    `ObjectiveC`, off the module allowlist since the M21 closure (S6); the fixture plants both. # covers D-214"""
+    assert _refused_in("ContentView.swift", f"`{declared}` in `ObjectiveC`")
+
+
+#: #242, the security review's B1: the G-2 twins met by reference, each marked in `Arithmetic.swift`.
+BY_REFERENCE_TWINS = ["map-abs", "abs-value", "max-value", "map-magnitude", "keypath-magnitude", "map-words",
+                      "map-truncating", "map-app-function", "called-literal"]
+
+
+@pytest.mark.parametrize("shape", BY_REFERENCE_TWINS)
+def test_242_a_served_number_meeting_a_declaration_by_reference_is_refused(shape: str) -> None:
+    """#242, the security review's B1 (G-2, INV-76): `abs`, `max`, `.magnitude`, `.words` and
+    `Int.init(truncatingIfNeeded:)` met by reference passed: handed to `map`, held as a value and called, or named
+    in a key path. The element-passing admission's premise, a closure the flow follows, was not checked. So are an
+    app function handed to `map` and a closure literal called on the spot. Each is refused on its own line.
+    # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+@pytest.mark.parametrize("table", ["SINK_CONSTANT_TYPES", "STORE_FOLDER_MAKERS", "STORE_READS"])
+def test_242_an_unused_constant_type_folder_maker_or_store_read_fails_the_gate(table: str) -> None:
+    """#242, the security review's M4: `unseen_permissions` reports an entry of these three tables the shipping
+    client no longer uses, and no test watched it: with the three reports replaced by `pass`, every test passed.
+    Each table is read here with every entry seen, then with one taken away. # covers D-214"""
+    seen: dict[str, set[str]] = {"Models.swift": {f"main.<sink reads constant type>.{typed}" for typed in gate.SINK_CONSTANT_TYPES}}
+    for name, makers in gate.STORE_FOLDER_MAKERS.items():
+        seen.setdefault(name, set()).update(f"main.<store url listed>.{maker}" for maker in makers)
+    for name, read in gate.STORE_READS.items():
+        seen.setdefault(name, set()).add(f"main.<store reads listed>.{read}")
+    words = {"SINK_CONSTANT_TYPES": "constant types a sink may read", "STORE_FOLDER_MAKERS": "the store's list of URL makers",
+             "STORE_READS": "the store's one read"}[table]
+    assert not [line for line in gate.unseen_permissions(seen) if words in line]
+    if table == "SINK_CONSTANT_TYPES":
+        seen["Models.swift"].discard("main.<sink reads constant type>.Int")
+        dropped = "`Int`"
+    elif table == "STORE_FOLDER_MAKERS":
+        seen["FrontDoor.swift"].discard("main.<store url listed>.Foundation.URL.deletingLastPathComponent(")
+        dropped = "`Foundation.URL.deletingLastPathComponent(`"
+    else:
+        seen["StandingsStore.swift"].discard("main.<store reads listed>.StandingsStore.url")
+        dropped = "`StandingsStore.url`"
+    assert [line for line in gate.unseen_permissions(seen) if words in line and dropped in line], (table, dropped)
+
+
+@pytest.mark.parametrize("declared", ["Foundation.Thread.detachNewThreadSelector(_:toTarget:with:",
+                                      "Foundation.RunLoop.perform(_:target:argument:order:modes:",
+                                      "Foundation.NSSortDescriptor.init(key:ascending:"])
+def test_242_a_selector_unlabelled_or_a_key_labelled_key_is_refused(declared: str) -> None:
+    """#242, the security review's M3 (G-12): matching by label missed a selector passed with no label and a key
+    labelled `key:`. A declaration whose type takes a `Selector`, whatever its label, and a Foundation declaration
+    labelled `key:` or `keyPath:` are refused unless `BY_NAME_ALLOWED` names them. # covers D-214"""
+    assert _refused_in("ContentView.swift", f"`{declared}` reaches a value, a class or a selector by name")
+
+
+def test_242_a_url_a_store_reads_through_a_key_path_off_another_files_type_is_refused() -> None:
+    """#242, the security review's M2 (G-13): `_store_received` read only a direct reference or a member read, so a
+    URL-typed declaration of another file read through a key path (`held[keyPath: \\Holder.address]`) passed, and the
+    register's store was built on it. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("FrontDoor.swift", "receives a URL, by `FixtureAddressHolder.address`, declared in ContentView.swift")
+
+
+@pytest.mark.parametrize(("declared", "role", "place", "elsewhere"), [
+    ("Swift.Set.init(_:", "argument", ("AnswerPlan.swift", "disclosures"), ("AnswerPlan.swift", "-")),
+    ("Swift.String.init(_:", "argument", ("Language.swift", "number"), ("Detail.swift", "detailFacts")),
+    ("Swift.ClosedRange.contains", "argument", ("Uncertainty.swift", "evidenceBreadth"), ("Notices.swift", "staleSentence")),
+    ("Swift.Array.subscript(_:", "receiver", ("Notices.swift", "staleSentence"), ("Language.swift", "number")),
+    ("Swift.Sequence.sorted(", "receiver", ("Notices.swift", "staleSentence"), ("Combine.swift", "combined")),
+])
+def test_242_a_served_numbers_listed_meeting_is_admitted_only_in_its_place(
+        declared: str, role: str, place: tuple[str, str], elsewhere: tuple[str, str]) -> None:
+    """#242, the security review's R1 and R2: `Set(_:)` was admitted anywhere in `AnswerPlan.swift` outside a function
+    (a computed property, a closure, an initialiser's expression), and four entries were open to any file though the
+    shipping client meets each in one or a few places. Each is now admitted only where it is met: `Set(_:)` in the
+    computed property `disclosures`, which the place names. # covers D-214"""
+    assert gate._meeting(declared, role, "position", *place, 1) == f"main.<meets listed>.{declared}|{role}|{place[1]}"
+    assert (gate._meeting(declared, role, "position", *elsewhere, 1) or "").startswith("main.<meets>."), elsewhere
+
+
+#: #242, the security review's round 2, B1: a key path not written in place, and a method referenced without a call.
+ROUND_TWO_TWINS = ["keypath-held", "keypath-held-closure", "keypath-parameter", "method-held", "distance-held",
+                   "signum-held"]
+
+
+@pytest.mark.parametrize("shape", ROUND_TWO_TWINS)
+def test_242_a_key_path_not_written_in_place_or_a_method_referenced_unapplied_is_refused(shape: str) -> None:
+    """#242, the security review's round 2, B1 (G-2): `.magnitude` through a key path bound to a name or passed as a
+    parameter, which the gate cannot read, and `advanced(by:)`, `distance(to:)` and `signum` referenced on a served
+    number without a call. A key-path application on a served number is refused unless its key path is written in
+    place; a method referenced on one is judged as its call is. # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+def test_242_a_store_reads_a_url_only_through_a_key_path_written_in_place() -> None:
+    """#242, the security review's round 2, M2 (G-13): the register's store built on a URL read through a key path bound
+    to a name first passed, since only a key path written at the application was read. # covers D-214, REQ-GAP-001"""
+    line = _marked_in("FrontDoor.swift", "return GapRegisterStore(url: held[keyPath: path])")
+    assert [found for found in gate.problems(gate.references(FLOW_AST))
+            if found.startswith(f"FrontDoor.swift:{line}:") and "a key path not written in place" in found]
+
+
+def test_242_a_computed_property_named_like_a_permitted_function_does_not_inherit_its_permission() -> None:
+    """#242, the security review's round 2, R5: since `_placed` names a computed property as a place, a property named
+    `priceInPages` was read as REQ-CMP-002's permitted function and skipped `_meets`. A ruling's permission is read by
+    the function alone. Watched failing: the gate at `b93470f` refuses nothing on this line. # covers D-214"""
+    line = _marked_in("Router.swift", "// shape: property-named-like-a-ruling")
+    assert [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Router.swift:{line}:")]
+
+
+
+#: #373 (G-2): a served number reached through a key path walked from its struct, and a method of a served number called
+#: curried on its type: each shape marked in `Arithmetic.swift`, its function, and the declaration it meets.
+STRUCT_WALKED_TWINS = [
+    ("struct-keypath", "shapeStructKeyPath", "Swift.Int.magnitude"),
+    ("struct-map-magnitude", "shapeStructMapMagnitude", "Swift.Int.magnitude"),
+    ("struct-map-words", "shapeStructMapWords", "Swift.Int.words"),
+    ("curried-advanced", "shapeCurriedAdvanced", "Swift.Int.advanced(by:"),
+    ("curried-signum", "shapeCurriedSignum", "Swift.Int.signum("),
+]
+
+
+@pytest.mark.parametrize(("shape", "function", "declared"), STRUCT_WALKED_TWINS)
+def test_373_a_served_number_reached_by_a_key_path_from_its_struct_or_a_curried_call_is_refused(
+        shape: str, function: str, declared: str) -> None:
+    """#373 (G-2, INV-76): `s[keyPath: \\Standing.position.magnitude]`, `[s].map(\\.position.magnitude)`,
+    `[s].map(\\.position.words.count)`, `Int.advanced(by:)(s.position)(1)` and `Int.signum(s.position)()` passed in
+    all four configurations: a key path's members were read only when the value it is applied to is itself a number,
+    and a method called curried on its type was not read at all. Each is refused on its own line as its receiver's
+    meeting, and the self-test asks the same of all four configurations. # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    phrase = f"`{declared}` on a served position (its receiver) in `{function}`"
+    refused = [found for found in gate.problems(gate.references(FLOW_AST))
+               if found.startswith(f"Arithmetic.swift:{line}:") and phrase in found]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as {phrase}"
+    assert ("Arithmetic.swift", phrase) in gate.FIXTURE_REFUSALS, f"the self-test does not hold {shape}"
+
+
+@pytest.mark.parametrize(("text", "declared"), [
+    ("GapRegisterStore(url: table[0])", "FixtureAddressTable.subscript(_:)"),
+    ("GapRegisterStore(url: wrapped.address)", "FixtureAddressWrapper.subscript(dynamicMember:)"),
+])
+def test_374_a_store_receives_a_url_through_another_files_subscript_or_dynamic_member(text: str, declared: str) -> None:
+    """#374 (G-13): `_store_received` read a direct reference, a member read and a key path, not a subscript, so the
+    register's store built on a URL another file's type hands out through a subscript (`table[0]`) or a
+    `@dynamicMemberLookup` wrapper (`wrapped.address`) passed in all four configurations. Each is refused as received,
+    and the self-test asks the same of all four configurations. # covers D-214, REQ-GAP-001"""
+    line = _marked_in("FrontDoor.swift", text)
+    phrase = f"receives a URL, by `{declared}`, declared in ContentView.swift"
+    assert [found for found in gate.problems(gate.references(FLOW_AST))
+            if found.startswith(f"FrontDoor.swift:{line}:") and phrase in found], f"FrontDoor.swift:{line} is not refused"
+    assert ("FrontDoor.swift", phrase) in gate.FIXTURE_REFUSALS, f"the self-test does not hold {text}"
+
+
+def _made_on_the_dump() -> list[str]:
+    found = gate.references(FLOW_AST)
+    return gate.problems(found) + gate.release_problems(found)
+
+
+def test_375_a_fixture_line_moved_by_an_insertion_keeps_the_pin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#375 (D-214): the pin compared each refusal's exact text, its line number included, so a line inserted above a
+    pinned shape broke the pin for no real loss, which invites regenerating it, the one move that can hide a
+    loosening. A pinned refusal is keyed by its file, its planted line and its text: here every line of
+    `Arithmetic.swift` moves down one, the same refusals are made on the moved lines, and the pin holds in every
+    configuration. Watched failing: at `fcc8f3e` each shifted refusal is reported gone. # covers D-214"""
+    fixtures = tmp_path / "fixtures"
+    fixtures.mkdir()
+    for source in gate.FIXTURES.glob("*.swift"):
+        text = source.read_text(encoding="utf-8")  # raw: the gate's own fixture, copied whole as the compiler reads it
+        (fixtures / source.name).write_text(("// #375: one line inserted\n" + text) if source.name == "Arithmetic.swift"
+                                            else text, encoding="utf-8")
+    monkeypatch.setattr(gate, "FIXTURES", fixtures)
+    moved = [re.sub(r"^Arithmetic\.swift:(\d+):", lambda m: f"Arithmetic.swift:{int(m.group(1)) + 1}:", line)
+             for line in _made_on_the_dump()]
+    assert moved != _made_on_the_dump()
+    for label, _, _ in gate.CONFIGURATIONS:
+        assert gate._pin_broken(label, moved) == [], label
+
+
+def test_375_a_pinned_refusal_removed_or_reworded_fails_the_pin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#375 (D-214): keyed by its planted line rather than its line number, the pin stays at least as strict. A pinned
+    refusal no longer made, or made in other words, is reported gone; and the pin itself, with a line removed, with a
+    line reworded into another refusal the fixture still makes, or regenerated in another order, fails in every
+    configuration, since every refusal pinned before #242 must still be there as it was. The count test caught a
+    deleted line, never an edited one. Watched failing: at `fcc8f3e` the edited pins pass. # covers D-214"""
+    made = _made_on_the_dump()
+    label = gate.CONFIGURATIONS[0][0]
+    assert gate._pin_broken(label, made) == []
+    first = next(line for line in made if line.startswith("Arithmetic.swift:103: `+` on a served position"))
+    assert gate._pin_broken(label, [line for line in made if line != first]), "a pinned refusal removed passed"
+    reworded = [line.replace("a served position", "a served place") if line == first else line for line in made]
+    assert gate._pin_broken(label, reworded), "a pinned refusal reworded passed"
+    pinned = gate.PINNED_REFUSALS.read_text(encoding="utf-8").splitlines()
+    for name, lines in (("removed.txt", pinned[1:]), ("duplicated.txt", [pinned[1], *pinned[1:]]),
+                        ("regenerated.txt", sorted(pinned, reverse=True))):
+        pin = tmp_path / name
+        pin.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(gate, "PINNED_REFUSALS", pin)
+        for each, _, _ in gate.CONFIGURATIONS:
+            assert gate._pin_broken(each, made), (name, each)

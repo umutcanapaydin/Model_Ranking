@@ -37,19 +37,48 @@ def test_the_hosted_engine_leaves_out_no_source_on_testflight() -> None:
     assert public.LEFT_OUT == {}
 
 
-def test_the_public_artifact_keeps_every_source_and_every_openrouter_price(tmp_path: Path) -> None:
-    """D-186: nothing left out, so the public artifact's scores and prices are the built one's, LiteLLM's
-    copies of OpenRouter's prices included; only the vendor plans, which `/v1` never serves, go."""
+def test_the_public_artifact_keeps_every_source_and_drops_litellms_openrouter_copies(tmp_path: Path) -> None:
+    """D-186: nothing left out, so the public artifact's scores and prices are the built one's; only the
+    vendor plans, which `/v1` never serves, go. #376 (D-215 clause 3): and LiteLLM's copies of OpenRouter's
+    prices, stale since D-194, which an artifact an older release built still holds."""
     built, served = tmp_path / "built.db", tmp_path / "public.db"
     _seeded_db(built)
+    expected = _rows(built, "pricing")
     with sqlite3.connect(built) as conn:
-        conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
-                     " observed_at) SELECT 'openrouter/' || alias, model_id, 9.0, 9.0, 'litellm', source_url,"
-                     " observed_at FROM pricing WHERE source = 'litellm'")
+        copies = conn.execute("INSERT INTO pricing (alias, model_id, input_per_m, output_per_m, source, source_url,"
+                              " observed_at) SELECT 'openrouter/' || alias, model_id, 9.0, 9.0, 'litellm', source_url,"
+                              " observed_at FROM pricing WHERE source = 'litellm'").rowcount
+    assert copies > 0, "the fixture plants the copies"
     counts = public.derive(built, served)
     assert _rows(served, "scores") == _rows(built, "scores")
-    assert _rows(served, "pricing") == _rows(built, "pricing")
-    assert counts["scores_removed"] == counts["pricing_removed"] == counts["openrouter_aliases_removed"] == 0
+    assert _rows(served, "pricing") == expected
+    assert counts["scores_removed"] == counts["pricing_removed"] == 0
+    assert counts["openrouter_aliases_removed"] == copies
+    with sqlite3.connect(served) as conn:
+        assert conn.execute("SELECT count(*) FROM pricing WHERE alias LIKE 'openrouter/%'").fetchone()[0] == 0
+
+
+def test_the_built_artifact_stores_no_openrouter_copy_of_a_price(tmp_path: Path) -> None:
+    """#376 (D-215 clause 3): LiteLLM's feed lists OpenRouter's prices again under `openrouter/` aliases.
+    Prices come from LiteLLM's own entries and models.dev since D-194, so the ingest drops the copies and
+    no built artifact holds one."""
+    import json
+
+    from app.clients.fakes import FakeRawSource
+    from app.workflows.ingest import RunContext, ingest_litellm
+    from app.workflows.schema import connect
+
+    price = {"mode": "chat", "input_cost_per_token": 3e-06, "output_cost_per_token": 1.5e-05}
+    feed = json.dumps({"gpt-5.4": price, "openrouter/openai/gpt-5.4": price,
+                       "openrouter/anthropic/claude-opus-4-8": price})
+    conn = connect(str(tmp_path / "built.db"))
+    try:
+        report = ingest_litellm(conn, FakeRawSource("litellm", feed), RunContext())
+        aliases = [row[0] for row in conn.execute("SELECT alias FROM pricing")]
+    finally:
+        conn.close()
+    assert aliases == ["gpt-5.4"]
+    assert (report.stored, report.skipped) == (1, 2)
 
 
 def test_the_public_artifact_carries_no_row_of_a_left_out_source(tmp_path: Path, planted: None) -> None:
@@ -363,15 +392,16 @@ def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replac
     """The #265 review's B2: a release past D-194 refused to start on the artifact `main` built (its
     `epoch_arc_agi`, `epoch_terminalbench` and `openrouter` rows were unattributed), so the install rolled
     back and the startup refresh that rebuilds the artifact never ran. The retired sources stay attributed
-    and credited, as they were, for the artifact that still holds them; since D-216 (#265),
-    `epoch_deepswe_external` among them."""
+    and credited, as they were, for the artifact that still holds them; Epoch's WebDev copy among them since
+    D-215 (#376), and Epoch's DeepSWE copy since D-216 (#265)."""
     from app.workflows.serving_bounds import standings_problem
     from app.workflows.standings import board_standings
 
     built = tmp_path / "older.db"
     _seeded_db(built)
     with sqlite3.connect(built) as conn:
-        for source, benchmark in (("epoch_arc_agi", "ARC-AGI"), ("epoch_terminalbench", "TerminalBench")):
+        for source, benchmark in (("epoch_arc_agi", "ARC-AGI"), ("epoch_terminalbench", "TerminalBench"),
+                                  ("epoch_webdev", "WebDev Arena")):
             conn.execute("INSERT INTO scores (model_id, raw_name, benchmark, metric, score, harness, effort, run_date,"
                          " source, source_url, observed_at) SELECT model_id, raw_name, ?, metric, score, harness, effort,"
                          " run_date, ?, 'https://epoch.ai', observed_at FROM scores WHERE source = 'swebench'",
@@ -397,3 +427,4 @@ def test_an_artifact_an_older_release_built_still_boots_until_the_refresh_replac
     assert credits["terminal_bench_2"] == "No licence stated on the leaderboard"
     assert credits["openrouter"] == "OpenRouter Terms of Service"
     assert credits["datacurve_leaderboard"] == "\u00a9 Datacurve; no licence published"
+    assert credits["arena_site"] == "Arena Terms of Use"

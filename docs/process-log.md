@@ -1094,6 +1094,48 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - m25 judged once on the final head 8bd3da5, on macOS 27.0.1 (26A434) with AFM 3 Core Advanced. Searches were 249/301 (82.7%, Wilson 78.0–86.6%) and non-searches 177/210 (84.3%, Wilson 78.8–88.6%). The bar is met on observed rates, so #351 and #355 close (`docs/research/reading-heldout-m25-result.md`). The set stays out of the repository and is loaded for this one run from outside it.
 - Lesson: a gate that reads spellings meets a new spelling every round; when a reviewer's BLOCKINGs keep finding new forms of one class rather than a wrong fix, the third round is the owner's question of where the class ends, not a fourth patch.
 
+## 2026-10-21 — fix/issue-376-licence-ruling: the owner's licence rule (D-215), Epoch's WebDev copy and LiteLLM's OpenRouter copies removed (#376)
+
+- D-215 came first, in its own commit: the app is free and non-commercial, so a public leaderboard's numbers are served when the publisher is credited with a link and its terms do not forbid non-commercial use. It amends D-101, D-185 and D-210 (Golden Rule 1 widened in `AGENTS.md`), and its watchlist row is the first real one.
+- `epoch_webdev` is no longer declared or built; `/v1/boards` drops it. Its citation and `arena_site` credit moved to the retired sources, as `epoch_arc_agi`'s did, so an engine still boots on an older artifact.
+- LiteLLM's `openrouter/` entries are skipped at ingest. The public artifact drops any an older artifact still holds through a new `RETIRED_COPIES`, so INV-87's `_COPIES_OF` test stays untouched: a first attempt that renamed it broke the invariant's citation.
+- MMLU/HELM and SWE-bench stay served and credited; SWE-bench's email is owed before any payment, in D-215, not in code.
+- Lesson: before reshaping a structure a security-invariant test reaches into, grep `docs/security-invariants.md` for the test; extend beside it rather than edit it.
+
+## 2026-10-21 — enhancement/issue-242-allowlists: the compiled client gate's five deny-lists become allowlists, nothing loosened (#242)
+
+- Phase 0 pinned the fixture's 183 refusals (182 in Debug) before any rule changed; the self-test now fails in any configuration that stops making one. No phase lost one; the fixture ends at 267 (266).
+- Sinks: one Foundation list per sink file, an allowlist of what the code a sink runs may reference (17 entries), and constants of another file admitted only as `Int` or `String`. Served numbers: every declaration a served number meets must be admitted by rule or by a measured list, some entries only in the shipping place that needs them (`rounded()` in `wholeNumber` and `money`).
+- Request surface: every argument into the engine client is read, labelled or not. By-name: matched by argument label. Stores: URLs only from the file manager's folders, reads only of the store's own `url`, and no URL parameter outside a provenance-kept initialiser.
+- Every list was measured on the shipping client from saved dumps of all four configurations, so each phase could be tried in seconds rather than a two-minute compile; each entry is reported when unused.
+- Three over-refusals and one hole were caught only by the fixture's `allowed:` lines and the twins: a comparison owner pattern that swallowed `..<`, counts and row numbers, and a store's own `init(url:)` matching `CONTENTS_OF`.
+- Lesson: when a deny-list becomes an allowlist, pin the old refusals first, measure the allowlist on the shipping code, and keep the fixture's allowed lines as the over-refusal check; the twins alone would not have caught the comparison rule admitting a range.
+
+## 2026-10-21 — fix/issue-373-keypath-curried: a key path walked from a served struct, and a curried call on the type, are refused (#373)
+
+- Stacked on #372 (`enhancement/issue-242-allowlists` at 84942aa), whose Security-Reviewer's third round found B1: five ways to reach a served number's methods that passed `make client-decls` in all four configurations, before #242 and after it.
+- The red commit planted the five shapes at the end of the fixture's `Arithmetic.swift`, so no pinned refusal moved, and wrote the committed dump again: five tests failed, the other 213 passed.
+- The fix reads a key path's components from the first one that carries a served number, wherever it is applied, and reads a method called curried on its type (`dot_syntax_base_ignored` around a thunk whose first parameter is `self`) as the number meeting it as its receiver. Both go through `_meeting`, so `SERVED_MAY_MEET` still admits what it lists.
+- The self-test holds each shape in every configuration, and all 183 pinned refusals are still made; the shipping client passes the gate in all four.
+- G-2 and INV-76 name the two new fixture rules.
+- Lesson: a rule that waits for an operand of a number type misses the number's own members reached from its container; read a key path by what it walks through, not only by what it is applied to.
+
+## 2026-10-21 — fix/issue-374-store-subscript: a store's URL read through another file's subscript or dynamic member is refused (#374)
+
+- Stacked on #373's branch, itself on #372; the #242 Security-Reviewer's round 3 M2 found `GapRegisterStore(url: t[0])` and `GapRegisterStore(url: w.address)` (`w` a `@dynamicMemberLookup` wrapper) passing in all four configurations.
+- The red commit planted both at the end of the fixture's `ContentView.swift` and `FrontDoor.swift`, so no pinned line moved: two tests failed, the compiled gate stayed green.
+- `_store_received` now reads a `subscript_expr` typed URL, written or implicit: the subscript's own declaration and every member a key path handed to it names, each refused when another file declares it. The implicit one prints its declaration with ` [with`, which `MAIN_REF` does not match, so the rule reads `FLOW_REF`.
+- All 183 pinned refusals are still made, the self-test holds both shapes in every configuration, and the shipping client passes. G-13 says so.
+- Lesson: a `@dynamicMemberLookup` member read is a subscript the compiler writes, printed `implicit` with a generic substitution; a rule that skips implicit nodes or expects `"` after the location misses it.
+
+## 2026-10-21 — fix/issue-375-pin-keys: the pre-#242 refusal pin is keyed by planted line, not line number (#375)
+
+- Stacked on #374's and #373's branches, themselves on #372; the #242 Security-Reviewer's queued risk R3. The pin compared each refusal's exact text, line number included, so an in-place fixture edit broke it for no loss, and the count test caught a deleted pinned line but not an edited one.
+- Red: a fixture copy with one line inserted reported 27 moved refusals gone; and a pin with a line removed, a line duplicated over another, or its lines reversed passed.
+- Each pinned refusal is now keyed by file, planted line (stripped, with its rank among identical lines, since seven pinned lines share their text with another) and text without the line number. The 183 lines were converted one for one from the old pin, which the fixture's line numbers still matched.
+- The pin's first 183 lines are held by their SHA-256 in the gate, so an edited, cut, reordered or regenerated pin fails the self-test in every configuration; lines may still be appended.
+- Lesson: a pin that lets a refactor break it will be regenerated, so key it by what stays put, and hold the pin itself, or the regeneration hides the loosening it exists to catch.
+
 ## 2026-10-21 — enhancement/issue-265-datacurve: agentic-coding ranks on Datacurve's CC BY 4.0 DeepSWE dataset (#265)
 
 - The last move D-194 kept waiting for the owner's Hugging Face token. `datacurve_deepswe` reads the newest job of `datacurve/deep-swe-leaderboard` (one today, of 2026-06-06), with the token from `HF_TOKEN` or the owner's file, sent to `huggingface.co` alone. The source is optional, so a missing token never fails another source's night (D-216).

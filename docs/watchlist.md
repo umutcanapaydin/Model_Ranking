@@ -45,4 +45,4 @@ counter with no cited record is not a counter** — name the issue, commit or re
 
 | id | what it caught | why removed / declined | epoch | `intra` | `cross` | returns at |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | *No control removed yet. Delete this line when the first real row lands.* |
+| D-215 | Golden Rule 1 as D-210 wrote it, and D-101's provenance: a board or price served without an open data licence or its publisher's written permission (Epoch's WebDev copy, MMLU/HELM, SWE-bench under CC BY-NC) | Relaxed by the owner's ruling in #376: the app is free and non-commercial, so a public leaderboard's numbers are served when the publisher is credited with a link and its terms do not forbid non-commercial use | 2026-10-21 | 0 | 0 | 1: a publisher objects to being served, or the app takes payment (then SWE-bench's maintainers are written to first, D-215 clause 3) |

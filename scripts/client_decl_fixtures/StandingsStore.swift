@@ -52,7 +52,7 @@ struct KeptAnswer: Codable {
 
 extension StandingsStore {
     func keep(_ recommendation: Recommendation) {
-        _ = KeptAnswer(task: recommendation.query.task, payload: Data())
+        guard let payload = try? JSONEncoder().encode(recommendation) else { return }; _ = KeptAnswer(task: recommendation.query.task, payload: payload)
     }
 
     func keep(_ categories: [Category]) {
@@ -60,6 +60,12 @@ extension StandingsStore {
     }
 
     func keptAnswers() -> [KeptAnswer] {
-        (try? JSONDecoder().decode([KeptAnswer].self, from: Data())) ?? []
+        guard let data = try? Data(contentsOf: url) else { return [] }; return (try? JSONDecoder().decode([KeptAnswer].self, from: data)) ?? []
     }
+}
+
+// #242 (the backlog-gates review round 2's K1): declarations on the engine client's Foundation list, which the
+// standings store inherited from the one list the two sinks shared. REFUSED: each sink has a list of its own.
+func fixtureStoreReadsTheBundle() -> String {
+    (Bundle.main.object(forInfoDictionaryKey: "q") as? String) ?? ""
 }

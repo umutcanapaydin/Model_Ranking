@@ -386,3 +386,79 @@ enum FixtureElsewhere {
         }
     }
 }
+
+// #242 (G-1): another file's objects behind a widened type, held in constants a sink reads. REFUSED, each: a sink
+// and the code it runs read only constants of a plain value type.
+let fixtureWidened: Any = NSMutableString()
+let fixtureWidenedList = [NSMutableString()]
+struct FixtureHolder { let text: NSMutableString }
+let fixtureHeld = FixtureHolder(text: NSMutableString())
+
+// #242 (G-11): the typed question as an unlabelled argument of an engine-client member. REFUSED at the argument,
+// as are the initialiser's and the subscript's above (`askThroughAnInitialiser`, `askThroughASubscript`): every
+// argument of a call into the engine client is read, labelled or not.
+extension ContentView {
+    func askUnlabelled(_ typed: String) -> URL {
+        client.ask(typed)
+    }
+}
+
+// #242 (G-12, the M21-W3 review's round 2, B3): a value, a class or a selector reached by name through declarations
+// the by-name list did not name: key-value coding through the collections' overrides and `setValuesForKeys(_:)`, a
+// class by name from the bundle, and the target-and-selector APIs. REFUSED, each, matched by its argument label or
+// as a class-by-name entry point.
+func fixtureViewByName(_ typed: String, _ list: NSArray, _ table: NSDictionary, _ set: NSSet, _ object: NSObject) -> [Any?] {
+    object.setValuesForKeys([typed: typed])
+    return [list.value(forKey: typed), table.value(forKey: typed), set.value(forKey: typed),
+            Bundle.main.classNamed(typed), Bundle.main.principalClass]
+}
+
+func fixtureViewTargets(_ target: NSObject, _ named: Selector) {
+    NotificationCenter.default.addObserver(target, selector: named, name: nil, object: nil)
+    _ = Timer(timeInterval: 1, target: target, selector: named, userInfo: nil, repeats: false)
+    _ = Thread(target: target, selector: named, object: nil)
+}
+
+// #242 (G-13): the register's store pointed by the screen at the engine's address, a URL the store did not make.
+// REFUSED: only the register's own file builds its store.
+func fixtureViewPointsTheRegister() -> Data? {
+    GapRegisterStore(url: EngineClient().baseURL).load()
+}
+
+// #242 (G-12): a selector made from text and asked of an object. REFUSED, each: both are `ObjectiveC`'s, which is
+// off the module allowlist (the M21 closure security seat's S6).
+func fixtureViewSelectorByName(_ typed: String, _ target: NSObject) -> Bool {
+    target.responds(to: Selector(typed))
+}
+
+// #242, the security review's M3: a selector passed unlabelled, and key-value coding by a key labelled `key:`.
+// REFUSED, each: a declaration that takes a `Selector`, whatever its label, and a Foundation one labelled `key:`.
+func fixtureViewUnlabelledSelectors(_ named: Selector, _ target: NSObject, _ typed: String, _ a: NSObject, _ b: NSObject) {
+    Thread.detachNewThreadSelector(named, toTarget: target, with: nil)
+    RunLoop.main.perform(named, target: target, argument: nil, order: 0, modes: [.default])
+    _ = NSSortDescriptor(key: typed, ascending: true).compare(a, to: b)
+}
+
+// #242, the security review's M2: a URL the register's file reads through a key path off a type this file declares.
+struct FixtureAddressHolder {
+    let address: URL
+}
+
+// #242, the security review's round 2, M2: a second type holding a URL, which the register's file reads through a key
+// path bound to a name first.
+struct FixtureAddressHolderAgain {
+    let address: URL
+}
+
+// #374 (G-13): two more types handing out a URL, which the register's file reads through a subscript and through a
+// `@dynamicMemberLookup` wrapper.
+struct FixtureAddressTable {
+    let addresses: [URL]
+    subscript(_ index: Int) -> URL { addresses[index] }
+}
+
+@dynamicMemberLookup
+struct FixtureAddressWrapper {
+    let held: FixtureAddressHolder
+    subscript<T>(dynamicMember path: KeyPath<FixtureAddressHolder, T>) -> T { held[keyPath: path] }
+}

@@ -109,11 +109,11 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
     # nobody had reviewed the licence of, which is the opposite of what this table is for. Three
     # Epoch ran itself and carry its citation; four it compiles from other publishers, and each of
-    # those is credited to its source (#124).
+    # those is credited to its source (#124). #376 (D-215): Epoch's WebDev copy left this map for
+    # `RETIRED_EXTERNAL_ATTRIBUTION`, a duplicate of `arena_webdev`.
     "epoch_eci": EPOCH_ATTRIBUTION,
     "epoch_gpqa": EPOCH_ATTRIBUTION,
     "epoch_aime": EPOCH_ATTRIBUTION,
-    "epoch_webdev": EPOCH_EXTERNAL_ATTRIBUTION["epoch_webdev"],
     "epoch_mmlu": EPOCH_EXTERNAL_ATTRIBUTION["epoch_mmlu"],
     # M17-W3 (#37): five more Epoch-run boards, CC-BY like GPQA, listed one by one as above.
     "epoch_simpleqa": EPOCH_ATTRIBUTION,
@@ -147,11 +147,11 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).
     **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
-        ("epoch_mmlu", "helm"), ("epoch_webdev", "arena_site"))},
+        ("epoch_mmlu", "helm"),)},
     # The #265 review's B2: as D-193 credited them, for an artifact an older release built.
     **{RETIRED_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
         ("epoch_arc_agi", "arc_prize_leaderboard"), ("epoch_terminalbench", "terminal_bench_2"),
-        ("epoch_deepswe_external", "datacurve_leaderboard"))},
+        ("epoch_webdev", "arena_site"), ("epoch_deepswe_external", "datacurve_leaderboard"))},
 }
 
 

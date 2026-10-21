@@ -59,7 +59,6 @@ _VISION_FACET = "a facet of Arena's vision board that names no surface's task"
 
 #: board -> why it stands in no family.
 OUTSIDE_FAMILIES: dict[str, str] = {
-    "epoch_webdev": "Epoch's copy of LMArena's WebDev board, one vote with `arena_webdev`, which `web-dev` reads under its CC-BY grant (#185)",
     "arena_text_chinese": _LANGUAGE,
     "arena_text_english": _NO_LANGUAGE,
     "arena_text_french": _LANGUAGE,

@@ -99,10 +99,9 @@ ARENA_BOARDS: dict[str, ArenaBoard] = {
     "search_factuality": ArenaBoard(
         "arena_search_factuality", "search_factuality", "Arena search factuality", 20
     ),
-    # M21-W1 (#185): LMArena's own WebDev board, under the dataset card's CC-BY-4.0 grant, where
-    # `epoch_webdev` is Epoch's copy of it, which D-185 read arena.ai's site terms as keeping off a
-    # public artifact. 141 rows on the overall board of 2026-10-08, 91 of them ranked; 70 is below any
-    # real day and far above a truncation.
+    # M21-W1 (#185): LMArena's own WebDev board, under the dataset card's CC-BY-4.0 grant. Epoch's copy
+    # of it (`epoch_webdev`) is no longer built: D-215 retired it as a duplicate (#376). 141 rows on the
+    # overall board of 2026-10-08, 91 of them ranked; 70 is below any real day and far above a truncation.
     "webdev": ArenaBoard("arena_webdev", "webdev", "Arena WebDev", 70),
 }
 _PAGE = 100

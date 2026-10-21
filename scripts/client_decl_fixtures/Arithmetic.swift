@@ -104,3 +104,66 @@ func shapeCountOfBuilt(_ s: Standing) -> Int { Array(repeating: 0, count: s.posi
 func shapeRangeCount(_ s: Standing) -> Int { (0..<s.position).count * 2 } // shape: range-count
 func shapeDropCount(_ s: Standing) -> Int { [1, 2, 3].dropFirst(s.position).count + 1 } // shape: drop-count
 func shapeMirror(_ s: Standing) -> Int { (Mirror(reflecting: s).children.first?.value as? Int ?? 0) + 1 }
+
+// #242 (G-2): what a served number may meet is listed: a comparison, its display, the places a ruling names, and
+// what the app's own code does with it, followed. Each line marked `shape:` meets something else. REFUSED, each,
+// on that line; a list a served number sizes is refused where it is built, so its count, bound to a name first or
+// not, is never read.
+func shapeAbs(_ s: Standing) -> Int { abs(s.position) } // shape: abs
+func shapeMin(_ s: Standing) -> Int { min(s.position, 3) } // shape: min
+func shapeMax(_ s: Standing) -> Int { max(s.position, 3) } // shape: max
+func shapeMagnitude(_ s: Standing) -> UInt { s.position.magnitude } // shape: magnitude
+func shapeRounded(_ s: Standing) -> Double { Double(s.position).rounded(.down) } // shape: rounded
+func shapeTable(_ s: Standing) -> Int { [10, 20, 30][s.position] } // shape: table
+func shapeBoundCount(_ s: Standing) -> Int {
+    let built = Array(repeating: 0, count: s.position) // shape: bound-count
+    return built.count + 1
+}
+func shapeBoundRange(_ s: Standing) -> Int {
+    let range = 0..<s.position // shape: bound-range
+    return range.count
+}
+func shapeBoundDrop(_ s: Standing) -> Int {
+    let dropped = [1, 2, 3].dropFirst(s.position) // shape: bound-drop
+    return dropped.count
+}
+func shapeStringRepeating(_ s: Standing) -> Int { String(repeating: "x", count: s.position).count } // shape: string-repeating
+func shapeDataCount(_ s: Standing) -> Int { Data(count: s.position).count } // shape: data-count
+func shapeDataRepeating(_ s: Standing) -> Int { Data(repeating: 0, count: s.position).count } // shape: data-repeating
+func shapeRepeatElement(_ s: Standing) -> Int { Array(repeatElement(0, count: s.position)).count } // shape: repeat-element
+// ALLOWED, each: a served number compared, and shown.
+func shapeCompared(_ s: Standing) -> Bool { s.position > 3 } // allowed: compared
+func shapeShown(_ s: Standing) -> String { "#\(s.position)" } // allowed: shown
+
+// #242, the security review's B1: the twins above, met by reference rather than applied: a function handed to an
+// element method, held as a value, or named in a key path; and (past the review) an app function handed to `map`,
+// which the flow does not follow, and a closure literal called on the spot. REFUSED, each, on its line.
+func shapeMapAbs(_ s: Standing) -> Int { [s.position].map(abs).first ?? 0 } // shape: map-abs
+func shapeAbsValue(_ s: Standing) -> Int { let f: (Int) -> Int = abs; return f(s.position) } // shape: abs-value
+func shapeMaxValue(_ s: Standing) -> Int { let m: (Int, Int) -> Int = max; return m(s.position, 3) } // shape: max-value
+func shapeMapMagnitude(_ s: Standing) -> UInt { [s.position].map(\.magnitude).first ?? 0 } // shape: map-magnitude
+func shapeKeyPathMagnitude(_ s: Standing) -> UInt { s.position[keyPath: \.magnitude] } // shape: keypath-magnitude
+func shapeMapWords(_ s: Standing) -> [Int] { [s.position].map(\.words.count) } // shape: map-words
+func shapeMapTruncating(_ s: Standing) -> [Int] { [s.position].map(Int.init(truncatingIfNeeded:)) } // shape: map-truncating
+func shapeBumped(_ x: Int) -> Int { x + 1 }
+func shapeMapAppFunction(_ s: Standing) -> [Int] { [s.position].map(shapeBumped) } // shape: map-app-function
+func shapeCalledLiteral(_ s: Standing) -> Int { { $0 + 1 }(s.position) } // shape: called-literal
+
+// #242, the security review's round 2, B1: a key path not written in place (bound to a name, or a parameter), and a
+// method of a served number referenced without a call. REFUSED, each, on its line: the gate refuses what it cannot
+// read, and judges a method reference as it judges the call.
+func shapeKeyPathHeld(_ s: Standing) -> UInt { let kp = \Int.magnitude; return s.position[keyPath: kp] } // shape: keypath-held
+func shapeKeyPathHeldInClosure(_ s: Standing) -> [UInt] { let kp = \Int.magnitude; return [s.position].map { $0[keyPath: kp] } } // shape: keypath-held-closure
+func shapeKeyPathParameter(_ s: Standing, _ kp: KeyPath<Int, UInt>) -> UInt { s.position[keyPath: kp] } // shape: keypath-parameter
+func shapeKeyPathParameterUse(_ s: Standing) -> UInt { shapeKeyPathParameter(s, \.magnitude) }
+func shapeMethodHeld(_ s: Standing) -> Int { let g = s.position.advanced(by:); return g(1) } // shape: method-held
+func shapeDistanceHeld(_ s: Standing) -> Int { let g = s.position.distance(to:); return g(10) } // shape: distance-held
+func shapeSignumHeld(_ s: Standing) -> Int { let sg = s.position.signum; return sg() } // shape: signum-held
+
+// #373 (G-2): a served number reached through a key path walked from its struct, and a method of a served number
+// called curried on its type. REFUSED, each, on its line.
+func shapeStructKeyPath(_ s: Standing) -> UInt { s[keyPath: \Standing.position.magnitude] } // shape: struct-keypath
+func shapeStructMapMagnitude(_ s: Standing) -> [UInt] { [s].map(\.position.magnitude) } // shape: struct-map-magnitude
+func shapeStructMapWords(_ s: Standing) -> [Int] { [s].map(\.position.words.count) } // shape: struct-map-words
+func shapeCurriedAdvanced(_ s: Standing) -> Int { Int.advanced(by:)(s.position)(1) } // shape: curried-advanced
+func shapeCurriedSignum(_ s: Standing) -> Int { Int.signum(s.position)() } // shape: curried-signum

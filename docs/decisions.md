@@ -294,6 +294,8 @@ the closure report. **Revisit when:** a second project's post-prod dataset exist
 
 **Revisit when:** AA commercial quote lands; Arena HF dataset + OpenRouter join at M2 (OQ-1).
 
+**Amended by D-215 (2026-10-21)**: the owner's licence rule -- a public leaderboard's numbers are served when their publisher is credited with a link and its terms do not forbid non-commercial use; a repository's code licence is not its numbers' licence (#376).
+
 ---
 
 ## D-102 — The Cowork spike is L0 throwaway; production code is rebuilt through the pipeline
@@ -4428,6 +4430,8 @@ a paid launch (then SWE-bench must go whatever else changes, and the table goes 
 
 **Amended by D-194 (2026-10-13)**: clause 3's table -- `epoch_arc_agi`, `epoch_terminalbench` and `openrouter` are replaced by their publishers' licensed data and no longer built; `epoch_deepswe_external` waits for the owner's Hugging Face token (#265). The table notes each replacement.
 
+**Amended by D-215 (2026-10-21)**: clause 3's licence stance -- the owner's rule for a free, non-commercial app; `epoch_webdev` and LiteLLM's `openrouter/` copies are removed as a duplicate and stale data, SWE-bench stays with an email owed before any payment (#376).
+
 **Amended by D-216 (2026-10-21)**: clause 3's table -- `epoch_deepswe_external` is replaced by `datacurve_deepswe`, Datacurve's CC BY 4.0 dataset read with the owner's Hugging Face token, and no longer built (#265).
 
 ## D-186 — On TestFlight the hosted engine serves every source; the licences are settled before production
@@ -5509,6 +5513,8 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Revisit when:** v1 ships, or the owner changes the goals.
 
+**Amended by D-215 (2026-10-21)**: rule 1 is widened to attributed public numbers whose terms do not forbid non-commercial use (#376).
+
 ---
 
 ## D-211 — The task itself and a question of fact get the note, on the golden set too
@@ -5595,11 +5601,41 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 ---
 
+## D-215 — The owner's licence rule: attributed public numbers, for a free and non-commercial app
+
+**Status:** proposed
+**Owner ruling:** 2026-10-21, in issue #376 (the six-item licence list raised the same day *(translated)*)
+**Amends** D-101, D-185 and D-210 · from #376.
+
+**Context.** D-101 made provenance mandatory and admitted only documented, licensed endpoints. D-185 clause 3 kept a table of sources whose terms did not clearly permit a public app, and the Golden Rules (D-210, rule 1) ask that every source be "under an open licence or used with its publisher's written permission". On 2026-10-21 six sources were still open against that rule: DeepSWE, Epoch's WebDev copy, MMLU/HELM, SWE-bench (CC BY-NC), LiteLLM's copies of OpenRouter's prices, and the vendor subscription plans. The owner ruled on all six in #376's body.
+
+**Decision.**
+1. **The rule.** The app is free and non-commercial. A public leaderboard's numbers may be served when its publisher is named with a link on the Credits screen (D-185, D-193) and the publisher's terms do not forbid non-commercial use. A code licence on a publisher's repository (MIT, Apache-2.0) is not the licence of its leaderboard's numbers. A board whose publisher states no data licence is served under this rule, with its attribution.
+2. **Golden Rule 1 is widened** (D-210): "open licence or the publisher's written permission" now also admits attributed public numbers whose terms do not forbid non-commercial use. `AGENTS.md` carries the widened text.
+3. **Item by item:**
+   - **DeepSWE** (`datacurve/deep-swe-leaderboard`, CC BY 4.0, gated): unchanged, stays on #265 until the owner's Hugging Face token is in place.
+   - **`epoch_webdev`** (Epoch's copy of LMArena's WebDev board): removed as a duplicate of `arena_webdev`, which `web-dev` reads since D-190 (#185). It is no longer declared or built, so `/v1/boards` stops publishing it: a public-contract change this ADR covers. Its attribution and its `arena_site` credit stay as a retired source's, as `epoch_arc_agi`'s do (D-194), so an engine still boots on an artifact an older release built.
+   - **MMLU/HELM** (`epoch_mmlu`): kept, served with its attribution. Its publisher names no data licence and no contact; no email is sent.
+   - **SWE-bench** (CC BY-NC 4.0): kept. Non-commercial use is what its licence allows while the app is free. **Before the app ever takes payment, an email to SWE-bench's maintainers is owed**; that condition lives here, not in code.
+   - **LiteLLM's `openrouter/` price copies**: removed as stale. Prices come from models.dev since D-194 (#268). The LiteLLM ingest drops them, and the public artifact drops any an older built artifact still holds. The `openrouter` retired attribution and credit stay, for that older artifact.
+   - **Subscription plans**: out of scope for this ruling; the Perplexity plan rows stay owed before any public release.
+4. **Nothing else leaves the catalogue.** The owner wants the board list as rich as possible: only duplicates and stale copies go.
+
+**Rationale.** The owner's ruling. The app charges nothing and names every publisher with a link, which is what a public leaderboard's terms ask where they ask anything. Treating a repository's code licence as the licence of its numbers would claim a grant nobody made; treating silence as a ban would empty boards the owner wants served.
+
+**Mitigation if violated:** A board served without its credit, or one whose terms forbid non-commercial use, breaks rule 1 as widened here: `credits_for` refuses a served citation with no credit, and a publisher whose terms forbid it is taken out by its own ADR. The app taking payment before SWE-bench's maintainers are written to breaks clause 3; D-185's revisit trigger (a paid launch) holds as well.
+
+**Revisit when:** the app takes payment (SWE-bench's email, and every board's terms read again for commercial use), a publisher's terms change, or a served publisher objects.
+
+**Amended by D-216 (2026-10-21)**: clause 3's DeepSWE item is carried out -- with the owner's token in place, `agentic-coding` ranks on `datacurve/deep-swe-leaderboard` (`datacurve_deepswe`), and Epoch's copy is retired (#265).
+
+---
+
 ## D-216 — `agentic-coding` ranks on Datacurve's CC BY 4.0 DeepSWE dataset, read with the owner's token
 
 **Status:** proposed
 **Owner ruling:** 2026-10-21, on #265: the owner accepted the dataset's terms, put a read token on the Mac, and told us to work the move now (the re-triage of 2026-10-21 pinned its scope)
-**Amends** D-194 clauses 1 and 2 (DeepSWE waited for the token; `agentic-coding`'s family), D-188 clause 1's families table, and D-185 clause 3's table. The id after D-215, which #376's open branch has taken.
+**Amends** D-194 clauses 1 and 2 (DeepSWE waited for the token; `agentic-coding`'s family), D-188 clause 1's families table, and D-185 clause 3's table. Carries out D-215 clause 3's DeepSWE item, which stayed on #265 until the token was in place.
 
 **Context.** D-194 moved three unlicensed boards to their publishers' licensed data and kept Epoch's copy of DeepSWE
 (`epoch_deepswe_external`, no licence published) until the owner's Hugging Face token was in place, because Datacurve's
@@ -5636,7 +5672,7 @@ none, so each ran at its model's default setting.
 7. **The calls are a new external API from production code, with a secret** (`permission-matrix.md` §3, ASK). The
    owner's ruling on #265 is the answer; the fetch goes through `app.clients` with the bounded fetch and a host list.
 
-**Rationale.** Golden Rule 1 (D-210): the board comes from its publisher, under an open licence. The job's config is
+**Rationale.** Golden Rule 1 (D-210, as D-215 widened it): the board comes from its publisher, under an open licence, with its publisher named and linked on the Credits screen. The job's config is
 the publisher's own statement of each run's effort, so one more small file keeps every stated effort true.
 
 **The alternatives not taken.** Every effortless run stored at `high`, as the re-triage first assumed: it would rank
