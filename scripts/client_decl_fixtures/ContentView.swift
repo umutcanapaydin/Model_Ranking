@@ -449,3 +449,16 @@ struct FixtureAddressHolder {
 struct FixtureAddressHolderAgain {
     let address: URL
 }
+
+// #374 (G-13): two more types handing out a URL, which the register's file reads through a subscript and through a
+// `@dynamicMemberLookup` wrapper.
+struct FixtureAddressTable {
+    let addresses: [URL]
+    subscript(_ index: Int) -> URL { addresses[index] }
+}
+
+@dynamicMemberLookup
+struct FixtureAddressWrapper {
+    let held: FixtureAddressHolder
+    subscript<T>(dynamicMember path: KeyPath<FixtureAddressHolder, T>) -> T { held[keyPath: path] }
+}

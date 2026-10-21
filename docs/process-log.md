@@ -1119,3 +1119,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The self-test holds each shape in every configuration, and all 183 pinned refusals are still made; the shipping client passes the gate in all four.
 - G-2 and INV-76 name the two new fixture rules.
 - Lesson: a rule that waits for an operand of a number type misses the number's own members reached from its container; read a key path by what it walks through, not only by what it is applied to.
+
+## 2026-10-21 — fix/issue-374-store-subscript: a store's URL read through another file's subscript or dynamic member is refused (#374)
+
+- Stacked on #373's branch, itself on #372; the #242 Security-Reviewer's round 3 M2 found `GapRegisterStore(url: t[0])` and `GapRegisterStore(url: w.address)` (`w` a `@dynamicMemberLookup` wrapper) passing in all four configurations.
+- The red commit planted both at the end of the fixture's `ContentView.swift` and `FrontDoor.swift`, so no pinned line moved: two tests failed, the compiled gate stayed green.
+- `_store_received` now reads a `subscript_expr` typed URL, written or implicit: the subscript's own declaration and every member a key path handed to it names, each refused when another file declares it. The implicit one prints its declaration with ` [with`, which `MAIN_REF` does not match, so the rule reads `FLOW_REF`.
+- All 183 pinned refusals are still made, the self-test holds both shapes in every configuration, and the shipping client passes. G-13 says so.
+- Lesson: a `@dynamicMemberLookup` member read is a subscript the compiler writes, printed `implicit` with a generic substitution; a rule that skips implicit nodes or expects `"` after the location misses it.

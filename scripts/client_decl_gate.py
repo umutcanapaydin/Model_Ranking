@@ -756,6 +756,9 @@ FIXTURE_REFUSALS = {
     # #242, the security review's round 2: a key path not written in place, in a store and on a served number; and
     # a method referenced on a served number without a call.
     ("FrontDoor.swift", "reads a URL through a key path not written in place"),
+    # #374: a URL of another file's type, read through its subscript and through a `@dynamicMemberLookup` wrapper.
+    ("FrontDoor.swift", "receives a URL, by `FixtureAddressTable.subscript(_:)`, declared in ContentView.swift"),
+    ("FrontDoor.swift", "receives a URL, by `FixtureAddressWrapper.subscript(dynamicMember:)`, declared in ContentView.swift"),
     ("Arithmetic.swift", "`a key path not written in place` on a served position"),
     ("Arithmetic.swift", "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeMethodHeld`"),
     # #242 (G-12): a selector made from text and asked of an object, both `ObjectiveC`'s (the module rule).
@@ -839,6 +842,7 @@ FIXTURE_RULES: dict[str, str] = {
     "a key path walked from a served struct": "`Swift.Int.magnitude` on a served position (its receiver) in `shapeStructKeyPath`",
     "a method called curried on its type": "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeCurriedAdvanced`",
     "a store's key path not written in place": "reads a URL through a key path not written in place",
+    "a store's URL through another file's subscript": "receives a URL, by `FixtureAddressTable.subscript(_:)`",
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
     "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
@@ -1145,7 +1149,8 @@ def _store_made(file: str, node: _Node, line: str, aliases: dict[str, str]) -> l
 
 def _store_received(file: str, node: _Node, line: str) -> list[str]:
     """#242 (G-13): a URL a store reads off a declaration another file declares (not a call, which `_store_made`
-    judges): directly, as a member, or (the security review's M2) through a key path, whose members it names."""
+    judges): directly, as a member, (the security review's M2) through a key path, whose members it names, or (#374)
+    through a subscript, a `@dynamicMemberLookup` one included."""
     if node.kind == "keypath_application_expr" and len(node.kids) >= 2 and (typed := TYPE_OF["type"].search(line)) \
             and re.search(r"\bURL\b", typed.group(1)):
         if _top(node.kids[1]).kind != "keypath_expr":
@@ -1154,6 +1159,14 @@ def _store_received(file: str, node: _Node, line: str) -> list[str]:
             return [f"main.<store url>.through a key path not written in place@{_line(node)}"]
         return [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"
                 for item in node.kids[1].walk() for place in MAIN_REF.finditer(item.line)
+                if (declared := pathlib.Path(place.group(2)).name) != file]
+    if node.kind == "subscript_expr" and (typed := TYPE_OF["type"].search(line)) and "->" not in typed.group(1) \
+            and re.search(r"\bURL\b", typed.group(1)):
+        # #374: a subscript of another file's type, written or (`@dynamicMemberLookup`) implicit, and the members a
+        # key path handed to it names.
+        named = [node] + [item for kid in node.kids[1:] for item in kid.walk() if item.kind == "member"]
+        return [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"
+                for item in named for place in FLOW_REF.finditer(item.line)
                 if (declared := pathlib.Path(place.group(2)).name) != file]
     if node.kind not in ("declref_expr", "member_ref_expr") or " implicit " in node.line \
             or (typed := TYPE_OF["type"].search(line)) is None or "->" in typed.group(1) \
