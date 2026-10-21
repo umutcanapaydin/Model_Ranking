@@ -63,7 +63,12 @@ def token_file() -> Path:
 def token_available(environ: Mapping[str, str] | None = None, path: Path | None = None) -> bool:
     """Whether a token is set or its file exists, without reading it: the contract test's need (`tests/skips.py`)."""
     environ = os.environ if environ is None else environ
-    return bool(environ.get(ENV_VARIABLE)) or (token_file() if path is None else path).exists()
+    if environ.get(ENV_VARIABLE):
+        return True
+    try:  # asked at collection: a stat refused (a runner's /root under Python 3.12) is no token, not an error
+        return (token_file() if path is None else path).exists()
+    except OSError:
+        return False
 
 
 def read_token(environ: Mapping[str, str] | None = None, path: Path | None = None) -> str:
