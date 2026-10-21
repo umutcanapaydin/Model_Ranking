@@ -1127,3 +1127,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `_store_received` now reads a `subscript_expr` typed URL, written or implicit: the subscript's own declaration and every member a key path handed to it names, each refused when another file declares it. The implicit one prints its declaration with ` [with`, which `MAIN_REF` does not match, so the rule reads `FLOW_REF`.
 - All 183 pinned refusals are still made, the self-test holds both shapes in every configuration, and the shipping client passes. G-13 says so.
 - Lesson: a `@dynamicMemberLookup` member read is a subscript the compiler writes, printed `implicit` with a generic substitution; a rule that skips implicit nodes or expects `"` after the location misses it.
+
+## 2026-10-21 — fix/issue-375-pin-keys: the pre-#242 refusal pin is keyed by planted line, not line number (#375)
+
+- Stacked on #374's and #373's branches, themselves on #372; the #242 Security-Reviewer's queued risk R3. The pin compared each refusal's exact text, line number included, so an in-place fixture edit broke it for no loss, and the count test caught a deleted pinned line but not an edited one.
+- Red: a fixture copy with one line inserted reported 27 moved refusals gone; and a pin with a line removed, a line duplicated over another, or its lines reversed passed.
+- Each pinned refusal is now keyed by file, planted line (stripped, with its rank among identical lines, since seven pinned lines share their text with another) and text without the line number. The 183 lines were converted one for one from the old pin, which the fixture's line numbers still matched.
+- The pin's first 183 lines are held by their SHA-256 in the gate, so an edited, cut, reordered or regenerated pin fails the self-test in every configuration; lines may still be appended.
+- Lesson: a pin that lets a refactor break it will be regenerated, so key it by what stays put, and hold the pin itself, or the regeneration hides the loosening it exists to catch.
