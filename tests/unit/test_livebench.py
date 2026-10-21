@@ -171,3 +171,18 @@ def test_the_registered_ingest_stores_each_row() -> None:
     report = declared.ingest(conn, FakeRawSource(name="livebench", url=TABLE, payload=_raw()),
                              RunContext(observed_at="2026-10-22T00:00:00Z"))
     assert (report.stored, report.skipped) == (49, 0)
+
+
+@pytest.mark.parametrize("name", ["minimax-m3.1-flash", "MiniMax M3.1", "minimax-m3-1-flash"])
+def test_a_point_release_of_minimax_m3_is_never_read_as_minimax_m3(name: str) -> None:
+    """covers REQ-SRC-013 (D-219, the unlinked-id count): LiveBench ranks MiniMax M3.1 Flash beside MiniMax M3, and the
+    curated rule took any `minimax-m3` prefix, so M3's row would have carried M3.1 Flash's score. The rule stops
+    before a point release, as MiniMax M2's does; every spelling the artifact links to M3 today still reads as M3."""
+    from app.workflows.registry import canonicalize
+
+    rule = canonicalize(name)
+    assert rule is None or rule.canonical_id != "minimax-m3", name
+    for spelling in ("minimax-m3", "MiniMax-M3", "Minimax M3", "MiniMax-M3_none", "fireworks_ai/minimax-m3",
+                     "together_ai/MiniMaxAI/MiniMax-M3", "azure_ai/FW-MiniMax-M3"):
+        found = canonicalize(spelling)
+        assert found is not None and found.canonical_id == "minimax-m3", spelling
