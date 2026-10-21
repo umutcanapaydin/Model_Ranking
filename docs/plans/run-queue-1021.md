@@ -43,8 +43,8 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 | issue-389 | fix/issue-389-token-apart | #395 | none | stacked |
 | issue-391 | fix/issue-391-repo-pin | #397 | none | stacked |
 | issue-371 | fix/issue-371-generic-and-rebuilt | #398 | none | stacked |
-| issue-378 | enhancement/issue-378-arena-media | none | none | running |
-| issue-379 | enhancement/issue-379-new-boards | none | none | queued |
+| issue-378 | enhancement/issue-378-arena-media | #399 | none | stacked |
+| issue-379 | enhancement/issue-379-new-boards | none | none | running |
 | issue-390 | owner/run-queue-1021-bundle | none | none | running |
 | issue-392 | owner/run-queue-1021-bundle | none | none | running |
 
