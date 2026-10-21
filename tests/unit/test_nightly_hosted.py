@@ -216,6 +216,17 @@ def test_the_token_s_step_never_opens_the_database(tmp_path: Path) -> None:
     assert "sqlite" not in ran and "app.workflows" not in ran, ran
 
 
+def test_the_jobs_name_the_commit_alike_however_their_clones_abbreviate_it(tmp_path: Path) -> None:
+    """The #389 security review's M1: `git rev-parse --short` gave 7 characters in the refresh job's
+    shallow clone and 8 in the deploy job's full one, so every night's ship was refused."""
+    repo, state, calls, env = _scratch(tmp_path)
+    assert _prepare(repo, state, env).returncode == 0
+    _git("-C", str(repo), "config", "core.abbrev", "12")
+    done = _deploy(repo, env)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert calls.exists()
+
+
 def test_a_prepared_copy_changed_after_its_stamp_is_refused(tmp_path: Path) -> None:
     repo, state, calls, env = _scratch(tmp_path)
     assert _prepare(repo, state, env).returncode == 0
