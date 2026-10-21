@@ -143,3 +143,20 @@ func fixtureDetailDecodesByName(_ decoder: any Decoder) throws -> CategoryList {
 func fixtureDetailDecodesAShelf(_ typed: String) -> FixtureSurfacesShelf? {
     try? JSONDecoder().decode(FixtureSurfacesShelf.self, from: Data(typed.utf8))
 }
+
+// #242 (G-1): a Swift-module object held in a constant, which a static `let`'s initialiser reads, and the current
+// calendar's shared state in a decoder no one names. REFUSED, each: the code a privacy sink runs references only
+// what its list names, and reads only constants of a plain value type.
+let fixtureSharedBuffer = ManagedBuffer<String, Int>.create(minimumCapacity: 1) { _ in "" }
+
+enum FixtureBuffered {
+    static let tag = fixtureSharedBuffer.header
+}
+
+struct FixtureCalendarNoted: Decodable {
+    let note: String
+
+    init(from decoder: Decoder) throws {
+        note = "\(Calendar.current.firstWeekday)"
+    }
+}

@@ -36,16 +36,17 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   passes (B19); the file system is whole inside `FrontDoor.swift`, so a write to the temporary
   directory from there passes too (B31). What a file does with a capability it owns is for review
   and the tests. The first exception is the two privacy sinks (#85, D-180, `_SinkReach`); the second
-  is a served number (#60, D-181, `_Flow`). For both, the compiled gate refuses the shapes its fixture
-  holds (`scripts/client_decl_fixtures/`), each as written there; the same form written another way
-  (bound to a name first, split over lines, behind a widened type) is not held, and any other form is
-  not held (G-1, G-2; see INV-66 and INV-76 in `docs/security-invariants.md`).
-- The gap register's own URLs: `FrontDoor.swift` may make a URL and load it with `Data(contentsOf:)`.
-  Since #246 a URL initialiser or a decode whose type prints as `URL` is refused there, and its Foundation
-  declarations are listed (`STORE_FOUNDATION_ALLOWED`); a URL decoded through a generic helper is not held
-  (G-13, #276).
-  `StandingsStore.swift` is a privacy sink, so a Foundation declaration off `SINK_FOUNDATION_ALLOWED`
-  is refused there, and any other form is not held (G-1).
+  is a served number (#60, D-181, `_Flow`). Since #242 (D-214) both are allowlists: a sink file references
+  only its own Foundation list, the code a sink runs only `SINK_RUNS_ALLOWED`, and a constant of another
+  file only when `SINK_CONSTANT_TYPES` admits its type; a served number meets only what `SERVED_MAY_MEET`
+  and its rules admit. What each still does not hold is G-1 and G-2 (INV-66, INV-76 in
+  `docs/security-invariants.md`); every refusal the fixture made before #242 is pinned
+  (`PINNED_REFUSALS`).
+- The two stores' URLs: since #242 a store makes a URL only from the file manager's folders
+  (`STORE_FOLDER_MAKERS`) or by a function of its own file not generic over it, reads only its own `url`
+  (`STORE_READS`), and takes a URL parameter only in an initialiser `PROVENANCE` keeps to its file; since
+  #246 a URL initialiser or decode by name is refused there, and `FrontDoor.swift`'s Foundation
+  declarations are listed (`STORE_FOUNDATION_ALLOWED`). What is not held is G-13.
 - The kept answers' file (#297, INV-67): `StandingsStore.keep` is refused outside `ContentView.load()`, both
   matched by their full names (#322), and a kept answer's type outside its files when a decode's generic
   substitution gives a `Decodable` parameter that type, read through every `typealias` the dump declares,
@@ -76,7 +77,7 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CLIENT = ROOT / "ios" / "ModelRanking"
@@ -189,6 +190,25 @@ STORE_FOUNDATION_ALLOWED: dict[str, frozenset[str]] = {
         "URLResourceValues.isExcludedFromBackup",
     }),
 }
+#: #242 (G-13; the backlog-gates review rounds 2 and 3, M1; #276): what may make a URL in each store, each by the
+#: declaration the compiler resolves (measured on the shipping client, the four configurations, 2026-10-21): the
+#: file manager's folders, and a component appended to one or removed. A URL a store makes any other way is
+#: refused: an initialiser, a decode, a generic function of its own over the URL it returns (its type given,
+#: inferred, or through a `typealias`, which `_aliases` reads), a cast, or a call into another file. A function the
+#: store's own file declares, not generic over it, is admitted: its own body is held by this rule. Each entry is
+#: seen on the shipping client or reported.
+STORE_FOLDER_MAKERS: dict[str, frozenset[str]] = {
+    file: frozenset({"Foundation.FileManager.urls(for:in:", "Foundation.URL.appendingPathComponent",
+                     "Foundation.URL.appendingPathComponent(_:isDirectory:", "Foundation.URL.deletingLastPathComponent("})
+    for file in ("FrontDoor.swift", "StandingsStore.swift")
+}
+#: #242 (G-13): what each store reads with `Data(contentsOf:)` (or any initialiser `CONTENTS_OF` matches): its own
+#: `url`, the one property its initialiser sets, and only that (the #276 shape, a URL bound to `url` between the
+#: guard and the read, is another declaration). Each is seen on the shipping client or reported.
+STORE_READS: dict[str, str] = {
+    "FrontDoor.swift": "GapRegisterStore.url",
+    "StandingsStore.swift": "StandingsStore.url",
+}
 #: A symbol that makes a URL by its own name: an initialiser of a URL type, or a decode of one. Refused in
 #: both stores, the privacy sink's list notwithstanding (it lists `URL.init(string:` for the engine client).
 URL_MADE_BY_NAME = re.compile(r"^(?:URL|NSURL)\.(?:init\(|decoded\b)")
@@ -281,6 +301,25 @@ BY_NAME = (
     "NSClassFromString",
     "NSSelectorFromString",
 )
+#: #242 (G-12; the M21-W3 review's round 2, B3): a value, a class or a selector reached by name, matched by what
+#: the declaration takes rather than by who declares it: an argument labelled for a key or a selector (`forKey:`,
+#: `forKeyPath:`, `forKeys:`, `forUndefinedKey:`, `selector:`, `aSelector:`), a base name that takes keys
+#: (`setValuesForKeys`), and the class-by-name entry points. `Selector.init` and `responds(to:)` are declared in
+#: `ObjectiveC`, which the module rule refuses whole. Each match is refused unless `BY_NAME_ALLOWED` names it.
+BY_NAME_LABEL = re.compile(r"[(:](?:forKey|forKeyPath|forKeys|forUndefinedKey|selector|aSelector):|"
+                           r"ForKey(?:s|Path)?(?:\(|$)|^Bundle\.(?:classNamed|principalClass)\b")
+#: #242, the security review's M3: a key labelled `key:` or `keyPath:` on a Foundation declaration
+#: (`NSSortDescriptor(key:ascending:)`), and, read from the reference's type rather than its label, a declaration
+#: that takes a `Selector` (`Thread.detachNewThreadSelector(_:toTarget:with:)`, `RunLoop.perform(_:target:…)`).
+FOUNDATION_KEY_LABEL = re.compile(r"[(:](?:key|keyPath):")
+TAKES_A_SELECTOR = re.compile(r"\bSelector\b")
+#: #242 (G-12): the declarations the by-name labels match that the client may reference, matched whole, each with its
+#: reason (measured on the shipping client, the four configurations, 2026-10-21); each is seen there or reported.
+BY_NAME_ALLOWED: dict[str, str] = {
+    "Swift.KeyedDecodingContainer.decode(_:forKey:": "a Codable container's key: a coding key of the app's own type",
+    "Swift.KeyedDecodingContainer.decodeIfPresent(_:forKey:": "a Codable container's key: a coding key of the app's own type",
+    "Foundation.URL.resourceValues(forKeys:": "#314: the standings store reads its own file's size by a resource key",
+}
 
 #: #85 (D-180): the two privacy sinks, into which the file scope above cannot see (the M17 closure's
 #: P2). What the rules below refuse is the shapes the fixture holds; see INV-66 (G-1).
@@ -335,6 +374,10 @@ PROVENANCE_BY_TYPE: dict[str, tuple[set[str], str]] = {
         set(), "only a decode builds an answer: the engine's, or the one the store kept (#297)"),
     "Category.init(": (
         set(), "only a decode builds a surface: the engine's list, or the one the store kept (#297)"),
+    # #242 (G-13): a register store built on a URL another file chose, the engine's address among them, by any of its
+    # initialisers; the app reaches it through `GapRegisterStore.onDevice` only.
+    "GapRegisterStore.init(": (
+        {"FrontDoor.swift"}, "only the register's own file builds its store, on the one place it keeps the register"),
     "KeptAnswer.init(": (
         {"StandingsStore.swift"}, "only the store builds a kept answer, from what the engine sent (#297)"),
 }
@@ -474,6 +517,59 @@ ARITHMETIC_PERMITTED: dict[tuple[str, str, str | None], str] = {
     ("Uncertainty.swift", "fact", "distanceOutOf100"): "D-143: a fact's distance from the leader, out of 100 (#171)",
     ("Uncertainty.swift", "fact", "scoreOutOf100"): "D-143: a fact's score against the served anchor (#171)",
 }
+#: #242 (G-2, INV-76): what a served number may meet, by the declaration of another module the compiler resolves
+#: and the number's role there (`receiver` or `argument`), each with its reason. `None` admits it in any file; a
+#: set admits it only in those `(file, function)` places (measured on the shipping client, the four
+#: configurations, 2026-10-21). Anything else a served number meets, outside the places `ARITHMETIC_PERMITTED`
+#: names, is refused (`_meets`), so a new operation on one is a reviewed edit; every entry, in every place it
+#: names, is seen on the shipping client or reported. The arithmetic rule still judges the operators and numeric
+#: methods it names; this rule judges every other declaration. What the app's own code does with a served number
+#: is followed by `_Flow` and judged where it meets one of these.
+_Places = frozenset[tuple[str, str]] | None
+SERVED_MAY_MEET: dict[tuple[str, str], tuple[_Places, str]] = {
+    # A test reads a number and changes none (a comparison operator is admitted by rule, `SERVED_MAY_MEET_BY_RULE`).
+    ("Swift.ClosedRange.contains", "argument"): (frozenset({("Uncertainty.swift", "evidenceBreadth")}),
+                                                 "a comparison: whether a range of the app's own holds a board's age"),
+    ("Swift.Double.isFinite", "receiver"): (None, "a test: whether it is a number at all"),
+    # Display: the number written as it is.
+    ("Swift.DefaultStringInterpolation.appendInterpolation", "argument"): (None, "display: written into text"),
+    ("SwiftUICore.LocalizedStringKey.StringInterpolation.appendInterpolation", "argument"): (
+        None, "display: written into a localised text"),
+    ("Swift.String.init(_:", "argument"): (
+        frozenset({("Language.swift", "number"), ("Language.swift", "wholeNumber"), ("Notices.swift", "staleSentence")}),
+        "display: the number as text, and the sources' ages listed"),
+    # Passed along unchanged: the flow follows what is passed (`_Flow`); a method that hands each element to a
+    # closure is admitted by rule (`SERVED_PASSES_ELEMENTS`).
+    ("Swift.??", "argument"): (None, "passed along: the served number, or a default of the app's own"),
+    ("Swift.Array.subscript(_:", "receiver"): (frozenset({("Notices.swift", "staleSentence")}),
+                                               "passed along: the freshest source's age, written into its sentence"),
+    ("Swift.Sequence.sorted(", "receiver"): (frozenset({("Notices.swift", "staleSentence")}),
+                                             "ordered, which `SORTS_PERMITTED` counts per file: the sources' ages"),
+    # Only where the shipping client needs it, each place named.
+    ("Swift.Double.init(_:", "argument"): (frozenset({("Language.swift", "number")}),
+                                           "display: a whole count checked against the range a sentence may show"),
+    ("Swift.Int.init(_:", "argument"): (frozenset({("Language.swift", "wholeNumber")}),
+                                        "display: a number `rounded()` has shown to be whole, written without decimals"),
+    ("Swift.FloatingPoint.rounded(", "receiver"): (
+        frozenset({("Language.swift", "wholeNumber"), ("Router.swift", "money")}),
+        "display: whether a number is whole (`wholeNumber`), and a price of a dollar or more shown to the dollar "
+        "(`money`, REQ-CMP-002)"),
+    ("Foundation.NSNumber.init(value:", "argument"): (frozenset({("Scores.swift", "priceTag")}),
+                                                      "display: the price handed to its number formatter"),
+    ("Swift.Set.init(_:", "argument"): (frozenset({("AnswerPlan.swift", "disclosures")}),
+                                        "counted: whether two rows share a place (a tie notice)"),
+}
+#: #242 (G-2): what a served number may meet by rule, whatever type declares it, each rule with its reason: a
+#: comparison operator of the standard library as an argument, which reads a number and changes none; and as a
+#: receiver, a count, an index range or a test for emptiness (`COUNTING`'s members) and `enumerated()`, which the
+#: M21-W3 review's M1 rules are not served numbers (how many there are, and a row number beside each). And
+#: `SERVED_PASSES_ELEMENTS`, read off the printed declaration as `HANDS_ELEMENTS` reads it.
+SERVED_MAY_MEET_BY_RULE: dict[str, tuple[str, re.Pattern[str]]] = {
+    # The owner is identifiers joined by single dots, so `Comparable...<`, a range, is no comparison.
+    "a comparison": ("argument", re.compile(r"^Swift\.(?:\w+(?:\.\w+)*\.)?(?:<|>|<=|>=|==|!=)$")),
+    "a count or a row number": ("receiver", re.compile(r"^Swift\.[\w.]+\.(?:count|indices|isEmpty|underestimatedCount|"
+                                                       r"startIndex|endIndex|enumerated\()$")),
+}
 #: A type the client decodes that the engine never sends: the phone's own record, kept on the phone.
 #: Every other decoded type is served, so a new one counts until it is named here, with its reason.
 NOT_SERVED = {
@@ -518,6 +614,12 @@ FIXTURES = ROOT / "scripts" / "client_decl_fixtures"
 #: The fixture's dump as committed, which the flow tests read where there is no Xcode. The self-test
 #: compares it with the fixture's compile (the second W2 review's K1); `--snapshot` writes it again.
 SNAPSHOT = ROOT / "tests" / "unit" / "data" / "g2_fixture_ast.txt"
+#: #242 (D-214 clause 1, no loosening): every refusal the fixture made before #242 turned the deny-lists into
+#: allowlists, one per line: `all` or `release` (the Release configurations only), a tab, the refusal. The
+#: self-test fails in any configuration that no longer makes one of them, so a rule rewritten as an allowlist
+#: cannot refuse less than the list it replaced. Lines are added, never removed; the fixture is extended at
+#: the end of a file, so no pinned line moves.
+PINNED_REFUSALS = ROOT / "tests" / "unit" / "data" / "client_decl_refusals_before_242.txt"
 #: What the fixture must produce, as (file, a phrase the refusal carries).
 FIXTURE_REFUSALS = {
     ("ContentView.swift", "URLSession"), ("ContentView.swift", "URL.decoded"),
@@ -624,6 +726,49 @@ FIXTURE_REFUSALS = {
     ("Detail.swift", "decodes `FixtureSurfacesShelf`, which holds a `Category`"),
     ("ContentView.swift", "in `ContentView.load(later:)`, outside the load path"),
     ("ContentView.swift", "in `FixtureElsewhere.ContentView.load()`, outside the load path"),
+    # #242 (G-1; the backlog-gates review round 2's K1): constants of an object's type, behind a widened type and of
+    # a Swift-module class, read by a sink and by a static `let`'s initialiser it runs; what the code a sink runs
+    # references off its list; and a declaration the standings store inherited from the engine client's list.
+    ("EngineClient.swift", "reads `fixtureWidened`, a constant"), ("EngineClient.swift", "reads `fixtureWidenedList`, a constant"),
+    ("EngineClient.swift", "reads `fixtureHeld`, a constant"), ("EngineClient.swift", "reads `fixtureSharedBuffer`, a constant"),
+    ("Detail.swift", "reads `fixtureSharedBuffer`, a constant"), ("Detail.swift", "code a privacy sink runs, references"),
+    ("Detail.swift", "references `Swift.ManagedBuffer.header`"), ("Detail.swift", "references `Foundation.Calendar.current`"),
+    ("ContentView.swift", "code a privacy sink runs, references"),
+    ("StandingsStore.swift", "`Foundation.Bundle.main` is not on the list of Foundation declarations"),
+    ("StandingsStore.swift", "`Foundation.Bundle.object(forInfoDictionaryKey:` is not on the list of Foundation declarations"),
+    # #242 (G-11): an unlabelled argument, an initialiser's and a subscript's into the engine client, each read; and
+    # the unlabelled member the screen may not reach.
+    ("ContentView.swift", "the argument 0 (unlabelled) of `EngineClient.ask`"),
+    ("ContentView.swift", "the `asking` argument of `EngineClient.init(asking:)`"),
+    ("ContentView.swift", "the `asking` argument of `EngineClient.subscript(asking:)`"),
+    ("ContentView.swift", "reaches `EngineClient.ask`"),
+    # #242 (G-12): by name, matched by the argument's label or as a class-by-name entry point.
+    ("ContentView.swift", "reaches a value, a class or a selector by name (an argument labelled"),
+    # #242 (G-13): a store's URL made by a generic helper of its own, through an alias, by a cast or by a call into
+    # another file; a read of anything but its own `url`; and the register's store built outside its file.
+    ("FrontDoor.swift", "makes a URL by `main.fixtureStoreHelper`"), ("FrontDoor.swift", "makes a URL by a cast"),
+    ("FrontDoor.swift", "makes a URL by `Foundation.JSONDecoder.decode(_:from:`"),
+    ("FrontDoor.swift", "not the store's own `GapRegisterStore.url`"),
+    ("StandingsStore.swift", "a store makes a URL only"), ("ContentView.swift", "builds GapRegisterStore"),
+    ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
+    # #242, the security review's M2: a URL of another file's type, read through a key path.
+    ("FrontDoor.swift", "receives a URL, by `FixtureAddressHolder.address`, declared in ContentView.swift"),
+    # #242, the security review's round 2: a key path not written in place, in a store and on a served number; and
+    # a method referenced on a served number without a call.
+    ("FrontDoor.swift", "reads a URL through a key path not written in place"),
+    ("Arithmetic.swift", "`a key path not written in place` on a served position"),
+    ("Arithmetic.swift", "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeMethodHeld`"),
+    # #242 (G-12): a selector made from text and asked of an object, both `ObjectiveC`'s (the module rule).
+    ("ContentView.swift", "`ObjectiveC.Selector.init(_:` in `ObjectiveC`"),
+    # #242, the security review's M3: a selector passed unlabelled, and a key labelled `key:`.
+    ("ContentView.swift", "(it takes a `Selector`, whatever its label)"),
+    ("ContentView.swift", "(a key labelled `key:` or `keyPath:`)"),
+    ("ContentView.swift", "`ObjectiveC.NSObject.responds(to:` in `ObjectiveC`"),
+    # #242 (G-2): what a served number meets off its list.
+    ("Arithmetic.swift", "`Swift.abs` on a served position"),
+    # #242, the security review's B1: met by reference, through a function value and a key path.
+    ("Arithmetic.swift", "`a function value` on a served position"),
+    ("Arithmetic.swift", "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -668,6 +813,26 @@ FIXTURE_RULES: dict[str, str] = {
     # #322 (D-209 clause 5).
     "a kept answer decoded through an alias": "through the alias",
     "a decode through an existential": "an existential",
+    # #242 (G-1).
+    "a constant a sink reads": "reads `fixtureWidened`, a constant",
+    "what the code a sink runs references": "references `Foundation.Calendar.current`",
+    "each sink's own Foundation list": "`Foundation.Bundle.main` is not on the list of Foundation declarations",
+    # #242 (G-11).
+    "every argument into the engine client": "the argument 0 (unlabelled) of `EngineClient.ask`",
+    # #242 (G-12).
+    "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
+    "a selector by its type": "(it takes a `Selector`, whatever its label)",
+    "a Foundation key by its label": "(a key labelled `key:` or `keyPath:`)",
+    # #242 (G-13).
+    "what a served number may meet": "`Swift.abs` on a served position",
+    "a function value called with a served number": "`a function value` on a served position",
+    "a key path on a served number": "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`",
+    "a key path not written in place": "`a key path not written in place` on a served position",
+    "a method referenced without a call": "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeMethodHeld`",
+    "a store's key path not written in place": "reads a URL through a key path not written in place",
+    "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
+    "a store's one read": "not the store's own `GapRegisterStore.url`",
+    "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -797,7 +962,8 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
     for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items(),
-                        *request_facts(ast).items(), *kept_answer_facts(ast).items()):
+                        *request_facts(ast).items(), *kept_answer_facts(ast).items(), *store_url_facts(ast).items(),
+                        *selector_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -873,6 +1039,135 @@ def url_facts(ast: str) -> dict[str, set[str]]:
               or CASTS_URL.match(line)):
             facts.setdefault(current, set()).add("Foundation.URL.made")
     return facts
+
+
+def selector_facts(ast: str) -> dict[str, set[str]]:
+    """#242, the security review's M3: `{file: {"main.<takes a selector>.Module.symbol"}}` for each declaration of an
+    allowed module whose reference's type takes a `Selector`, whatever its labels say; a module off the allowlist
+    (`ObjectiveC`) is refused whole already."""
+    facts: dict[str, set[str]] = {}
+    current = ""
+    for line in ast.splitlines():
+        if line.startswith("(source_file"):
+            current = pathlib.Path(line.split('"')[1]).name
+        elif (named := DECL.search(line)) and named.group(1) in MODULES - {"main"} \
+                and (typed := TYPE_OF["type"].search(line)) and TAKES_A_SELECTOR.search(typed.group(1)):
+            facts.setdefault(current, set()).add(f"main.<takes a selector>.{named.group(1)}.{_symbol(named.group(2))}")
+    return facts
+
+
+def _selector_problem(name: str, symbol: str) -> str | None:
+    """#242, the security review's M3: a declaration that takes a `Selector`, unless the by-label rule refuses it
+    already or `BY_NAME_ALLOWED` names it."""
+    fact, _, declared = symbol.partition(">.")
+    if fact != "<takes a selector" or declared in BY_NAME_ALLOWED or BY_NAME_LABEL.search(declared.partition(".")[2]):
+        return None
+    return (f"{name}: `{declared}` reaches a value, a class or a selector by name (it takes a `Selector`, whatever "
+            "its label); only the declarations `BY_NAME_ALLOWED` names take one (G-12, #242)")
+
+
+def store_url_facts(ast: str) -> dict[str, set[str]]:
+    """#242 (G-13): in each store, `main.<store url>` for a URL made by anything but `STORE_FOLDER_MAKERS` or a function
+    of the store's own file, not generic over it, or received from another file's declaration; and `main.<store
+    reads>` for a read of anything but `STORE_READS`' property. Types are read through every `typealias` (#322).
+    `main.<store url listed>` and `main.<store reads listed>` record what is admitted, for `unseen_permissions`."""
+    aliases = _aliases(ast)
+    facts: dict[str, set[str]] = {}
+    for root in _tree(ast):
+        file = _file_of(root)
+        if file not in FILESYSTEM_FILES:
+            continue
+        for node in root.walk():
+            line = _expanded(node.line, aliases)[0] if aliases else node.line
+            found = _store_made(file, node, line, aliases) + _store_received(file, node, line) + _store_read(file, node)
+            facts.setdefault(file, set()).update(found)
+        facts.setdefault(file, set()).update(_store_parameters(file, root, "", aliases))
+    return {file: found for file, found in facts.items() if found}
+
+
+def _store_parameters(file: str, node: _Node, owner: str, aliases: dict[str, str]) -> list[str]:
+    """#242 (G-13): a URL-typed parameter of a function or a subscript in a store's file, which lets another file
+    choose the address the store's own code builds on. Only an initialiser `PROVENANCE` keeps to this file takes
+    one. A closure's parameter is not one another file can pass."""
+    if (declared := TYPE_DECL.match(node.line)) is not None:
+        owner = declared.group(2).split(".")[-1]
+    found: list[str] = []
+    if node.kind in ("func_decl", "constructor_decl", "subscript_decl"):
+        printed = node.line.split('"')[1] if '"' in node.line else "subscript"
+        listed = next((item for item in node.walk() if item.kind == "parameter_list"), None)
+        kept = node.kind == "constructor_decl" and (entry := _provenance(f"{owner}.{printed}")) is not None \
+            and entry[0] == {file}
+        for parameter in (listed.kids if listed and not kept else []):
+            typed = TYPE_OF["interface_type"].search(_expanded(parameter.line, aliases)[0] if aliases else parameter.line)
+            if (named := PARAMETER.match(parameter.line)) and typed and re.search(r"\bURL\b", typed.group(1)):
+                where = ".".join(part for part in (owner, printed) if part)
+                found.append(f"main.<store parameter>.{where}|{named.group(1)}@{_line(node) or _range_line(node)}")
+    for kid in node.kids:
+        if kid.kind != "closure_expr":
+            found += _store_parameters(file, kid, owner, aliases)
+    return found
+
+
+def _range_line(node: _Node) -> int:
+    found = RANGE_START.search(node.line)
+    return int(found.group(2)) if found else 0
+
+
+def _store_made(file: str, node: _Node, line: str, aliases: dict[str, str]) -> list[str]:
+    """#242 (G-13): a call or a cast in a store whose result is or holds a URL, and what made it."""
+    if CASTS_URL.match(line):
+        return [f"main.<store url>.a cast@{_line(node)}"]
+    if not (call := MAKES_URL.match(line)) or not re.search(r"\bURL\b", call.group(1).rsplit("->", 1)[-1]) \
+            or node.kind != "call_expr" or not node.kids:
+        return []
+    callee = _top(node.kids[0])
+    head = callee.kids[0] if callee.kind in ("dot_syntax_call_expr", "constructor_ref_call_expr") and callee.kids else callee
+    printed = _expanded(head.line, aliases)[0] if aliases else head.line
+    if (named := DECL.search(printed)) is None:
+        return [f"main.<store url>.an expression the gate cannot name@{_line(node)}"]
+    maker = f"{named.group(1)}.{_symbol(named.group(2))}"
+    if maker in STORE_FOLDER_MAKERS.get(file, frozenset()):
+        return [f"main.<store url listed>.{maker}"]
+    own = (place := MAIN_REF.search(printed)) is not None and pathlib.Path(place.group(2)).name == file
+    if own and not re.search(r"\[with \(substitution_map[^\n]*\bURL\b", printed):
+        return []
+    return [f"main.<store url>.`{maker}`@{_line(node)}"]
+
+
+def _store_received(file: str, node: _Node, line: str) -> list[str]:
+    """#242 (G-13): a URL a store reads off a declaration another file declares (not a call, which `_store_made`
+    judges): directly, as a member, or (the security review's M2) through a key path, whose members it names."""
+    if node.kind == "keypath_application_expr" and len(node.kids) >= 2 and (typed := TYPE_OF["type"].search(line)) \
+            and re.search(r"\bURL\b", typed.group(1)):
+        if _top(node.kids[1]).kind != "keypath_expr":
+            # The security review's round 2, M2: a key path bound to a name or handed in, whose members the gate
+            # cannot read, is refused (fail closed).
+            return [f"main.<store url>.through a key path not written in place@{_line(node)}"]
+        return [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"
+                for item in node.kids[1].walk() for place in MAIN_REF.finditer(item.line)
+                if (declared := pathlib.Path(place.group(2)).name) != file]
+    if node.kind not in ("declref_expr", "member_ref_expr") or " implicit " in node.line \
+            or (typed := TYPE_OF["type"].search(line)) is None or "->" in typed.group(1) \
+            or not re.search(r"\bURL\b", typed.group(1)) or (place := MAIN_REF.search(line)) is None:
+        return []
+    declared = pathlib.Path(place.group(2)).name
+    return [] if declared == file else [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"]
+
+
+def _store_read(file: str, node: _Node) -> list[str]:
+    """#242 (G-13): a store's `Data(contentsOf:)`, or any initialiser `CONTENTS_OF` matches, on anything but its own
+    `url`."""
+    if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+        return []
+    callee = _top(node.kids[0])
+    head = callee.kids[0] if callee.kind == "constructor_ref_call_expr" and callee.kids else callee
+    if (named := DECL.search(head.line)) is None or named.group(1) == "main" \
+            or not CONTENTS_OF.search(reader := _symbol(named.group(2))):
+        return []
+    read = ", ".join(sorted(set().union(set(), *(_named(argument) for argument in _operands(node.kids[1])[:1])))) or "a value"
+    if read == STORE_READS.get(file):
+        return [f"main.<store reads listed>.{read}"]
+    return [f"main.<store reads>.{reader}|{read}@{_line(node)}"]
 
 
 def _sink_holds(ast: str) -> list[tuple[str, str]]:
@@ -962,7 +1257,8 @@ _LOCAL_KINDS = {"func_decl", "constructor_decl", "destructor_decl", "accessor_de
 
 
 #: #172 and the M21-W3 review's B1: process-wide state any file can set that the code a sink runs in
-#: another file could read, as a list; what it does not name is not held (G-1, #242).
+#: another file could read, as a list. Since #242 that code is also held to `SINK_RUNS_ALLOWED`, an allowlist, and
+#: this list still runs beside it, so nothing it refused is refused less.
 FOUNDATION_SHARED = re.compile(r'decl="(?:Foundation|Swift)\.\(file\)\.((?:Thread|OperationQueue|ProcessInfo|NSTimeZone|'
                                r'TimeZone\.(?:current|autoupdatingCurrent|default)|NSLocale|'
                                r'Locale\.(?:current|autoupdatingCurrent)|CommandLine|NotificationCenter|URLCache|'
@@ -970,40 +1266,85 @@ FOUNDATION_SHARED = re.compile(r'decl="(?:Foundation|Swift)\.\(file\)\.((?:Threa
 #: The M21-W3 review's B1 (#242): the Foundation declarations the two privacy sinks' own files may
 #: reference, each by the path the compiler resolves. Any other declaration of these modules in a sink
 #: file is refused by absence, so a new one is a reviewed edit; an object reached through a listed
-#: declaration, or held behind a widened type, is not held (G-1). The code a sink runs in another file
-#: is checked against `FOUNDATION_SHARED` above, a list.
+#: declaration is not held (G-1). The code a sink runs in another file is checked against `SINK_RUNS_ALLOWED`
+#: and `FOUNDATION_SHARED`, and the constants it and the sink read against `SINK_CONSTANT_TYPES` (#242).
 #: `ObjectiveC` is on neither list (the M21 closure security seat's S6): it declares the whole runtime
 #: (`sel_registerName`, `object_*`, `ivar_*`), and the shipping client resolves nothing in it.
 SINK_MODULES = {"Foundation", "CoreFoundation", "Dispatch", "_DarwinFoundation1"}
-SINK_FOUNDATION_ALLOWED = frozenset({
-    "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
-    "Code.appTransportSecurityRequiresSecureConnection", "Code.dataNotAllowed", "Code.networkConnectionLost",
-    "Code.notConnectedToInternet", "Code.secureConnectionFailed", "Code.timedOut", "_BridgedStoredNSError.code",
-    # #363 (owner, 2026-10-20): `EngineClient.read`'s `data.append(byte)` (#56), unchanged; Swift 6.4
-    # binds it to Foundation's `Data.append`, where 6.3 bound the standard library's. A local buffer.
-    "Data.append",
-    "Data.count", "Data.init(", "Data.init(contentsOf:options:", "Data.reserveCapacity", "Data.write(to:options:",
-    "NSData.WritingOptions.atomic", "Date.init(", "Date.timeIntervalSince", "Error.localizedDescription",
-    "FileManager.SearchPathDirectory.cachesDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
-    "FileManager.createDirectory(at:withIntermediateDirectories:attributes:", "FileManager.default",
-    "FileManager.temporaryDirectory", "FileManager.urls(for:in:",
-    "HTTPCookie.AcceptPolicy.never", "HTTPURLResponse.statusCode",
-    "JSONDecoder.decode(_:from:", "JSONDecoder.init(", "JSONEncoder.encode", "JSONEncoder.init(",
-    "NSURLRequest.CachePolicy.reloadIgnoringLocalCacheData",
-    "URL.absoluteString", "URL.appendingPathComponent", "URL.appendingPathComponent(_:isDirectory:",
-    "URL.deletingLastPathComponent(", "URL.host", "URL.init(string:", "URL.isFileURL", "URL.made", "URL.decoded",
-    "URL.scheme", "URLComponents.init(url:resolvingAgainstBaseURL:", "URLComponents.queryItems",
-    "URLComponents.url", "URLQueryItem.init(name:value:", "URLRequest.url", "URLResponse.expectedContentLength",
-    "URLSession.AsyncBytes.makeAsyncIterator(", "URLSession.AsyncBytes.task", "URLSession.bytes(from:delegate:",
-    "URLSession.init(configuration:", "URLSessionConfiguration.ephemeral",
-    "URLSessionConfiguration.httpCookieAcceptPolicy", "URLSessionConfiguration.httpCookieStorage",
-    "URLSessionConfiguration.httpShouldSetCookies", "URLSessionConfiguration.requestCachePolicy",
-    "URLSessionConfiguration.timeoutIntervalForRequest", "URLSessionConfiguration.timeoutIntervalForResource",
-    "URLSessionTask.cancel(",
-    # #314 (D-209 clause 6): the kept answers' file is refused by its size before its bytes are read. A
-    # resource value of the store's own file URL; it reads no file content and reaches no network.
-    "URL.resourceValues(forKeys:", "URLResourceKey.fileSizeKey", "URLResourceValues.fileSize",
-})
+#: #242 (the backlog-gates review round 2's K1): one list per sink file, each entry seen on the shipping client or
+#: reported (`unseen_permissions`), so neither sink inherits what the other needs (measured on the shipping client,
+#: the four configurations, 2026-10-21). One shared list gave the standings store `URL.init(string:`, the session
+#: and the bundle's settings, which only the engine client uses.
+SINK_FOUNDATION_ALLOWED: dict[str, frozenset[str]] = {
+    "EngineClient.swift": frozenset({
+        "Bundle.main", "Bundle.object(forInfoDictionaryKey:",
+        "Code.appTransportSecurityRequiresSecureConnection", "Code.dataNotAllowed", "Code.networkConnectionLost",
+        "Code.notConnectedToInternet", "Code.secureConnectionFailed", "Code.timedOut", "_BridgedStoredNSError.code",
+        # #363 (owner, 2026-10-20): `EngineClient.read`'s `data.append(byte)` (#56), unchanged; Swift 6.4 binds it
+        # to Foundation's `Data.append`, where 6.3 bound the standard library's. A local buffer.
+        "Data.append",
+        "Data.count", "Data.init(", "Data.reserveCapacity", "Error.localizedDescription",
+        "HTTPCookie.AcceptPolicy.never", "HTTPURLResponse.statusCode",
+        "JSONDecoder.decode(_:from:", "JSONDecoder.init(",
+        "NSURLRequest.CachePolicy.reloadIgnoringLocalCacheData",
+        "URL.absoluteString", "URL.appendingPathComponent", "URL.host", "URL.init(string:", "URL.made", "URL.scheme",
+        "URLComponents.init(url:resolvingAgainstBaseURL:", "URLComponents.queryItems", "URLComponents.url",
+        "URLQueryItem.init(name:value:", "URLRequest.url", "URLResponse.expectedContentLength",
+        "URLSession.AsyncBytes.makeAsyncIterator(", "URLSession.AsyncBytes.task", "URLSession.bytes(from:delegate:",
+        "URLSession.init(configuration:", "URLSessionConfiguration.ephemeral",
+        "URLSessionConfiguration.httpCookieAcceptPolicy", "URLSessionConfiguration.httpCookieStorage",
+        "URLSessionConfiguration.httpShouldSetCookies", "URLSessionConfiguration.requestCachePolicy",
+        "URLSessionConfiguration.timeoutIntervalForRequest", "URLSessionConfiguration.timeoutIntervalForResource",
+        "URLSessionTask.cancel(",
+    }),
+    "StandingsStore.swift": frozenset({
+        "Data.count", "Data.init(contentsOf:options:", "Data.write(to:options:", "NSData.WritingOptions.atomic",
+        "Date.init(", "Date.timeIntervalSince",
+        "FileManager.SearchPathDirectory.cachesDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
+        "FileManager.createDirectory(at:withIntermediateDirectories:attributes:", "FileManager.default",
+        "FileManager.temporaryDirectory", "FileManager.urls(for:in:",
+        "JSONDecoder.decode(_:from:", "JSONDecoder.init(", "JSONEncoder.encode", "JSONEncoder.init(",
+        "URL.appendingPathComponent", "URL.appendingPathComponent(_:isDirectory:", "URL.deletingLastPathComponent(",
+        "URL.isFileURL", "URL.made",
+        # #314 (D-209 clause 6): the kept answers' file is refused by its size before its bytes are read. A
+        # resource value of the store's own file URL; it reads no file content and reaches no network.
+        "URL.resourceValues(forKeys:", "URLResourceKey.fileSizeKey", "URLResourceValues.fileSize",
+    }),
+}
+#: #242 (G-1): every declaration of another module the code a privacy sink runs in another file may reference,
+#: matched whole, each with the body that needs it (measured on the shipping client, the four configurations,
+#: 2026-10-21). Any other, a Foundation object's shared state or a Swift-module class among them, is refused by
+#: absence, so a new one is a reviewed edit; each entry is seen on the shipping client or reported. It stands
+#: beside `FOUNDATION_SHARED`, which still runs.
+SINK_RUNS_ALLOWED: dict[str, str] = {
+    "Foundation.Data.count": "`FetchedStandings.init(payload:)` measures the engine's bytes against its ceiling",
+    "Foundation.JSONDecoder.decode(_:from:": "`FetchedStandings.init(payload:)` decodes the engine's bytes",
+    "Foundation.JSONDecoder.init(": "`FetchedStandings.init(payload:)` decodes the engine's bytes",
+    "Foundation.JSONEncoder.OutputFormatting.sortedKeys": "`FetchedStandings.init(payload:)` re-encodes what it decoded",
+    "Foundation.JSONEncoder.encode": "`FetchedStandings.init(payload:)` re-encodes what it decoded",
+    "Foundation.JSONEncoder.init(": "`FetchedStandings.init(payload:)` re-encodes what it decoded",
+    "Foundation.JSONEncoder.outputFormatting": "`FetchedStandings.init(payload:)` re-encodes what it decoded, keys sorted",
+    "Swift.Decoder.singleValueContainer(": "`JSONValue.init(from:)`, a served fact's decoding witness",
+    "Swift.SingleValueDecodingContainer.decode": "`JSONValue.init(from:)`, a served fact's decoding witness",
+    "Swift.SingleValueDecodingContainer.decodeNil(": "`JSONValue.init(from:)`, a served fact's decoding witness",
+    "Swift.Encoder.singleValueContainer(": "`JSONValue.encode(to:)`, a served fact's encoding witness",
+    "Swift.SingleValueEncodingContainer.encode": "`JSONValue.encode(to:)`, a served fact's encoding witness",
+    "Swift.SingleValueEncodingContainer.encodeNil(": "`JSONValue.encode(to:)`, a served fact's encoding witness",
+    "Swift.DefaultStringInterpolation.appendInterpolation":
+        "`UIText.engineAddress(_:_:)` and `FetchedStandings.init(payload:)` put their own values in text",
+    "Swift.DefaultStringInterpolation.appendLiteral":
+        "`UIText.engineAddress(_:_:)` and `FetchedStandings.init(payload:)` put their own values in text",
+    "Swift.Equatable.==": "`UIText.engineAddress(_:_:)` compares its language argument",
+    "Swift.Int.<=": "`FetchedStandings.init(payload:)` compares the payload's size with the ceiling",
+}
+#: #242 (G-1): the types of a constant (a `let` at file scope, or `static`) another file declares that a privacy
+#: sink, or the code it runs, may read. Each holds a value no other file can change; an object, or a value behind
+#: a widened type (`Any`, an array of objects, a struct holding one), is refused by absence. Each is seen on the
+#: shipping client or reported.
+SINK_CONSTANT_TYPES: dict[str, str] = {
+    "Int": "`FetchedStandings.init(payload:)` reads the engine client's `maxStandingsBytes`",
+    "String": "the standings store reads `KeptAnswers`' two route names",
+}
 #: A Swift standard-library type that holds process-wide state a sink may not read (B1).
 SINK_SWIFT_REFUSED = ("CommandLine",)
 #: The M21-W3 review's B1: a constant another file declares, at file scope or `static`, holds shared
@@ -1023,6 +1364,8 @@ class _SinkReach:
         self.lines: dict[tuple[str, str], list[int]] = {}
         self.members: dict[str, list[tuple[object, ...]]] = {}
         self.mutable: dict[tuple[str, int, int], str] = {}
+        #: #242 (G-1): every stored `let` at file scope or `static`, with its type.
+        self.constants: dict[tuple[str, int, int], tuple[str, str]] = {}
         self.protocols: set[str] = set()
         self.witnesses: list[tuple[object, ...]] = []
         self.classes = {m.group(2).split(".")[-1] for root in roots for node in root.walk()
@@ -1079,6 +1422,8 @@ class _SinkReach:
         shared = scope in ("source_file", "class_decl") or static
         if shared and ("writeImpl=stored" in node.line or closure or _holds_an_object(node.line, scope, self.classes)):
             self.mutable[key] = named.group(1)
+        elif (scope == "source_file" or static) and "readImpl=stored" in node.line and typed is not None:
+            self.constants[key] = (named.group(1), typed.group(1))
 
     def reached(self, node: _Node) -> Iterator[tuple[object, ...]]:
         """The bodies `node` calls or reads: by location, by the function's name and line, and every
@@ -1107,6 +1452,9 @@ class _SinkReach:
             (_file_of(root), f"main.<sink runs>.{_file_of(root)} uses {used.group(1)}@Foundation")
             for root in self.roots if _file_of(root) in SINK_FILES
             for item in root.walk() for used in FOUNDATION_SHARED.finditer(item.line)]
+        # #242 (G-1): a constant another file declares, read in a sink itself.
+        found += [fact for root in self.roots if _file_of(root) in SINK_FILES
+                  for fact in self.constant_reads(_file_of(root), "", root)]
         while queue:
             key = queue.pop()
             if key in seen or key not in self.bodies:
@@ -1121,8 +1469,46 @@ class _SinkReach:
                                     int(reference.group(4)))) in self.mutable]
             found += [(file, f"main.<sink runs>.{shown} uses {used.group(1)}@Foundation")
                       for item in node.walk() for used in FOUNDATION_SHARED.finditer(item.line)]
+            found += self.constant_reads(file, shown, node) + _sink_runs_references(file, shown, node)
             queue += list(self.reached(node))
         return found
+
+    def constant_reads(self, file: str, shown: str, node: _Node) -> list[tuple[str, str]]:
+        """#242 (G-1): each constant `node` reads that is not already refused as mutable: its type admitted by
+        `SINK_CONSTANT_TYPES` (a fact `unseen_permissions` reads) or refused. A sink's own constants are its own;
+        the code a sink runs in another file reads none but an admitted one, its own file's included."""
+        found: list[tuple[str, str]] = []
+        for item in node.walk():
+            for reference in FLOW_REF.finditer(item.line):
+                where = (pathlib.Path(reference.group(2)).name, int(reference.group(3)), int(reference.group(4)))
+                if where not in self.constants or where in self.mutable or (not shown and where[0] == file):
+                    continue
+                constant, typed = self.constants[where]
+                if typed.rstrip("?") in SINK_CONSTANT_TYPES:
+                    found.append((file, f"main.<sink reads constant type>.{typed.rstrip('?')}"))
+                else:
+                    found.append((file, f"main.<sink reads constant>.{shown}|{constant}|{typed}@{where[0]}"))
+        return found
+
+
+def _symbol(symbol: str) -> str:
+    """A resolved symbol as `references` records it: a member added in an extension under its type's name."""
+    symbol = re.sub(r"([\w.]+) extension\.", r"\1.", symbol)
+    return re.sub(r"(^|\.)extension\.", r"\1", symbol).rstrip(".")
+
+
+def _sink_runs_references(file: str, shown: str, node: _Node) -> list[tuple[str, str]]:
+    """#242 (G-1): each declaration of another module the code a sink runs references: on `SINK_RUNS_ALLOWED` (a
+    fact `unseen_permissions` reads), or refused."""
+    found: list[tuple[str, str]] = []
+    for item in node.walk():
+        for module, symbol in DECL.findall(item.line):
+            if module == "main":
+                continue
+            declared = f"{module}.{_symbol(symbol)}"
+            found.append((file, f"main.<sink runs uses>.{declared}" if declared in SINK_RUNS_ALLOWED
+                          else f"main.<sink runs off list>.{shown}|{declared}"))
+    return found
 
 
 def sink_facts(ast: str) -> dict[str, set[str]]:
@@ -1400,6 +1786,10 @@ class _Flow:
             self.functions.setdefault((file, name), []).append(line)
         self.stored, self.requirements, self.witnesses = _members(roots)
         self.carriers: _Carriers = {}
+        #: #242, the security review's round 2: every expression called on the spot, so a method referenced and
+        #: not called (`let g = x.advanced(by:)`) can be told from one that is.
+        self.callees = {id(_top(node.kids[0])) for root in roots for node in root.walk()
+                        if node.kind in ("call_expr", "binary_expr", "prefix_unary_expr", "postfix_unary_expr") and node.kids}
 
     def declared(self, file: str, name: str, row: int) -> int | None:
         """The line of the function `name` a reference at `row` names: the nearest one at or above it,
@@ -1645,6 +2035,19 @@ def _scoped(node: _Node, function: str | None = None) -> Iterator[tuple[_Node, s
         yield from _scoped(kid, function)
 
 
+def _placed(node: _Node, function: str | None = None,
+            place: str | None = None) -> Iterator[tuple[_Node, str | None, str | None]]:
+    """Every node with the function it is in, as `_scoped` gives it, and (#242, the security review's R1) its place:
+    that function, or the computed property whose getter it is in."""
+    if named := FUNCTION.match(node.line):
+        function = place = named.group(2)
+    elif node.kind == "var_decl" and "readImpl=getter" in node.line and (variable := VAR_NAME.match(node.line)):
+        place = variable.group(1)
+    yield node, function, place
+    for kid in node.kids:
+        yield from _placed(kid, function, place)
+
+
 def flow_facts(ast: str) -> dict[str, set[str]]:
     """#60 (G-2): `{file name: {"main.<...>", ...}}`, the arithmetic on served numbers and the sorts
     each file makes, resolved by the compiler and followed to a fixed point, for `problems` to judge."""
@@ -1654,8 +2057,11 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     sorts: dict[tuple[str, str, str], int] = {}
     for root in flow.roots:
         file = _file_of(root)
-        for node, function in _scoped(root):
-            for fact in _arithmetic(node, flow, function):
+        for node, function, place in _placed(root):
+            arithmetic = _arithmetic(node, flow, function)
+            # #242 (G-2): what the arithmetic rule does not judge, the list of what a served number may meet does, in
+            # the place it names: a function, or a computed property (the security review's R1).
+            for fact in arithmetic or _meets(node, flow, file, function, place):
                 facts.setdefault(file, set()).add(fact)
             if (ordering := _ordering(node)) is not None:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
@@ -1704,6 +2110,167 @@ def _arithmetic(node: _Node, flow: _Flow, function: str | None) -> list[str]:
     line = place.group(2) if place else "?"
     return [f"main.<arithmetic>.{kind}@{line} {operator} in {function or '-'}"
             for kind in sorted(flow.carried(operands, closures=False))]
+
+
+#: #242 (G-2): what is never a served number's role: a closure, an implicit one, a key path.
+_NOT_AN_OPERAND = {"closure_expr", "autoclosure_expr", "keypath_expr"}
+
+
+#: #242 (G-2): a method that hands each element of a list of served numbers, unchanged, to a closure the flow
+#: follows (`HANDS_ELEMENTS`, `_Flow.closure`), or returns one of them as it is; admitted as the receiver. `min`,
+#: `max`, `reduce`, `drop`, `prefix` and `sorted` are not here: they choose, combine, cut or order.
+SERVED_PASSES_ELEMENTS = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+ extension\.(?:map|compactMap|flatMap|'
+                                    r'filter|forEach|contains|allSatisfy|first|last|firstIndex|lastIndex)' + _CALLED)
+
+
+def _operands(listed: _Node | None) -> list[_Node]:
+    return [argument.kids[0] for argument in (listed.kids if listed else []) if argument.kind == "argument" and argument.kids]
+
+
+def _application(node: _Node) -> tuple[_Node, list[_Node], list[_Node]] | None:
+    """#242 (G-2): `(the node that names the declaration, its receivers, its arguments)` for a call, a method call,
+    an initialiser, an operator, a property read or a subscript; None for any other node."""
+    if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list":
+        callee = _top(node.kids[0])
+        if callee.kind == "dot_syntax_call_expr" and callee.kids:
+            listed = next((kid for kid in callee.kids[1:] if kid.kind == "argument_list"), None)
+            return callee.kids[0], _operands(listed), _operands(node.kids[1])
+        if callee.kind == "constructor_ref_call_expr" and callee.kids:
+            return callee.kids[0], [], _operands(node.kids[1])
+        return (callee, [], _operands(node.kids[1])) if callee.kind == "declref_expr" else None
+    if node.kind in ("binary_expr", "prefix_unary_expr", "postfix_unary_expr") and len(node.kids) >= 2:
+        callee = _top(node.kids[0])
+        head = callee.kids[0] if callee.kind == "dot_syntax_call_expr" and callee.kids else callee
+        return head, [], _operands(node.kids[1])
+    if node.kind in ("member_ref_expr", "subscript_expr") and node.kids:
+        return node, [node.kids[0]], _operands(next((kid for kid in node.kids if kid.kind == "argument_list"), None))
+    return None
+
+
+def _served_operand(flow: _Flow, operand: _Node) -> set[str]:
+    """#242 (G-2): the served kinds an operand carries, when it is a number (or a list of them) and not a closure."""
+    typed = TYPE_OF["type"].search(operand.line)
+    if operand.kind in _NOT_AN_OPERAND or typed is None or "->" in typed.group(1) or not NUMERIC_TYPE.search(typed.group(1)):
+        return set()
+    return flow.carried(operand, closures=False)
+
+
+def _meeting(declared: str, role: str, kind: str, file: str, where: str, line: int) -> str | None:
+    """#242 (G-2): one meeting of a served number with a declaration of another module: None when a rule admits it,
+    `main.<meets listed>` when `SERVED_MAY_MEET` does there, and `main.<meets>` to be refused otherwise."""
+    if any(role == by and rule.match(declared) for by, rule in SERVED_MAY_MEET_BY_RULE.values()):
+        return None
+    places, _ = SERVED_MAY_MEET.get((declared, role), (frozenset(), ""))
+    if places is None or (file, where) in places:
+        return f"main.<meets listed>.{declared}|{role}|{where}"
+    return f"main.<meets>.{kind}@{line} {declared}|{role} in {where}"
+
+
+def _followed(argument: _Node) -> bool:
+    """#242, the security review's B1: a closure written in the source, which `_Flow.closure` follows. An implicit
+    one (a function or a key path handed by name, `Int.init(truncatingIfNeeded:)`, `\\.magnitude`) is not."""
+    top = _top(argument)
+    return top.kind == "closure_expr" and " implicit " not in top.line
+
+
+def _by_reference(argument: _Node, kind: str, file: str, where: str, line: int) -> list[str]:
+    """#242, the security review's B1: what a served number meets through a function-typed or key-path argument
+    that is not a closure the flow follows: each declaration of another module named in it (a key path's member
+    as its receiver), and a function of the app's own handed by name, which the flow does not follow."""
+    typed = TYPE_OF["type"].search(_top(argument).line)
+    if typed is None or not ("->" in typed.group(1) or "KeyPath<" in typed.group(1)):
+        return []
+    found: list[str] = []
+    for item in argument.walk():
+        for module, symbol in DECL.findall(item.line):
+            if module == "main":
+                item_type = TYPE_OF["type"].search(item.line)
+                if item.kind in ("declref_expr", "member_ref_expr") and " implicit " not in item.line \
+                        and item_type is not None and "->" in item_type.group(1):
+                    found.append(f"main.<meets>.{kind}@{line} main.{_symbol(symbol)}|argument in {where}")
+                continue
+            role = "receiver" if item.kind == "member" else "argument"
+            if (fact := _meeting(f"{module}.{_symbol(symbol)}", role, kind, file, where, line)) is not None:
+                found.append(fact)
+    return found
+
+
+def _calls_a_value(node: _Node, flow: _Flow) -> bool:
+    """#242, the security review's B1: a call whose callee is a function value, not a function the flow follows: a
+    closure written on the spot, or a constant, a variable or a parameter of the app's own holding a function
+    (`let f = abs; f(x)`), as `_operator_as_value` treats an operator."""
+    callee = _top(node.kids[0])
+    if callee.kind in ("closure_expr", "autoclosure_expr"):
+        return True
+    if callee.kind not in ("declref_expr", "member_ref_expr") or (place := MAIN_REF.search(callee.line)) is None:
+        return False
+    symbol, path, row = place.group(1), pathlib.Path(place.group(2)).name, int(place.group(3))
+    name = _base(re.sub(r"[\w.]+ extension\.", "", symbol).split(".")[-1])
+    return not any(row - 3 <= declared <= row for declared in flow.functions.get((path, name), []))
+
+
+def _met_by_reference(node: _Node, flow: _Flow, file: str, where: str, line: int,
+                      permitted: Callable[[str], bool]) -> list[str] | None:
+    """#242, the security review's rounds 1 and 2 (B1): a key path applied to a served number (refused when it is not
+    written in place, since the gate cannot read it), a method referenced on one without a call (judged as its call
+    is: the compiler wraps it in an implicit thunk that calls it), and a function value called with one. None for
+    any other node."""
+    if node.kind == "keypath_application_expr" and len(node.kids) >= 2:
+        applied = [kind for kind in sorted(_served_operand(flow, node.kids[0])) if not permitted(kind)]
+        if _top(node.kids[1]).kind != "keypath_expr":
+            return [f"main.<meets>.{kind}@{line} a key path not written in place|receiver in {where}" for kind in applied]
+        return [fact for kind in applied for fact in _by_reference(node.kids[1], kind, file, where, line)]
+    if node.kind == "dot_syntax_call_expr" and id(node) not in flow.callees and node.kids:
+        named = next((m for item in node.kids[0].walk() if (m := DECL.search(item.line)) and m.group(1) != "main"), None)
+        listed = next((kid for kid in node.kids[1:] if kid.kind == "argument_list"), None)
+        kinds = set().union(set(), *(_served_operand(flow, operand) for operand in _operands(listed)))
+        if named is None or not kinds:
+            return None
+        declared = f"{named.group(1)}.{_symbol(named.group(2))}"
+        return [fact for kind in sorted(kinds) if not permitted(kind)
+                if (fact := _meeting(declared, "receiver", kind, file, where, line)) is not None]
+    if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list" \
+            and _calls_a_value(node, flow):
+        kinds = set().union(set(), *(_served_operand(flow, operand) for operand in _operands(node.kids[1])))
+        return [f"main.<meets>.{kind}@{line} a function value|argument in {where}" for kind in sorted(kinds)
+                if not permitted(kind)]
+    return None
+
+
+def _meets(node: _Node, flow: _Flow, file: str, function: str | None, place: str | None = None) -> list[str]:
+    """#242 (G-2, INV-76): a declaration of another module a served number meets, as its receiver or an argument:
+    `main.<meets listed>` when `SERVED_MAY_MEET` admits it there (a fact `unseen_permissions` reads), nothing in a
+    place `ARITHMETIC_PERMITTED` names or a rule admits, and `main.<meets>` to be refused otherwise. Since the
+    security review's B1, by reference too: a key path applied to one, a function or a key path handed to an
+    element-passing method in place of a closure the flow follows, and a function value called with one. Since its
+    round 2, failing closed: a key path not written in place, which the gate cannot read, is refused, and a method
+    referenced on one without a call is judged as its call is. The place is the function or the computed property
+    (`_placed`); a ruling's permission is read by the function alone, as the arithmetic rule reads it (R5)."""
+    where, line = place or function or "-", _line(node)
+
+    def permitted(kind: str) -> bool:
+        return _arithmetic_permitted(file, kind, function or "-")
+
+    if (referenced := _met_by_reference(node, flow, file, where, line, permitted)) is not None:
+        return referenced
+    if (applied := _application(node)) is None:
+        return []
+    head, receivers, arguments = applied
+    if (named := DECL.search(head.line)) is None or named.group(1) == "main":
+        return []
+    declared = f"{named.group(1)}.{_symbol(named.group(2))}"
+    found: list[str] = []
+    for role, operands in (("receiver", receivers), ("argument", arguments)):
+        for kind in sorted(set().union(set(), *(_served_operand(flow, operand) for operand in operands))):
+            if permitted(kind):
+                continue
+            if role == "receiver" and SERVED_PASSES_ELEMENTS.search(head.line):
+                found += [fact for argument in arguments if not _followed(argument)
+                          for fact in _by_reference(argument, kind, file, where, line)]
+                continue
+            if (fact := _meeting(declared, role, kind, file, where, line)) is not None:
+                found.append(fact)
+    return found
 
 
 def _operator_as_value(node: _Node) -> str | None:
@@ -1810,6 +2377,41 @@ def _request_call(node: _Node) -> list[str]:
     return found
 
 
+#: #242 (G-11): a call into the engine client, a member of an extension of it included: a method, printed with its
+#: labels or (all `_`) without them, an initialiser or a subscript.
+ENGINE_MEMBER = re.compile(r'decl="main\.\(file\)\.(EngineClient(?: extension)?\.\w+(?:\([^)"]*\))?)@')
+
+
+def _engine_arguments(node: _Node) -> list[str]:
+    """#242 (G-11, INV-64; the backlog-gates review's K1): every argument of a call into the engine client, labelled
+    or not, an initialiser's and a subscript's included, that `REQUEST_ARGUMENTS` does not name with its declared
+    source, keyed by its label or, unlabelled, by its position (`#0`). The labelled arguments of a request method
+    `_request_call` reads are left to it."""
+    if node.kind == "call_expr" and len(node.kids) >= 2 and node.kids[1].kind == "argument_list":
+        callee = _top(node.kids[0])
+        head = callee.kids[0] if callee.kind in ("dot_syntax_call_expr", "constructor_ref_call_expr") and callee.kids \
+            else callee
+        listed: _Node | None = node.kids[1]
+        judged = callee.kind == "dot_syntax_call_expr" and REQUEST_CALL.search(head.line) is not None
+    elif node.kind == "subscript_expr":
+        head, listed, judged = node, next((kid for kid in node.kids if kid.kind == "argument_list"), None), False
+    else:
+        return []
+    if listed is None or " implicit" in listed.line or (member := ENGINE_MEMBER.search(head.line)) is None:
+        return []
+    method, found = member.group(1).replace(" extension.", "."), []
+    for index, argument in enumerate(kid for kid in listed.kids if kid.kind == "argument"):
+        label = ARGUMENT_LABEL.match(argument.line)
+        # A default the caller did not write is the engine client's own value, not an argument.
+        if (label is not None and judged) or (argument.kids and argument.kids[0].kind == "default_argument_expr"):
+            continue
+        key = label.group(1) if label is not None else f"#{index}"
+        allowed, named = REQUEST_ARGUMENTS.get((method, key)), _named(argument)
+        if allowed is None or (named and named != {allowed}):
+            found.append(f"main.<engine argument>.{method}|{key}|{', '.join(sorted(named)) or 'a value'}@{_line(node)}")
+    return found
+
+
 def _request_value(node: _Node) -> list[str]:
     """The review's B2: an engine request method referred to anywhere but as the direct callee of a call
     (`let ask = client.recommendation`) carries arguments `_request_call` never sees."""
@@ -1868,7 +2470,7 @@ def request_facts(ast: str) -> dict[str, set[str]]:
                     declared_at[path] = f"{pathlib.Path(decl_file).name}:{decl_line}:{decl_col}"
             found = _request_source(node) + ([] if file == NETWORK_FILE else _request_call(node))
             if file != NETWORK_FILE:
-                found += _request_value(node)
+                found += _request_value(node) + _engine_arguments(node)
             facts.setdefault(file, set()).update(found)
     for held, sources in REQUEST_SOURCES.items():
         if sources is None and held in declared_at and not _literal_let(roots, declared_at[held]):
@@ -2008,6 +2610,31 @@ def _kept_answer_problem(name: str, symbol: str) -> str | None:
     return None
 
 
+def _store_problem(name: str, symbol: str) -> str | None:
+    """#242 (G-13): a store's URL made or received otherwise than from the file manager's folders, and a read of
+    anything but the store's own `url`."""
+    fact, _, subject = symbol.partition(">.")
+    detail, _, line = subject.rpartition("@")
+    if fact == "<store url":
+        how = "by a cast" if detail == "a cast" else f"by {detail}" if detail.startswith("`") or detail.startswith("an ") \
+            else detail
+        verb = "receives a URL," if ", declared in " in detail else "reads a URL" if detail.startswith("through ") \
+            else "makes a URL"
+        return (f"{name}:{line}: {verb} {how}; a store makes a URL only from the file manager's folders "
+                f"(`STORE_FOLDER_MAKERS`) or by a function of its own file that is not generic over it, since its read "
+                "fetches an https address as readily as a file (G-13, #242)")
+    if fact == "<store parameter":
+        function, _, parameter = detail.partition("|")
+        return (f"{name}:{line}: `{function}` takes a URL (`{parameter}`) from its caller, so another file chooses the "
+                "address the store builds on; only an initialiser `PROVENANCE` keeps to the store's own file takes one "
+                "(G-13, #242)")
+    if fact == "<store reads":
+        reader, _, read = detail.partition("|")
+        return (f"{name}:{line}: reads with `{reader}` from {read}, not the store's own `{STORE_READS.get(name, '?')}`; "
+                "a store reads only its own file (`STORE_READS`; G-13, #242)")
+    return None
+
+
 def _request_problem(name: str, symbol: str) -> str | None:
     """#174, #188 (INV-64): the reader's text, or anything the screen built, into a request's arguments."""
     fact, _, subject = symbol.partition(">.")
@@ -2016,6 +2643,12 @@ def _request_problem(name: str, symbol: str) -> str | None:
         method, label, named = detail.split("|")
         return (f"{name}:{line}: the request's `{label}` argument to `{method}` names {named}; a request "
                 "carries only its declared sources, never what the screen builds (INV-64, D-126; #174, #188)")
+    if fact == "<engine argument":
+        method, key, named = detail.split("|", 2)
+        which = f"argument {key[1:]} (unlabelled)" if key.startswith("#") else f"`{key}` argument"
+        return (f"{name}:{line}: the {which} of `{method}` names {named}; every argument of a call into the engine "
+                "client, labelled or not, an initialiser's and a subscript's included, carries only the declared source "
+                "`REQUEST_ARGUMENTS` names for it (INV-64, D-126; G-11, #242)")
     if fact == "<request source":
         held, how = detail.split("|")
         return (f"{name}:{line}: assigns `{held}` ({how}) from something other than its declared source; it "
@@ -2035,6 +2668,15 @@ def _flow_problem(name: str, symbol: str) -> str | None:
         what = "number" if kind == "number" else kind
         return (f"{name}:{line}: `{operator}` on a served {what}, a second scoring implementation; only the "
                 f"places a ruling names do arithmetic on one (REQ-APP-005; D-138, D-167, REQ-CMP-002)")
+    if fact == "<meets":
+        kind, _, where = subject.partition("@")
+        line, _, rest = where.partition(" ")
+        meeting, _, function = rest.rpartition(" in ")
+        declared, _, role = meeting.rpartition("|")
+        what = "number" if kind == "number" else kind
+        return (f"{name}:{line}: `{declared}` on a served {what} (its {role}) in `{function}`, which is not on the list "
+                "of what a served number may meet (`SERVED_MAY_MEET`: a comparison, its display, what passes it along "
+                "unchanged, and the places named there); a new one is a reviewed edit (REQ-APP-005, D-181, #242)")
     if fact == "<declares operator":
         operator, _, line = subject.partition("@")
         return (f"{name}:{line}: declares the operator `{operator}`, arithmetic no rule can follow; the client "
@@ -2076,6 +2718,34 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 for entry in sorted(allowed) if f"Foundation.{entry}" not in found.get(name, set())]
     missing += [f"{name}: `{entry}` on the engine client's list" for name, allowed in ENGINE_CLIENT_REACHABLE.items()
                 for entry in sorted(allowed) if f"main.{entry}" not in found.get(name, set())]
+    # #242 (the backlog-gates review round 2's K1, G-1): each sink's own Foundation list, what the code a sink runs
+    # may reference, and the constant types a sink may read.
+    missing += [f"{name}: `{entry}` on the sink's own list of Foundation declarations" for name, allowed in SINK_FOUNDATION_ALLOWED.items()
+                for entry in sorted(allowed) if not any(f"{module}.{entry}" in found.get(name, set()) for module in SINK_MODULES)]
+    seen_runs = {fact.split(">.", 1)[1] for facts in found.values() for fact in facts
+                 if fact.startswith(("main.<sink runs uses>.", "main.<sink reads constant type>."))}
+    missing += [f"`{entry}` on the list of what the code a sink runs may reference" for entry in sorted(SINK_RUNS_ALLOWED)
+                if entry not in seen_runs]
+    missing += [f"`{typed}` on the list of constant types a sink may read" for typed in sorted(SINK_CONSTANT_TYPES)
+                if typed not in seen_runs]
+    # #242 (G-13): each store's URL makers and its one read.
+    missing += [f"{name}: `{entry}` on the store's list of URL makers" for name, allowed in STORE_FOLDER_MAKERS.items()
+                for entry in sorted(allowed) if f"main.<store url listed>.{entry}" not in found.get(name, set())]
+    missing += [f"{name}: `{read}`, the store's one read" for name, read in STORE_READS.items()
+                if f"main.<store reads listed>.{read}" not in found.get(name, set())]
+    # #242 (G-12): the by-name labels the client may use.
+    referenced = set().union(set(), *found.values())
+    missing += [f"`{entry}` on the by-name list" for entry in sorted(BY_NAME_ALLOWED) if entry not in referenced]
+    # #242 (G-2): what a served number may meet, in each place an entry names; an entry for any file, anywhere.
+    seen_meets = {(name, *fact.split(">.", 1)[1].rsplit("|", 2))
+                  for name, facts in found.items() for fact in facts if fact.startswith("main.<meets listed>.")}
+    for (declared, role), (places, _) in sorted(SERVED_MAY_MEET.items(), key=str):
+        wanted = [(file, function) for file, function in sorted(places)] if places is not None else [None]
+        for place in wanted:
+            if not any(d == declared and r == role and (place is None or (n, f) == place) for n, d, r, f in seen_meets):
+                at = f"{place[0]}: " if place else ""
+                missing.append(f"{at}`{declared}` as a {role}{f' in {place[1]}' if place else ''} on the list of what "
+                               "a served number may meet")
     # #322 (M2): the kept answers' allowed sides. Rename `keep`, the load path or a kept type, and its rule
     # matched nothing while the gate passed.
     seen_kept = {(name, fact.split(">.", 1)[1].rpartition("@")[0])
@@ -2134,6 +2804,17 @@ def _kept_problem(name: str, fact: str, subject: str) -> str | None:
         body, _, used = subject.partition(" uses ")
         return (f"{name}: `{body}`, code a privacy sink runs, uses `{used.partition('@')[0]}`, Foundation's shared "
                 "state any file can set, so whatever sets it reaches the sink (D-180, #172)")
+    if fact == "<sink runs off list":
+        body, _, declared = subject.partition("|")
+        return (f"{name}: `{body}`, code a privacy sink runs, references `{declared}`, which is not on the list of what "
+                "that code may reference (`SINK_RUNS_ALLOWED`); a new one is a reviewed edit (D-180, #242)")
+    if fact == "<sink reads constant":
+        detail, _, declared = subject.rpartition("@")
+        body, constant, typed = detail.split("|", 2)
+        who = f"`{body}`, code a privacy sink runs, reads" if body else "reads"
+        return (f"{name}: {who} `{constant}`, a constant of type `{typed}` declared in {declared}; a privacy sink and "
+                f"the code it runs read only constants of a plain value type ({', '.join(sorted(SINK_CONSTANT_TYPES))}), "
+                "since another file can change an object held in one (D-180, #242)")
     if fact == "<sink runs":
         body, _, read = subject.partition(" reads ")
         variable, _, declared = read.partition("@")
@@ -2187,6 +2868,13 @@ def _reach_anything_problem(name: str, symbol: str, head: str, decl: str) -> str
     if any(symbol.startswith(p) or head == p for p in BY_NAME):
         return (f"{name}: `{decl}` reaches a value, a class or a selector by name, past every declaration "
                 "rule here; the client uses none (the M21-W3 review's K1, #241)")
+    if BY_NAME_LABEL.search(symbol) and decl not in BY_NAME_ALLOWED:
+        return (f"{name}: `{decl}` reaches a value, a class or a selector by name (an argument labelled for a key or a "
+                "selector, or a class-by-name entry point); only the declarations `BY_NAME_ALLOWED` names take one "
+                "(G-12, #242)")
+    if decl.startswith("Foundation.") and FOUNDATION_KEY_LABEL.search(symbol) and decl not in BY_NAME_ALLOWED:
+        return (f"{name}: `{decl}` reaches a value, a class or a selector by name (a key labelled `key:` or "
+                "`keyPath:`); only the declarations `BY_NAME_ALLOWED` names take one (G-12, #242)")
     if any(part.startswith(UNSAFE) for part in head.split(".")):
         return (f"{name}: `{decl}` touches memory unsafely, which can rewrite any value, a privacy sink's "
                 "own included; the client uses none (D-180, the second W2 review's U9)")
@@ -2273,7 +2961,8 @@ def _sink_module_problem(name: str, module: str, symbol: str) -> str | None:
     declarations on its list, and none of the standard library's process-wide state."""
     if name not in SINK_FILES or symbol == "<imported>":
         return None
-    listed = symbol in SINK_FOUNDATION_ALLOWED or any(entry.startswith(f"{symbol}.") for entry in SINK_FOUNDATION_ALLOWED)
+    allowed = SINK_FOUNDATION_ALLOWED.get(name, frozenset())
+    listed = symbol in allowed or any(entry.startswith(f"{symbol}.") for entry in allowed)
     if module in SINK_MODULES and not listed:
         return (f"{name}: `{module}.{symbol}` is not on the list of Foundation declarations a privacy sink may "
                 f"reference ({SINK_FILES[name]}); what it is built from widens only by a reviewed edit (D-180, "
@@ -2291,7 +2980,8 @@ def problems(found: dict[str, set[str]]) -> list[str]:
             module, _, symbol = decl.partition(".")
             if module == "main" and symbol.startswith("<"):
                 if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)
-                        or _request_problem(name, symbol) or _kept_answer_problem(name, symbol)) is not None:
+                        or _request_problem(name, symbol) or _kept_answer_problem(name, symbol)
+                        or _store_problem(name, symbol) or _selector_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
             problem = (_module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)
@@ -2338,6 +3028,34 @@ def _snapshot_drift(ast: str) -> list[str]:
             f"{len(set(refused_kept) - set(refused_now))} gone); write it again with `--snapshot`"]
 
 
+def pinned_refusals(release: bool) -> list[str] | None:
+    """#242 (D-214): the refusals `PINNED_REFUSALS` holds for a Release or a Debug configuration, or None when
+    the file is missing, empty or has a line of another shape, which fails the self-test (fail closed)."""
+    try:
+        lines = PINNED_REFUSALS.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    pinned: list[str] = []
+    for line in lines:
+        scope, tab, refusal = line.partition("\t")
+        if not tab or scope not in ("all", "release") or not refusal.strip():
+            return None
+        if scope == "all" or release:
+            pinned.append(refusal)
+    return pinned or None
+
+
+def _pin_broken(label: str, refused: list[str]) -> list[str]:
+    """#242 (D-214 clause 1): each pinned refusal one configuration no longer makes."""
+    pinned = pinned_refusals("release" in label)
+    if pinned is None:
+        return [f"({label}) {PINNED_REFUSALS.name} is missing, empty or malformed, so nothing holds that the gate "
+                "refuses what it refused before #242 (D-214)"]
+    made = set(refused)
+    return [f"({label}) a refusal the fixture made before #242 is gone (D-214, no loosening): {line}"
+            for line in pinned if line not in made]
+
+
 def self_test() -> list[str] | None:
     """#51: the gate on its compiled fixture, in every configuration it reads (#175 R3). What it failed
     to refuse, or allowed wrongly; empty when it behaves; None where there is no toolchain."""
@@ -2358,6 +3076,7 @@ def self_test() -> list[str] | None:
             expected |= FIXTURE_RELEASE_REFUSALS
         if index == 0:
             broken += _snapshot_drift(ast)
+        broken += _pin_broken(label, refused)
         broken += [f"({label}) {file}: {phrase} was not refused" for file, phrase in sorted(expected)
                    if not any(line.startswith(f"{file}:") and phrase in line for line in refused)]
         broken += [f"({label}) refused what it must allow: {line}" for line in refused

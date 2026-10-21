@@ -1101,3 +1101,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - LiteLLM's `openrouter/` entries are skipped at ingest. The public artifact drops any an older artifact still holds through a new `RETIRED_COPIES`, so INV-87's `_COPIES_OF` test stays untouched: a first attempt that renamed it broke the invariant's citation.
 - MMLU/HELM and SWE-bench stay served and credited; SWE-bench's email is owed before any payment, in D-215, not in code.
 - Lesson: before reshaping a structure a security-invariant test reaches into, grep `docs/security-invariants.md` for the test; extend beside it rather than edit it.
+
+## 2026-10-21 — enhancement/issue-242-allowlists: the compiled client gate's five deny-lists become allowlists, nothing loosened (#242)
+
+- Phase 0 pinned the fixture's 183 refusals (182 in Debug) before any rule changed; the self-test now fails in any configuration that stops making one. No phase lost one; the fixture ends at 267 (266).
+- Sinks: one Foundation list per sink file, an allowlist of what the code a sink runs may reference (17 entries), and constants of another file admitted only as `Int` or `String`. Served numbers: every declaration a served number meets must be admitted by rule or by a measured list, some entries only in the shipping place that needs them (`rounded()` in `wholeNumber` and `money`).
+- Request surface: every argument into the engine client is read, labelled or not. By-name: matched by argument label. Stores: URLs only from the file manager's folders, reads only of the store's own `url`, and no URL parameter outside a provenance-kept initialiser.
+- Every list was measured on the shipping client from saved dumps of all four configurations, so each phase could be tried in seconds rather than a two-minute compile; each entry is reported when unused.
+- Three over-refusals and one hole were caught only by the fixture's `allowed:` lines and the twins: a comparison owner pattern that swallowed `..<`, counts and row numbers, and a store's own `init(url:)` matching `CONTENTS_OF`.
+- Lesson: when a deny-list becomes an allowlist, pin the old refusals first, measure the allowlist on the shipping code, and keep the fixture's allowed lines as the over-refusal check; the twins alone would not have caught the comparison rule admitting a range.
