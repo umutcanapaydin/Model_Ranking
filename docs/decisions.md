@@ -4388,7 +4388,7 @@ testing included.
    |---|---|---|
    | `swebench` | `coding` (half its rows; Epoch's SWE-bench Verified stays) | CC BY-NC 4.0 |
    | `epoch_arc_agi` | `abstract`, its only source | ARC Prize: personal or internal use; no database without permission. **Replaced by `arc_agi_2`, ARC Prize's MIT public-evaluation runs (D-194)** |
-   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published. **Moves to Datacurve's CC BY 4.0 dataset with the owner's Hugging Face token (D-194)** |
+   | `epoch_deepswe_external` | `agentic-coding`, its only source | no licence published. **Replaced by `datacurve_deepswe`, Datacurve's CC BY 4.0 dataset, read with the owner's Hugging Face token (D-216)** |
    | `epoch_terminalbench` | `computer-use`, its only source | no licence stated. **Replaced by `terminalbench_4`, TB 4.0's Apache-2.0 leaderboard repository (D-194)** |
    | `epoch_webdev` | `web-dev`, its only source | arena.ai's terms: personal or internal business use |
    | `epoch_mmlu` | `everyday`'s secondary score, display only | no licence found |
@@ -5650,7 +5650,9 @@ source's build.
 `agentic-coding`'s board goes from Epoch's 68 rows over 25 models (18 ranked at `high`) to 27 rows over 19 models,
 of which 15 rank at `high`. The newest models on Epoch's copy leave the surface until Datacurve publishes a new job.
 The board is dated now (the job's finish date), so the surface's evidence is no longer undated, and at 137 days it
-reads as old. The token is a new secret on the owner's Mac; the hosted engine needs none (ingestion stays on the Mac,
+reads as old. Calibrated on it (`docs/reviews/issue-265-agentic-coding-calibration.md`), the surface's floor is 47.3
+and only GPT-5.5 and Claude Opus 4.8 stand above it at `high`, so its picks come from those two; `close_call` is 2.9
+and `value_window` 14.5. All 27 runs link a catalogue model, with no alias added. The token is a new secret on the owner's Mac; the hosted engine needs none (ingestion stays on the Mac,
 D-116 clause 2).
 
 **Mitigation if violated:** A stated effort ranked as `high` would put an `xhigh` run in a `high` comparison: the
