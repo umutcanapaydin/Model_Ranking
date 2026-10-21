@@ -60,9 +60,25 @@ def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() ->
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
     for source, publisher in (("epoch_deepswe_external", "datacurve"),
-                              ("epoch_mmlu", "helm"),
-                              ("epoch_webdev", "arena_site")):
+                              ("epoch_mmlu", "helm")):
         assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch_compilation"], source
+
+
+def test_the_credits_name_every_served_source_and_the_retired_ones_only_for_an_older_artifact() -> None:
+    """#376 (D-215): MMLU/HELM and SWE-bench stay served, each credited with its publisher, licence and
+    link. Epoch's WebDev copy and OpenRouter's prices are no longer served: their credits stay only for
+    an artifact an older release built, and no source this release serves owes them."""
+    from app.workflows.board_tables import RETIRED_EXTERNAL_ATTRIBUTION
+
+    served = {credit for citation in {*SOURCE_ATTRIBUTION.values(), PRICING_ATTRIBUTION}
+              for credit in rank.CREDITS_BY_ATTRIBUTION[citation]}
+    assert {"helm", "swebench", "lmarena", "litellm", "models_dev"} <= served
+    assert not {"arena_site", "openrouter"} & served
+    helm, swebench = (credits_for([SOURCE_ATTRIBUTION[source]])[0] for source in ("epoch_mmlu", "swebench"))
+    for credit in (helm, swebench):
+        assert credit["url"].startswith("https://") and credit["licence"] and credit["licence_url"], credit
+    assert _ids([RETIRED_EXTERNAL_ATTRIBUTION["epoch_webdev"]]) == ["arena_site", "epoch_compilation"]
+    assert _ids([rank.PRICING_ATTRIBUTION_OPENROUTER]) == ["litellm", "openrouter"]
 
 
 def test_epochs_licence_is_claimed_for_its_own_boards_only() -> None:
