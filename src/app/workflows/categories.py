@@ -120,8 +120,13 @@ CATEGORIES: dict[str, CategorySpec] = {
         primary_source="datacurve_deepswe",
         # The floor is taken over every effort level on the board, like every surface (D-148, D-159;
         # the owner ruled 2026-09-23: no exception), though the surface ranks at `high`.
-        value_window=6.0,
-        close_call=1.5,
+        # D-216 clause 5 (#265): measured on Datacurve's job of 2026-06-06 by `scripts/calibrate_surface.py`
+        # (`docs/research/d216-agentic-coding-calibration.json`, `docs/reviews/issue-265-agentic-coding-calibration.md`).
+        # 15 models ranked at `high`, all priced; two above the floor of 47.3. The tie margin is twice
+        # Datacurve's median run-to-run standard error (1.445); with no gap to split past three candidates,
+        # the window reaches the floor. Epoch's copy's 6.0 / 1.5 were measured on another board.
+        value_window=14.5,
+        close_call=2.9,
         ranking_effort="high",
     ),
     # ── D-127's new surfaces ────────────────────────────────────────────────────────────────────

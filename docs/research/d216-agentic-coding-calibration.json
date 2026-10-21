@@ -1,0 +1,23 @@
+{
+  "surface": "agentic-coding",
+  "source": "datacurve_deepswe",
+  "benchmark": "DeepSWE",
+  "ranked_population": 15,
+  "floor": 47.3,
+  "above_floor": [
+    [
+      "GPT-5.5",
+      61.94690265486725
+    ],
+    [
+      "Claude Opus 4.8",
+      50.66371681415929
+    ]
+  ],
+  "stderr": 1.445,
+  "stderr_from": "Datacurve's published 95% run-to-run interval per run (summary.json ci_half / 1.96), median of the job's 27 runs, read 2026-10-21",
+  "rule": "close_call = 2 x stderr; value_window ends mid-gap in the first gap wider than close_call past 3 candidates, else at the floor (D-194 clause 4)",
+  "close_call": 2.9,
+  "value_window": 14.5,
+  "candidates": 2
+}
