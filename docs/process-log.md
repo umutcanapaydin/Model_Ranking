@@ -1110,3 +1110,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Every list was measured on the shipping client from saved dumps of all four configurations, so each phase could be tried in seconds rather than a two-minute compile; each entry is reported when unused.
 - Three over-refusals and one hole were caught only by the fixture's `allowed:` lines and the twins: a comparison owner pattern that swallowed `..<`, counts and row numbers, and a store's own `init(url:)` matching `CONTENTS_OF`.
 - Lesson: when a deny-list becomes an allowlist, pin the old refusals first, measure the allowlist on the shipping code, and keep the fixture's allowed lines as the over-refusal check; the twins alone would not have caught the comparison rule admitting a range.
+
+## 2026-10-21 — fix/issue-373-keypath-curried: a key path walked from a served struct, and a curried call on the type, are refused (#373)
+
+- Stacked on #372 (`enhancement/issue-242-allowlists` at 84942aa), whose Security-Reviewer's third round found B1: five ways to reach a served number's methods that passed `make client-decls` in all four configurations, before #242 and after it.
+- The red commit planted the five shapes at the end of the fixture's `Arithmetic.swift`, so no pinned refusal moved, and wrote the committed dump again: five tests failed, the other 213 passed.
+- The fix reads a key path's components from the first one that carries a served number, wherever it is applied, and reads a method called curried on its type (`dot_syntax_base_ignored` around a thunk whose first parameter is `self`) as the number meeting it as its receiver. Both go through `_meeting`, so `SERVED_MAY_MEET` still admits what it lists.
+- The self-test holds each shape in every configuration, and all 183 pinned refusals are still made; the shipping client passes the gate in all four.
+- G-2 and INV-76 name the two new fixture rules.
+- Lesson: a rule that waits for an operand of a number type misses the number's own members reached from its container; read a key path by what it walks through, not only by what it is applied to.

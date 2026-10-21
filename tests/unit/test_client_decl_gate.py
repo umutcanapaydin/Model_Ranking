@@ -1369,3 +1369,31 @@ def test_242_a_computed_property_named_like_a_permitted_function_does_not_inheri
     the function alone. Watched failing: the gate at `b93470f` refuses nothing on this line. # covers D-214"""
     line = _marked_in("Router.swift", "// shape: property-named-like-a-ruling")
     assert [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Router.swift:{line}:")]
+
+
+
+#: #373 (G-2): a served number reached through a key path walked from its struct, and a method of a served number called
+#: curried on its type: each shape marked in `Arithmetic.swift`, its function, and the declaration it meets.
+STRUCT_WALKED_TWINS = [
+    ("struct-keypath", "shapeStructKeyPath", "Swift.Int.magnitude"),
+    ("struct-map-magnitude", "shapeStructMapMagnitude", "Swift.Int.magnitude"),
+    ("struct-map-words", "shapeStructMapWords", "Swift.Int.words"),
+    ("curried-advanced", "shapeCurriedAdvanced", "Swift.Int.advanced(by:"),
+    ("curried-signum", "shapeCurriedSignum", "Swift.Int.signum("),
+]
+
+
+@pytest.mark.parametrize(("shape", "function", "declared"), STRUCT_WALKED_TWINS)
+def test_373_a_served_number_reached_by_a_key_path_from_its_struct_or_a_curried_call_is_refused(
+        shape: str, function: str, declared: str) -> None:
+    """#373 (G-2, INV-76): `s[keyPath: \\Standing.position.magnitude]`, `[s].map(\\.position.magnitude)`,
+    `[s].map(\\.position.words.count)`, `Int.advanced(by:)(s.position)(1)` and `Int.signum(s.position)()` passed in
+    all four configurations: a key path's members were read only when the value it is applied to is itself a number,
+    and a method called curried on its type was not read at all. Each is refused on its own line as its receiver's
+    meeting, and the self-test asks the same of all four configurations. # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    phrase = f"`{declared}` on a served position (its receiver) in `{function}`"
+    refused = [found for found in gate.problems(gate.references(FLOW_AST))
+               if found.startswith(f"Arithmetic.swift:{line}:") and phrase in found]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as {phrase}"
+    assert ("Arithmetic.swift", phrase) in gate.FIXTURE_REFUSALS, f"the self-test does not hold {shape}"

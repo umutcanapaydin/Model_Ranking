@@ -159,3 +159,11 @@ func shapeKeyPathParameterUse(_ s: Standing) -> UInt { shapeKeyPathParameter(s, 
 func shapeMethodHeld(_ s: Standing) -> Int { let g = s.position.advanced(by:); return g(1) } // shape: method-held
 func shapeDistanceHeld(_ s: Standing) -> Int { let g = s.position.distance(to:); return g(10) } // shape: distance-held
 func shapeSignumHeld(_ s: Standing) -> Int { let sg = s.position.signum; return sg() } // shape: signum-held
+
+// #373 (G-2): a served number reached through a key path walked from its struct, and a method of a served number
+// called curried on its type. REFUSED, each, on its line.
+func shapeStructKeyPath(_ s: Standing) -> UInt { s[keyPath: \Standing.position.magnitude] } // shape: struct-keypath
+func shapeStructMapMagnitude(_ s: Standing) -> [UInt] { [s].map(\.position.magnitude) } // shape: struct-map-magnitude
+func shapeStructMapWords(_ s: Standing) -> [Int] { [s].map(\.position.words.count) } // shape: struct-map-words
+func shapeCurriedAdvanced(_ s: Standing) -> Int { Int.advanced(by:)(s.position)(1) } // shape: curried-advanced
+func shapeCurriedSignum(_ s: Standing) -> Int { Int.signum(s.position)() } // shape: curried-signum

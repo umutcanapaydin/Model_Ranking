@@ -769,6 +769,12 @@ FIXTURE_REFUSALS = {
     # #242, the security review's B1: met by reference, through a function value and a key path.
     ("Arithmetic.swift", "`a function value` on a served position"),
     ("Arithmetic.swift", "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`"),
+    # #373: a key path walked from a served struct's field, and a method called curried on its type.
+    ("Arithmetic.swift", "`Swift.Int.magnitude` on a served position (its receiver) in `shapeStructKeyPath`"),
+    ("Arithmetic.swift", "`Swift.Int.magnitude` on a served position (its receiver) in `shapeStructMapMagnitude`"),
+    ("Arithmetic.swift", "`Swift.Int.words` on a served position (its receiver) in `shapeStructMapWords`"),
+    ("Arithmetic.swift", "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeCurriedAdvanced`"),
+    ("Arithmetic.swift", "`Swift.Int.signum(` on a served position (its receiver) in `shapeCurriedSignum`"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -829,6 +835,9 @@ FIXTURE_RULES: dict[str, str] = {
     "a key path on a served number": "`Swift.Int.magnitude` on a served position (its receiver) in `shapeKeyPathMagnitude`",
     "a key path not written in place": "`a key path not written in place` on a served position",
     "a method referenced without a call": "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeMethodHeld`",
+    # #373.
+    "a key path walked from a served struct": "`Swift.Int.magnitude` on a served position (its receiver) in `shapeStructKeyPath`",
+    "a method called curried on its type": "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeCurriedAdvanced`",
     "a store's key path not written in place": "reads a URL through a key path not written in place",
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
@@ -2137,6 +2146,8 @@ def _application(node: _Node) -> tuple[_Node, list[_Node], list[_Node]] | None:
             return callee.kids[0], _operands(listed), _operands(node.kids[1])
         if callee.kind == "constructor_ref_call_expr" and callee.kids:
             return callee.kids[0], [], _operands(node.kids[1])
+        if callee.kind == "dot_syntax_base_ignored" and (curried := _curried(callee)) is not None:
+            return curried, _operands(node.kids[1]), []
         return (callee, [], _operands(node.kids[1])) if callee.kind == "declref_expr" else None
     if node.kind in ("binary_expr", "prefix_unary_expr", "postfix_unary_expr") and len(node.kids) >= 2:
         callee = _top(node.kids[0])
@@ -2145,6 +2156,35 @@ def _application(node: _Node) -> tuple[_Node, list[_Node], list[_Node]] | None:
     if node.kind in ("member_ref_expr", "subscript_expr") and node.kids:
         return node, [node.kids[0]], _operands(next((kid for kid in node.kids if kid.kind == "argument_list"), None))
     return None
+
+
+def _curried(callee: _Node) -> _Node | None:
+    """#373 (G-2): the method a call names curried on its type, `Int.advanced(by:)(x)`, whose argument is the method's
+    receiver: the compiler wraps the method in a thunk whose first parameter is `self`. None for anything else."""
+    thunk = next((kid for kid in callee.kids if kid.kind == "autoclosure_expr"), None)
+    first = next((m.group(1) for item in thunk.walk() if (m := PARAMETER.match(item.line))), None) if thunk else None
+    if first != "self":
+        return None
+    return next((item for item in thunk.walk() if item.kind == "declref_expr" and " implicit " not in item.line
+                 and DECL.search(item.line)), None) if thunk else None
+
+
+def _walked_from_served(node: _Node, flow: _Flow, file: str, where: str, line: int,
+                        permitted: Callable[[str], bool]) -> list[str]:
+    """#373 (G-2): a key path walked from the first served number it reaches (`\\Standing.position.magnitude`): each
+    later component that names a declaration of another module meets that number as its receiver, whatever the key
+    path is applied to."""
+    components = next((kid for kid in node.kids if kid.kind == "components"), None)
+    kinds: set[str] = set()
+    found: list[str] = []
+    for component in components.kids if components else []:
+        named = DECL.search(component.line)
+        if kinds and named is not None and named.group(1) != "main":
+            declared = f"{named.group(1)}.{_symbol(named.group(2))}"
+            found += [fact for kind in sorted(kinds) if not permitted(kind)
+                      if (fact := _meeting(declared, "receiver", kind, file, where, line)) is not None]
+        kinds |= _served_operand(flow, component)
+    return found
 
 
 def _served_operand(flow: _Flow, operand: _Node) -> set[str]:
@@ -2220,6 +2260,8 @@ def _met_by_reference(node: _Node, flow: _Flow, file: str, where: str, line: int
         if _top(node.kids[1]).kind != "keypath_expr":
             return [f"main.<meets>.{kind}@{line} a key path not written in place|receiver in {where}" for kind in applied]
         return [fact for kind in applied for fact in _by_reference(node.kids[1], kind, file, where, line)]
+    if node.kind == "keypath_expr":
+        return _walked_from_served(node, flow, file, where, line, permitted)
     if node.kind == "dot_syntax_call_expr" and id(node) not in flow.callees and node.kids:
         named = next((m for item in node.kids[0].walk() if (m := DECL.search(item.line)) and m.group(1) != "main"), None)
         listed = next((kid for kid in node.kids[1:] if kid.kind == "argument_list"), None)
