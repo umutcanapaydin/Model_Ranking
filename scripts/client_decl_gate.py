@@ -739,6 +739,7 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "makes a URL by `Foundation.JSONDecoder.decode(_:from:`"),
     ("FrontDoor.swift", "not the store's own `GapRegisterStore.url`"),
     ("StandingsStore.swift", "a store makes a URL only"), ("ContentView.swift", "builds GapRegisterStore"),
+    ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -794,6 +795,7 @@ FIXTURE_RULES: dict[str, str] = {
     # #242 (G-13).
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
+    "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -1016,7 +1018,36 @@ def store_url_facts(ast: str) -> dict[str, set[str]]:
             line = _expanded(node.line, aliases)[0] if aliases else node.line
             found = _store_made(file, node, line, aliases) + _store_received(file, node, line) + _store_read(file, node)
             facts.setdefault(file, set()).update(found)
+        facts.setdefault(file, set()).update(_store_parameters(file, root, "", aliases))
     return {file: found for file, found in facts.items() if found}
+
+
+def _store_parameters(file: str, node: _Node, owner: str, aliases: dict[str, str]) -> list[str]:
+    """#242 (G-13): a URL-typed parameter of a function or a subscript in a store's file, which lets another file
+    choose the address the store's own code builds on. Only an initialiser `PROVENANCE` keeps to this file takes
+    one. A closure's parameter is not one another file can pass."""
+    if (declared := TYPE_DECL.match(node.line)) is not None:
+        owner = declared.group(2).split(".")[-1]
+    found: list[str] = []
+    if node.kind in ("func_decl", "constructor_decl", "subscript_decl"):
+        printed = node.line.split('"')[1] if '"' in node.line else "subscript"
+        listed = next((item for item in node.walk() if item.kind == "parameter_list"), None)
+        kept = node.kind == "constructor_decl" and (entry := _provenance(f"{owner}.{printed}")) is not None \
+            and entry[0] == {file}
+        for parameter in (listed.kids if listed and not kept else []):
+            typed = TYPE_OF["interface_type"].search(_expanded(parameter.line, aliases)[0] if aliases else parameter.line)
+            if (named := PARAMETER.match(parameter.line)) and typed and re.search(r"\bURL\b", typed.group(1)):
+                where = ".".join(part for part in (owner, printed) if part)
+                found.append(f"main.<store parameter>.{where}|{named.group(1)}@{_line(node) or _range_line(node)}")
+    for kid in node.kids:
+        if kid.kind != "closure_expr":
+            found += _store_parameters(file, kid, owner, aliases)
+    return found
+
+
+def _range_line(node: _Node) -> int:
+    found = RANGE_START.search(node.line)
+    return int(found.group(2)) if found else 0
 
 
 def _store_made(file: str, node: _Node, line: str, aliases: dict[str, str]) -> list[str]:
@@ -2409,6 +2440,11 @@ def _store_problem(name: str, symbol: str) -> str | None:
         return (f"{name}:{line}: {verb} {how}; a store makes a URL only from the file manager's folders "
                 f"(`STORE_FOLDER_MAKERS`) or by a function of its own file that is not generic over it, since its read "
                 "fetches an https address as readily as a file (G-13, #242)")
+    if fact == "<store parameter":
+        function, _, parameter = detail.partition("|")
+        return (f"{name}:{line}: `{function}` takes a URL (`{parameter}`) from its caller, so another file chooses the "
+                "address the store builds on; only an initialiser `PROVENANCE` keeps to the store's own file takes one "
+                "(G-13, #242)")
     if fact == "<store reads":
         reader, _, read = detail.partition("|")
         return (f"{name}:{line}: reads with `{reader}` from {read}, not the store's own `{STORE_READS.get(name, '?')}`; "
