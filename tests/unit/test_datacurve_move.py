@@ -1,9 +1,9 @@
-"""`agentic-coding` moves from Epoch's copy of DeepSWE to Datacurve's own dataset (#265, D-216) — cite REQ-SRC-012.
+"""`agentic-coding` moves from Epoch's copy of DeepSWE to Datacurve's own leaderboard (#265, D-216) — cite REQ-SRC-012.
 
 The surface, its family and the registry name the new source; Epoch's copy is no longer built, and stays attributed
 and credited as a retired source, so an artifact an older release built still boots (D-194 clause 6). Datacurve is
-credited for its dataset under CC BY 4.0. Through the build's own ingest and the served API, `agentic-coding`
-answers from the recorded job at `high` effort.
+credited for its leaderboard. Through the build's own ingest and the served API, `agentic-coding` answers from the
+recorded leaderboard at `high` effort, and a night the site fails is carried by the refresh (D-156).
 """
 
 from __future__ import annotations
@@ -22,19 +22,12 @@ from app.workflows.registry import reconcile
 from app.workflows.schema import connect
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "datacurve"
-JOB = "20260606-deep-swe-leaderboard-all-4x"
-CC_BY = "https://creativecommons.org/licenses/by/4.0/"
-DATASET = "https://huggingface.co/datasets/datacurve/deep-swe-leaderboard"
-
-
-def _envelope() -> str:
-    return json.dumps({"job": JOB, **{name: (FIXTURES / f"{name}.json").read_text(encoding="utf-8")
-                                      for name in ("result", "config")}})
+SITE = "https://deepswe.datacurve.ai/"
 
 
 def _leaderboard() -> str:
-    """D-216 (revised): Datacurve's own leaderboard, the list the source reads first."""
-    return json.dumps({"leaderboard": (FIXTURES / "leaderboard-live.json").read_text(encoding="utf-8")})
+    """D-216: Datacurve's own leaderboard, the list the source reads."""
+    return (FIXTURES / "leaderboard-live.json").read_text(encoding="utf-8")
 
 
 def test_agentic_coding_ranks_on_datacurve_and_epochs_copy_is_not_built() -> None:
@@ -50,22 +43,19 @@ def test_agentic_coding_ranks_on_datacurve_and_epochs_copy_is_not_built() -> Non
     assert all("epoch_deepswe_external" not in family for family in families.FAMILIES.values())
 
 
-def test_datacurve_is_credited_under_cc_by_4_0_with_its_dataset() -> None:
-    """covers REQ-SRC-012 (D-216 clause 6): the citation names the publisher, the dataset and the licence, and the
-    Credits screen names Datacurve under CC BY 4.0 with both links."""
+def test_datacurve_is_credited_for_its_leaderboard_with_its_link() -> None:
+    """covers REQ-SRC-012 (D-216 clauses 2 and 8): the citation names the publisher and the leaderboard's link, and the
+    Credits screen names Datacurve's leaderboard, which publishes no licence, used under D-215. Nothing is built from
+    the CC BY 4.0 dataset, so it is not credited."""
     from app.workflows import board_tables, rank
 
     citation = rank.SOURCE_ATTRIBUTION["datacurve_deepswe"]
-    assert "Datacurve" in citation and DATASET in citation and CC_BY in citation
+    assert "Datacurve" in citation and SITE in citation and "huggingface.co" not in citation
     assert citation in rank.ATTRIBUTIONS
-    credit = board_tables.CREDITS["datacurve"]
-    assert (credit.publisher, credit.url, credit.licence, credit.licence_url) == (
-        "Datacurve", DATASET, "CC BY 4.0", CC_BY)
-    assert [c["id"] for c in rank.credits_for([citation])] == ["datacurve_site", "datacurve"]
-    # D-216 (revised): the leaderboard, read first, is credited with its link and says it publishes no licence.
+    assert [c["id"] for c in rank.credits_for([citation])] == ["datacurve_site"]
     site = board_tables.CREDITS["datacurve_site"]
-    assert (site.url, site.licence_url) == ("https://deepswe.datacurve.ai/", None) and "D-215" in site.licence
-    assert "https://deepswe.datacurve.ai/" in citation
+    assert (site.publisher, site.url, site.licence_url) == ("Datacurve", SITE, None) and "D-215" in site.licence
+    assert "datacurve" not in board_tables.CREDITS
 
 
 def test_epochs_copy_stays_attributed_and_credited_as_a_retired_source() -> None:
@@ -81,57 +71,28 @@ def test_epochs_copy_stays_attributed_and_credited_as_a_retired_source() -> None
     assert board_tables.CREDITS["datacurve_leaderboard"].licence == "© Datacurve; no licence published"
 
 
-def _built(path: Path, payload: str | None = None) -> None:
-    """The board through the build's own ingest, with a LiteLLM price for every model either file names."""
+def _built(path: Path) -> None:
+    """The leaderboard through the build's own ingest, with a LiteLLM price for every model it names."""
     from app.workflows import sources
 
-    payload = _envelope() if payload is None else payload
-    models = {key.split("__")[1] for key in json.loads((FIXTURES / "result.json").read_text(encoding="utf-8"))["stats"]["evals"]}
-    models |= {row["model"] for row in json.loads((FIXTURES / "leaderboard-live.json").read_text(encoding="utf-8"))["rows"]}
+    models = {row["model"] for row in json.loads(_leaderboard())["rows"]}
     prices = json.dumps({name: {"mode": "chat", "input_cost_per_token": 3e-06, "output_cost_per_token": 1.5e-05}
                          for name in sorted(models)})
     conn = connect(str(path))
     run = RunContext(observed_at="2026-10-21T00:00:00+00:00")
     ingest_litellm(conn, FakeRawSource("litellm", prices), run)
     declared = next(s for s in sources.REMOTE_SOURCES if s.name == "datacurve_deepswe")
-    assert declared.ingest(conn, FakeRawSource("datacurve_deepswe", payload), run).stored in (27, 70)
+    assert declared.ingest(conn, FakeRawSource("datacurve_deepswe", _leaderboard()), run).stored == 70
     reconcile(conn)
     build_price_medians(conn)
     conn.commit()
     conn.close()
 
 
-def test_every_run_of_the_recorded_job_links_a_catalogue_model(tmp_path: Path) -> None:
-    """covers REQ-SRC-012: the 27 runs name 19 models, and the alias rules link every one."""
-    db = tmp_path / "built.db"
-    _built(db)
-    with sqlite3.connect(db) as conn:
-        linked = dict(conn.execute("SELECT raw_name, model_id FROM scores WHERE source = 'datacurve_deepswe'"))
-    assert len(linked) == 19 and all(linked.values()), linked
-    assert linked["gpt-5-5"] == "gpt-5.5" and linked["claude-opus-4-8"] == "claude-4.8-opus"
-
-
-def test_agentic_coding_answers_from_the_datacurve_board_at_high_effort(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """covers REQ-SRC-012 (D-216 clauses 1 and 2): the surface ranks the recorded job's `high` and default runs;
-    GPT-5.5's `xhigh` run, the board's top score, is not ranked as a `high` one."""
-    from app.adapter import main
-
-    db = tmp_path / "built.db"
-    _built(db)
-    monkeypatch.setenv("MODEL_RANKING_DB", str(db))
-    answer = TestClient(main.app).get("/v1/recommendations?task=agentic-coding").json()["answers"][0]
-    assert answer["surface"] == "agentic-coding" and answer["unavailable_reason_code"] is None, answer
-    assert any("Datacurve" in source for source in answer["sources"]), answer["sources"]
-    top = answer["picks"][0]
-    assert top["label"] == "best_quality" and top["score"] == 61.9, top
-
-
 def test_every_model_on_the_leaderboard_links_a_catalogue_model(tmp_path: Path) -> None:
-    """covers REQ-SRC-012 (D-216, revised): the leaderboard's 70 rows name 28 models, and the alias rules link each."""
+    """covers REQ-SRC-012 (D-216): the leaderboard's 70 rows name 28 models, and the alias rules link each."""
     db = tmp_path / "built.db"
-    _built(db, _leaderboard())
+    _built(db)
     with sqlite3.connect(db) as conn:
         linked = dict(conn.execute("SELECT raw_name, model_id FROM scores WHERE source = 'datacurve_deepswe'"))
     assert len(linked) == 28 and all(linked.values()), linked
@@ -141,12 +102,12 @@ def test_every_model_on_the_leaderboard_links_a_catalogue_model(tmp_path: Path) 
 def test_agentic_coding_answers_from_the_leaderboard_at_high_effort(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """covers REQ-SRC-012 (D-216, revised): from the list the source reads first, the surface's best `high` run is
+    """covers REQ-SRC-012 (D-216 clauses 1 and 3): from the leaderboard, the surface's best `high` run is
     Gemini 3.8 Flash's 73.8; GPT-6 Astra's `xhigh` 74.1, the board's top score, is not ranked as a `high` one."""
     from app.adapter import main
 
     db = tmp_path / "built.db"
-    _built(db, _leaderboard())
+    _built(db)
     monkeypatch.setenv("MODEL_RANKING_DB", str(db))
     answer = TestClient(main.app).get("/v1/recommendations?task=agentic-coding").json()["answers"][0]
     assert answer["unavailable_reason_code"] is None, answer
@@ -154,7 +115,7 @@ def test_agentic_coding_answers_from_the_leaderboard_at_high_effort(
     assert top["label"] == "best_quality" and top["score"] == 73.8, top
 
 
-def test_the_surface_was_calibrated_on_the_leaderboard_it_reads_first() -> None:
+def test_the_surface_was_calibrated_on_the_leaderboard_it_reads() -> None:
     """covers REQ-SRC-012 (D-216 clause 7): the record measured Datacurve's leaderboard, not the June dataset job."""
     written = json.loads(Path("docs/research/d216-agentic-coding-calibration.json").read_text(encoding="utf-8"))
     assert "leaderboard" in written["stderr_from"] and written["ranked_population"] >= 19, written
