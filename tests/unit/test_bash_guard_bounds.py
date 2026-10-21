@@ -797,3 +797,416 @@ def test_untracked_work_counts_even_when_the_repository_hides_untracked_files(gu
     for command in ("rm -rf .claude/worktrees/w", "git worktree remove --force .claude/worktrees/w"):
         why = _bash(guard, command, live)
         assert why and "#286" in why, (command, why)
+
+
+# --- run bug-night's owner bundle: #256, #287, #305, #317, #318, #320 ----------------------------------------
+#
+# Each rule is held in both polarities: the spellings that walked through the guard on `main`, and the near-misses
+# an agent runs every day, which must stay allowed.
+
+@pytest.mark.parametrize(("planted", "path"), [
+    (".claude", ".claude/settings.json"), (".claude", ".claude/hooks/bash_guard.py"),
+    (".claude/hooks", ".claude/hooks/bash_guard.py"), (".githooks", ".githooks/pre-push"),
+    (".claude/worktrees", ".claude/worktrees/plain/notes.md"),
+])
+def test_a_git_directory_planted_inside_the_owners_directories_does_not_open_them(guard: ModuleType, repo: Path,
+                                                                                  planted: str, path: str) -> None:
+    """#256: the refusal looked only at the NEAREST directory holding `.git`, so after `git init .claude` the
+    owner's `.claude/` was a work tree of its own and every Write, Edit and shell write into it passed. Every work
+    tree above the path is asked now, through a nested one."""
+    (repo / planted / ".git").mkdir(parents=True, exist_ok=True)
+    why = guard.judge_file({"tool_input": {"file_path": path}, "cwd": str(repo)})
+    assert why and ".claude/ and .githooks/" in why, (planted, path, why)
+    why = _bash(guard, f"cp x {path}", repo)
+    assert why and ".claude/ and .githooks/" in why, (planted, path, why)
+    why = _bash(guard, f"echo x > {path}", repo)
+    assert why and ".claude/ and .githooks/" in why, (planted, path, why)
+
+
+def test_a_worktree_under_claude_worktrees_and_a_nested_repository_elsewhere_stay_writable(guard: ModuleType,
+                                                                                           repo: Path,
+                                                                                           seat: Path) -> None:
+    """#256's near-misses: a seat or an implementer works in `.claude/worktrees/<name>`, a work tree of its own
+    inside the owner's `.claude/`, and a repository nested anywhere else is no owner's directory either. A seat's
+    own `.claude/` stays refused."""
+    (repo / "vendor" / "lib" / ".git").mkdir(parents=True)
+    for path in (seat / "src" / "a.py", repo / "vendor" / "lib" / "x.py", repo / "ios" / "App.swift"):
+        assert guard.judge_file({"tool_input": {"file_path": str(path)}, "cwd": str(repo)}) is None, path
+        assert _bash(guard, f"echo x > {path}", repo) is None, path
+    assert _bash(guard, "cd .claude/worktrees/seat && echo x > src/b.py && git init -q build/sub", repo) is None
+    why = guard.judge_file({"tool_input": {"file_path": str(seat / ".claude" / "settings.json")}, "cwd": str(repo)})
+    assert why and ".claude/ and .githooks/" in why, why
+
+
+@pytest.mark.parametrize(("command", "where"), [
+    ("git init .claude", "."), ("git init -q .claude/hooks", "."), ("git init --bare .githooks/x", "."),
+    ("cd .claude && git init", "."), ("git -C .claude init", "."), ("git init", ".claude"),
+    ("git init --separate-git-dir .claude/g build/x", "."), ("git init --separate-git-dir=.githooks/g x", "."),
+    ("git clone /x .claude/x", "."), ("git clone --depth 1 /x .githooks/x", "."), ("git clone -b x /x .CLAUDE/x", "."),
+    ("git clone https://example.com/a/hooks.git", ".claude"), ("git worktree add .claude/x", "."),
+    ("git worktree add -b b .githooks/w", "."), ("git worktree add .claude/worktreesx main", "."),
+    ("git worktree add --detach ../.claude/x", "ios"), ("git submodule add /x .claude/x", "."),
+    ("git submodule add --name h https://example.com/a/hooks.git", ".githooks"),
+])
+def test_git_init_clone_or_worktree_add_into_the_owners_directories_is_refused(guard: ModuleType, repo: Path,
+                                                                               command: str, where: str) -> None:
+    """#256: the command that plants the `.git` is refused where it plants it, but Claude Code's own
+    `.claude/worktrees/<name>`."""
+    why = _bash(guard, command, repo / where)
+    assert why and ".claude/ and .githooks/" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git worktree add .claude/worktrees/x", "git worktree add -b x .claude/worktrees/x main",
+    "git worktree add --detach .claude/worktrees/seat2 HEAD", "git init build/sub", "git init -q",
+    "git clone /x vendor/x", "git clone --depth 1 https://example.com/a/b.git", "git worktree list",
+    "git init --bare /tmp/bare.git", "git clone /x .claude-notes/x", "git submodule add /x vendor/x",
+])
+def test_git_init_clone_and_worktree_add_elsewhere_are_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    '(X=$(mktemp -d)); rm -rf "$X"/Users/x', '(export X=$(mktemp -d); make test); rm -rf "$X"/Users/x',
+    'f() { local X=$(mktemp -d); }; f; rm -rf "$X"/Users/x', 'f () { X=$(mktemp -d); }; rm -rf "$X"/Users/x',
+    'function f { X=$(mktemp -d); }; rm -rf "$X"/Users/x', 'X=$(mktemp -d) | true; rm -rf "$X"/Users/x',
+    'true | X=$(mktemp -d); rm -rf "$X"/Users/x', 'for i in $L; do X=$(mktemp -d); done; rm -rf "$X"/Users/x',
+    'while false; do X=$(mktemp -d); done; rm -rf "$X"/Users/x', 'if false; then X=$(mktemp -d); fi; rm -rf "$X"/Users/x',
+    'case $a in b) X=$(mktemp -d);; esac; rm -rf "$X"/Users/x', 'true || X=$(mktemp -d); rm -rf "$X"/Users/x',
+    'false && X=$(mktemp -d); rm -rf "$X"/Users/x', 'X=$(mktemp -d) & rm -rf "$X"/Users/x',
+    'y=$(X=$(mktemp -d)); rm -rf "$X"/Users/x', '(export HOME=$(mktemp -d); make test); rm -rf "$HOME"',
+    "functions[cd]='builtin cd ~'; cd x; rm -rf build",
+    # a child process's or a deferred text's assignment: the shell running this text never takes it, or takes it later
+    "bash -c 'X=$(mktemp -d)'; rm -rf \"$X\"/Users/x", "sh <<'E'\nX=$(mktemp -d)\nE\nrm -rf \"$X\"/Users/x",
+    "trap 'X=$(mktemp -d)' EXIT; rm -rf \"$X\"/Users/x", "alias a='X=$(mktemp -d)'; rm -rf \"$X\"/Users/x",
+    "git -c alias.x='!X=$(mktemp -d)' x; rm -rf \"$X\"/Users/x",
+    "X=$(mktemp -d); bash -c 'X=/'; rm -rf \"$X\"/Users/x", "eval 'false && X=$(mktemp -d)'; rm -rf \"$X\"/Users/x",
+])
+def test_a_variable_set_where_it_may_not_happen_or_does_not_last_is_not_scratch_after_it(
+        guard: ModuleType, temp_dir: Path, command: str) -> None:
+    """#287: the guard kept one flat table of values for the whole text, and a name with no value before took the
+    `mktemp` result set in a subshell, a function, a pipeline stage, a loop or a branch -- where the shell may never
+    set it, or drops it again -- so `rm -rf "$X"/Users/x` ran as `rm -rf /Users/x`. zsh's `functions[cd]=` defines
+    `cd` as a function, so a relative `cd` after it lands where this cannot name. Text another process runs (`bash
+    -c`, a shell's here-document, a git alias) or that runs later (a `trap`, an `alias`) sets nothing here either."""
+    inside = temp_dir / "work"
+    inside.mkdir()
+    why = _bash(guard, command, inside)
+    assert why and "destructive" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    'X=$(mktemp -d); (cd "$X" && make); rm -rf "$X"', 'X=$(mktemp -d) && rm -rf "$X"/sub',
+    'X=$(mktemp -d); for f in a b; do touch "$X/$f"; done; rm -rf "$X"',
+    'for f in a b; do echo "$f"; done; X=$(mktemp -d); rm -rf "$X"', 'make build && X=$(mktemp -d) && rm -rf "$X"',
+    'if true; then echo y; fi; X=$(mktemp -d); rm -rf "$X"', '(X=$(mktemp -d)); rm -rf "$TMPDIR/foo"',
+    'X=$(mktemp -d); echo "$X" | cat; rm -rf "$X"', "bash -c 'd=$(mktemp -d); rm -rf \"$d\"'",
+    "eval 'X=$(mktemp -d)'; rm -rf \"$X\"",
+])
+def test_a_variable_set_in_the_line_of_the_text_still_holds_after_a_subshell_loop_or_pipe(
+        guard: ModuleType, temp_dir: Path, ungoverned: Path, command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
+
+
+def test_git_rm_of_a_path_this_cannot_read_is_refused(guard: ModuleType, repo: Path) -> None:
+    """#287's P5: `git rm -r "$(pwd)"` from the repository removed every tracked file; `$(pwd)` may be the
+    repository, and a command can redefine `pwd`. `git rm -r --cached` of one, and a plain path, stay allowed."""
+    for command in ('git rm -r "$(pwd)"', 'git rm -r "$D"', "git rm -rf `pwd`"):
+        assert _bash(guard, command, repo), command
+    for command in ('git rm -r --cached "$(pwd)"', "git rm -r ios", 'git rm "$f"'):
+        assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "git config credential.helper '!rm -rf ~'", "git config --global credential.helper '!rm -rf ~'",
+    "git -c credential.helper='!rm -rf ~' fetch", "git config credential.https://example.com.helper '!rm -rf ~'",
+    "git config core.pager '!rm -rf ~'", "git config gpg.program '!rm -rf ~'", "git config core.sshCommand ' !rm -rf ~'",
+    "git config credential.helper '/bin/rm -rf ~'", "git config credential.helper 'store; rm -rf ~'",
+    "git -c core.fsmonitor='!git push --force origin x' status",
+])
+def test_a_code_running_config_value_that_starts_with_a_bang_is_judged_as_the_command_it_runs(
+        guard: ModuleType, ungoverned: Path, command: str) -> None:
+    """#305: a value git runs through the shell was judged with its leading `!` on, so `!rm` read as a program
+    named `!rm` and passed; git strips the `!` and runs the rest."""
+    assert _bash(guard, command, ungoverned), command
+
+
+@pytest.mark.parametrize("command", [
+    "git config credential.helper store", "git config --global credential.helper osxkeychain",
+    "git config credential.helper '!gh auth git-credential'", "git -c credential.helper= fetch",
+    "git config core.pager 'less -R'", "git config --get credential.helper", "git -c core.pager=cat log",
+])
+def test_a_harmless_code_running_config_value_is_allowed(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    assert _bash(guard, command, ungoverned) is None, command
+
+
+def _dirty(live: Path) -> Path:
+    w = live / ".claude" / "worktrees" / "w"
+    (w / "review.md").write_text("findings\n", encoding="utf-8")
+    return w
+
+
+@pytest.mark.parametrize("command", [
+    "rm .claude/worktrees/w/.git", "rm -f .claude/worktrees/w/.git", "mv .claude/worktrees/w/.git /tmp/g",
+    "truncate -s 0 .claude/worktrees/w/.git", "chmod 000 .claude/worktrees/w/.git", "unlink .claude/worktrees/w/.git",
+    "git worktree move .claude/worktrees/w /tmp/x", "git worktree move w ../moved",
+    "git worktree move --force .claude/worktrees/w /tmp/x",
+])
+def test_a_dirty_worktree_is_not_unlinked_or_moved_out_of_reach(guard: ModuleType, live: Path, command: str) -> None:
+    """#317: the removal refusal (#286) held only while the worktree was live and in place; removing or emptying its
+    `.git` first, or `git worktree move` to the temp directory, made the next `rm -rf` a plain directory's. (`mv` of a
+    `.claude/worktrees/<name>` is refused already, as a write into the owner's `.claude/`, and a write onto a `.git`
+    by `>` or `cp` as one into git's own files, #285.)"""
+    _dirty(live)
+    why = _bash(guard, command, live)
+    assert why and "#286" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "rm .claude/worktrees/w/.git", "git worktree move .claude/worktrees/w .claude/worktrees/w2",
+    "mv .claude/worktrees/w/a.txt .claude/worktrees/w/b.txt",
+])
+def test_a_clean_worktree_may_be_unlinked_or_moved(guard: ModuleType, live: Path, command: str) -> None:
+    assert _bash(guard, command, live) is None, command
+
+
+def test_moving_a_file_inside_a_dirty_worktree_is_allowed(guard: ModuleType, live: Path) -> None:
+    w = _dirty(live)
+    assert _bash(guard, "mv review.md notes.md && git mv a.txt c.txt", w) is None
+
+
+def test_work_hidden_by_a_self_ignoring_gitignore_still_counts(guard: ModuleType, live: Path) -> None:
+    """#317: `echo '*' > <wt>/notes/.gitignore` hides the directory's work, and itself, from `git status`."""
+    notes = live / ".claude" / "worktrees" / "w" / "notes"
+    notes.mkdir()
+    (notes / "review.md").write_text("findings\n", encoding="utf-8")
+    (notes / ".gitignore").write_text("*\n", encoding="utf-8")
+    for command in ("rm -rf .claude/worktrees/w", "git worktree remove --force .claude/worktrees/w"):
+        why = _bash(guard, command, live)
+        assert why and "#286" in why, (command, why)
+
+
+def test_files_ignored_by_the_committed_rules_do_not_make_a_worktree_dirty(guard: ModuleType, live: Path) -> None:
+    """#317's near-miss: a tool's own ignore file (`.pytest_cache/.gitignore` holds `*`) inside a directory the
+    committed `.gitignore` ignores hides nothing the worktree's history would keep."""
+    w = live / ".claude" / "worktrees" / "w"
+    cache = w / ".claude" / "worktrees" / "cache"
+    cache.mkdir(parents=True)
+    (cache / ".gitignore").write_text("*\n", encoding="utf-8")
+    (cache / "v").write_text("x\n", encoding="utf-8")
+    assert _bash(guard, "rm -rf .claude/worktrees/w", live) is None
+
+
+@pytest.mark.parametrize("command", [
+    "echo x >> .git/info/exclude", "echo '*' > .git/info/exclude", "echo x > .git/info/attributes",
+    "cp x .git/info/sparse-checkout", "echo x > .git/modules/sub/config", "cp x .git/modules/sub/hooks/pre-commit",
+    "echo x > .git/modules/a/b/config", "echo /x > .git/commondir", "echo /x > .git/worktrees/w/commondir",
+    "tee .GIT/INFO/exclude < x",
+])
+def test_a_write_into_gits_info_modules_or_commondir_is_refused(guard: ModuleType, repo: Path, command: str) -> None:
+    """#320 (#285's rest): `.git/info/exclude` hides work from `git status`, `.git/modules/<name>/` is a submodule's
+    own git directory with its config and hooks, and `commondir` points a git directory's config elsewhere."""
+    why = _bash(guard, command, repo)
+    assert why and "#320" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git init --template=/tmp/t", "git init --template /tmp/t x", "git clone --template=/tmp/t /x y",
+    "git clone --tem=/tmp/t /x y", "git init --t=/tmp/t x", "git config init.templateDir /tmp/t", "git config --global init.templatedir /tmp/t",
+    "git -c init.templateDir=/tmp/t init x", "GIT_TEMPLATE_DIR=/tmp/t git init x", "export GIT_TEMPLATE_DIR=/tmp/t",
+    "env GIT_TEMPLATE_DIR=/tmp/t git clone /x y", "read GIT_TEMPLATE_DIR",
+])
+def test_a_git_template_directory_is_refused(guard: ModuleType, ungoverned: Path, command: str) -> None:
+    """#320: a template directory's hooks and config are copied into the repository `git init` or `git clone`
+    makes, or re-initialises, from a place this guard does not read."""
+    try:
+        why = _bash(guard, command, ungoverned)
+    except guard.Unreadable as error:   # `read NAME` refuses from inside the reading, as `main` reports it
+        why = str(error)
+    assert why and "#320" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "cat .git/info/exclude", "cp .git/info/exclude /tmp/exclude.bak", "ls .git/modules", "git init x",
+    "git clone /x y", "git config --get init.templateDir", "echo x > notes/info/exclude",
+    "echo x > .git-notes/commondir", "git submodule status",
+])
+def test_reading_gits_info_and_modules_and_a_plain_init_are_allowed(guard: ModuleType, repo: Path,
+                                                                    command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "git branch -f main HEAD", "git branch --force main", "git branch -f master x", "git branch -M x main",
+    "git branch -m main", "git branch -c fix/x origin/HEAD", "git branch -C x main", "git branch main", "git update-ref refs/remotes/origin/HEAD HEAD", "git update-ref refs/remotes/origin/main HEAD",
+    "git update-ref -d refs/remotes/origin/HEAD", "git update-ref --stdin",
+    "git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/x", "git symbolic-ref -d refs/remotes/origin/HEAD",
+    "git symbolic-ref HEAD refs/heads/main", "git remote set-head origin x", "git remote set-head origin -d",
+    "git remote set-url origin /tmp/evil", "git remote rename origin old", "git remote add origin /tmp/evil",
+    "git config remote.origin.url /tmp/evil", "git config remote.origin.fetch '+refs/heads/x:refs/remotes/origin/main'",
+    "git fetch . HEAD:main", "git fetch origin +x:refs/remotes/origin/main", "git fetch /tmp/e 'refs/heads/*:refs/remotes/origin/*'",
+    "git pull . HEAD:main", "git checkout -B main", "git checkout -b main origin/x", "git switch -C main",
+    "git switch --force-create main", "git switch -c master",
+    "echo 0123 > .git/refs/heads/main", "echo x >> .git/packed-refs", "cp x .git/refs/remotes/origin/HEAD",
+    'git branch -M x "$b"', 'git branch -f "$b" HEAD', 'git checkout -B "$b"', 'git update-ref "$r" HEAD',
+    'git fetch . "HEAD:$b"', "git branch -m x `echo main`", "git branch -f MAIN HEAD", "git update-ref REFS/heads/main x",
+    "git push . HEAD:refs/remotes/origin/main", "git replace 0123abc HEAD", "git replace --graft main",
+    "cp x .git/refs/replace/0123abc", "echo 0123 > .git/shallow",
+])
+def test_the_default_branch_the_deploy_gate_reads_cannot_be_moved(guard: ModuleType, repo: Path, command: str) -> None:
+    """#318: the deploy gate reads the brief at the merge-base of HEAD with origin/HEAD, origin/main or main; an
+    agent that moves one of them chooses the policy its own deploy is judged by. (Deleting a local one moves the gate
+    to the next, or to none, which refuses every deploy: `git branch -D main` stays allowed, as DevFlow's
+    conformance holds it.)"""
+    why = _bash(guard, command, repo)
+    assert why and "#318" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git branch fix/x", "git branch -f fix/x HEAD", "git branch -f fix/x main", "git branch -d fix/old",
+    "git branch -m main old", 'git branch -D "$b"',
+    "git branch --list main", "git branch --contains main", "git branch -a", "git branch -u origin/main",
+    "git branch --set-upstream-to=origin/main", "git branch -m fix/old fix/new", "git update-ref refs/heads/fix/x HEAD",
+    "git symbolic-ref refs/remotes/origin/HEAD", "git symbolic-ref --short HEAD", "git remote set-head origin --auto",
+    "git remote -v", "git remote add upstream https://example.com/a/b.git", "git fetch origin", "git fetch origin main",
+    "git fetch origin fix/x:fix/x", "git pull --ff-only origin main", "git checkout -B fix/x", "git switch -c fix/x main",
+    "git checkout main", "cat .git/refs/heads/main", "git rev-parse origin/HEAD", "git config --get remote.origin.url",
+    'git checkout -b "fix/issue-$n"', 'git switch -c "$b"', 'git branch "fix/$n"', "git replace -l",
+    "git push . HEAD:refs/heads/fix/x", "git push -u origin fix/x",
+])
+def test_reading_or_moving_another_branch_is_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+# --- the bundle's security review (B1, M1-M3): a value that MAY be set is judged as each value it may take -------
+
+@pytest.mark.parametrize("command", [
+    'f() { :; }; d=.claude; echo x > "$d"/settings.json', "true && d=.claude/hooks/bash_guard.py; cp /tmp/x $d",
+    'if :; then d=.claude; fi; cp /tmp/x "$d"/settings.json', 'f() { :; }; d=.git; echo x >> "$d"/config',
+    "f() { :; }; d=~/.gitconfig; echo x >> $d", "f() { :; }; k=core.hooksPath; git config $k /dev/null",
+    "f() { :; }; o=--no-verify; git commit $o -m x", "f() { :; }; b=main; git push origin $b",
+    "f() { :; }; o=--hard; git reset $o HEAD~1", "f() { :; }; o=--force; git push $o origin x",
+    "f() { :; }; p=fly; $p deploy", "f() { :; }; d=.env; echo x > $d", "true && d=.env; echo x > $d",
+    "true && o=--hard; git reset $o HEAD~1", "if :; then b=main; fi; git push origin $b",
+    "true && k=core.hooksPath; git config $k /dev/null", "true && o=--force; git push $o origin x",
+    "true && d=~/.gitconfig; echo x >> $d", 'd=x; true && d=.claude; echo y > "$d"/settings.json',
+    'd=.claude; (d=x); echo y > "$d"/settings.json', "d=.claude; bash -c 'd=x'; echo y > \"$d\"/settings.json",
+    'd=.claude :; echo x > "$d"/settings.json',
+])
+def test_a_value_that_may_be_set_is_judged_as_each_value_it_may_take(guard: ModuleType, repo: Path,
+                                                                      command: str) -> None:
+    """The review's B1: #287's first fix made such a name unknown, and every refusal that reads a name's value read
+    unknown as harmless, so `f() { :; }; d=.claude; echo x > "$d"/settings.json` passed where it was refused. The
+    call is judged with the assignment made and without it."""
+    assert _bash(guard, command, repo), command
+
+
+@pytest.mark.parametrize("command", [
+    "git checkout -Bmain feat", "git switch -Cmain feat", "git switch --force-create main feat",
+    "git switch --force-cr main feat", "git switch --cr main", "git checkout -qB main", "git checkout -bmain",
+    "git config url./tmp/evil.insteadOf https://github.com/a/b",
+    "git -c url./tmp/evil.insteadOf=https://github.com/a/b fetch origin",
+])
+def test_a_branch_made_with_an_attached_or_abbreviated_option_or_a_rewritten_url_is_refused(
+        guard: ModuleType, repo: Path, command: str) -> None:
+    """The review's M1 (#318): `-Bmain` and `--force-cr` move main as `-B main` does, and `insteadOf` rewrites
+    origin's URL with `remote.origin.url` untouched."""
+    why = _bash(guard, command, repo)
+    assert why and "#318" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git checkout -bwave/x", "git switch -cwave/x main", "git switch --create fix/x", "git checkout -q main",
+    "git config --get-regexp url", "git switch --cr fix/x",
+])
+def test_a_branch_made_by_another_name_is_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR=.claude/.git git init", "git --git-dir=.claude/.git init", "git --git-dir .githooks/g init",
+    "GIT_WORK_TREE=.claude git status", "export GIT_DIR=.claude/.git", "env GIT_DIR=.githooks/x git init",
+    "git --work-tree=.githooks checkout x",
+])
+def test_a_git_directory_placed_in_the_owners_directories_is_refused(guard: ModuleType, repo: Path,
+                                                                     command: str) -> None:
+    """The review's M2 (#256): `GIT_DIR` and `--git-dir` plant a git directory where `git init` is told."""
+    why = _bash(guard, command, repo)
+    assert why and ".claude/ and .githooks/" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "GIT_DIR=/tmp/x.git git init", "git --git-dir=.git status", "GIT_DIR=.git git log",
+    "git --git-dir=.claude/worktrees/seat/.git status",
+])
+def test_a_git_directory_placed_elsewhere_is_allowed(guard: ModuleType, repo: Path, seat: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "sed -i '' d .claude/worktrees/w/.git", "perl -i -pe 's/gitdir/x/' .claude/worktrees/w/.git",
+    "sed --in-place=.bak d .claude/worktrees/w/.git",
+])
+def test_an_in_place_edit_of_a_dirty_worktrees_git_file_is_refused(guard: ModuleType, live: Path, command: str) -> None:
+    """The review's M3 (#317): `sed -i` emptied the `.git` that `rm` may not remove."""
+    _dirty(live)
+    why = _bash(guard, command, live)
+    assert why and "#286" in why, (command, why)
+    (live / ".claude" / "worktrees" / "w" / "review.md").unlink()
+    assert _bash(guard, command, live) is None, command
+
+
+# --- #344 (the bundle review's R1): a value this cannot read is never read as harmless ------------------------------
+
+@pytest.mark.parametrize("command", [
+    'd=$(echo .claude); echo x > "$d"/settings.json', 'a=(.claude); echo x > "$a"/settings.json',
+    'd=`echo .git`; echo x >> "$d"/config', 'd=$(echo .git); cp x "$d"/config', 'echo x >> "$(echo .git)"/config',
+    'a=(.git); echo x >> "${a[0]}"/config', 'dd if=x of="$(echo .git)/config"', 'd=$(echo .env); echo x > $d',
+    "d=$(echo .claude/settings.json); sed -i '' s/a/b/ \"$d\"", 'set -- .claude; echo x > "$1"/settings.json',
+    'd=$1; echo x > "$d"/settings.json', 'echo x > "${d:-.claude}"/settings.json',
+    'mapfile -t a < f; echo x > "$a"/settings.json', 'declare -a a=(.githooks); cp x "$a"/pre-push',
+    'b=$(git branch --show-current); git push origin "$b"', 'git push origin "$(echo main)"',
+    "b=`echo main`; git push origin $b", 'o=$(echo --no-verify); git commit $o -m x',
+    'o=$(echo --hard); git reset $o HEAD~1', 'o=$(echo --force); git push $o origin x',
+    'k=$(echo core.hooksPath); git config $k /dev/null', 'p=$(echo fly); $p deploy', '"$(echo fly)" deploy',
+    'd=$(echo /Users/x); rm -rf "$d"', 'rm -rf "$(echo ~)"', 'a=(/Users/x); rm -rf "${a[@]}"',
+])
+def test_a_value_this_cannot_read_is_refused_where_a_refusal_reads_it(guard: ModuleType, repo: Path,
+                                                                     command: str) -> None:
+    """#344: a command substitution's output, an array, a positional parameter or a `${...}` form was read as no
+    protected path, no protected branch and no option, so `d=$(echo .claude); echo x > "$d"/settings.json` passed."""
+    assert _bash(guard, command, repo), command
+
+
+@pytest.mark.parametrize("command", [
+    'd=$(mktemp -d); rm -rf "$d"', "x=$(date); echo $x", "ls $(pwd)", 'git commit -m "$(cat msg.txt)"',
+    'git commit -am "$(date)"', 'out=$(mktemp); echo x > "$out"', 'd=$HOME/notes; echo x > "$d/a.txt"',
+    'git log --since="$(date)"', "echo $(date) > out.txt", "x=(a b c); echo ${x[0]}", "echo x > /tmp/out.$$",
+    '"$(git rev-parse --show-toplevel)"/scripts/check.sh', 'git -C "$(git rev-parse --show-toplevel)" status',
+    'git add "$(git ls-files -m | head -1)"', 'n=$(git rev-parse --short HEAD); echo "$n" > build/head.txt',
+])
+def test_a_value_this_cannot_read_where_nothing_reads_it_is_allowed(guard: ModuleType, temp_dir: Path, repo: Path,
+                                                                     command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+# --- the bundle review's M5: a `${NAME:-literal}` is judged as each value it may take ----------------------------
+
+@pytest.mark.parametrize("command", [
+    'echo x > "${X:-.claude}"/settings.json', 'echo x >> "${G-.git}/config"', 'cp x "${D:=.githooks}"/pre-push',
+    '"${P:-fly}" deploy', 'git push origin "${B:-main}"', "git commit ${O:---no-verify} -m x",
+    'X=.claude; echo x > "${X:-a}"/settings.json', 'rm -rf "${D:-/Users/x}"', "rm -rf ${TMPDIR:-/}x",
+])
+def test_a_default_is_refused_when_either_value_is(guard: ModuleType, repo: Path, command: str) -> None:
+    """M5: the name's value or the literal -- each is judged, and either refused refuses the command."""
+    assert _bash(guard, command, repo), command
+
+
+@pytest.mark.parametrize("command", [
+    'echo hi > "${TMPDIR:-/tmp}/x.txt"', '"${PY:-python3}" -V', 'git switch -c "fix/issue-${N:-1}-x"',
+    'echo "${HOME:-/tmp}"', 'cat "${F:-README.md}"', 'make test PY="${PY:-python3}"',
+])
+def test_a_default_whose_values_are_both_harmless_is_allowed(guard: ModuleType, temp_dir: Path, repo: Path,
+                                                             command: str) -> None:
+    """M5: #344 refused every `${...}` form as unreadable; a plain literal default is read instead."""
+    assert _bash(guard, command, repo) is None, command

@@ -121,7 +121,9 @@ its default, written down as the default.
   `/plan-milestone`; light: `/file-issue` one issue per requirement in `docs/prd.md`, `/triage-issue` each, then the skill each verdict names. Without `gh`,
   `make labels` prints the labels to create by hand and exits 2: hand the owner that table.
 - An upgrade: `UPGRADING.md`, and nothing else from this list until it is done — then the new
-  session above.
+  session above. Run the upgrade's `make install` in the clone the owner works in too, not only in
+  the temporary worktree the upgrade was made in: `.gp/installed` is gitignored, so every clone keeps
+  its own marker, and the main clone stayed on v6.6 through three upgrades (#331).
 - A choice changes later: update the brief the same way. It is the one place the next agent reads.
   A switch of working mode also re-triages the open issues whose verdict belongs to the other mode:
   light → heavy, a `work-enhancement` verdict; heavy → light, a `wave` verdict and the open
