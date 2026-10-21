@@ -85,3 +85,13 @@ def test_a_model_on_the_floor_is_within_reach_and_the_window_is_a_half_point() -
     assert picked["candidates"] == 3 and picked["value_window"] == 6.0  # mid-gap 6.0, past 3 candidates
     assert _script().thresholds([60.0, 59.0, 58.0, 57.0], floor=57.0, stderr=1.0)["candidates"] == 4
     assert _script().thresholds([60.0, 59.9, 59.8, 52.8], floor=50.0, stderr=0.5)["value_window"] == 3.5  # mid 3.7
+
+
+def test_the_window_rounded_to_the_half_point_never_falls_below_the_close_call() -> None:
+    """#265 (D-216): Datacurve's leaderboard put the mid-gap at 2.7 against a close call of 2.6, and rounding to the
+    half point gave 2.5, a window that refuses a model the surface calls level with the leader (the invariant
+    `test_categories.py` holds). The half point is then taken upward, which stays inside the gap."""
+    picked = _script().thresholds([73.8, 73.2, 72.8, 69.4, 68.6], floor=67.0, stderr=1.313)
+    assert picked["close_call"] == 2.6
+    assert picked["value_window"] >= picked["close_call"] and picked["value_window"] == 3.0
+    assert picked["candidates"] == 3 and 73.8 - picked["value_window"] > 69.4
