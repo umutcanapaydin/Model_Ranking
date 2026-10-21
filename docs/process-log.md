@@ -1185,3 +1185,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Router: hints, examples, keyword rules before `vision`, and the retired image decline. The on-device model tier routed every probe right. The wording tier held the tuning and retired sets at 520 against 518. Adding 30 examples moved a few far questions through the centring mean.
 - Phases 3 and 4 were split as engine plus routing, then screens, because the hint-pairing test binds a served surface to its hint.
 - Lesson: before a served field may become null, check what an installed client decodes it as; a new key beside the old one keeps an old build working where a null in place breaks it.
+
+## 2026-10-22 — enhancement/issue-379-new-boards: ten boards read under D-215, four served and six skipped, and `long-tasks` opens on METR (#379)
+
+- D-219 records each board's publisher, terms, link and the date read, then serve or skip with the reason. Served: OSWorld-Verified (`computer-use`), LiveBench 2.0 and SimpleBench (`everyday`), METR's time horizons (a new `long-tasks` surface, by D-218 clause 2). Skipped: HLE, DeepResearch Bench, SciCode, Vending-Bench 2, Video-MME and GDPval, and OSWorld 2.0, found on the way.
+- Each served board: a red parser test on a recorded fixture, then an optional source on its publisher's own host, no token, a live contract test, a credit, and the unlinked count measured on a copy of the Mac's artifact.
+- OSWorld's site had moved to its own host, and the old address redirects over plain HTTP; the client asks only the new host. Its workbook is read with a defused expat reader, because ruff refused `xml.etree` on fetched data and `defusedxml` is not a dependency.
+- Two publishers keep their numbers only inside compiled app code (CAIS's dashboard, Andon Labs), so those boards were skipped. LiveBench stores no overall score, but its page states the rule, so the source computes that rule and pins the release.
+- Measuring the unlinked count found a real mislink: the MiniMax M3 rule took M3.1 Flash. It was fixed with its own red test.
+- Routing was measured against the integration head with `make model-tier`. The model tier sent nothing wrongly to `long-tasks` (golden +1, m24 +2). The first wording examples drew ordinary questions there; the shipped ones name hours and days, and hold both sets at net 0. All 727 Swift tests stayed green.
+- Lesson: count a new board's links on a copy of the real artifact before serving it, because a curated prefix rule fails quietly, giving one model another model's score.

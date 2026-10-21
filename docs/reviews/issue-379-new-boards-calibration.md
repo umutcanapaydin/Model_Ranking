@@ -69,3 +69,21 @@ PYTHONPATH=src .venv/bin/python scripts/calibrate_surface.py --surface long-task
 - **An older board.** METR's newest model was released on 2026-04-07; the page says it was updated "while this page was
   being maintained". Its rows are undated (D-139), so the list says its evidence is undated, as D-188 clause 4 has it.
 - **When METR publishes a new time-horizon version,** the source moves to it and this calibration is run again.
+
+## Routing to `long-tasks`, measured
+
+`make model-tier` (`scripts/model_tier.py`) on this branch and on the integration head (`9c8f499`), each tier's rows
+compared question by question (`--compare`), on the golden set (49 questions) and the m24 held-out set (173):
+
+| tier | golden | m24 |
+|---|---|---|
+| Apple Intelligence (model tier) | 41 -> 42 of 49 (net +1) | 154 -> 156 of 173 (net +2, McNemar p=0.625) |
+| wording tier, first examples | net -2 | net -1 |
+| wording tier, shipped examples | 22 -> 21 of 49 (net -1) | 84 -> 85 of 173 (net +1) |
+
+No question of either set reaches `long-tasks` on the model tier. The first examples ("which ai can work on one task
+for hours", "an assistant that ...") drew ordinary questions there on the wording tier; the shipped ones name the
+length of the job in hours and days. The wording probe's English replica (`scripts/router_probe/probe.swift`) holds
+`probe_questions.json` and `heldout_questions.json`, and loses two Turkish questions of `coding_tuning_questions.json`
+to near-ties (a Flutter crash, a lease to summarise); the app reads both by their words (`flutter`, `sozlesme`) before
+any embedding. Every Swift test stays green.
