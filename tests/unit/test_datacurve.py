@@ -324,3 +324,18 @@ def test_the_registered_ingest_stores_each_run_at_the_effort_a_reader_is_shown()
     assert (report.stored, report.skipped, report.effort_unknown) == (27, 0, 0)
     stored = dict(conn.execute("SELECT effort, count(*) FROM scores WHERE source = 'datacurve_deepswe' GROUP BY effort"))
     assert stored == {"high": 15, "xhigh": 5, "max": 3, "medium": 4}
+
+
+class _Unstattable(type(Path())):  # type: ignore[misc]
+    """A path whose stat is refused, as Python 3.12's `Path.exists` raises on a CI runner's /root (#265's PR CI)."""
+
+    def exists(self, *, follow_symlinks: bool = True) -> bool:
+        raise PermissionError(13, "Permission denied", str(self))
+
+
+def test_a_token_file_the_process_may_not_stat_counts_as_no_token(monkeypatch: pytest.MonkeyPatch,
+                                                                   tmp_path: Path) -> None:
+    """covers REQ-SRC-012: the contract test's need is asked at collection, so a refused stat is "no token",
+    never an error that stops the whole run (pytest's INTERNALERROR on the py3.12 runner)."""
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    assert _dc().token_available(environ={}, path=_Unstattable(tmp_path / "hf-token")) is False
