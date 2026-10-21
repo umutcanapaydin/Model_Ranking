@@ -19,7 +19,7 @@ Each board below is either served through the issue's five steps or recorded as 
 5. The unlinked-id count. A board under half linked is not served until its aliases are fixed.
 
 **Out:**
-- a board found only in a paper's tables;
+- a board found only in a paper's tables, all skipped with the reason recorded (D-218 clause 3);
 - a board with fewer than 15 ranked models (D-145);
 - a board behind a sign-in, a token or a click-through, since the nightly refresh holds no secret (#387);
 - a board whose publisher forbids non-commercial use (D-215).
@@ -29,8 +29,8 @@ Each is skipped, with the reason recorded.
 ## Decisions
 
 1. **The licence rule is D-215's,** applied board by board. It needs no new owner ruling. A board the rule does not clearly admit is skipped, and the reason is written down.
-2. **Where METR's board goes:** the run's decisions message asks.
-3. **A board that adds a new surface:** the run's decisions message asks.
+2. **METR's time-horizon board opens a new surface, long tasks** (D-218 clause 2), with its own Turkish title, router hint, probes and calibration.
+3. **A board that fits no surface opens one** (D-218 clause 3), when D-215 admits it and it ranks at least 15 models.
 
 ## Phases
 

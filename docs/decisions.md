@@ -5701,3 +5701,34 @@ host, is a failed night, carried like any other: the client's tests hold both.
 
 **Revisit when:** Datacurve publishes a licence or terms for its leaderboard, moves it to a new version (`v1.2`), or
 objects to this use; or the default runs need a label of their own.
+
+## D-218 — Run queue-1021's rulings: the media surfaces on quality, new surfaces for new boards, #371's rule, and the first release's name
+
+**Status:** proposed
+**Owner ruling:** 2026-10-21, in chat, for run queue-1021
+
+**Context.** The owner opened a run over the whole open queue before the first release (`docs/plans/run-queue-1021.md`). The release and the deploys follow the merge, under `/going-live`. #387's ruling is D-217, on #388's branch, which this run stacks. The run's decisions message asked four questions, and listed four defaults that the owner did not change. The licence rule needs no new question: D-215 is applied board by board.
+
+**Decision.**
+1. **#378: LMArena's five image and video boards open as surfaces ranked on quality only.** The boards are `image_edit`, `text_to_image`, `image_to_video`, `text_to_video` and `video_edit` (the owner's ruling of 2026-10-21 on #378, option 1). Each has no price column, no value window and no `budget` filter, and the app's detail screen says the price is not measured. A request to make an image or a video routes to its surface instead of declining, which reverses the decline hint of #113 and #192. A price in each surface's own unit is its own issue. The four `*_style_control` configs are skipped as duplicates.
+2. **#379: METR's time-horizon board opens a new surface, long tasks,** with its own Turkish title, router hint, probes and D-148 calibration. It is not a second board in `agentic-coding`.
+3. **#379: a board that fits no surface opens one,** with a Turkish title, a router hint, at least one probe and a D-148 calibration. This holds only when D-215 admits the board and it ranks at least 15 models (D-145). Video-MME, GDPval and Vending-Bench 2 are the likely cases. A board D-215 does not clearly admit is skipped, with the reason recorded. So is one behind a sign-in, a token or a click-through (the nightly refresh holds no secret), one that lives only in a paper's tables, and one that ranks fewer than 15 models.
+4. **#371 (b): a comparison with a served number is refused inside a closure that counts or searches,** that is the closures given to `filter`, `first`, `firstIndex`, `lastIndex`, `last`, `count(where:)`, `contains(where:)`, `allSatisfy`, `drop(while:)`, `prefix(while:)` and `reduce`, since their result can be a new number. A comparison in `if`, `guard`, `switch`, a sort, or `min`/`max(by:)` stays admitted. Clause (a) refuses a served number passed into a generic parameter constrained to a numeric protocol. Nothing pinned before is lost (D-214 clause 1).
+5. **The first release is `v1.0.0-beta.1`:** the app on TestFlight's internal testing. The public release takes `v1.0.0`.
+6. **The defaults the owner left standing:**
+   - #389 splits the deploy in two. A step with no token derives the public copy and reads the record. The token's step ships only the derived file, after checking its digest.
+   - #390's guard half and #392's `ci.yml` change are owner bundles. The agent writes each patch and its tests, the Security-Reviewer reviews it, and the owner applies it after the run.
+   - A new TestFlight build follows the release, because the app changes (#378, #371).
+   - A question the run meets that is reversible and outside a ⛔ zone takes its most conservative answer in `docs/plans/assumptions-queue-1021.md`.
+
+**Rationale.** The owner's answers. The more boards and surfaces, the more questions get a correct list (Golden Rule 3), within D-215's lawful-use rule (Golden Rule 1). Clause 4 refuses the shapes that rebuild a number, and keeps the comparisons a screen needs.
+
+**Mitigation if violated:**
+- A media surface given a per-token price would rank on a number that does not measure it.
+- A new surface without probes routes nobody to it.
+- A looser #371 rule lets the app show a number no board published (D-104).
+
+**Revisit when:**
+- a per-unit price source for images or video is settled (clause 1);
+- a new surface's board drops below 15 models (clauses 2 and 3);
+- the public release is cut (clause 5).

@@ -11,8 +11,8 @@ Mode: light
 Started: 2026-10-21
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
-Rulings: none
+Plan PR: #393
+Rulings: D-218
 
 <!-- `Ended:` is `open` while the run runs. When it ends: `<YYYY-MM-DD> — <why>`, where why is one
      of `all milestones closed`, `owner stopped`, `stopped at <class>, nothing independent left`.
