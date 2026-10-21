@@ -1,0 +1,364 @@
+{
+ "_note": "Recorded 2026-10-21 from datacurve/deep-swe-leaderboard on Hugging Face (CC BY 4.0, (c) Datacurve), raw/jobs/20260606-deep-swe-leaderboard-all-4x/result.json, trimmed to the fields this project reads.",
+ "id": "e5c67893-58b4-51bc-b391-168e106c59dc",
+ "started_at": "2026-05-06T03:27:07.348914Z",
+ "finished_at": "2026-06-06T07:55:05.155410Z",
+ "n_total_trials": 12204,
+ "stats": {
+  "n_completed_trials": 12204,
+  "n_errored_trials": 61,
+  "evals": {
+   "mini-swe-agent__claude-haiku-4-5__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.0022123893805309734
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.004424778761061947,
+     "4": 0.008849557522123894
+    }
+   },
+   "mini-swe-agent__claude-opus-4-6__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 10,
+    "metrics": [
+     {
+      "mean": 0.26991150442477874
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.38495575221238937,
+     "4": 0.504424778761062
+    }
+   },
+   "mini-swe-agent__claude-opus-4-7__high__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.4026548672566372
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.5648967551622419,
+     "4": 0.6902654867256637
+    }
+   },
+   "mini-swe-agent__claude-opus-4-7__max__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.5420353982300885
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.7123893805309734,
+     "4": 0.8584070796460177
+    }
+   },
+   "mini-swe-agent__claude-opus-4-7__medium__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.3163716814159292
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.443952802359882,
+     "4": 0.584070796460177
+    }
+   },
+   "mini-swe-agent__claude-opus-4-7__xhigh__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.4469026548672566
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.6224188790560472,
+     "4": 0.7610619469026548
+    }
+   },
+   "mini-swe-agent__claude-opus-4-8__high__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.5066371681415929
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.6268436578171092,
+     "4": 0.7079646017699115
+    }
+   },
+   "mini-swe-agent__claude-opus-4-8__max__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.581858407079646
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.6976401179941003,
+     "4": 0.7876106194690266
+    }
+   },
+   "mini-swe-agent__claude-opus-4-8__medium__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.47345132743362833
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.5929203539823009,
+     "4": 0.6814159292035398
+    }
+   },
+   "mini-swe-agent__claude-opus-4-8__xhigh__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.577433628318584
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.7079646017699115,
+     "4": 0.8053097345132744
+    }
+   },
+   "mini-swe-agent__claude-sonnet-4-6__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 5,
+    "metrics": [
+     {
+      "mean": 0.3141592920353982
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.4675516224188791,
+     "4": 0.6194690265486725
+    }
+   },
+   "mini-swe-agent__deepseek-v4-pro__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.0752212389380531
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.12389380530973451,
+     "4": 0.18584070796460178
+    }
+   },
+   "mini-swe-agent__gemini-3-1-pro-preview__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 10,
+    "metrics": [
+     {
+      "mean": 0.09513274336283185
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.16076696165191742,
+     "4": 0.24778761061946902
+    }
+   },
+   "mini-swe-agent__gemini-3-5-flash__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.2831858407079646
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.415929203539823,
+     "4": 0.5663716814159292
+    }
+   },
+   "mini-swe-agent__gemini-3-flash-preview__deep-swe": {
+    "n_trials": 448,
+    "n_errors": 24,
+    "metrics": [
+     {
+      "mean": 0.048672566371681415
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.08997050147492625,
+     "4": 0.1504424778761062
+    }
+   },
+   "mini-swe-agent__glm-5-1__deep-swe": {
+    "n_trials": 451,
+    "n_errors": 1,
+    "metrics": [
+     {
+      "mean": 0.1747787610619469
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.2669616519174041,
+     "4": 0.3893805309734513
+    }
+   },
+   "mini-swe-agent__gpt-5-4-mini__deep-swe": {
+    "n_trials": 443,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.24336283185840707
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.35398230088495575,
+     "4": 0.46017699115044247
+    }
+   },
+   "mini-swe-agent__gpt-5-4__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.5553097345132744
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.6843657817109144,
+     "4": 0.7699115044247787
+    }
+   },
+   "mini-swe-agent__gpt-5-5__high__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.6194690265486725
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.7477876106194691,
+     "4": 0.8407079646017699
+    }
+   },
+   "mini-swe-agent__gpt-5-5__medium__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.48008849557522126
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.6135693215339233,
+     "4": 0.7079646017699115
+    }
+   },
+   "mini-swe-agent__gpt-5-5__xhigh__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 8,
+    "metrics": [
+     {
+      "mean": 0.6880530973451328
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.799410029498525,
+     "4": 0.8672566371681416
+    }
+   },
+   "mini-swe-agent__grok-build-0-1__deep-swe": {
+    "n_trials": 451,
+    "n_errors": 1,
+    "metrics": [
+     {
+      "mean": 0.13053097345132744
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.20206489675516223,
+     "4": 0.2920353982300885
+    }
+   },
+   "mini-swe-agent__kimi-k2-6__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.23893805309734514
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.36283185840707965,
+     "4": 0.48672566371681414
+    }
+   },
+   "mini-swe-agent__mimo-v2-5-pro__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.19469026548672566
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.3112094395280236,
+     "4": 0.45132743362831856
+    }
+   },
+   "mini-swe-agent__minimax-m2-7__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.0022123893805309734
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.004424778761061947,
+     "4": 0.008849557522123894
+    }
+   },
+   "mini-swe-agent__minimax-m3__deep-swe": {
+    "n_trials": 451,
+    "n_errors": 2,
+    "metrics": [
+     {
+      "mean": 0.20353982300884957
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.33185840707964603,
+     "4": 0.48672566371681414
+    }
+   },
+   "mini-swe-agent__qwen3-6-plus__deep-swe": {
+    "n_trials": 452,
+    "n_errors": 0,
+    "metrics": [
+     {
+      "mean": 0.02654867256637168
+     }
+    ],
+    "pass_at_k": {
+     "2": 0.051622418879056046,
+     "4": 0.09734513274336283
+    }
+   }
+  }
+ }
+}
