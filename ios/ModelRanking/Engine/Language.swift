@@ -559,6 +559,12 @@ public enum UIText {
             "search": ("How well it answers by searching the web", "İnternette arayarak ne kadar iyi cevap verdiği"),
             "search_factuality": ("Reporting what a search found without making things up",
                                   "Aramada bulduğunu uydurmadan aktarmak"),
+            // #378 (D-218 clause 1): ranked on quality only.
+            "text_to_image": ("Making a new picture from a description", "Tariften yeni bir görsel oluşturmak"),
+            "image_edit": ("Changing a photo you already have", "Elindeki bir fotoğrafı değiştirmek"),
+            "text_to_video": ("Making a video clip from a description", "Tariften bir video klip oluşturmak"),
+            "image_to_video": ("Turning a photo into a moving video", "Bir fotoğrafı hareketli videoya dönüştürmek"),
+            "video_edit": ("Changing a video you already have", "Elindeki bir videoyu değiştirmek"),
         ]
         guard let line = lines[id] else { return nil }
         return language == .turkish ? line.1 : line.0
@@ -604,6 +610,11 @@ public enum UIText {
         case "vision": return "Görsel ve ekran görüntüsü okuma"
         case "search": return "İnternetten arayıp cevaplama"
         case "search_factuality": return "Aradığını doğru aktarma"
+        case "text_to_image": return "Görsel oluşturma"
+        case "image_edit": return "Fotoğraf düzenleme"
+        case "text_to_video": return "Video oluşturma"
+        case "image_to_video": return "Fotoğrafı canlandırma"
+        case "video_edit": return "Video düzenleme"
         default: return engineTitle
         }
     }

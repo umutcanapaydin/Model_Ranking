@@ -168,18 +168,30 @@ public func detailFacts(
     // Review M-7: `priceTag` returns "—" for a price the engine could not resolve, and this file
     // forbids exactly that. A model with no price gets no price line; the card's own figures line
     // already says what it can, and a dash here would read as "free" to somebody.
-    if model.blendedPerM.isFinite, model.blendedPerM > 0 {
+    if let price = model.blendedPerM, price.isFinite, price > 0 {
         facts.append(
             DetailFact(
                 label: language == .turkish ? "Fiyat" : "Price",
-                value: priceTag(model.blendedPerM),
-                note: priceInPages(model.blendedPerM, in: language)
+                value: priceTag(price),
+                note: priceInPages(price, in: language)
             )
         )
     }
+    // 6a. #378 (D-218 clause 1): on a surface ranked on quality only, the price line says the price
+    //     is not measured, and why, so its absence never reads as a free model.
+    if priceExcludes == notMeasured, let unmeasured = priceExclusion(priceExcludes, in: language) {
+        facts.append(
+            DetailFact(
+                label: language == .turkish ? "Fiyat" : "Price",
+                value: unmeasured,
+                note: language == .turkish
+                    ? "görsel ve video modelleri token başına değil, görsel ya da video saniyesi başına fiyatlanır"
+                    : "image and video models are priced per picture or per second of video, not per token"
+            )
+        )
     // 6b. **What that price leaves out** (D-153, REQ-PRC-002). The engine sends a CODE and this
     //     build words it; a code this build does not know is left out rather than printed raw.
-    if let excluded = priceExclusion(priceExcludes, in: language) {
+    } else if let excluded = priceExclusion(priceExcludes, in: language) {
         facts.append(
             DetailFact(
                 label: language == .turkish ? "Fiyata dahil değil" : "Not in the price",
@@ -256,10 +268,15 @@ public func priceExclusion(_ code: String?, in language: Language) -> String? {
         return language == .turkish
             ? "Arama çağrıları bu fiyata dahil değil"
             : "Search calls are not included in this price"
+    case notMeasured:
+        return language == .turkish ? "Bu listede fiyat ölçülmüyor" : "The price is not measured on this board"
     default:
         return nil
     }
 }
+
+/// #378 (D-218 clause 1): the code a quality-only surface's price note carries (`Category.priceNote`).
+let notMeasured = "not_measured"
 
 /// What the detail screen needs from a served row. A `Pick` and a `RankedModel` both satisfy it,
 /// so one screen serves both and there is one place where these lines are written.
@@ -269,9 +286,9 @@ public protocol DetailSubject {
     var score: Double { get }
     var metric: String { get }
     var secondaryScore: Double? { get }
-    var blendedPerM: Double { get }
-    var inputPerM: Double { get }
-    var outputPerM: Double { get }
+    var blendedPerM: Double? { get }
+    var inputPerM: Double? { get }
+    var outputPerM: Double? { get }
     var evidenceDate: String? { get }
     var harness: String { get }
     var effort: String? { get }

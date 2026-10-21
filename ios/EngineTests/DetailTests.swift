@@ -15,9 +15,9 @@ private struct Subject: DetailSubject {
     var score = 1507.6
     var metric = "elo"
     var secondaryScore: Double?
-    var blendedPerM = 7.5
-    var inputPerM = 5.0
-    var outputPerM = 25.0
+    var blendedPerM: Double? = 7.5
+    var inputPerM: Double? = 5.0
+    var outputPerM: Double? = 25.0
     var evidenceDate: String? = "2026-09-13"
     var harness = "arena-crowd"
     var effort: String?

@@ -289,7 +289,7 @@ struct ContentView: View {
                                     benchmark: answer.primaryBenchmark,
                                     closeCallMargin: info?.closeCallMargin,
                                     minQuality: info?.minQuality,
-                                    priceExcludes: info?.priceExcludes
+                                    priceExcludes: info?.priceNote
                                 )
                             }
                             // #63 finding 9: a range said once, under the cards that show one.
@@ -451,8 +451,11 @@ struct ContentView: View {
                                 Text(entry.model.vendor).font(.caption).foregroundStyle(Design.muted)
                             }
                             Spacer(minLength: 8)
-                            Text(priceTag(entry.model.blendedPerM)).font(.caption).monospacedDigit()
-                                .foregroundStyle(Design.muted)
+                            // #378: a model only a quality-only board names has no price to show.
+                            if let price = entry.model.blendedPerM {
+                                Text(priceTag(price)).font(.caption).monospacedDigit()
+                                    .foregroundStyle(Design.muted)
+                            }
                         }
                         .padding(.vertical, 10).padding(.horizontal, 12)
                         if entry.model.id != shown.last?.model.id {
@@ -845,7 +848,7 @@ struct ContentView: View {
                     // D-153 clause 3 (M16-W2 review MAJOR-2): these rows print prices too, so the
                     // preview says once, under them, what those prices leave out.
                     if let excluded = priceExclusion(
-                        category(for: answer)?.priceExcludes, in: language
+                        category(for: answer)?.priceNote, in: language
                     ) {
                         Text(excluded).font(.caption).foregroundStyle(Design.muted)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -864,7 +867,7 @@ struct ContentView: View {
                             secondaryBenchmark: category(for: answer)?.secondaryBenchmark,
                             secondaryAgeDays: category(for: answer)?.secondaryAgeDays,
                             minQuality: category(for: answer)?.minQuality,
-                            priceExcludes: category(for: answer)?.priceExcludes
+                            priceExcludes: category(for: answer)?.priceNote
                         )
                     } label: {
                 // The full ranking is NOT budget-filtered — D-125 publishes every ranked model
@@ -1395,7 +1398,7 @@ struct PickRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     // #63 finding 8: the chat gloss was cut with "…" on the second card.
                     if let scale { Text(scale).fixedSize(horizontal: false, vertical: true) }
-                    Text(priceInPages(pick.blendedPerM, in: language))
+                    if let price = pick.blendedPerM { Text(priceInPages(price, in: language)) }
                     // D-153 clause 3: wherever a search surface shows a price, it says what is not in it.
                     if let excluded = priceExclusion(priceExcludes, in: language) { Text(excluded) }
                 }

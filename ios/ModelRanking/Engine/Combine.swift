@@ -54,7 +54,7 @@ func combine(_ standings: Standings, boards chosen: [String]) throws -> Combined
         }
         return board
     }
-    let models = Dictionary(standings.models.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let models = Dictionary(standings.everyModel.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
     var common = Set(boards[0].standings.map(\.model))
     for board in boards.dropFirst() {
@@ -151,7 +151,7 @@ func combineFamily(_ standings: Standings, boards family: [String], asOf today: 
     let byID = Dictionary(standings.boards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let boards = ids.compactMap { byID[$0] }.filter { !$0.standings.isEmpty }
     guard !boards.isEmpty else { throw CombineError.noBoards }
-    let models = Dictionary(standings.models.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let models = Dictionary(standings.everyModel.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     let stale = boards.filter { isStale($0, asOf: today) }.map(\.id)
     let coverage = max(1, (boards.count + 1) / 2)
 
