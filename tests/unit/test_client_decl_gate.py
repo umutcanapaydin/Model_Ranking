@@ -1254,3 +1254,10 @@ def test_242_a_store_function_takes_no_url_from_its_caller() -> None:
     admitted there only on an initialiser `PROVENANCE` keeps to that file. # covers D-214, REQ-GAP-001"""
     assert _refused_in("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL")
     assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "init(url:)` takes a URL" in line]
+
+
+@pytest.mark.parametrize("declared", ["ObjectiveC.Selector.init(_:", "ObjectiveC.NSObject.responds(to:"])
+def test_242_a_selector_made_from_text_and_asked_of_an_object_is_refused(declared: str) -> None:
+    """#242 (G-12; the M21-W3 review's round 2, B3): `Selector.init` and `responds(to:)` are declared in
+    `ObjectiveC`, off the module allowlist since the M21 closure (S6); the fixture plants both. # covers D-214"""
+    assert _refused_in("ContentView.swift", f"`{declared}` in `ObjectiveC`")

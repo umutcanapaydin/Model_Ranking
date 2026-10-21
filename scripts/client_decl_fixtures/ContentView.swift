@@ -424,3 +424,9 @@ func fixtureViewTargets(_ target: NSObject, _ named: Selector) {
 func fixtureViewPointsTheRegister() -> Data? {
     GapRegisterStore(url: EngineClient().baseURL).load()
 }
+
+// #242 (G-12): a selector made from text and asked of an object. REFUSED, each: both are `ObjectiveC`'s, which is
+// off the module allowlist (the M21 closure security seat's S6).
+func fixtureViewSelectorByName(_ typed: String, _ target: NSObject) -> Bool {
+    target.responds(to: Selector(typed))
+}

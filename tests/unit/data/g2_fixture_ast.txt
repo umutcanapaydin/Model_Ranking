@@ -6627,7 +6627,31 @@
                               (argument
                                 (type_expr type="EngineClient.Type" location=/x/ContentView.swift:425:27 range=[/x/ContentView.swift:425:27 - line:425:27] typerepr="EngineClient"))))
                           (argument_list)))))))))
-          (argument_list))))))
+          (argument_list)))))
+  (func_decl range=[/x/ContentView.swift:430:1 - line:432:1] "fixtureViewSelectorByName(_:_:)" interface_type="(String, NSObject) -> Bool" access=internal result="Bool" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:430:31 - line:430:67]
+      (parameter "typed" interface_type="String")
+      (parameter "target" interface_type="NSObject"))
+    (brace_stmt range=[/x/ContentView.swift:430:77 - line:432:1]
+      (return_stmt implicit range=[/x/ContentView.swift:431:5 - line:431:40]
+        (call_expr type="Bool" location=/x/ContentView.swift:431:12 range=[/x/ContentView.swift:431:5 - line:431:40] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Selector?) -> Bool" location=/x/ContentView.swift:431:12 range=[/x/ContentView.swift:431:5 - line:431:12] nothrow isolation_crossing="none"
+            (declref_expr type="(NSObject) -> (Selector?) -> Bool" location=/x/ContentView.swift:431:12 range=[/x/ContentView.swift:431:12 - line:431:12] decl="ObjectiveC.(file).NSObject.responds(to:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/usr/include/objc/NSObject.h:34:1" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (declref_expr type="NSObject" location=/x/ContentView.swift:431:5 range=[/x/ContentView.swift:431:5 - line:431:5] decl="main.(file).fixtureViewSelectorByName(_:_:).target@/x/ContentView.swift:430:51" function_ref=unapplied))))
+          (argument_list labels="to:"
+            (argument label="to"
+              (inject_into_optional implicit type="Selector?" location=/x/ContentView.swift:431:25 range=[/x/ContentView.swift:431:25 - line:431:39]
+                (call_expr type="Selector" location=/x/ContentView.swift:431:25 range=[/x/ContentView.swift:431:25 - line:431:39] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="(String) -> Selector" location=/x/ContentView.swift:431:25 range=[/x/ContentView.swift:431:25 - line:431:25] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(Selector.Type) -> (String) -> Selector" location=/x/ContentView.swift:431:25 range=[/x/ContentView.swift:431:25 - line:431:25] decl="ObjectiveC.(file).Selector.init(_:)" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr type="Selector.Type" location=/x/ContentView.swift:431:25 range=[/x/ContentView.swift:431:25 - line:431:25] typerepr="Selector"))))
+                  (argument_list
+                    (argument
+                      (declref_expr type="String" location=/x/ContentView.swift:431:34 range=[/x/ContentView.swift:431:34 - line:431:34] decl="main.(file).fixtureViewSelectorByName(_:_:).typed@/x/ContentView.swift:430:34" function_ref=unapplied))))))))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")

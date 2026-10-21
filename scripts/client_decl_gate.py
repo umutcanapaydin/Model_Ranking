@@ -741,6 +741,9 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "not the store's own `GapRegisterStore.url`"),
     ("StandingsStore.swift", "a store makes a URL only"), ("ContentView.swift", "builds GapRegisterStore"),
     ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
+    # #242 (G-12): a selector made from text and asked of an object, both `ObjectiveC`'s (the module rule).
+    ("ContentView.swift", "`ObjectiveC.Selector.init(_:` in `ObjectiveC`"),
+    ("ContentView.swift", "`ObjectiveC.NSObject.responds(to:` in `ObjectiveC`"),
     # #242 (G-2): what a served number meets off its list.
     ("Arithmetic.swift", "`Swift.abs` on a served position"),
 }
