@@ -218,7 +218,7 @@ CATEGORIES: dict[str, CategorySpec] = {
         score_unit="Elo",
         secondary_benchmark=None,
         # M21-W1 (#185): LMArena's own WebDev board, under its dataset card's CC-BY-4.0 grant, in
-        # place of Epoch's copy (`epoch_webdev`), which D-185 left out of the public artifact.
+        # place of Epoch's copy (`epoch_webdev`), which D-215 retired as its duplicate (#376).
         primary_source="arena_webdev",
         # Measured on LMArena's board of 2026-10-08 with `scripts/calibrate_board.py --config webdev`
         # (`docs/research/m21-w1-webdev-calibration.json`): 140 rows, 91 ranked; the median gap

@@ -1,4 +1,4 @@
-// #51: the one network door, which the gate must ALLOW: a connection, and a decoded URL.
+// #51: the one network door, which the network rule ALLOWS: a connection, and a decoded URL (#242: the sink's own list refuses the decode, which the shipping client does not make).
 import Foundation
 
 func fixtureClientFetches(_ address: URL) async throws -> Int64 {
@@ -120,4 +120,19 @@ func fixtureClientDecodesAnAnswer(_ data: Data) -> Recommendation? {
 
 func fixtureClientDecodesTheSurfaces(_ data: Data) -> CategoryList? {
     try? JSONDecoder().decode(CategoryList.self, from: data)
+}
+
+// #242 (G-1): the sink's half: it reads the widened constants, and the static `let` whose initialiser reads the
+// shared buffer. REFUSED, each.
+struct FixtureWidenedClient {
+    func boardsWidened() -> String { "\(fixtureWidened)\(fixtureWidenedList)\(fixtureHeld.text)" }
+    func boardsBuffered() -> String { FixtureBuffered.tag + fixtureSharedBuffer.header }
+}
+
+// #242 (G-11, the backlog-gates review's K1): a request member whose parameter has no label, which the request
+// rule's argument check did not read. The screen's call to it is REFUSED at the argument.
+extension EngineClient {
+    func ask(_ surface: String) -> URL {
+        recommendation(task: surface, budget: "unlimited")
+    }
 }

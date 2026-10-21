@@ -9,7 +9,7 @@
 
 ## ★ GOLDEN RULES — the product's backbone (D-210, the owner's). They outrank every other priority.
 
-1. **Every source's data, used lawfully:** open licence or the publisher's written permission. No source stays unlicensed at v1.
+1. **Every source's data, used lawfully:** open licence or the publisher's written permission (widened by D-215: attributed public numbers whose terms do not forbid non-commercial use). No source stays unlicensed at v1.
 2. **Understand the question with an AI model, always:** Apple Intelligence in every case where the device has it, and another LLM only where it does not. Word matching is a fallback, never the plan.
 3. **The most correct list for every question:** from our boards, and where no board ranks it, a list the app composes itself with an LLM. The list is composed only from our boards: every number comes from a board, never from the model (D-104).
 4. **No empty work:** every task serves 1-3 or the v1 order. v1 order: open issues closed → source permissions → Apple Intelligence + understanding together → routing → composing lists (last).

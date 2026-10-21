@@ -15,10 +15,11 @@ different situations wearing one symptom:
   204 rows** with real evaluation dates from 2025-10-31 onward, and the board declaration simply
   never named it. That is a date the product had and threw away.
 
-`webdev_arena_external.csv` carries `Last updated`, and it is deliberately NOT wired: 33 of 109 rows
+`webdev_arena_external.csv` carried `Last updated`, and it was deliberately NOT wired: 33 of 109 rows
 only, every one the same value, which makes it the date the leaderboard page was refreshed rather
 than the date any model was measured. Presenting that in the same field as an evaluation date would
-be a new small lie in a product whose whole discipline is not telling those.
+be a new small lie in a product whose whole discipline is not telling those. The board is no longer
+declared since D-215 (#376): `web-dev` reads LMArena's own board.
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ DATED_BOARDS = {
 #: engine discloses it (REQ-API-004). Pinned so a later edit cannot quietly invent a date for them
 #: by pointing `date_column` at "Release date" — which would report the model's birthday as the
 #: date its score was measured.
-UNDATED_BOARDS = {"epoch_eci", "epoch_mmlu", "epoch_webdev"}
+UNDATED_BOARDS = {"epoch_eci", "epoch_mmlu"}
 
 
 @pytest.mark.parametrize("source_name, column", sorted(DATED_BOARDS.items()))
