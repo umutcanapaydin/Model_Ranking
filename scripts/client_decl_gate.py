@@ -189,6 +189,25 @@ STORE_FOUNDATION_ALLOWED: dict[str, frozenset[str]] = {
         "URLResourceValues.isExcludedFromBackup",
     }),
 }
+#: #242 (G-13; the backlog-gates review rounds 2 and 3, M1; #276): what may make a URL in each store, each by the
+#: declaration the compiler resolves (measured on the shipping client, the four configurations, 2026-10-21): the
+#: file manager's folders, and a component appended to one or removed. A URL a store makes any other way is
+#: refused: an initialiser, a decode, a generic function of its own over the URL it returns (its type given,
+#: inferred, or through a `typealias`, which `_aliases` reads), a cast, or a call into another file. A function the
+#: store's own file declares, not generic over it, is admitted: its own body is held by this rule. Each entry is
+#: seen on the shipping client or reported.
+STORE_FOLDER_MAKERS: dict[str, frozenset[str]] = {
+    file: frozenset({"Foundation.FileManager.urls(for:in:", "Foundation.URL.appendingPathComponent",
+                     "Foundation.URL.appendingPathComponent(_:isDirectory:", "Foundation.URL.deletingLastPathComponent("})
+    for file in ("FrontDoor.swift", "StandingsStore.swift")
+}
+#: #242 (G-13): what each store reads with `Data(contentsOf:)` (or any initialiser `CONTENTS_OF` matches): its own
+#: `url`, the one property its initialiser sets, and only that (the #276 shape, a URL bound to `url` between the
+#: guard and the read, is another declaration). Each is seen on the shipping client or reported.
+STORE_READS: dict[str, str] = {
+    "FrontDoor.swift": "GapRegisterStore.url",
+    "StandingsStore.swift": "StandingsStore.url",
+}
 #: A symbol that makes a URL by its own name: an initialiser of a URL type, or a decode of one. Refused in
 #: both stores, the privacy sink's list notwithstanding (it lists `URL.init(string:` for the engine client).
 URL_MADE_BY_NAME = re.compile(r"^(?:URL|NSURL)\.(?:init\(|decoded\b)")
@@ -349,6 +368,10 @@ PROVENANCE_BY_TYPE: dict[str, tuple[set[str], str]] = {
         set(), "only a decode builds an answer: the engine's, or the one the store kept (#297)"),
     "Category.init(": (
         set(), "only a decode builds a surface: the engine's list, or the one the store kept (#297)"),
+    # #242 (G-13): a register store built on a URL another file chose, the engine's address among them, by any of its
+    # initialisers; the app reaches it through `GapRegisterStore.onDevice` only.
+    "GapRegisterStore.init(": (
+        {"FrontDoor.swift"}, "only the register's own file builds its store, on the one place it keeps the register"),
     "KeptAnswer.init(": (
         {"StandingsStore.swift"}, "only the store builds a kept answer, from what the engine sent (#297)"),
 }
@@ -710,6 +733,12 @@ FIXTURE_REFUSALS = {
     ("ContentView.swift", "reaches `EngineClient.ask`"),
     # #242 (G-12): by name, matched by the argument's label or as a class-by-name entry point.
     ("ContentView.swift", "reaches a value, a class or a selector by name (an argument labelled"),
+    # #242 (G-13): a store's URL made by a generic helper of its own, through an alias, by a cast or by a call into
+    # another file; a read of anything but its own `url`; and the register's store built outside its file.
+    ("FrontDoor.swift", "makes a URL by `main.fixtureStoreHelper`"), ("FrontDoor.swift", "makes a URL by a cast"),
+    ("FrontDoor.swift", "makes a URL by `Foundation.JSONDecoder.decode(_:from:`"),
+    ("FrontDoor.swift", "not the store's own `GapRegisterStore.url`"),
+    ("StandingsStore.swift", "a store makes a URL only"), ("ContentView.swift", "builds GapRegisterStore"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -762,6 +791,9 @@ FIXTURE_RULES: dict[str, str] = {
     "every argument into the engine client": "the argument 0 (unlabelled) of `EngineClient.ask`",
     # #242 (G-12).
     "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
+    # #242 (G-13).
+    "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
+    "a store's one read": "not the store's own `GapRegisterStore.url`",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -891,7 +923,7 @@ def references(ast: str) -> dict[str, set[str]]:
             symbol = re.sub(r"(^|\.)extension\.", r"\1", symbol)
             found[name].add(f"{module}.{symbol.rstrip('.')}")
     for name, facts in (*sink_facts(ast).items(), *flow_facts(ast).items(), *url_facts(ast).items(),
-                        *request_facts(ast).items(), *kept_answer_facts(ast).items()):
+                        *request_facts(ast).items(), *kept_answer_facts(ast).items(), *store_url_facts(ast).items()):
         found.setdefault(name, set()).update(facts)
     return found
 
@@ -967,6 +999,72 @@ def url_facts(ast: str) -> dict[str, set[str]]:
               or CASTS_URL.match(line)):
             facts.setdefault(current, set()).add("Foundation.URL.made")
     return facts
+
+
+def store_url_facts(ast: str) -> dict[str, set[str]]:
+    """#242 (G-13): in each store, `main.<store url>` for a URL made by anything but `STORE_FOLDER_MAKERS` or a function
+    of the store's own file, not generic over it, or received from another file's declaration; and `main.<store
+    reads>` for a read of anything but `STORE_READS`' property. Types are read through every `typealias` (#322).
+    `main.<store url listed>` and `main.<store reads listed>` record what is admitted, for `unseen_permissions`."""
+    aliases = _aliases(ast)
+    facts: dict[str, set[str]] = {}
+    for root in _tree(ast):
+        file = _file_of(root)
+        if file not in FILESYSTEM_FILES:
+            continue
+        for node in root.walk():
+            line = _expanded(node.line, aliases)[0] if aliases else node.line
+            found = _store_made(file, node, line, aliases) + _store_received(file, node, line) + _store_read(file, node)
+            facts.setdefault(file, set()).update(found)
+    return {file: found for file, found in facts.items() if found}
+
+
+def _store_made(file: str, node: _Node, line: str, aliases: dict[str, str]) -> list[str]:
+    """#242 (G-13): a call or a cast in a store whose result is or holds a URL, and what made it."""
+    if CASTS_URL.match(line):
+        return [f"main.<store url>.a cast@{_line(node)}"]
+    if not (call := MAKES_URL.match(line)) or not re.search(r"\bURL\b", call.group(1).rsplit("->", 1)[-1]) \
+            or node.kind != "call_expr" or not node.kids:
+        return []
+    callee = _top(node.kids[0])
+    head = callee.kids[0] if callee.kind in ("dot_syntax_call_expr", "constructor_ref_call_expr") and callee.kids else callee
+    printed = _expanded(head.line, aliases)[0] if aliases else head.line
+    if (named := DECL.search(printed)) is None:
+        return [f"main.<store url>.an expression the gate cannot name@{_line(node)}"]
+    maker = f"{named.group(1)}.{_symbol(named.group(2))}"
+    if maker in STORE_FOLDER_MAKERS.get(file, frozenset()):
+        return [f"main.<store url listed>.{maker}"]
+    own = (place := MAIN_REF.search(printed)) is not None and pathlib.Path(place.group(2)).name == file
+    if own and not re.search(r"\[with \(substitution_map[^\n]*\bURL\b", printed):
+        return []
+    return [f"main.<store url>.`{maker}`@{_line(node)}"]
+
+
+def _store_received(file: str, node: _Node, line: str) -> list[str]:
+    """#242 (G-13): a URL a store reads off a declaration another file declares (not a call, which `_store_made`
+    judges)."""
+    if node.kind not in ("declref_expr", "member_ref_expr") or " implicit " in node.line \
+            or (typed := TYPE_OF["type"].search(line)) is None or "->" in typed.group(1) \
+            or not re.search(r"\bURL\b", typed.group(1)) or (place := MAIN_REF.search(line)) is None:
+        return []
+    declared = pathlib.Path(place.group(2)).name
+    return [] if declared == file else [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"]
+
+
+def _store_read(file: str, node: _Node) -> list[str]:
+    """#242 (G-13): a store's `Data(contentsOf:)`, or any initialiser `CONTENTS_OF` matches, on anything but its own
+    `url`."""
+    if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+        return []
+    callee = _top(node.kids[0])
+    head = callee.kids[0] if callee.kind == "constructor_ref_call_expr" and callee.kids else callee
+    if (named := DECL.search(head.line)) is None or named.group(1) == "main" \
+            or not CONTENTS_OF.search(reader := _symbol(named.group(2))):
+        return []
+    read = ", ".join(sorted(set().union(set(), *(_named(argument) for argument in _operands(node.kids[1])[:1])))) or "a value"
+    if read == STORE_READS.get(file):
+        return [f"main.<store reads listed>.{read}"]
+    return [f"main.<store reads>.{reader}|{read}@{_line(node)}"]
 
 
 def _sink_holds(ast: str) -> list[tuple[str, str]]:
@@ -2299,6 +2397,25 @@ def _kept_answer_problem(name: str, symbol: str) -> str | None:
     return None
 
 
+def _store_problem(name: str, symbol: str) -> str | None:
+    """#242 (G-13): a store's URL made or received otherwise than from the file manager's folders, and a read of
+    anything but the store's own `url`."""
+    fact, _, subject = symbol.partition(">.")
+    detail, _, line = subject.rpartition("@")
+    if fact == "<store url":
+        how = "by a cast" if detail == "a cast" else f"by {detail}" if detail.startswith("`") or detail.startswith("an ") \
+            else detail
+        verb = "receives a URL," if ", declared in " in detail else "makes a URL"
+        return (f"{name}:{line}: {verb} {how}; a store makes a URL only from the file manager's folders "
+                f"(`STORE_FOLDER_MAKERS`) or by a function of its own file that is not generic over it, since its read "
+                "fetches an https address as readily as a file (G-13, #242)")
+    if fact == "<store reads":
+        reader, _, read = detail.partition("|")
+        return (f"{name}:{line}: reads with `{reader}` from {read}, not the store's own `{STORE_READS.get(name, '?')}`; "
+                "a store reads only its own file (`STORE_READS`; G-13, #242)")
+    return None
+
+
 def _request_problem(name: str, symbol: str) -> str | None:
     """#174, #188 (INV-64): the reader's text, or anything the screen built, into a request's arguments."""
     fact, _, subject = symbol.partition(">.")
@@ -2392,6 +2509,11 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 if entry not in seen_runs]
     missing += [f"`{typed}` on the list of constant types a sink may read" for typed in sorted(SINK_CONSTANT_TYPES)
                 if typed not in seen_runs]
+    # #242 (G-13): each store's URL makers and its one read.
+    missing += [f"{name}: `{entry}` on the store's list of URL makers" for name, allowed in STORE_FOLDER_MAKERS.items()
+                for entry in sorted(allowed) if f"main.<store url listed>.{entry}" not in found.get(name, set())]
+    missing += [f"{name}: `{read}`, the store's one read" for name, read in STORE_READS.items()
+                if f"main.<store reads listed>.{read}" not in found.get(name, set())]
     # #242 (G-12): the by-name labels the client may use.
     referenced = set().union(set(), *found.values())
     missing += [f"`{entry}` on the by-name list" for entry in sorted(BY_NAME_ALLOWED) if entry not in referenced]
@@ -2636,7 +2758,8 @@ def problems(found: dict[str, set[str]]) -> list[str]:
             module, _, symbol = decl.partition(".")
             if module == "main" and symbol.startswith("<"):
                 if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)
-                        or _request_problem(name, symbol) or _kept_answer_problem(name, symbol)) is not None:
+                        or _request_problem(name, symbol) or _kept_answer_problem(name, symbol)
+                        or _store_problem(name, symbol)) is not None:
                     bad.append(problem)
                 continue
             problem = (_module_problem(name, module, symbol, decl) or _sink_module_problem(name, module, symbol)

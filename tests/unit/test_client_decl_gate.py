@@ -575,7 +575,7 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
                   "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES",
                   # #242: each sink's own list, what the code a sink runs may reference, the constants it may read.
                   "SINK_FOUNDATION_ALLOWED", "SINK_RUNS_ALLOWED", "SINK_CONSTANT_TYPES", "SERVED_MAY_MEET",
-                  "BY_NAME_ALLOWED"):
+                  "BY_NAME_ALLOWED", "STORE_FOLDER_MAKERS", "STORE_READS"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
 
@@ -1230,11 +1230,19 @@ def test_242_the_registers_store_is_built_only_in_its_own_file() -> None:
     assert _refused_in("ContentView.swift", "builds GapRegisterStore")
 
 
+def _marked_in(file: str, text: str) -> int:
+    """The one line of a fixture file that carries `text`."""
+    lines = (FIXTURES / file).read_text(encoding="utf-8").splitlines()
+    found = [number for number, line in enumerate(lines, start=1) if text in line]
+    assert len(found) == 1, (file, text, found)
+    return found[0]
+
+
 def test_242_the_stores_own_reads_and_folders_pass() -> None:
     """#242 (G-13): the fixture's register store reading its own `url`, and the standings store's folder made by a
     function of its own file, are not refused by the store rules. # covers D-214"""
-    span = _lines_of("FrontDoor.swift", "struct GapRegisterStore")
+    load = range(_marked_in("FrontDoor.swift", "func load() -> Data?"), _marked_in("FrontDoor.swift", "func loadShadowed"))
     own = [line for line in gate.problems(gate.references(FLOW_AST)) if line.startswith("FrontDoor.swift:")
-           and int(line.split(":")[1]) in span and "loadShadowed" not in line and int(line.split(":")[1]) < span[0] + 8]
-    assert not own, own
+           and line.split(":")[1].isdigit() and int(line.split(":")[1]) in load]
+    assert len(load) > 2 and not own, own
     assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "fixtureStoreFolder" in line]
