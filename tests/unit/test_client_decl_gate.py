@@ -13,6 +13,7 @@ INV-62, INV-63, INV-64, INV-66, INV-67, INV-75, INV-76, INV-85 and INV-89 in
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -1413,3 +1414,51 @@ def test_374_a_store_receives_a_url_through_another_files_subscript_or_dynamic_m
     assert [found for found in gate.problems(gate.references(FLOW_AST))
             if found.startswith(f"FrontDoor.swift:{line}:") and phrase in found], f"FrontDoor.swift:{line} is not refused"
     assert ("FrontDoor.swift", phrase) in gate.FIXTURE_REFUSALS, f"the self-test does not hold {text}"
+
+
+def _made_on_the_dump() -> list[str]:
+    found = gate.references(FLOW_AST)
+    return gate.problems(found) + gate.release_problems(found)
+
+
+def test_375_a_fixture_line_moved_by_an_insertion_keeps_the_pin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#375 (D-214): the pin compared each refusal's exact text, its line number included, so a line inserted above a
+    pinned shape broke the pin for no real loss, which invites regenerating it, the one move that can hide a
+    loosening. A pinned refusal is keyed by its file, its planted line and its text: here every line of
+    `Arithmetic.swift` moves down one, the same refusals are made on the moved lines, and the pin holds in every
+    configuration. Watched failing: at `fcc8f3e` each shifted refusal is reported gone. # covers D-214"""
+    fixtures = tmp_path / "fixtures"
+    fixtures.mkdir()
+    for source in gate.FIXTURES.glob("*.swift"):
+        text = source.read_text(encoding="utf-8")
+        (fixtures / source.name).write_text(("// #375: one line inserted\n" + text) if source.name == "Arithmetic.swift"
+                                            else text, encoding="utf-8")
+    monkeypatch.setattr(gate, "FIXTURES", fixtures)
+    moved = [re.sub(r"^Arithmetic\.swift:(\d+):", lambda m: f"Arithmetic.swift:{int(m.group(1)) + 1}:", line)
+             for line in _made_on_the_dump()]
+    assert moved != _made_on_the_dump()
+    for label, _, _ in gate.CONFIGURATIONS:
+        assert gate._pin_broken(label, moved) == [], label
+
+
+def test_375_a_pinned_refusal_removed_or_reworded_fails_the_pin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """#375 (D-214): keyed by its planted line rather than its line number, the pin stays at least as strict. A pinned
+    refusal no longer made, or made in other words, is reported gone; and the pin itself, with a line removed, with a
+    line reworded into another refusal the fixture still makes, or regenerated in another order, fails in every
+    configuration, since every refusal pinned before #242 must still be there as it was. The count test caught a
+    deleted line, never an edited one. Watched failing: at `fcc8f3e` the edited pins pass. # covers D-214"""
+    made = _made_on_the_dump()
+    label = gate.CONFIGURATIONS[0][0]
+    assert gate._pin_broken(label, made) == []
+    first = next(line for line in made if line.startswith("Arithmetic.swift:103: `+` on a served position"))
+    assert gate._pin_broken(label, [line for line in made if line != first]), "a pinned refusal removed passed"
+    reworded = [line.replace("a served position", "a served place") if line == first else line for line in made]
+    assert gate._pin_broken(label, reworded), "a pinned refusal reworded passed"
+    pinned = gate.PINNED_REFUSALS.read_text(encoding="utf-8").splitlines()
+    for name, lines in (("removed.txt", pinned[1:]), ("duplicated.txt", [pinned[1], *pinned[1:]]),
+                        ("regenerated.txt", sorted(pinned, reverse=True))):
+        pin = tmp_path / name
+        pin.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(gate, "PINNED_REFUSALS", pin)
+        for each, _, _ in gate.CONFIGURATIONS:
+            assert gate._pin_broken(each, made), (name, each)
