@@ -5847,7 +5847,8 @@ fewer than 15 models. A board under half linked to the catalogue is not served u
 
    | board | publisher | licence or terms | link | read | verdict |
    |---|---|---|---|---|---|
-   | OSWorld-Verified | XLANG Lab (the OSWorld team) | the site is "licensed under a Creative Commons Attribution-ShareAlike 4.0 International License"; the results workbook is served from the site | https://os-world.github.io/ | 2026-10-22 | **served**, `osworld_verified`: 20 general models at 100 steps, 15 linked |
+   | OSWorld-Verified | XLANG Lab (the OSWorld team) | the site is "licensed under a Creative Commons Attribution-ShareAlike 4.0 International License"; the results workbook is served from the site, which moved from `os-world.github.io` (now a plain-HTTP redirect) to its own host | https://osworld-v1.xlang.ai/ | 2026-10-22 | **served**, `osworld_verified`: 20 general models at 100 steps, 15 linked |
+   | OSWorld 2.0 | XLANG Lab | the repository is Apache-2.0; `official-results.json` is public | https://osworld-v2.xlang.ai/ | 2026-10-22 | **skipped**: 11 models on its 55 rows, fewer than 15; OSWorld-Verified stands in for the benchmark until it ranks 15 |
    | METR time horizons (TH 1.1) | METR | no licence and no terms published (`metr.org/terms` answers 404); the page offers its raw data for download; robots allow it; the analysis repository names no licence | https://metr.org/time-horizons/ | 2026-10-22 | **served**, `metr_time_horizons`: 26 models, 20 linked |
    | Humanity's Last Exam | Center for AI Safety and Scale AI | lastexam.ai's own table ranks 10 models; Scale's terms (2021-08-25) limit use of its site "for your own internal purposes"; CAIS's terms (2023-03-13) admit not-for-profit reuse, but its dashboard publishes the scores only inside its compiled app code, at an address that changes with each deploy; the questions' dataset is gated | https://lastexam.ai/ | 2026-10-22 | **skipped**: the publisher's own table ranks fewer than 15 models, Scale's terms do not clearly admit the use, and CAIS publishes no file the nightly refresh can read |
    | DeepResearch Bench | its authors (USTC), on the `muset-ai/DeepResearch-Bench-Leaderboard` Space | the Space is tagged Apache-2.0 (its code); `data/leaderboard.csv` is public | https://huggingface.co/spaces/muset-ai/DeepResearch-Bench-Leaderboard | 2026-10-22 | **skipped**: 8 of 45 entries link, under half; the entries are research products, not catalogue models, so no alias can fix it |
@@ -5861,7 +5862,8 @@ fewer than 15 models. A board under half linked to the catalogue is not served u
 2. **How each served board is read.** Each is a declared remote source (`app.workflows.sources`), read from its
    publisher's own host with no token, optional (D-121), with a floor of half the board as recorded, so a cut file
    fails the night and the refresh carries the previous one (D-156).
-   - `osworld_verified`: the results workbook the page loads (`static/data/osworld_verified_results.xlsx`), read
+   - `osworld_verified`: the results workbook the page loads (`static/data/osworld_verified_results.xlsx` on
+     `osworld-v1.xlang.ai`, the one host the client asks), read
      with the standard library. The rows the page's default "Foundation E2E GUI" tab shows that a catalogue can
      sell: approach type `General model`, no extra accessibility tree, no coding action. At 100 steps, the budget
      most rows report: a run at 15 or 50 steps is another measurement. A model's score is the mean of its runs, as
@@ -5899,5 +5901,5 @@ changes its terms is taken out by its own ADR. A board that falls under half lin
 night's report.
 
 **Revisit when:** a skipped board's terms or data change (HLE's publishers post a file, Vending-Bench 2 publishes its
-whole board, GDPval's leaderboard returns); LiveBench publishes a new release; METR publishes a new time-horizon
+whole board, GDPval's leaderboard returns, OSWorld 2.0 ranks 15 models); LiveBench publishes a new release; METR publishes a new time-horizon
 version; the app takes payment (D-215's revisit).
