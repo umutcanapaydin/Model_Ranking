@@ -1246,3 +1246,11 @@ def test_242_the_stores_own_reads_and_folders_pass() -> None:
            and line.split(":")[1].isdigit() and int(line.split(":")[1]) in load]
     assert len(load) > 2 and not own, own
     assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "fixtureStoreFolder" in line]
+
+
+def test_242_a_store_function_takes_no_url_from_its_caller() -> None:
+    """#242 (G-13): a function in a store's file that takes a URL as a parameter can build the store on it, the
+    initialiser's call being in the store's own file, so another file chooses the address. A URL parameter is
+    admitted there only on an initialiser `PROVENANCE` keeps to that file. # covers D-214, REQ-GAP-001"""
+    assert _refused_in("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL")
+    assert not [line for line in gate.problems(gate.references(FLOW_AST)) if "init(url:)` takes a URL" in line]

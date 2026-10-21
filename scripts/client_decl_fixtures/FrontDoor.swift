@@ -50,3 +50,11 @@ struct GapRegisterStore {
         return try? Data(contentsOf: url)
     }
 }
+
+// #242 (G-13): a function of the store's own file that takes a URL from its caller and builds the store on it, so
+// another file chooses the address though the initialiser is called here. REFUSED at the parameter.
+extension GapRegisterStore {
+    static func fixtureAt(_ place: URL) -> GapRegisterStore {
+        GapRegisterStore(url: place)
+    }
+}

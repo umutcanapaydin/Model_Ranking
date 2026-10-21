@@ -9090,7 +9090,23 @@
     (constructor_decl implicit range=[/x/FrontDoor.swift:40:8 - line:40:8] "init(url:)" interface_type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" access=internal designated
       (parameter "self" interface_type="GapRegisterStore" inout) thrown_type="<null>"
       (parameter_list range=[/x/FrontDoor.swift:40:8 - line:40:8]
-        (parameter "url" apiName="url" interface_type="URL")))))
+        (parameter "url" apiName="url" interface_type="URL"))))
+  (extension_decl range=[/x/FrontDoor.swift:56:1 - line:60:1] "GapRegisterStore"
+    (func_decl range=[/x/FrontDoor.swift:57:5 - line:59:5] "fixtureAt(_:)" interface_type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" access=internal static
+      (parameter "self") result="GapRegisterStore" thrown_type="<null>"
+      (parameter_list range=[/x/FrontDoor.swift:57:26 - line:57:39]
+        (parameter "place" interface_type="URL"))
+      (brace_stmt range=[/x/FrontDoor.swift:57:61 - line:59:5]
+        (return_stmt implicit range=[/x/FrontDoor.swift:58:9 - line:58:36]
+          (call_expr type="GapRegisterStore" location=/x/FrontDoor.swift:58:9 range=[/x/FrontDoor.swift:58:9 - line:58:36] nothrow isolation_crossing="none"
+            (constructor_ref_call_expr type="(URL) -> GapRegisterStore" location=/x/FrontDoor.swift:58:9 range=[/x/FrontDoor.swift:58:9 - line:58:9] nothrow isolation_crossing="none"
+              (declref_expr implicit type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" location=/x/FrontDoor.swift:58:9 range=[/x/FrontDoor.swift:58:9 - line:58:9] decl="main.(file).GapRegisterStore.init(url:)@/x/FrontDoor.swift:40:8" function_ref=single apply)
+              (argument_list implicit
+                (argument
+                  (type_expr type="GapRegisterStore.Type" location=/x/FrontDoor.swift:58:9 range=[/x/FrontDoor.swift:58:9 - line:58:9] typerepr="GapRegisterStore"))))
+            (argument_list labels="url:"
+              (argument label="url"
+                (declref_expr type="URL" location=/x/FrontDoor.swift:58:31 range=[/x/FrontDoor.swift:58:31 - line:58:31] decl="main.(file).GapRegisterStore extension.fixtureAt(_:).place@/x/FrontDoor.swift:57:29" function_ref=unapplied)))))))))
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")
