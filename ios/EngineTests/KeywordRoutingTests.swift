@@ -337,7 +337,7 @@ final class KeywordRoutingTests: OfflineTestCase {
     func testTheModelsDeclineOnASearchGoesToTheWordingTier() async {
         let question = "best ai for coding"
         let declined = await TieredRouter(
-            model: ScriptedModelRouter(answers: [question: ["request": "a model search",
+            model: ScriptedModelRouter(answers: [question: ["request": "model search",
                                                             "surface": ModelOutputBoundary.declineSentinel]]),
             similarity: SimilarityRouter()
         ).route(question, within: known)
@@ -346,7 +346,7 @@ final class KeywordRoutingTests: OfflineTestCase {
         XCTAssertEqual(declined.tier, .similarity)
 
         let doubted = await TieredRouter(
-            model: ScriptedModelRouter(answers: [question: ["request": "something else",
+            model: ScriptedModelRouter(answers: [question: ["request": "task itself",
                                                             "surface": ModelOutputBoundary.declineSentinel]]),
             similarity: SimilarityRouter()
         ).route(question, within: known)

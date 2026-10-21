@@ -223,6 +223,23 @@ enum InputSignals {
         }
     }
 
+    /// #351 (D-169, D-211): whether the text names an AI, a model, a chatbot or an agent, in any folding.
+    /// A text that does is a search for one, whatever the model's verdict: the on-device model, told that
+    /// the task itself is not a search, called 23 m24 searches that name the AI they want "something else".
+    static func namesAnAI(_ text: String) -> Bool {
+        folds(text).map(wordsOf).contains { words in
+            words.contains { word in aiNouns.contains(word) || aiNounStems.contains(where: word.hasPrefix) }
+        }
+    }
+
+    /// The words that name an AI whole: "ai" and its Romance "ia", the Turkish "yapay" (zeka), bots, and
+    /// the assistants people name.
+    static let aiNouns: Set<String> = [
+        "ai", "ia", "yapay", "bot", "bots", "gpt", "chatgpt", "claude", "gemini", "copilot", "deepseek",
+    ]
+    /// The stems that name one with any ending: "modelo", "modeli", "ajanı", "agents", "chatbotlar".
+    static let aiNounStems = ["model", "modèle", "chatbot", "llm", "agent", "ajan", "нейросет", "модел"]
+
     /// How an English question of fact opens.
     static let factOpeners: [[String]] = [
         ["who"], ["when"], ["where"], ["whats"], ["what", "is"], ["what", "s"], ["what", "was"], ["what", "year"],

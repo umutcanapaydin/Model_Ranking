@@ -549,6 +549,12 @@ struct ContentView: View {
                         .lineLimit(2...4)
                         .tint(Design.accent)
                         .focused($questionFocused)
+                        // #354: the model loads while the person types; a send without focus routes as before.
+                        .onChange(of: questionFocused) { wasFocused, focused in
+                            if Prewarm.onFocus(from: wasFocused, to: focused, onDevice), !categories.isEmpty {
+                                router.prewarm(within: categories.map(\.id))
+                            }
+                        }
                         .submitLabel(.send)
                         .onSubmit(submit)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -588,10 +594,11 @@ struct ContentView: View {
                     .accessibilityIdentifier("aiCaption")
             }
             }
-            // #208: Apple Intelligence's moving glow around the question while it reads it.
+            // #208, #351: Apple Intelligence's moving glow around the question, livelier while it reads it.
             .overlay {
-                if onDevice == .available {
-                    IntelligenceGlow(still: reduceMotion).allowsHitTesting(false)
+                if let style = GlowStyle.of(onDevice, reading: routingInFlight) {
+                    IntelligenceGlow(style: style, still: reduceMotion).allowsHitTesting(false)
+                        .animation(.easeInOut(duration: 0.4), value: routingInFlight)
                 }
             }
             matchedSurfaceRow
@@ -1190,20 +1197,24 @@ struct ContentView: View {
 /// #208: Apple Intelligence's moving glow, a gradient ring turning around the question card. Still
 /// where the reader asked for less motion.
 struct IntelligenceGlow: View {
+    let style: GlowStyle
     let still: Bool
 
     var body: some View {
         // The angle is read from the clock, so turning Reduce Motion on stops it at once (the W4
         // review's M5); thirty frames a second is enough for a slow turn.
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still)) { context in
-            let turn = still ? 0 : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 4) * 90
+            let period = style.secondsPerTurn
+            let turn = still ? 0 : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
+                * 360 / period
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(
                     AngularGradient(colors: [.pink, .purple, .blue, .cyan, .orange, .pink], center: .center,
                                     angle: .degrees(turn)),
-                    lineWidth: 3
+                    lineWidth: style.lineWidth
                 )
-                .blur(radius: 1.5)
+                .blur(radius: style.blur)
+                .opacity(style.opacity)
         }
         .accessibilityHidden(true)
     }

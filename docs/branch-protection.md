@@ -21,7 +21,7 @@ Require these **job names** — not step names, not workflow names:
 |---|---|---|
 | `test` | `ci.yml` | lint, typecheck and the test suite. Lint and typecheck are STEPS inside this job; do not list them separately |
 | `secret-scan` | `ci.yml` | gitleaks. Dropping it means a credential can reach the default branch through a green PR |
-| `dep-audit` | `ci.yml` | `pip-audit --strict .` against the project's declared dependencies |
+| `dep-audit` | `ci.yml` | `pip-audit --strict` against every hash-checked lock under `requirements/`, the versions that install (D-177, #81) |
 | **`install-and-governance`** | `ci.yml` | install completeness (`M0`–`M4`), the governance records, the validator's not-a-no-op proof, and the conformance suite |
 
 **Merge method: merge commits.** Turn squash merging off (and rebase merging). A squash drops the wave branch's head from history, and that head is what the milestone Tester's verdict names as `**Reviewed head:**`: in a fresh clone `make deploy-check` and the deploy gate then cannot compare it and fail closed until the Tester runs again. An integration PR (`integration/<name>`, a run) must merge as a merge commit for the same reason, and so that GitHub marks the stacked PRs merged.
@@ -47,7 +47,7 @@ The owner had the agent apply this with `gh api` on 2026-09-25 (ruled in session
 
 | setting | value |
 |---|---|
-| required status checks | `test (py3.12)`, `test (py3.14)`, `secret-scan`, `dep-audit`, `install-and-governance`, `governance-contract (aggregate, unconditional)` |
+| required status checks | `test (py3.12)`, `test (py3.14)`, `secret-scan`, `dep-audit`, `install-and-governance`; `governance-contract (aggregate, unconditional)` is dropped with its workflow by run bug-night's owner patch (D-161 clause 4, the row in `docs/owner-actions.md`) |
 | branches up to date before merging (`strict`) | **off** since 2026-09-27, at the owner's request (translated from Turkish: "re-updating every PR is tiresome, turn it off"); a merge can now land on a base that moved, and CI on `main` after the merge is what catches it (`docs/control-events.csv`) |
 | include administrators (`enforce_admins`) | on |
 | pull request required | on, with **0** required approvals |
@@ -56,8 +56,9 @@ The owner had the agent apply this with `gh api` on 2026-09-25 (ruled in session
 **Two differences from the list above, each with its reason:**
 - **The check names are the names GitHub reports, not the job ids.** `test` runs as a matrix, so it
   reports as `test (py3.12)` and `test (py3.14)`. A required check named `test` would never report,
-  and it would block nothing, which is this file's own warning. `governance-contract` is the
-  aggregate check that `.github/workflows/governance-contract.yml` asks to be required.
+  and it would block nothing, which is this file's own warning. `governance-contract`, the aggregate
+  check of the workflow DevFlow v6.4 removed, goes with that workflow (D-161 clause 4): the governance
+  records and the validator's self-test run in `install-and-governance`.
 - **No approval count.** This repository has one human, and pull requests are opened under that
   same account. GitHub does not let an author approve their own pull request, so "at least one
   approval" would block every merge. The rule that remains is "a pull request, and the owner

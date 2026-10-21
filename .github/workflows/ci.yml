@@ -43,9 +43,12 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Install
+        # D-177 (#81): the locked versions and build backend, hash-checked, then the project with nothing
+        # resolved or fetched -- what `make install` takes.
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install --require-hashes -r requirements/dev.lock -r requirements/build.lock
+          pip install --no-deps --no-build-isolation -e .
       - name: Lint (ruff)
         if: matrix.python-version == '3.12'
         run: ruff check src tests scripts   # W-108: the scope `make lint` checks
@@ -102,20 +105,15 @@ jobs:
       # "Run pip-audit" and executed `check_records.py`. **The dependency audit had not run at all**,
       # and the job was green. Found by an external reviewer who parsed the YAML instead of reading it.
       # Verified by `conformance/test-ci-yaml.py`, which asserts every step's name matches its command.
-      - name: Install project dependencies
-        # pip-audit --strict audits the ENVIRONMENT. With nothing installed it audits pip-audit's own
-        # dependencies and passes, which is a green light for a scan that never saw the project.
-        run: |
-          if   [ -f requirements.txt ]; then pip install -r requirements.txt
-          elif [ -f pyproject.toml   ]; then pip install -e .
-          else echo "::error::no requirements.txt or pyproject.toml -- pip-audit would scan nothing"; exit 1
-          fi
-      # D-155. `--strict` on the ENVIRONMENT fails on the project itself, installed editable and absent
-      # from PyPI ("could not be audited") -- red on main since the v5.0 install. Auditing the
-      # project's DECLARED dependencies is the question the step exists to answer. Reported to
-      # DevFlow (field finding A13).
+      # D-177 and the M18 closure (#81): the audit reads every hash-checked lock under requirements/, the
+      # exact versions that install, extras included -- `pip-audit .` read only `[project].dependencies`
+      # and lost pyarrow when it moved to the `ingest` extra. `--disable-pip` audits the locks as written,
+      # so nothing is installed first; this is `make deps`, and no lock fails closed.
       - name: Run pip-audit
-        run: pip-audit --strict .
+        run: |
+          locks=$(ls requirements/*.lock 2>/dev/null) || true
+          [ -n "$locks" ] || { echo "::error::no lock under requirements/ -- pip-audit would read nothing"; exit 1; }
+          pip-audit --strict --disable-pip $(printf -- '-r %s ' $locks)
 
   # v4.3 REPAIR (auditor B3). These two legs used to be STEPS inside `dep-audit`, downstream of
   # `pip-audit --strict`. The comment called them unconditional; they were conditional on the step

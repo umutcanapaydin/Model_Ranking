@@ -37,7 +37,8 @@ What it refuses, each in one simple command:
   later calls cannot be paired with it (`git config alias.r reset && git r --hard`); one set through
   `--config-env` or `GIT_CONFIG_*` is refused, its value unread. A config key whose value git runs
   (`core.pager`, `core.fsmonitor`, `core.sshCommand`, `diff.external`, filters, ...) is judged as shell
-  text where it is set, and `include.path` is refused: it reads a file this does not open. So are the
+  text where it is set, a leading `!` taken off as git takes it (`credential.helper '!rm -rf ~'` walked through
+  as a program named `!rm`, #305), and `include.path` is refused: it reads a file this does not open. So are the
   environment variables that stand for them (`GIT_SSH_COMMAND`, `GIT_PAGER`, `GIT_EDITOR`,
   `GIT_EXTERNAL_DIFF`, `PAGER`, `EDITOR`, ...), wherever they are assigned -- one whose value is an
   expansion, appended to (`+=`), written through a subscript (`GIT_PAGER[1,-1]=`), assigned by an expansion
@@ -76,14 +77,34 @@ What it refuses, each in one simple command:
   is scratch; elsewhere a worktree under `.claude/worktrees/` stays scratch. In a text that makes a link
   (`ln`, `cp -s`) no recursive removal or `find -delete` passes: a link made there can point a scratch
   path anywhere;
+- an assignment that may not happen or does not last, by where it stands (#287): in a subshell, a substitution, a
+  pipeline stage, behind `&`, after `||`, after an `&&` a later command does not wait on, in a branch's or a loop's
+  body (`if`/`for`/`while`/`until`/`select`/`case`/`foreach`/`repeat` to `fi`/`done`/`esac`/`end`), or anywhere
+  after a function is defined (`f()`, `f ()`, `function f`, zsh's `functions[f]=`) -- and one a child process or a
+  deferred text makes (`bash -c`, a `trap`, an `alias`, a git alias): the call is judged twice, once with every
+  such assignment made and once with none (WORLD), and refused when either refuses. So the name, though it had no
+  value before (`(X=$(mktemp -d)); rm -rf "$X"/Users/x` ran `rm -rf /Users/x`), is unset in the second and its
+  target no scratch, and a literal it may take (`f() { :; }; d=.claude; echo x > "$d"/settings.json`) is read in
+  the first, as every refusal reads one -- an unknown value never stands for a harmless one (the bundle security
+  review's B1); one set in the line of the text holds after such a body as before;
 - an assignment before a program (`HOME=$(mktemp -d) true`), or behind `env` and the other wrappers, sets
   nothing for later words or commands, and `env -u NAME`, `env -i`, `exec -c`, `sudo` and `doas` leave
   `$TMPDIR` and this text's names unknown for what they run, so from there on the name is unknown (`... && rm -rf "$HOME"`
-  removed the real home past v7.1.1). An assignment that may not happen or does not last -- after `&&` or
-  `||`, in a branch, a loop, a subshell, a substitution or a pipe -- leaves the name unknown when it had a
-  value before; `read`, `mapfile`, `getopts`, `unset`, `printf -v`, `for`, `select`, zsh's `print -v` and
+  removed the real home past v7.1.1) -- in the second world; in the first it holds, as before a POSIX special
+  builtin; `read`, `mapfile`, `getopts`, `unset`, `printf -v`, `for`, `select`, zsh's `print -v` and
   module binders, `${NAME:=...}`, and `declare -n` (for the reference and its target) make the names they
   bind unknown;
+- a value this cannot read, where a refusal would read it (#344): a command substitution's output (but a lone
+  `mktemp`'s), an array (`a=(.claude)`, `mapfile`), a positional parameter (`$1`, `$@`), a `${...}` that is not a
+  plain `${name}` (`${d:-.claude}`), a pattern, or a name this text gave one of them -- as a write's target (a
+  redirection, and the paths of the owner's-directory rule's programs, `sed -i`/`perl -i` files included), as a
+  program word's last part (`p=$(echo fly); $p deploy`), and as any word of a git subcommand that writes (GIT_UNREAD_SUBS:
+  `git push origin "$(...)"`, `git commit $o`), a message's value (`-m "$(cat msg)"`) and a `-C` of a reading one
+  excepted. Such a value may be the owner's file, `--no-verify` or `main`, so it is refused, as it was once read as
+  harmless (`d=$(echo .claude); echo x > "$d"/settings.json`). A value built from this text's literals and the
+  environment (`d=$HOME/notes`) is read as the shell will, and a `${NAME:-literal}` (`-`, `:=`, `=` too) outside an
+  assignment as each value it may take, NAME's and the literal's (`"${TMPDIR:-/tmp}/x"` passes,
+  `"${X:-.claude}"/settings.json` does not; the bundle review's M5);
 - `source`, `.` or a shell running a `<( )` or zsh `=( )` file, whose commands this cannot read;
 - refused: `gh pr merge` and `gh pr ready` with flags anywhere (`gh -R a/b pr merge`, `gh pr -R a/b merge`),
   `gh api` on `/pulls/<n>/merge`, and `gh api` on `/protection` or `/rulesets` with a mutating method
@@ -127,13 +148,33 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
   `edit`; and a write, by the redirections and programs of the owner's-directory rule below, into a `.git`
   directory's `config`, `config.worktree` or `hooks/` (any case, as written and as resolved), the same files of
   the git directory of a work tree this call knows, `~/.gitconfig`, or `$XDG_CONFIG_HOME/git/config`
-  (`~/.config/git/config`). `core.hooksPath` set by `git config` stays refused as above;
+  (`~/.config/git/config`). `core.hooksPath` set by `git config` stays refused as above. Since #320 also its
+  `info/` (`exclude` hides work from `git status`), `commondir` (a worktree's too), and the same files of a
+  submodule's git directory, `modules/<name>/`; and a template directory, whose hooks and config `git init` and `git
+  clone` copy in: `--template` (any prefix git reads), `init.templateDir` set by `git config` or `-c`, or named in
+  `GIT_CONFIG_*`, and `GIT_TEMPLATE_DIR` assigned or bound anywhere;
+- the default branch the deploy gate reads its base from (#318: `brief_fields.DEFAULT_BRANCHES`, origin/HEAD,
+  origin/main, origin/master, main, master): `git branch` forcing, creating, moving onto or copying onto `main`,
+  `master`, `trunk` or a remote's of those or its `HEAD` (`git branch -f main HEAD`), but deleting one, which
+  leaves the gate the next default branch or none; `git checkout -b/-B` and
+  `git switch -c/-C`/`--create`/`--force-create` making one, the value apart or attached (`-Bmain`), the long
+  options in any prefix git reads; `git update-ref` naming one, or reading its refs from `--stdin`; `git
+  symbolic-ref` writing or deleting one; a `fetch` or `pull` refspec landing on one (`git fetch . HEAD:main`), or
+  on a pattern under `refs/heads/` or `refs/remotes/`; and each of these but a branch only made (`-b`, `-c`, plain
+  `git branch`) naming its ref through an expansion this cannot read (`git branch -D "$b"`); `git remote` changing `origin` (`set-url`, `add`,
+  `rename`, `remove`, `set-branches`) or any remote's `HEAD` but by `set-head --auto`; `remote.origin.url` or
+  `.fetch`, or `url.<base>.insteadOf` (which rewrites origin's URL), set by `git config`, `-c` or `GIT_CONFIG_*`; `git push` to one of this repository's (`git push .
+  HEAD:refs/remotes/origin/main`); `git replace` but its listing, which moves every merge-base with one; and a write
+  into `.git/refs/heads/<one>`, `.git/refs/remotes/`, `.git/refs/replace/`, `.git/packed-refs` or `.git/shallow`;
 - a worktree with uncommitted work (#286): `rm -r`, `find -delete` and `git worktree remove` (forced or not) of a
   `.claude/worktrees/<name>`, a path inside one, or a path holding one in a nested `.claude/worktrees/`, and
   `git worktree remove` of any live worktree, named by its path or by the last part of it that git matches, while
   `git status --porcelain` there prints anything or cannot be measured within STATUS_S seconds in all. Live is a
   `.git` directory, or a `.git` file whose `gitdir:` names an existing directory; one whose `gitdir:` names
-  nothing is no live worktree and is removed as before;
+  nothing is no live worktree and is removed as before. Since #317, the same worktree's `.git` file is not removed,
+  moved or rewritten by the programs of the owner's-directory rule, `sed -i` and `perl -i` included (`rm <wt>/.git` made it a plain directory for
+  the next call), the worktree is not moved by `git worktree move` (to the temp directory, then removed), and an
+  untracked `.gitignore` that ignores itself (`echo '*' > <wt>/notes/.gitignore`) counts as uncommitted work;
 - a write into the `.claude/` or `.githooks/` of any git work tree, the owner's hooks and settings (the M21
   closure security seat's S3): a redirection there (`>`, `>>`, `>|`, `&>`, `<>`, `>& file`); `rm`, `mv`,
   `tee`, `touch`, `chmod` and their kind on a path there; `cp`, `ln`, `install`, `rsync`, `ditto` or `dd`
@@ -141,7 +182,10 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
   or `of=` for `dd`); `sed -i` or `perl -i` on one; `find ... -delete` starting there; and `git rm`, `git
   mv`, `git checkout` or `git restore` naming one. Reading them is not refused. The one exception is the
   scratch rule's: `rm` of a directory under `.claude/worktrees/<name>` (a worktree's own `.claude/` and
-  `.githooks/` stay refused).
+  `.githooks/` stay refused). `git init`, `git clone`, `git submodule add` and `git worktree add` (and
+  `--separate-git-dir`) making their directory there are refused as a write is (#256), but `git worktree add`
+  under `.claude/worktrees/<name>`; so is any git command given `--git-dir` or `--work-tree` there, or run with
+  `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_OBJECT_DIRECTORY` or `GIT_INDEX_FILE` assigned there.
   A directory that holds them is refused too (#282): `rm -r` without `-f`, and `mv` (`git rm`, `git mv`)
   of a source, whose path is a work tree's root with a `.claude/` or `.githooks/` or a directory above one
   (`rm -r .` at a root, `rm -r ..` from `ios/`, `mv ../<repo> x`); the directories below it are walked, links
@@ -152,11 +196,13 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
   for `install -d` (the fixes review's round 3, M2).
   Which paths, exactly (`protected`; round 2's B1, as round 3's M1 left it): the path, `~` and variables
   expanded, is resolved from each directory the command may run in (WHERE), links followed on its longest
-  existing part. The work tree it lies in is the nearest directory above it that holds a `.git` entry, a
-  file or a directory: this clone, a linked worktree, any other clone, or a worktree Claude Code made inside
-  a repository's `.claude/worktrees/`. The path is refused when the directory directly below that work
-  tree's root is named `.claude` or `.githooks`, in any case. Claude Code's own `~/.claude` is not refused,
-  as no `.git` sits above it. From a place WHERE cannot name, the path is resolved from every directory a
+  existing part. A work tree it lies in is a directory above it that holds a `.git` entry, a file or a
+  directory: this clone, a linked worktree, any other clone, or a worktree Claude Code made inside a
+  repository's `.claude/worktrees/`. The path is refused when, for any of them, nearest first, the directory
+  directly below that work tree's root is named `.claude` or `.githooks`, in any case -- every one, not only the
+  nearest (#256: after `git init .claude`, `.claude` was the nearest work tree, and its files passed). The walk ends,
+  allowed, at a path inside `<root>/.claude/worktrees/<name>` whose `<name>` holds a `.git`: that worktree was
+  asked as its own work tree first. Claude Code's own `~/.claude` is not refused, as no `.git` sits above it. From a place WHERE cannot name, the path is resolved from every directory a
   `cd`, `chdir` or `pushd` anywhere in the call reaches, from every one reached before it, variables
   expanded as this process holds them (FOLLOWED); past MAX_FOLLOWED of them the call is not read.
   Given `--write`, the guard judges the Write or Edit call's `file_path` instead: a secrets file by name
@@ -219,7 +265,8 @@ Not held, by class -- said here so nobody believes otherwise:
   upstream, `push.default`, or a variable set elsewhere naming the ref of a push that does not delete
   (`git push origin "$branch"`; branch protection on the remote is the control there);
 - what the shell expands when the command runs, beyond the program word and git's words: `IFS`, history,
-  globs and braces in arguments, `${m:-main}`; syntax beyond POSIX-like shell;
+  globs and braces in arguments; syntax beyond POSIX-like shell; a name bound by `read`, `for`, `printf -v`,
+  `getopts` or a wrapper's assignment, which is unknown to the scratch rule only (#344 left them read as unset);
 - an `mv` or `git rm -r` of the repository through a variable set outside this text or a pattern
   (`mv "$REPO" /x`, `mv * ..`, `git rm -r ':/*'`); a link that existed before this call is followed where
   it resolves, but one another program makes in this call (`python -c`, `tar`, `unzip`, a clone that holds
@@ -227,8 +274,12 @@ Not held, by class -- said here so nobody believes otherwise:
 - the gate stamp, like the pre-push hook it serves (which the editor tool can rewrite), against an agent
   set on evading it: its name built at run time, or written by a program; a commit made while `make gate`
   runs (the stamp names the HEAD at its end); a work tree git is told not to see (`update-index
-  --skip-worktree`, `.git/info/exclude`), which pre-push graded no better before the stamp; CI still
-  runs every gate leg;
+  --skip-worktree`, a `.git/info/exclude` a program this does not list writes), which pre-push graded no better
+  before the stamp; CI still runs every gate leg;
+- the deploy gate's base moved where this does not look (#318): a commit, merge, reset or rebase made while the
+  default branch is checked out, a ref written by a program this does not list, or a remote other than `origin`
+  renamed to it by a program this does not list; ignore rules from
+  `core.excludesFile` that hide a worktree's work (#317); a clone moved by `mv` and then removed;
 - a command on another machine is judged by this machine's rules: `ssh host 'rm -rf /tmp/build'` is
   refused, though `/tmp` is scratch there;
 - a write into `.claude/` or `.githooks/` by a program this does not list (`python -c`, `git apply`, `tar`,
@@ -273,12 +324,37 @@ REACHED: set[str] = set()
 SEEN: dict[str, bool] = {"repeats": False, "cdpath": False, "links": False, "home": False, "home_used": False}
 #: Set while the command being judged may not run, or runs apart from what follows (`&&`, `||`, a
 #: branch, a loop, a subshell, a substitution, a pipe): an assignment there may or may not hold after it.
-FLOW: dict[str, bool] = {"maybe": False}
+#: `scoped` is the same question asked by where the command sits (#287): in a subshell, a substitution, a pipeline
+#: stage, behind `&`, after `||`, after an `&&` some later command does not wait on, in a branch's or a loop's body
+#: (by its keywords), or anywhere after a function is defined (whose body's end this does not mark).
+FLOW: dict[str, bool] = {"maybe": False, "scoped": False}
+#: #287, as the security review of run bug-night's bundle (B1) left it: the call is judged in two worlds, and refused
+#: when either refuses. In the first (`skip` False) every assignment that may not happen or may not last -- one where
+#: it stands (`scoped`), one before a program (`NAME=v cmd`), one made by a child process or a deferred text
+#: (`_apart`) -- happens and holds; in the second none of them does, and each name keeps the value it had. Each world
+#: is a run the shell may make, so a value that MAY be set is judged as each value it may take, and no refusal
+#: reads a name as unknown -- and so as harmless -- because it may have two. `forked` says whether the second world
+#: differs from the first.
+WORLD: dict[str, bool] = {"skip": False, "forked": False}
+#: Above zero while the text judged is run by `eval` or `source` in this shell, whose commands after it this text
+#: does not hold: an assignment after `&&` there may not happen, and what follows the `eval` runs anyway (#287).
+EVALED: dict[str, int] = {"on": 0}
+#: The words that open and close a branch's or a loop's body, read at the head of each command (#287).
+OPENS = {"if", "while", "until", "for", "select", "case", "foreach", "repeat"}
+CLOSES = {"fi", "done", "esac", "end"}
 #: More places than this (each `;`-joined `cd` may fail and stay), and they become one this cannot name.
 MAX_PLACES = 64
 #: `name -> literal value` for assignments seen in this text, or SCRATCH for a `mktemp` result.
 SCOPE: dict[str, object] = {}
 SCRATCH = object()
+#: #344: a value this cannot read and that may be anything -- a command substitution's output, an array, a
+#: positional parameter, a `${...}` form, a pattern -- so every refusal that reads a value takes it as possibly
+#: protected: a write to it, a git word of it, a program named by it is refused (`_unread_word`). (UNKNOWN, which a
+#: binder such as `read` or `for` leaves, is unknown only to the scratch rule: "Not held".)
+UNREAD = object()
+#: #344: what in a word is an expansion this cannot read: a positional parameter, a `${...}` that is not a plain
+#: `${name}`, a command substitution (the lexer writes each as `$(...)`), a backtick.
+UNREAD_FORM = re.compile(r"\$(?:[0-9@*]|\{(?![A-Za-z_][A-Za-z0-9_]*\})|\(\.\.\.\))|`")
 #: `name -> the name it refers to`, for each `declare -n` in this text: assigning one assigns the other.
 NAMEREF: dict[str, str] = {}
 #: Every word list in program position, with the directories it may run in, for the deploy gate.
@@ -373,6 +449,32 @@ CODE_KEY = re.compile(r"^(core\.(pager|editor|fsmonitor|sshcommand|askpass)|sequ
                       r"diff\..+\.(textconv|command)|merge\..+\.driver|filter\..+\.(clean|smudge|process)|"
                       r"credential(\..+)?\.helper|gpg(\..+)?\.program|pager\..+|uploadpack\.packobjectshook|"
                       r"include\.path|includeif\..+\.path)$", re.I)
+#: #320: what names a git template directory, whose hooks and config `git init` and `git clone` copy in.
+TEMPLATE_ENV = "GIT_TEMPLATE_DIR"
+#: #256: the environment variables that place git's directories, as `--git-dir` and `--work-tree` do.
+GIT_PLACE_ENV = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY", "GIT_INDEX_FILE"}
+TEMPLATE_KEY = "init.templatedir"
+#: #318: the remote's settings that decide what `origin/main` and `origin/HEAD` hold after the next fetch, and
+#: `url.<base>.insteadOf`, which rewrites origin's URL with `remote.origin.url` untouched.
+REMOTE_KEY = re.compile(r"^(remote\.origin\.(url|fetch)|url\..+\.insteadof)$", re.I)
+#: `git branch`, `git fetch` and `git symbolic-ref` options that take the next word as their value.
+BRANCH_VALUED = {"-u", "--set-upstream-to", "--contains", "--no-contains", "--merged", "--no-merged", "--points-at",
+                 "--format", "--sort"}
+FETCH_VALUED = {"--depth", "--deepen", "--shallow-since", "--shallow-exclude", "--upload-pack", "-j", "--jobs",
+                "--negotiation-tip", "-o", "--server-option", "--filter", "--refmap"}
+#: `git init`, `git clone`, `git submodule add` and `git worktree add` options that take the next word as their value
+#: (#256).
+MADE_VALUED = {"--template", "--separate-git-dir", "--object-format", "--ref-format", "-b", "--initial-branch",
+               "--branch", "-o", "--origin", "-u", "--upload-pack", "--reference", "--reference-if-able", "--depth",
+               "--shallow-since", "--shallow-exclude", "-c", "--config", "--server-option", "-j", "--jobs", "--filter",
+               "--bundle-uri", "-B", "--reason", "--name"}
+#: #344: the git subcommands whose words, unread, may be `--no-verify`, `--force`, `--hard`, the protected branch or
+#: an owner's path; and the options whose value is a message or a name, which may hold any text.
+GIT_UNREAD_SUBS = {"push", "commit", "merge", "rebase", "cherry-pick", "revert", "pull", "am", "reset", "clean",
+                   "checkout", "switch", "restore", "stash", "config", "branch", "update-ref", "symbolic-ref",
+                   "worktree", "fetch", "remote", "replace", "init", "clone", "rm", "mv", "submodule"}
+GIT_MESSAGE = {"-m", "--message", "-F", "--file", "--author", "--date", "--trailer", "-o", "--push-option",
+               "--reason"}
 #: `git config` options that take the next word as their value.
 CONFIG_VALUED = {"--comment", "--type", "--default", "--file", "-f", "--blob", "--value"}
 #: `ssh` options that take a value, as `ssh(1)` lists them; every other letter is a flag.
@@ -424,10 +526,24 @@ LAUNCHD_SCRIPT = ("BLOCKED: `{name}` deploys to or takes off the owner's launchd
 CONFIG_EDIT = ("BLOCKED: `git config --edit` (`-e`, `edit`) opens a config file in an editor, where `core.hooksPath`, "
                "an alias or a pager can be set where this guard does not read it (#285). Set the key with "
                "`git config <key> <value>`, which this guard reads.")
-GIT_FILE_WRITE = ("BLOCKED: `{path}` is git's own configuration or hooks (`.git/config`, `.git/hooks/`, "
-                  "`~/.gitconfig`): a write there can set `core.hooksPath`, an alias or a pager, or replace a hook, "
-                  "where this guard does not read it (#285). Set a key with `git config <key> <value>`; the hooks "
-                  "are the owner's (`make hooks`).")
+GIT_FILE_WRITE = ("BLOCKED: `{path}` is git's own configuration, hooks or default-branch refs (`.git/config`, "
+                  "`.git/hooks/`, `.git/info/`, `.git/modules/<name>/`, `.git/refs/heads/main`, `~/.gitconfig`): a "
+                  "write there can set `core.hooksPath`, an alias or a pager, replace a hook, hide work from `git "
+                  "status`, or move the deploy gate's base, where this guard does not read it (#285, #318, #320). Set "
+                  "a key with `git config <key> <value>`; the hooks are the owner's (`make hooks`).")
+UNREAD_WRITE = ("BLOCKED: `{path}` is built from a value this guard cannot read (a command substitution, an array, a "
+                "positional parameter, a `${{...}}` form), so it may be the owner's `.claude/` or `.githooks/`, git's "
+                "config or a secrets file (#344). Write the value out, or assign it from a literal first (or use `mktemp`).")
+UNREAD_GIT = ("BLOCKED: `git {sub}` is given `{word}`, a value this guard cannot read (a command substitution, an array, "
+              "a positional parameter, a `${{...}}` form), not read: it may be `--no-verify`, `--force`, `--hard`, the protected "
+              "branch or the owner's files (#344). Write the value out, or assign it from a literal first; a message "
+              "(`-m`, `-F`) may hold one.")
+UNREAD_PROGRAM = ("BLOCKED: `{word}` names its program through a value this guard cannot read (a command substitution, "
+                  "an array, a positional parameter, a `${{...}}` form), which may be `fly` or a deploy (#344). Write "
+                  "the value out, or assign it from a literal first.")
+TEMPLATE = ("BLOCKED: a git template directory (`--template`, `init.templateDir`, `GIT_TEMPLATE_DIR`) copies its hooks "
+            "and config into the repository `git init` or `git clone` makes or re-initialises, from a place this guard "
+            "does not read (#320). Run the command without one.")
 DIRTY_WORKTREE = ("BLOCKED: `{path}` removes the worktree `{root}`, which holds uncommitted work (`git status "
                   "--porcelain` lists it), and that work would be lost (#286). Commit it there, or ask the owner.")
 UNMEASURED_WORKTREE = ("BLOCKED: `{path}` removes `{root}`, a live worktree whose `git status` this guard could not "
@@ -443,8 +559,9 @@ ENV_WRITE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (def
 #: v7.2's Write/Edit hook message, word for word: the stamp's name, in any case, is never an editor's to write.
 STAMP_WRITE = ("BLOCKED: the gate stamp (devflow-gate-ok) is written only by make gate when it passes -- a stamp "
                "written by hand is a gate that never ran.")
-PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch's ref (AGENTS.md S3): "
-                 "the default branch is the human's.")
+PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch's ref, nor `origin/HEAD` or a "
+                 "remote's default branch, where the deploy gate reads its base (AGENTS.md S3, #318): the default "
+                 "branch is the human's.")
 ENV_EXEMPT = {".env.example", ".env.sample", ".env.template"}
 GH_MERGE = ("BLOCKED: a human marks a pull request ready and merges it, never the agent (AGENTS.md S3). "
             "Leave the draft for the owner.")
@@ -588,6 +705,7 @@ class Lexer:
         self.commands: list[Command] = []
         self.pending: list[tuple[str, bool, bool, Command]] = []  # delimiter, tabs stripped, quoted, owner
         self.patterns = 0  # `case ... in` seen: a `)` may end a pattern inside `$( )`
+        self.defs: list[int] = []  # #287: where each `name()` stood, as the index of the command after it
 
     # --- the command level ---------------------------------------------------------------------------
     def parse(self, closing: str | None = None) -> None:  # noqa: C901 -- one branch per shell token
@@ -617,15 +735,22 @@ class Lexer:
                 self.i += len(op)
                 cmd = self._end(cmd, piped=op in ("|", "|&"), joined=op)
             elif c == "(":
-                if cmd.words and last_end == self.i:
-                    if s.startswith("()", self.i):  # `name()`: a function's name is no command
+                fn = re.match(r"\([ \t]*\)", s[self.i:])
+                if cmd.words and (last_end == self.i or fn):
+                    if fn:                          # `name()`, `name ()`: a function's name is no command
                         SEEN["repeats"] = True      # and its body's `cd` runs at every call
-                        self.i += 2
+                        self.defs.append(len(self.commands))
+                        self.i += fn.end()
                         cmd = Command()
                     elif cmd.words[-1].text.endswith("="):  # `x=(a b)`: each element read as a command
                         cmd.procsub = cmd.procsub or cmd.words[-1].text == "="   # zsh's `=( )` is a file
                         self.i += 1
+                        start = self.i
                         self._substitution(")")
+                        # #344: an array's value is read nowhere; the assignment is marked as a substitution's.
+                        w = cmd.words[-1]
+                        cmd.words[-1] = Word(w.text + "$(...)", w.glob, w.equals, True,
+                                             [*w.subs, "(" + self.s[start:self.i - 1] + ")"])
                     else:
                         raise Unreadable("a word with `(` written against it (a zsh glob qualifier or `=( )`)")
                 elif s.startswith("((", self.i) and not cmd.words and (end := self._arith_end(self.i + 2)):
@@ -922,9 +1047,19 @@ def judge_text(text: str, depth: int = 0) -> str | None:
     commands = lexer.commands
     _follow_all(commands)
     compound = False   # a branch or a loop body may not run at all: no `cd` in this text is taken as made
-    for c in commands:
+    # #287: whether each command sits in a branch's or a loop's body, or after a function is defined.
+    inside: list[bool] = []
+    body, defined = 0, min(lexer.defs, default=len(commands))
+    for n, c in enumerate(commands):
         k = next((j for j, w in enumerate(c.words) if w.text not in KEYWORDS), len(c.words))
         lead = [w.text for w in c.words[:k + 1] if not w.quoted]
+        body += sum(w in OPENS for w in lead)
+        defined = min(defined, n) if "function" in lead or any(
+            w.text.startswith(("functions[", "aliases[")) for w in c.words[:k + 1]) else defined
+        inside.append(body > 0 or n >= defined)
+        body = max(0, body - sum(w in CLOSES for w in lead))
+        if any(w.text.startswith("functions[") for w in c.words[:k + 1]):
+            SEEN["repeats"] = True   # zsh's `functions[cd]=...` defines `cd`, as `cd() {...}` does
         SEEN["repeats"] = SEEN["repeats"] or bool(LOOPS & set(lead))
         compound = compound or bool(COMPOUND & set(lead))
         # A link made anywhere in this text can turn a scratch path into any directory (`ln -s ~/proj
@@ -944,14 +1079,20 @@ def judge_text(text: str, depth: int = 0) -> str | None:
         dirs = list(dict.fromkeys(p[0] for p in runs))
         HERE["dirs"] = dirs
         nxt = following.get(k)
-        outer = FLOW["maybe"]
+        outer, outer_scoped = FLOW["maybe"], FLOW["scoped"]
         FLOW["maybe"] = outer or bool(compound or SEEN["repeats"] or cmd.inner or cmd.subshell or cmd.piped
                                       or (not cmd.inner and cmd.joined in ("&&", "||"))
                                       or (nxt is not None and nxt.joined in ("&", "|", "|&")))
+        # `a && X=...; rm "$X"/y` runs `rm` when `a` fails; `a && X=... && rm "$X"` does not.
+        unwaited = cmd.joined == "&&" and (EVALED["on"] > 0 or any(commands[j].joined not in ("&&", "|", "|&")
+                                                                   for j in top if j > k))
+        FLOW["scoped"] = outer_scoped or bool(inside[k] or cmd.inner or cmd.subshell or cmd.piped
+                                              or (not cmd.inner and (cmd.joined == "||" or unwaited))
+                                              or (nxt is not None and nxt.joined in ("&", "|", "|&")))
         try:
             why = judge_command(cmd, depth)
         finally:
-            FLOW["maybe"] = outer
+            FLOW["maybe"], FLOW["scoped"] = outer, outer_scoped
         if why:
             return why
         # A `cd` in an `eval` or `bash -c` string this command ran: the nested text added its places.
@@ -965,6 +1106,32 @@ def judge_text(text: str, depth: int = 0) -> str | None:
             places = [(UNKNOWN, True, ()), (UNKNOWN, False, ())]
     HERE["dirs"] = list(dict.fromkeys(entry + [p[0] for p in places]))
     return None
+
+
+def _apart(text: str, depth: int) -> str | None:
+    """#287: text run by another process (`bash -c`, a shell's here-document, a git alias, a pager, ssh's local
+    commands) or at another time (a `trap`, an `alias`, `mapfile -C`'s callback), judged as a command. What it
+    assigns holds inside it; after it, it holds in the first world (WORLD) and is undone in the second: the shell
+    running this text never takes it, or takes it later."""
+    before = dict(SCOPE)
+    try:
+        return judge_text(text, depth)
+    finally:
+        if SCOPE != before:
+            WORLD["forked"] = True
+            if WORLD["skip"]:
+                SCOPE.clear()
+                SCOPE.update(before)
+
+
+def _evaled(text: str, depth: int) -> str | None:
+    """Text `eval` or `source` runs in this shell: its assignments hold after it, as the rest of this text's do,
+    but one after `&&` may not happen while what follows the `eval` runs anyway (`eval 'false && X=...'; rm "$X"/y`)."""
+    EVALED["on"] += 1
+    try:
+        return judge_text(text, depth)
+    finally:
+        EVALED["on"] -= 1
 
 
 # --- where a command runs -----------------------------------------------------------------------------
@@ -1092,20 +1259,51 @@ def _assign(word: Word) -> None:
     if name.endswith("+") or "[" in name:
         SCOPE[name.rstrip("+").split("[")[0]] = UNKNOWN
         return
-    # Only the whole value, and only a lone `mktemp`: `$(mktemp -d; echo /x)` prints a second path, and
-    # `$(mktemp -d)/../x` leaves the directory.
-    if value == "$(...)" and len(word.subs) == 1 and _mktemp_only(word.subs[0]) and TRUST["mktemp"]:
-        new: object = SCRATCH
-    elif "$" not in value and not word.glob:
-        new = value
-    else:
-        new = UNKNOWN   # assigned something this cannot read: it shadows the environment's value
-    # An assignment that may not happen, or happens apart from what follows (`false && d=$(mktemp -d)`,
-    # `(d=...)`), leaves the name what it was -- this text's value or the environment's -- or the new one.
-    if FLOW["maybe"] and (name in SCOPE or name in os.environ) and SCOPE.get(name, None) is not new \
-            and SCOPE.get(name) != new:
-        new = UNKNOWN
+    new = _value(word, value)
+    # An assignment that may not happen, or happens apart from what follows (`false && d=$(mktemp -d)`, `(d=...)`),
+    # leaves the name what it was -- this text's value, the environment's, or unset (`"$d"/Users/x` is `/Users/x`) --
+    # or gives it the new one: each is judged, in its world (WORLD, #287). Made unknown instead, as once, a literal
+    # `.claude` or `main` read as harmless to every refusal that reads a name's value (the review's B1).
+    if FLOW["scoped"]:
+        WORLD["forked"] = True
+        if WORLD["skip"]:
+            return
     SCOPE[name] = new
+
+
+def _value(word: Word, value: str) -> object:
+    """What an assignment's value is: SCRATCH for a lone `mktemp` (only the whole value: `$(mktemp -d; echo /x)`
+    prints a second path, and `$(mktemp -d)/../x` leaves the directory), the literal, or UNKNOWN for what this cannot
+    read, which shadows the environment's value."""
+    if value == "$(...)" and len(word.subs) == 1 and _mktemp_only(word.subs[0]) and TRUST["mktemp"]:
+        return SCRATCH
+    # #344: a substitution's output, an array, a positional parameter, a `${...}` form or a pattern may be anything.
+    if word.subs or word.glob or _unread_text(value):
+        return UNREAD
+    if "$" not in value:
+        return value
+    names = [_name(m) for m in VARIABLE.finditer(value)]
+    if any(SCOPE.get(n) is UNREAD for n in names):
+        return UNREAD
+    if any(n in SCOPE and not isinstance(SCOPE[n], str) for n in names):
+        return UNKNOWN
+    # This text's literals put in; a name it never set is the environment's, read where the value is used
+    # (`d=$HOME/notes`), and keeps the value no scratch.
+    return _expand(value)
+
+
+def _unread_text(text: str) -> bool:
+    """#344: whether text holds an expansion this cannot read (UNREAD_FORM), or names a variable this text gave such
+    a value."""
+    return bool(UNREAD_FORM.search(text)) or any(SCOPE.get(_name(m)) is UNREAD for m in VARIABLE.finditer(text))
+
+
+def _unread_word(word: Word) -> bool:
+    """#344: whether a word may be anything: it holds a substitution other than a lone `mktemp`, or an expansion
+    `_unread_text` cannot read."""
+    if any(not (_mktemp_only(sub) and TRUST["mktemp"]) for sub in word.subs):
+        return True
+    return _unread_text(word.text.replace("$(...)", ""))
 
 
 def _binds(words: list[Word], start: int) -> None:
@@ -1128,7 +1326,7 @@ def _binds(words: list[Word], start: int) -> None:
             for k, w in enumerate(rest):
                 code = (rest[k + 1].text if w.text == "-C" and k + 1 < len(rest) else
                         w.text[2:] if w.text.startswith("-C") and len(w.text) > 2 else None)
-                if code is not None and (why := judge_text(code, 1)):
+                if code is not None and (why := _apart(code, 1)):
                     raise Unreadable(why)
     elif program in SETTERS and any(re.match(r"^-[A-Za-z]*n", w.text) for w in rest):
         for w in rest:
@@ -1137,7 +1335,8 @@ def _binds(words: list[Word], start: int) -> None:
             name, eq, target = w.text.partition("=")
             # `declare -n r=GIT_PAGER; r='rm -rf ~'` assigns GIT_PAGER through r, and `declare -n r` takes its
             # target from the next `r=...`: the target must be a literal name, and no command a program runs.
-            if not eq or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", target) or CODE_ENV & {name, target}:
+            if (not eq or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", target) or CODE_ENV & {name, target}
+                    or TEMPLATE_ENV in (name, target)):
                 raise Unreadable(NAME_UNREAD)
             NAMEREF[name] = target
             names += [name, target]
@@ -1147,9 +1346,15 @@ def _binds(words: list[Word], start: int) -> None:
         n = n.split("[")[0]
         if n in CODE_ENV:
             raise Unreadable(CODE_ENV_UNREAD.format(name=n))
+        if n == TEMPLATE_ENV:
+            raise Unreadable(TEMPLATE)
         if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", n):
             _bound(n)
-            SCOPE[n] = UNKNOWN
+            if FLOW["scoped"]:
+                WORLD["forked"] = True
+                if WORLD["skip"]:
+                    continue
+            SCOPE[n] = UNREAD if program in ("mapfile", "readarray") else UNKNOWN   # #344: an array
 
 
 def _mktemp_only(text: str) -> bool:
@@ -1158,14 +1363,18 @@ def _mktemp_only(text: str) -> bool:
 
 
 def _shadow(word: Word) -> None:
-    """A prefix assignment (`NAME=value cmd`) sets nothing for the shell: the command's own words and every
-    later command expand NAME as before. What that is, this cannot say, so NAME is unknown from here on
-    (`HOME=$(mktemp -d) true && rm -rf "$HOME"` removed the real home past v7.1.1)."""
-    name = word.text.partition("=")[0].rstrip("+").split("[")[0]
-    if name == "CDPATH":
+    """A prefix assignment (`NAME=value cmd`) sets nothing for the shell -- the command's own words and every later
+    command expand NAME as before (`HOME=$(mktemp -d) true && rm -rf "$HOME"` removed the real home past v7.1.1) --
+    but before a special builtin (`NAME=v :` in a POSIX shell) it holds. So in the first world (WORLD) it holds,
+    and in the second NAME is unknown from here on, as it always was: what this text or the environment held before
+    may not be what the command's shell holds (`PWD`, `HOME`), and an unknown value is never scratch (#287)."""
+    name, _, value = word.text.partition("=")
+    base = name.rstrip("+").split("[")[0]
+    if base == "CDPATH":
         SEEN["cdpath"] = True
-    _bound(name)
-    SCOPE[name] = UNKNOWN
+    _bound(base)
+    WORLD["forked"] = True
+    SCOPE[base] = UNKNOWN if WORLD["skip"] or name != base else _value(word, value)
 
 
 def _bound(name: str) -> None:
@@ -1207,12 +1416,69 @@ def _env_file(text: str) -> bool:
     return name in (".env", ".envrc") or name.startswith(".env.") or name.endswith(".env")
 
 
+#: M5 of the bundle review: `${NAME:-literal}`, `${NAME-literal}`, `${NAME:=literal}`, `${NAME=literal}` with a plain
+#: literal default -- each may be NAME's value or the default, and the command is judged with each (`_defaults`).
+DEFAULT_FORM = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):?[-=]([^}$`'\"\\*?\[{]*)\}")
+#: Past this many variants of one command, its defaults are left unread (#344), and so refused where read.
+MAX_VARIANTS = 16
+
+
+def _defaults(cmd: Command) -> list[Command] | None:
+    """M5: the command once per value its `${NAME:-literal}` forms may take -- `${NAME}` (its value as this text or
+    the environment holds it) or the literal -- in its words and redirection targets, never in an assignment (whose
+    value stays unread). None when it holds none, or more than MAX_VARIANTS variants."""
+    def variants(w: Word) -> list[Word]:
+        out = [""]
+        k = 0
+        for m in DEFAULT_FORM.finditer(w.text):
+            out = [o + w.text[k:m.start()] + choice for o in out for choice in ("${" + m.group(1) + "}", m.group(2))]
+            k = m.end()
+            if len(out) > MAX_VARIANTS:
+                raise OverflowError
+        return [Word(o + w.text[k:], w.glob, w.equals, w.quoted, list(w.subs)) for o in out]
+    if not any(DEFAULT_FORM.search(w.text) for w in cmd.words + cmd.writes):
+        return None
+    try:
+        words = [[w] if ASSIGNMENT.match(w.text) else variants(w) for w in cmd.words]
+        writes = [variants(w) for w in cmd.writes]
+    except OverflowError:
+        return None
+    combos: list[tuple[list[Word], list[Word]]] = [([], [])]
+    for options in words:
+        combos = [(ws + [o], wr) for ws, wr in combos for o in options]
+    for options in writes:
+        combos = [(ws, wr + [o]) for ws, wr in combos for o in options]
+    if len(combos) > MAX_VARIANTS:
+        return None
+    return [Command(ws, cmd.fed, cmd.piped, cmd.from_file, cmd.procsub, wr, cmd.joined, cmd.inner, cmd.subshell)
+            for ws, wr in combos]
+
+
 def judge_command(cmd: Command, depth: int) -> str | None:
+    """M5: a command with `${NAME:-literal}` defaults is judged once per value they may take, refused if any is."""
+    # `: ${GIT_PAGER:='rm -rf ~'}` and `: ${d::=/}` assign as they expand (read before a variant writes the form out).
+    for w in cmd.words + cmd.writes:
+        for name in EXPANSION_ASSIGN.findall(w.text):
+            if name in CODE_ENV:
+                return CODE_ENV_UNREAD.format(name=name)
+            if name == TEMPLATE_ENV:
+                return TEMPLATE
+            _bound(name)
+            SCOPE[name] = UNKNOWN
+    for variant in _defaults(cmd) or [cmd]:
+        if (why := _judge_command_once(variant, depth)):
+            return why
+    return None
+
+
+def _judge_command_once(cmd: Command, depth: int) -> str | None:
     """Past assignments and keywords; after a wrapper, every later word is tried as the program, in one pass."""
     words = cmd.words
     if any(TMPDIR_NAMED.search(w.text) for w in words):
         TRUST["TMPDIR"] = False   # `read TMP""DIR`: the name, quoted apart, as the shell will see it
     written = [_expand(w.text) for w in cmd.writes]
+    if (hit := next((w.text for w in cmd.writes if _unread_word(w)), None)) is not None:
+        return UNREAD_WRITE.format(path=hit)   # #344: `echo x > "$(echo .claude)"/settings.json`
     # The Write/Edit guard refuses a `.env` file and the owner's directories; a shell redirection is the same write.
     if any(_env_file(t) for t in written):
         return ENV_WRITE
@@ -1220,13 +1486,8 @@ def judge_command(cmd: Command, depth: int) -> str | None:
         return OWNERS
     if (hit := next((t for t in written if _git_file(t, itself=True)), None)) is not None:
         return GIT_FILE_WRITE.format(path=hit)   # #285: `echo ... >> .git/config`
-    # `: ${GIT_PAGER:='rm -rf ~'}` and `: ${d::=/}` assign as they expand.
-    for w in words:
-        for name in EXPANSION_ASSIGN.findall(w.text):
-            if name in CODE_ENV:
-                return CODE_ENV_UNREAD.format(name=name)
-            _bound(name)
-            SCOPE[name] = UNKNOWN
+    if (why := _unlinks_worktree(written)):
+        return why   # #317: `echo x > <wt>/.git`
     start = 0
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
         start += 1
@@ -1331,8 +1592,8 @@ def _stdin(cmd: Command, depth: int, who: str) -> str | None:
     """A shell or `source` reading its commands from stdin: its here-documents and here-strings are read;
     a pipe or a file is not, so it is refused."""
     if cmd.fed and not cmd.piped and not cmd.from_file:
-        for text in cmd.fed:
-            if (why := judge_text(text, depth + 1)):
+        for text in cmd.fed:   # a shell reads them in a process of its own; `source`, in this one
+            if (why := (_apart(text, depth + 1) if who.startswith("a shell") else _evaled(text, depth + 1))):
                 return why
         return None
     return (f"BLOCKED: {who} reading its commands from a pipe, a file or stdin, which this guard cannot read; "
@@ -1345,6 +1606,11 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
         return (f"BLOCKED: `{first.text}` names its program by a pattern, which this guard cannot read; "
                 "write the program's name.")
     program = _program(first)
+    # #344: a program named through a value this cannot read (`p=$(echo fly); $p deploy`); a path to it whose last
+    # part is written (`"$(git rev-parse --show-toplevel)"/scripts/x.sh`) names it.
+    last = first.text.rsplit("/", 1)[-1]
+    if _unread_word(Word(last, subs=first.subs if "$(...)" in last else [])):
+        return UNREAD_PROGRAM.format(word=first.text)
     # A pattern the shell expands to the stamp's script, run by an interpreter. (The stamp itself is named
     # by its commit, so a pattern can only rewrite an old one: no check is owed for it here.)
     if INTERPRETERS.match(program) and any(_stamp_pattern(w.text, ("gate_stamp.py",)) for w in words[1:]):
@@ -1357,17 +1623,19 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
         return MAKE_FLAGS
     args = [w.text for w in words[1:]]
     CANDIDATES.append((list(HERE["dirs"]), [_expand(first.text[1:] if first.equals else first.text)] + args))
-    if (why := _writes_protected(program, [_expand(a) for a in args])):
+    unread = [_unread_word(w) for w in words[1:]]   # #344
+    if (why := _writes_protected(program, [_expand(a) for a in args],
+                                 {_expand(a) for a, u in zip(args, unread) if u})):
         return why
     if program == "eval":
-        return judge_text(" ".join(args), depth + 1)
+        return _evaled(" ".join(args), depth + 1)
     # `trap 'cmd' EXIT` runs its text when the shell exits or takes the signal.
     if program == "trap" and args and args[0] not in ("-", "-l", "-p", "--") and not args[0].isdigit():
-        return judge_text(args[0], depth + 1)
+        return _apart(args[0], depth + 1)
     # `alias ls='rm -rf ~'` and a later line's `ls`: an alias is the text it names.
     if program == "alias":
         for a in args:
-            if "=" in a and not a.startswith("-") and (why := judge_text(a.partition("=")[2], depth + 1)):
+            if "=" in a and not a.startswith("-") and (why := _apart(a.partition("=")[2], depth + 1)):
                 return why
     if cmd.procsub and (program in ("source", ".") or program in SHELLS):
         return (f"BLOCKED: `{program}` running a `<( )` or `=( )` file, whose commands this guard cannot read; "
@@ -1432,7 +1700,8 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
     if program == "mv" and (hit := _project_tree(_mv_sources(words[1:]))):
         return PROJECT_TREE.format(target=hit)
     if program == "git":  # its ref words with this text's literals in (`m=main; git push origin --delete $m`)
-        return _judge_git([_expand(a) for a in args], behind_xargs, depth)
+        return _judge_git([_expand(a) for a in args], behind_xargs, depth,
+                          unread_at={k for k, u in enumerate(unread) if u})
     if program == "rm":
         return _judge_rm(words[1:])
     if program == "gh":
@@ -1482,17 +1751,26 @@ def _mv_sources(words: list[Word]) -> list[Word]:
 # prunes its record. Since #286 that, `rm -r` and `find -delete` of one are refused while it holds uncommitted work.
 
 def _owned(path: str, base: str) -> list[str] | None:
-    """The parts of `path`, resolved from `base`, below its work tree's root when the first of them is an
-    owned directory; None when the path is not protected."""
+    """The parts of `path`, resolved from `base`, below the root of a work tree it lies in when the first of them is
+    an owned directory; None when the path is not protected. Every work tree above the path is asked, nearest
+    first, not only the nearest (#256): a `.git` planted inside `.claude/` (`git init .claude`) made `.claude` a
+    work tree of its own, and the owner's files in it writable. The one work tree that ends the walk is a worktree
+    at `<root>/.claude/worktrees/<name>`, Claude Code's own, already asked as its own work tree below."""
     target = os.path.realpath(os.path.join(base or os.getcwd(), os.path.expandvars(os.path.expanduser(path))))
     below, root = target, os.path.dirname(target)
-    while not os.path.lexists(os.path.join(root, ".git")):
+    while True:
+        while not os.path.lexists(os.path.join(root, ".git")):
+            if os.path.dirname(root) == root:
+                return None
+            below, root = root, os.path.dirname(root)
+        parts = os.path.relpath(target, root).split(os.sep)
+        if os.path.basename(below).casefold() in OWNED:
+            if len(parts) > 3 and _in_worktrees(parts) and os.path.lexists(os.path.join(root, *parts[:3], ".git")):
+                return None
+            return parts
         if os.path.dirname(root) == root:
             return None
         below, root = root, os.path.dirname(root)
-    if os.path.basename(below).casefold() not in OWNED:
-        return None
-    return os.path.relpath(target, root).split(os.sep)
 
 
 def protected(path: str, base: str) -> bool:
@@ -1603,7 +1881,7 @@ def _install_dirs(args: list[str]) -> bool:
     return False
 
 
-def _writes_protected(program: str, args: list[str]) -> str | None:
+def _writes_protected(program: str, args: list[str], unread: set[str] | None = None) -> str | None:
     """A write into a work tree's `.claude/` or `.githooks/` by a program this lists (S3; round 2, B1 and M6).
     `rm` may remove a directory under `.claude/worktrees/<name>`, v7.1's scratch. The same writes into git's own
     configuration or hooks (`_git_file`, #285) are refused, with no exception."""
@@ -1617,12 +1895,22 @@ def _writes_protected(program: str, args: list[str]) -> str | None:
         written = option or paths[-1:]   # with `-t`, the last word is a source
     else:
         written = []
+    unread = unread or set()
+    # #344: a path written through a value this cannot read may be any of the paths below. (`rm -r` meets the scratch
+    # rule, which takes such a path as no scratch.)
+    if program == "rm" and _rm_flags(args)[0]:
+        unread = set()
+    if (hit := next((a for a in written if a in unread or "of=" + a in unread), None)
+            or next((o for o in option if any(u.endswith(o) for u in unread)), None)) is not None:
+        return UNREAD_WRITE.format(path=hit)
     if any(_owners(a, worktrees=program == "rm") for a in written):
         return OWNERS
     # #285; a destination may be the git directory itself (`cp -r hooks .git/`), a removed path may not.
     dests = written if program not in CHANGES_EVERY else (option or paths[-1:]) if program == "mv" else []
     if (hit := next((a for a in written if _git_file(a, itself=a in dests)), None)) is not None:
         return GIT_FILE_WRITE.format(path=hit)
+    if (why := _unlinks_worktree(written)):
+        return why   # #317: `rm <wt>/.git`, `mv <wt>/.git x`, `cp /dev/null <wt>/.git`
     # #282: what holds a work tree's `.claude/` or `.githooks/` -- its root, or a directory above it -- is
     # refused to `rm -r` and as the source of `mv`. `rm -rf` meets the stricter scratch rule (`_judge_rm`).
     recursive, forced = _rm_flags(args) if program == "rm" else (False, False)
@@ -1637,14 +1925,19 @@ def _writes_protected(program: str, args: list[str]) -> str | None:
     in_place = (program == "sed" and any(a.startswith("-i") or a == "--in-place" or a.startswith("--in-place=")
                                          for a in args)) or (
         program == "perl" and any(a.startswith("-") and not a.startswith("--") and "i" in a[1:] for a in args))
+    files = [a for a in paths if a][1:]   # the first plain word is the script (`-e`'s value, or its own)
+    if in_place and (hit := next((a for a in files if a in unread), None)) is not None:
+        return UNREAD_WRITE.format(path=hit)
     if in_place and any(_owners(a) for a in paths):
         return OWNERS
     if in_place and (hit := next((a for a in paths if _git_file(a)), None)) is not None:
         return GIT_FILE_WRITE.format(path=hit)   # #285: `sed -i ... .git/config`
-    return _git_writes(args) if program == "git" else None
+    if in_place and (why := _unlinks_worktree(paths)):
+        return why   # #317 (the review's M3): `sed -i '' d <dirty wt>/.git`
+    return _git_writes(args, unread) if program == "git" else None
 
 
-def _git_writes(args: list[str]) -> str | None:
+def _git_writes(args: list[str], unread: set[str] | None = None) -> str | None:
     """`git rm`, `git mv`, `git checkout` or `git restore` naming a protected path, from each `-C` directory;
     and `git rm` (but `--cached`) or `git mv` naming what holds one (#282)."""
     bases, i, joined = _bases(), 0, ""
@@ -1652,14 +1945,62 @@ def _git_writes(args: list[str]) -> str | None:
         if args[i] == "-C" and i + 1 < len(args):
             bases = [_resolved(base, args[i + 1]) for base in bases]
             joined = os.path.join(joined, args[i + 1])
+        # #256 (the review's M2): `git --git-dir=.claude/.git init` plants a git directory there; any git command
+        # pointed at a git directory or a work tree in the owner's directories writes into them.
+        name, eq, value = args[i].partition("=")
+        place = value if eq else args[i + 1] if i + 1 < len(args) else ""
+        if name in ("--git-dir", "--work-tree") and place and _owners(place, bases):
+            return OWNERS
         i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path") else 1
     sub, rest = (args[i], args[i + 1:]) if i < len(args) else ("", [])
     named = [a for a in rest if not a.startswith("-")]
     if sub in ("rm", "mv", "checkout", "restore") and any(_owners(a, bases) for a in named):
         return OWNERS
+    # #256: `git init .claude`, `git clone <url> .claude/x` and `git worktree add .githooks/w` plant a `.git` in the
+    # owner's directories; a worktree under `.claude/worktrees/<name>` is Claude Code's own.
+    if any(_owners(a, bases, worktrees=sub == "worktree") for a in _git_made(sub, rest)):
+        return OWNERS
     if (sub == "mv" or (sub == "rm" and "--cached" not in rest)):
         return _held(named[:-1] if sub == "mv" else named, bases, joined)
     return None
+
+
+def _git_made(sub: str, rest: list[str]) -> list[str]:
+    """The directories `git init`, `git clone`, `git submodule add` or `git worktree add` makes a repository or a git
+    directory in (#256):
+    init's directory (`.` when none), clone's (the second operand, or the last part of the URL), a worktree's path,
+    and `--separate-git-dir`'s; none for any other subcommand."""
+    if sub in ("worktree", "submodule"):
+        if [a for a in rest if not a.startswith("-")][:1] != ["add"]:
+            return []
+        rest = rest[rest.index("add") + 1:]
+        sub = "clone" if sub == "submodule" else sub   # `git submodule add <url> [<path>]` clones as `git clone` does
+    elif sub not in ("init", "clone"):
+        return []
+    plain: list[str] = []
+    made: list[str] = []
+    k = 0
+    while k < len(rest):
+        a = rest[k]
+        name, eq, value = a.partition("=")
+        if a == "--":
+            plain += rest[k + 1:]
+            break
+        if a.startswith("-") and len(a) > 1:
+            if name == "--separate-git-dir":
+                made.append(value if eq else rest[k + 1] if k + 1 < len(rest) else "")
+            k += 2 if not eq and name in MADE_VALUED else 1
+            continue
+        plain.append(a)
+        k += 1
+    if sub == "init":
+        made.append(plain[0] if plain else ".")
+    elif sub == "clone" and plain:
+        made.append(plain[1] if len(plain) > 1 else
+                    re.sub(r"(/?\.git)?/*$", "", plain[0]).replace(":", "/").rsplit("/", 1)[-1] or ".")
+    elif sub == "worktree" and plain:
+        made.append(plain[0])
+    return [m for m in made if m]
 
 
 def _held(paths: list[str], bases: list[str] | None = None, git_base: str = "") -> str | None:
@@ -1681,10 +2022,19 @@ def _held(paths: list[str], bases: list[str] | None = None, git_base: str = "") 
 def _git_rest(rest: list[str], itself: bool = False) -> bool:
     """Whether the parts below a git directory name its `config`, `config.worktree`, `hooks/` (or below), a linked
     worktree's `worktrees/<name>/config.worktree`, or, with `itself` (a destination: `cp -r hooks .git/` writes
-    into it), the directory itself; any case, as a case-insensitive disk reads it."""
+    into it), the directory itself; any case, as a case-insensitive disk reads it. Since #320 also `info/` (or
+    below: `exclude` hides work from `git status`), `commondir` (a worktree's too: it points the config elsewhere),
+    and the same files of a submodule's git directory, `modules/<name>/` (names may hold `/`); since #318 the
+    default branch's refs, where the deploy gate reads its base: `refs/heads/<protected>`, `refs/remotes/` (or below),
+    `packed-refs`, and what moves a merge-base without a ref: `refs/replace/` (or below) and `shallow`."""
     rest = [p.casefold() for p in rest if p not in ("", ".")]
-    return ((itself and not rest) or rest[:1] == ["hooks"] or rest in (["config"], ["config.worktree"])
-            or (len(rest) == 3 and rest[0] == "worktrees" and rest[2] in ("config", "config.worktree")))
+    if ((itself and (not rest or rest in (["refs"], ["refs", "heads"]))) or rest[:1] in (["hooks"], ["info"])
+            or rest in (["config"], ["config.worktree"], ["commondir"], ["packed-refs"], ["shallow"])
+            or rest[:2] in (["refs", "remotes"], ["refs", "replace"]) or (len(rest) == 3 and rest[:2] == ["refs", "heads"]
+                                                   and rest[2] in PROTECTED)
+            or (len(rest) == 3 and rest[0] == "worktrees" and rest[2] in ("config", "config.worktree", "commondir"))):
+        return True
+    return rest[:1] == ["modules"] and any(_git_rest(rest[k:]) for k in range(2, len(rest)))
 
 
 def _git_dirs() -> list[str]:
@@ -2135,16 +2485,16 @@ def _git_env(ceiling: str | None = None) -> dict[str, str]:
     return env
 
 
-def _git_ask(args: list[str], ceiling: str | None = None) -> tuple[str | None, str]:
-    """(git's stdout, or None and why) for one `git` call within what is left of STATUS. `core.fsmonitor` is off:
-    a worktree's config may name one, and this runs before the agent's command does."""
+def _git_ask(args: list[str], ceiling: str | None = None, feed: bytes | None = None) -> tuple[str | None, str]:
+    """(git's stdout, or None and why) for one `git` call within what is left of STATUS, `feed` on its stdin.
+    `core.fsmonitor` is off: a worktree's config may name one, and this runs before the agent's command does."""
     left = STATUS["left"]
     if left <= 0:
         return None, f"the guard's {STATUS_S:g} s for git were spent"
     started = time.monotonic()
     try:
-        r = subprocess.run(["git", "-c", "core.fsmonitor=false", *args], capture_output=True,
-                           stdin=subprocess.DEVNULL, env=_git_env(ceiling), timeout=left)
+        r = subprocess.run(["git", "-c", "core.fsmonitor=false", *args], capture_output=True, input=feed or b"",
+                           env=_git_env(ceiling), timeout=left)
     except subprocess.TimeoutExpired:
         return None, f"git did not answer within {left:.1f} s"
     except (OSError, subprocess.SubprocessError) as error:
@@ -2214,6 +2564,39 @@ def _unclean(shown: str, roots: list[str]) -> str | None:
             return UNMEASURED_WORKTREE.format(path=shown, root=root, why=why)
         if out.strip():
             return DIRTY_WORKTREE.format(path=shown, root=root)
+        # #317: an untracked `.gitignore` that ignores itself (`echo '*' > notes/.gitignore`) hides its directory's
+        # work, and itself, from the status above. One ignored by a rule of another file (a tool's own
+        # `.pytest_cache/.gitignore` in a directory the committed `.gitignore` ignores) hides nothing new.
+        found, why = _git_ask(["-C", root, "ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--",
+                               ":(glob)**/.gitignore"], ceiling=os.path.dirname(root))
+        if found is None:
+            return UNMEASURED_WORKTREE.format(path=shown, root=root, why=why)
+        # A nested repository is listed as `<dir>/` whatever the pathspec says; only the ignore files are asked.
+        files = [f for f in found.split("\0") if f.rsplit("/", 1)[-1] == ".gitignore"]
+        if files:
+            out, why = _git_ask(["-C", root, "check-ignore", "-v", "-z", "--stdin"], ceiling=os.path.dirname(root),
+                                feed="".join(f + "\0" for f in files).encode("utf-8", "surrogateescape"))
+            if out is None:
+                return UNMEASURED_WORKTREE.format(path=shown, root=root, why=why)
+            fields = out.split("\0")
+            if any(fields[k] == fields[k + 3] for k in range(0, len(fields) - 3, 4)):
+                return DIRTY_WORKTREE.format(path=shown, root=root)
+    return None
+
+
+def _unlinks_worktree(paths: list[str]) -> str | None:
+    """#317: a write to, or the removal of, the `.git` file of a live worktree with uncommitted work (`rm <wt>/.git`,
+    `echo x > <wt>/.git`) leaves a plain directory that the removal rules then take: refused as its removal is. A
+    `.git` directory is a repository's own, which the rules for the repository and its `.git` answer."""
+    for a in paths:
+        for base in _bases():
+            target = os.path.normpath(os.path.join(base, os.path.expandvars(os.path.expanduser(a))))
+            if os.path.basename(target).casefold() != ".git" or not os.path.isfile(target):
+                continue
+            if (hit := _project_tree([Word(target)])):   # this repository's own `.git`: the rule for it, in its words
+                return PROJECT_TREE.format(target=hit)
+            if (why := _unclean(a, [os.path.dirname(target)])):
+                return why
     return None
 
 
@@ -2331,7 +2714,7 @@ def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str |
             j += 2
             continue
         if shell == "fish" and arg in ("-C", "--init-command"):
-            if j + 1 < len(args) and (why := judge_text(args[j + 1], depth + 1)):
+            if j + 1 < len(args) and (why := _apart(args[j + 1], depth + 1)):
                 return why
             j += 2
             continue
@@ -2349,7 +2732,7 @@ def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str |
         if not rest:
             return f"BLOCKED: `{shell} -c` with no command string takes it from elsewhere, which this guard cannot read."
         for text in rest:  # the string, then $0 and its arguments: each read as a command
-            if (why := judge_text(text, depth + 1)):
+            if (why := _apart(text, depth + 1)):
                 return why
         return None
     if rest and not reads_stdin and rest[0] not in STDIN_PATHS:
@@ -2388,7 +2771,7 @@ def _judge_ssh(args: list[str], depth: int) -> str | None:
                 if a[j] == "o":
                     m = re.match(r"\s*([A-Za-z]+)\s*(?:=\s*|\s+)(.*)$", value, re.S)
                     key, text = (m.group(1).lower(), m.group(2)) if m else ("", "")
-                    if key in SSH_LOCAL and text.lower() != "none" and (why := judge_text(text, depth + 1)):
+                    if key in SSH_LOCAL and text.lower() != "none" and (why := _apart(text, depth + 1)):
                         return why
                     if key in SSH_REMOTE and text.lower() != "none":
                         remote.append(text)
@@ -2492,6 +2875,10 @@ def _config_env(word: Word) -> str | None:
     it defines an alias, whose command this cannot pair with the value set beside it."""
     name, _, value = word.text.partition("=")
     base = name.rstrip("+").split("[")[0]
+    if base == TEMPLATE_ENV:
+        return TEMPLATE   # #320: wherever it is assigned, whatever its value
+    if base in GIT_PLACE_ENV and value and "$" not in value and _owners(_expand(value)):
+        return OWNERS   # #256 (the review's M2): `GIT_DIR=.claude/.git git init`
     if base in CODE_ENV:
         # `+=` appends to a value set elsewhere (`GIT_PAGER=rm; GIT_PAGER+=' -rf ~'`), and a subscript writes
         # part of one (`GIT_PAGER[0]=`, zsh's slice `GIT_PAGER[1,-1]=`): the whole is unread.
@@ -2506,12 +2893,16 @@ def _config_env(word: Word) -> str | None:
         value = _expand(value)
         if "$" in value or word.subs:
             return CODE_ENV_UNREAD.format(name=base)
-        return judge_text(value, 1) if value.strip() else None
+        return _apart(value, 1) if value.strip() else None
     if not GIT_CONFIG_ENV.match(name.rstrip("+")):
         return None
     value = _expand(value)
     if "hookspath" in value.lower() or "$" in value:
         return NO_VERIFY
+    if TEMPLATE_KEY in value.lower():
+        return TEMPLATE
+    if re.search(r"remote\.origin\.(url|fetch)|url\..+\.insteadof", value, re.I):
+        return PROTECTED_REF
     keys = re.findall(r"[A-Za-z][\w.-]*", value)
     return ALIAS_UNREAD if "alias." in value.lower() or any(CODE_KEY.match(k) for k in keys) else None
 
@@ -2521,7 +2912,15 @@ def _judge_alias(value: str, depth: int, args: list[str] | None = None) -> str |
     with the arguments appended), or a git subcommand and its words."""
     tail = " ".join(shlex.quote(a) for a in (args or []))
     text = value[1:] if value.startswith("!") else "git " + value
-    return judge_text(f"{text} {tail}".strip(), depth + 1)
+    return _apart(f"{text} {tail}".strip(), depth + 1)
+
+
+def _judge_code(value: str, depth: int) -> str | None:
+    """#305: a config value git runs as a command (CODE_KEY), judged as that command. A value that starts with `!`
+    (`credential.helper '!rm -rf ~'`) is shell text after the `!`; any other names a program and its words. The
+    `!` was once left on, and `!rm` read as a program of that name."""
+    text = value.lstrip()
+    return _apart(text[1:] if text.startswith("!") else text, depth + 1)
 
 
 def _config_set(rest: list[str]) -> tuple[str, str] | None:
@@ -2536,8 +2935,128 @@ def _config_set(rest: list[str]) -> tuple[str, str] | None:
 
 
 
+def _default_ref(name: str) -> bool:
+    """#318: whether a ref names a branch the deploy gate reads its base from (`brief_fields.DEFAULT_BRANCHES`): a
+    protected branch (`main`, `heads/main`, `refs/heads/main`), or a remote's (`origin/main`, `origin/HEAD`,
+    `refs/remotes/origin/HEAD`); a pattern there (`refs/remotes/origin/*`) may be one. Any case: a loose ref is a
+    file, and the owner's disk does not tell `MAIN` from `main`."""
+    n = name.lstrip("+").casefold().removeprefix("refs/")
+    if n.removeprefix("heads/") in PROTECTED:
+        return True
+    parts = n.removeprefix("remotes/").split("/")
+    return len(parts) >= 2 and (parts[-1] in PROTECTED | {"head"} or (
+        "*" in n and n.startswith(("heads/", "remotes/"))))
+
+
+def _unread_or_default(name: str) -> bool:
+    """A ref `_default_ref` names, or one built from an expansion this cannot read, which may be one."""
+    return _default_ref(name) or "$" in name or "`" in name
+
+
+def _plain(rest: list[str], valued: set[str]) -> list[str]:
+    """The words of `rest` that are no option and no option's value."""
+    out: list[str] = []
+    k = 0
+    while k < len(rest):
+        a = rest[k]
+        if a == "--":
+            return out + rest[k + 1:]
+        if a.startswith("-") and len(a) > 1:
+            k += 2 if a in valued else 1
+            continue
+        out.append(a)
+        k += 1
+    return out
+
+
+def _moves_default(sub: str, rest: list[str], letters: str, given: Callable[..., bool]) -> str | None:
+    """#318: a command that moves, deletes, creates or redirects a branch the deploy gate reads its base from:
+    `git branch` (forced, moved, copied, deleted, or created), `git checkout -b/-B` and `git switch -c/-C`, `git
+    update-ref` (or its `--stdin`), `git symbolic-ref` writing or deleting one, a fetch or pull refspec landing on
+    one, and `git remote` changing `origin` (`set-url`, `add`, `rename`, `remove`, or `set-head` but `--auto`)."""
+    if sub == "branch":
+        # A deletion moves nothing the gate reads to a commit of the agent's choosing (the next default branch, or
+        # none, which refuses every deploy): `git branch -D main` stays allowed, as DevFlow's conformance holds it.
+        if any(ch in letters for ch in "dD") or given("--delete"):
+            return None
+        plain = _plain(rest, BRANCH_VALUED)
+        moving = any(ch in letters for ch in "mMcC") or given("--move", "--copy")
+        listing = any(ch in letters for ch in "larv") or given("--list", "--all", "--remotes", "--show-current")
+        forced = moving or "f" in letters or given("--force")
+        # moved or copied: the destination, the last name; forced or made: the first.
+        named = plain[-1:] if moving else plain[:1] if not listing or forced else []
+        # A name this cannot read is refused where the branch is moved or forced; a new one is only made.
+        return PROTECTED_REF if any((_unread_or_default if forced else _default_ref)(p) for p in named) else None
+    if sub in ("checkout", "switch"):
+        # The branch a `-b`/`-B` (`-c`/`-C`) makes: its value written apart, against it (`-Bmain`), or at the end of a
+        # cluster (`-qB main`); `--create`, `--force-create` and `--orphan` in any prefix git reads (`--force-cr`).
+        letters_made = "bB" if sub == "checkout" else "cC"
+        longs_made = ["--orphan"] if sub == "checkout" else ["--create", "--force-create", "--orphan"]
+        for k, a in enumerate(rest):
+            following = rest[k + 1] if k + 1 < len(rest) else ""
+            if a == "--":
+                break
+            if a.startswith("--"):
+                name, eq, value = a.partition("=")
+                hit = [w for w in longs_made if name == w or (len(name) >= 4 and w.startswith(name) and name != "--force")]
+                forced = any(w == "--force-create" for w in hit)
+                named = value if eq else following
+            elif a.startswith("-") and len(a) > 1:
+                at = next((j for j, ch in enumerate(a[1:], 1) if ch in letters_made), None)
+                if at is None:
+                    continue
+                hit, forced, named = [a[at]], a[at].isupper(), a[at + 1:] or following
+            else:
+                continue
+            if hit and (_unread_or_default if forced else _default_ref)(named):
+                return PROTECTED_REF
+        return None
+    if sub == "update-ref":
+        refs = _plain(rest, {"-m"})
+        return PROTECTED_REF if "--stdin" in rest or any(_unread_or_default(r) for r in refs) else None
+    if sub == "symbolic-ref":
+        refs = _plain(rest, {"-m"})
+        writes = len(refs) >= 2 or "d" in letters or given("--delete")
+        return PROTECTED_REF if writes and any(_unread_or_default(r) for r in refs) else None
+    if sub in ("fetch", "pull"):
+        specs = _plain(rest, FETCH_VALUED)[1:]
+        return PROTECTED_REF if any(":" in sp and _unread_or_default(sp.rsplit(":", 1)[1]) for sp in specs) else None
+    if sub == "replace" and not (any(ch in letters for ch in "l") or given("--list")):
+        return PROTECTED_REF   # `git replace <main's commit> HEAD` moves every merge-base with main, its ref unmoved
+    if sub == "remote":
+        plain = _plain(rest, {"-t", "-m", "--track", "--master"})
+        if plain[:1] == ["set-head"]:
+            return None if "-a" in rest or "--auto" in rest else PROTECTED_REF
+        if plain[:1] in (["set-url"], ["add"], ["rename"], ["remove"], ["rm"], ["set-branches"]) and "origin" in plain[1:]:
+            return PROTECTED_REF
+    return None
+
+
+def _unread_git(args: list[str], at: int, unread: set[int]) -> str | None:
+    """#344: a git word this does not read (`_unread_word`) where it may be `--no-verify`, `--force`, `--hard`, the
+    protected branch or an owner's path: the subcommand itself, a `-c` setting, or any word of a subcommand in
+    GIT_UNREAD_SUBS (a global option, `-C` or `--git-dir`, there too) but a message's (`-m "$(cat msg)"`)."""
+    if not unread:
+        return None
+    sub = args[at]
+    if at in unread:
+        return UNREAD_GIT.format(sub=sub, word=sub)
+    for k in range(at):
+        if k in unread and (args[k - 1:k] == ["-c"] or sub.lower() in GIT_UNREAD_SUBS):
+            return UNREAD_GIT.format(sub=sub, word=args[k])
+    if sub.lower() not in GIT_UNREAD_SUBS or (sub == "rm" and "--cached" in args[at:]):
+        return None   # `git rm --cached` leaves the work tree as it is
+    for k in range(at + 1, len(args)):
+        before = args[k - 1]
+        message = before in GIT_MESSAGE or bool(re.match(r"^-[A-Za-z]*[mF]$", before)) or (
+            args[k].split("=", 1)[0] in GIT_MESSAGE and "=" in args[k])
+        if k in unread and not message:
+            return UNREAD_GIT.format(sub=sub, word=args[k])
+    return None
+
+
 def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C901 -- one branch per subcommand
-               inherited: dict[str, str] | None = None) -> str | None:
+               inherited: dict[str, str] | None = None, unread_at: set[int] | None = None) -> str | None:
     i = 0
     base = ""
     aliases: dict[str, str] = dict(inherited or {})
@@ -2562,8 +3081,13 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
                     return ALIAS_UNREAD
                 if key.lower().startswith("alias."):
                     aliases[key[len("alias."):].lower()] = value
-                if (why := _judge_alias(value if key.lower().startswith("alias.") else "!" + value, depth)):
+                if (why := (_judge_alias(value, depth) if key.lower().startswith("alias.") else
+                            _judge_code(value, depth))):
                     return why
+            if key.lower() == TEMPLATE_KEY:
+                return TEMPLATE   # #320: `git -c init.templateDir=... init`
+            if REMOTE_KEY.match(key):
+                return PROTECTED_REF   # #318: `git -c remote.origin.fetch=... fetch`
         if args[i] == "-C" and i + 1 < len(args):
             base = os.path.join(base, args[i + 1])
         i += 2 if args[i] in ("-C", "-c", "--config-env", "--git-dir", "--work-tree", "--namespace",
@@ -2589,12 +3113,17 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         # so does this, with the same map; a chain past twelve steps, or a loop, is refused.
         if depth >= 12:
             raise Unreadable(f"the alias `{sub}` resolves through more than twelve aliases")
-        return _judge_git(expanded + rest, behind_xargs, depth + 1, aliases)
+        return _judge_git(expanded + rest, behind_xargs, depth + 1, aliases,
+                          {len(expanded) + k - i - 1 for k in (unread_at or set()) if k > i})
     ended = rest.index("--") if "--" in rest else len(rest)
     options = [a for a in rest[:ended] if a.startswith("-")]
     longs = [a for a in options if a.startswith("--")]
     letters = "".join(a[1:] for a in options if not a.startswith("--"))
     known = GIT_LONG.get(sub, [])
+
+    def given(*wanted: str) -> bool:
+        return any(_unique(a, w, known) for a in longs for w in wanted)
+
     # refused: a skipped hook -- `--no-verify` in any prefix git reads as it (`--no-veri`), on any subcommand
     if any(_skips_hooks(a) for a in longs) or (sub == "commit" and "n" in letters):
         return NO_VERIFY
@@ -2602,6 +3131,20 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         return NO_VERIFY
     if sub == "config" and _edits_config(rest):
         return CONFIG_EDIT
+    # #320: `git init --template=<dir>` and `git clone --tem=<dir>` (git reads a unique prefix) copy that directory's
+    # hooks and config in.
+    if sub in ("init", "clone") and any(len(a.split("=", 1)[0]) >= 3 and "--template".startswith(a.split("=", 1)[0])
+                                        for a in longs):
+        return TEMPLATE
+    # #318: the refs the deploy gate reads its base from -- `main`, `origin/main`, `origin/HEAD` -- are not moved.
+    if (why := _moves_default(sub, rest, letters, given)):
+        return why
+    # #317: a worktree with uncommitted work is not moved out from under the rule below (`git worktree move <dirty>
+    # /tmp/x && rm -rf /tmp/x`): it is judged as its removal is.
+    if sub == "worktree" and [a for a in rest if not a.startswith("-")][:1] == ["move"]:
+        after = [a for a in rest[rest.index("move") + 1:] if not a.startswith("-")]
+        if (why := _judge_worktree_remove(after[:1], base, behind_xargs)):
+            return why
     if sub == "worktree" and [a for a in rest if not a.startswith("-")][:1] == ["remove"]:
         after = rest[rest.index("remove") + 1:]
         cut = after.index("--") if "--" in after else len(after)
@@ -2620,8 +3163,12 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
                 return why
         elif key.lower().startswith(("include.", "includeif.")):
             return INCLUDED.format(key=key)
-        elif CODE_KEY.match(key) and (why := _judge_alias("!" + value, depth)):
+        elif CODE_KEY.match(key) and (why := _judge_code(value, depth)):
             return why   # `git config core.pager 'rm -rf ~'` runs on the next `git log`
+        elif key.lower() == TEMPLATE_KEY:
+            return TEMPLATE   # #320
+        elif REMOTE_KEY.match(key):
+            return PROTECTED_REF   # #318: origin's URL or refspec decides what the next fetch puts in origin/main
     # `git rm -r .` and `git mv` of the work tree itself: every tracked file gone from it (#282 in the field).
     # Options end at `--`; `:/` and `:(top)` name the work tree's top.
     if sub in ("rm", "mv"):
@@ -2632,16 +3179,11 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         moved = paths[:-1] if sub == "mv" else paths
         if recursive and not cached and top:
             return PROJECT_TREE.format(target=top[0])
+        # #287's P5: `git rm -r "$(pwd)"` -- a path this cannot read may be the work tree (`pwd` can be redefined).
+        if recursive and not cached and (hit := next((w.text for w in moved if "$" in w.text or "`" in w.text), None)):
+            return PROJECT_TREE.format(target=hit)
         if recursive and not cached and (hit := _project_tree(moved, base)):
             return PROJECT_TREE.format(target=hit)
-    if sub == "update-ref":
-        refs = [a for a in rest if not a.startswith("-")]
-        if any(r.removeprefix("refs/").removeprefix("heads/") in PROTECTED for r in refs):
-            return PROTECTED_REF
-
-    def given(*wanted: str) -> bool:
-        return any(_unique(a, w, known) for a in longs for w in wanted)
-
     if sub == "push":
         refs = [a for a in rest if not a.startswith("-")]
         forced = "f" in letters or given("--force", "--force-with-lease", "--force-if-includes")
@@ -2650,6 +3192,8 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         targets = {ref.split(":")[-1].removeprefix("refs/").removeprefix("heads/") for ref in refs}
         if behind_xargs or given("--all", "--branches") or PROTECTED & targets:
             return PROTECTED_PUSH
+        if any(":" in ref and _default_ref(ref.rsplit(":", 1)[1]) for ref in refs[1:]):
+            return PROTECTED_REF   # #318: `git push . HEAD:refs/remotes/origin/main`
         # A deletion whose ref this cannot read may be the protected branch's; the remote (first) is not a ref.
         deleting = "d" in letters or given("--delete") or any(ref.startswith(":") for ref in refs[1:])
         unread = next((ref for ref in refs[1:] if "$" in ref), None)
@@ -2676,7 +3220,8 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         worktree = "W" in letters or given("--worktree")
         if not staged or worktree:
             return RESTORE
-    return None
+    # #344, after every rule that names what it found: a word this cannot read, where it may be any of them.
+    return _unread_git(args, i, unread_at or set())
 
 
 # --- the deploy gate ----------------------------------------------------------------------------------
@@ -2850,25 +3395,34 @@ def judge_call(payload: object) -> str | None:
         return MAKE_FLAGS
     if re.search(r"\bmakelevel\s*\+?=", flat):
         return MAKE_LEVEL
-    CWD["dir"] = cwd
-    HERE["dirs"] = [cwd]
     REACHED.clear()
-    SEEN.update(repeats=False, cdpath=False, links=False, home_used=False,
-                # `HOME` written anywhere but as `$HOME`: an editor or pager path through `$HOME` is unread.
-                home=bool(re.search(r"(?<![\w$])HOME\b", re.sub(r"\$\{?HOME\b", "", command))))
-    NAMEREF.clear()
-    FLOW["maybe"] = False
-    SCOPE.clear()
     CANDIDATES.clear()
     TOPS.clear()
-    REMOTE["on"] = 0
-    FOLLOWED["dirs"] = list(dict.fromkeys([os.path.normpath(os.path.abspath(cwd)), os.path.realpath(cwd)]))
-    FOLLOWED["over"] = []
     WALK["left"] = WALK_S
     STATUS["left"] = STATUS_S
-    TRUST["TMPDIR"] = not TMPDIR_NAMED.search(command)   # B1: `unset TMPDIR`, `local TMPDIR`, `read TMPDIR`
-    TRUST["mktemp"] = not MKTEMP_DEFINED.search(command)
-    return judge_text(command) or judge_deploy(list(CANDIDATES), cwd)
+    WORLD["forked"] = False
+    # #287: the first world, then the second when they differ (WORLD); the budgets above are the call's, shared.
+    for skip in (False, True):
+        if skip and not WORLD["forked"]:
+            break
+        WORLD["skip"] = skip
+        CWD["dir"] = cwd
+        HERE["dirs"] = [cwd]
+        SEEN.update(repeats=False, cdpath=False, links=False, home_used=False,
+                    # `HOME` written anywhere but as `$HOME`: an editor or pager path through `$HOME` is unread.
+                    home=bool(re.search(r"(?<![\w$])HOME\b", re.sub(r"\$\{?HOME\b", "", command))))
+        NAMEREF.clear()
+        FLOW["maybe"] = FLOW["scoped"] = False
+        EVALED["on"] = 0
+        SCOPE.clear()
+        REMOTE["on"] = 0
+        FOLLOWED["dirs"] = list(dict.fromkeys([os.path.normpath(os.path.abspath(cwd)), os.path.realpath(cwd)]))
+        FOLLOWED["over"] = []
+        TRUST["TMPDIR"] = not TMPDIR_NAMED.search(command)   # B1: `unset TMPDIR`, `local TMPDIR`, `read TMPDIR`
+        TRUST["mktemp"] = not MKTEMP_DEFINED.search(command)
+        if (why := judge_text(command)):
+            return why
+    return judge_deploy(list(CANDIDATES), cwd)
 
 
 def judge_file(payload: object) -> str | None:

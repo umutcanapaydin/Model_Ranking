@@ -24,6 +24,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.workflows.categories import CategorySpec, get_category
 from app.workflows.floors import derived_floor
@@ -38,6 +39,9 @@ from app.workflows.rank import (
 )
 from app.workflows.schema import EFFORT_UNSPECIFIED, open_readonly
 from app.workflows.serialize import recommendation_json
+
+if TYPE_CHECKING:  # imported inside `main` at run time, as before
+    from app.workflows.subscribe import BudgetShutout
 
 # Budget thresholds on blended $/1M (documented constants — REQ-REC-002)
 BUDGETS: dict[str, float | None] = {"low": 2.0, "medium": 8.0, "unlimited": None}
@@ -645,6 +649,43 @@ def recommend(
     )
 
 
+def evidence_held(conn: sqlite3.Connection, task: str) -> dict[str, object]:
+    """#348 (D-212 clause 1): what an answer of "no eligible model" was computed from.
+
+    The real-data smoke once failed on it and passed on a rerun: a source that came back short and a
+    budget that truly excludes every model printed the same line. These counts tell the two apart.
+    """
+    ranked = ranked_with_ids(conn, get_category(task))
+    priced = {model_id for (model_id,) in conn.execute("SELECT model_id FROM px_median")}
+    return {
+        "ranked_models": len(ranked),
+        "priced_ranked_models": sum(1 for model_id, _ in ranked if model_id in priced),
+        "score_rows_by_source": dict(conn.execute("SELECT source, COUNT(*) FROM scores GROUP BY source ORDER BY source")),
+        "price_rows_by_source": dict(conn.execute("SELECT source, COUNT(*) FROM pricing GROUP BY source ORDER BY source")),
+    }
+
+
+def _no_eligible_payload(
+    args: argparse.Namespace, shutout: BudgetShutout | None, evidence: dict[str, object] | None
+) -> dict[str, object]:
+    """The answer when nothing fits the budget, with what it was computed from."""
+    what = "plan" if args.subscription else "model"
+    payload: dict[str, object] = {
+        "error": f"no eligible {what} for this budget",
+        "budget": args.budget,
+        "task": args.task,
+    }
+    if args.subscription and shutout is not None:
+        # W4 review MINOR-1: the case where the budget excluded EVERYTHING is the
+        # one the user most needs explained, so the count ships here too.
+        payload["scoreable_plans"] = shutout.scoreable_plans
+        payload["excluded_by_budget"] = shutout.excluded_by_budget
+        payload["budget_notice"] = shutout.budget_notice
+    if evidence is not None:
+        payload["evidence"] = evidence
+    return payload
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point (V4C-50: tests enter HERE, not a unit shim)."""
     parser = argparse.ArgumentParser(prog="recommend", description=__doc__)
@@ -667,7 +708,6 @@ def main(argv: list[str] | None = None) -> int:
     conn: sqlite3.Connection | None = None
     try:
         from app.workflows.subscribe import (
-            BudgetShutout,
             SubscriptionRecommendation,
             budget_shutout,
             recommend_subscription,
@@ -677,12 +717,15 @@ def main(argv: list[str] | None = None) -> int:
         conn = open_readonly(args.db)
         rec: Recommendation | SubscriptionRecommendation | None
         shutout: BudgetShutout | None = None
+        evidence: dict[str, object] | None = None
         if args.subscription:
             rec = recommend_subscription(conn, args.budget, args.task)
             if rec is None:
                 shutout = budget_shutout(conn, args.budget, args.task)
         else:
             rec = recommend(conn, args.budget, args.task)
+            if rec is None:
+                evidence = evidence_held(conn, args.task)
     except UnbuiltEvidenceError as exc:
         # **Exit 2, not 1, and the distinction is the whole point of M7-W2.** Exit 1 means "no
         # model fits this budget" — a RESULT, computed from real evidence. An artifact whose price
@@ -702,19 +745,7 @@ def main(argv: list[str] | None = None) -> int:
         if conn is not None:
             conn.close()
     if rec is None:
-        what = "plan" if args.subscription else "model"
-        payload: dict[str, object] = {
-            "error": f"no eligible {what} for this budget",
-            "budget": args.budget,
-            "task": args.task,
-        }
-        if args.subscription and shutout is not None:
-            # W4 review MINOR-1: the case where the budget excluded EVERYTHING is the
-            # one the user most needs explained, so the count ships here too.
-            payload["scoreable_plans"] = shutout.scoreable_plans
-            payload["excluded_by_budget"] = shutout.excluded_by_budget
-            payload["budget_notice"] = shutout.budget_notice
-        print(json.dumps(payload, ensure_ascii=False))
+        print(json.dumps(_no_eligible_payload(args, shutout, evidence), ensure_ascii=False))
         return 1
     print(json.dumps(recommendation_json(rec), ensure_ascii=False, indent=2))
     return 0

@@ -333,8 +333,10 @@ def test_each_record_a_live_set_overlaps_was_committed_before_the_set() -> None:
 #: (`wording_heldout_m20_questions.json`) took their place; it was measured three times and retired at
 #: #237, when an independent seat wrote `reading_heldout_m22_questions.json`. Run product-night's fresh set,
 #: `reading_heldout_m23_questions.json`, was kept out of the repository while it measured #273, #218, #66 and
-#: #301 (D-202 clause 6), and is committed spent. Shared by the held-out gates.
-RETIRED_HELD_OUT = {"reading_heldout_m23_questions.json", "heldout_questions.json", "refinement_heldout_questions.json",
+#: #301 (D-202 clause 6), and is committed spent. Run golden-night's, `reading_heldout_m24_questions.json`,
+#: measured #292, #293 and #295 (D-206) and is committed spent at #351, as the model tier's tuning set.
+#: Shared by the held-out gates.
+RETIRED_HELD_OUT = {"reading_heldout_m24_questions.json", "reading_heldout_m23_questions.json", "heldout_questions.json", "refinement_heldout_questions.json",
                     "coding_heldout_m17_questions.json", "notasearch_m17_heldout_questions.json",
                     "image_heldout_first_questions.json", "offtopic_heldout_questions.json",
                     "coding_heldout_m18_questions.json", "notasearch_heldout_m18_questions.json",
@@ -2121,12 +2123,10 @@ _WORDING_BEFORE = "in the app at a61ce21, before reading_heldout_m22 was written
 _WORDING_TURKISH = "everyday Turkish in examplesTurkish at be0b101, written by an author who never read the set"
 WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "bilgi uydur": _WORDING_BEFORE,
-    "biology": _WORDING_BEFORE,
     "citing": _WORDING_BEFORE,
     "current": _WORDING_BEFORE,
     "dogruluk": _WORDING_BEFORE,
     "gemma": _WORDING_BEFORE,
-    "kaynak goster": _WORDING_BEFORE,
     "literature": _WORDING_BEFORE,
     "maths": _WORDING_BEFORE,
     "medical": _WORDING_BEFORE,
@@ -2134,7 +2134,6 @@ WORDING_HELD_OUT_ONLY_REVIEWED: dict[str, str] = {
     "mini": _WORDING_BEFORE,
     "minimax": _WORDING_BEFORE,
     "mixtral": _WORDING_BEFORE,
-    "note": _WORDING_BEFORE,
     "phi": _WORDING_BEFORE,
     "sonnet": _WORDING_BEFORE,
     "this contract": _WORDING_BEFORE,

@@ -745,3 +745,28 @@ def test_the_value_pick_can_be_the_leader_while_the_budget_pick_is_not() -> None
     assert value.model == quality.model != budget.model, [p.model for p in rec.picks]
     assert value.trade_off is None and value.trade_off_fact is None
     assert budget.trade_off and budget.trade_off_fact
+
+
+def test_no_eligible_model_says_what_the_evidence_held(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """#348 (D-212 clause 1): the real-data smoke once failed with "no eligible model" and passed on a rerun.
+    A source that came back short and a budget that truly excludes everything printed the same line. The
+    answer now says what it was computed from: how many models the task ranks, how many of them have a
+    price, and the rows each score and price source gave, so a short source can be read off the output."""
+    from app.workflows.recommend import main
+
+    conn = _db()
+    conn.execute("UPDATE px_median SET in_m = 100.0, out_m = 100.0")  # every model over the low budget
+    conn.commit()
+    db = tmp_path / "advisor.db"
+    dest = sqlite3.connect(db)
+    conn.backup(dest)
+    dest.close()
+
+    assert main(["--db", str(db), "--budget", "low", "--task", "coding"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"] == "no eligible model for this budget"
+    evidence = payload["evidence"]
+    assert evidence["ranked_models"] >= 1
+    assert evidence["priced_ranked_models"] == evidence["ranked_models"]
+    assert evidence["score_rows_by_source"]["swebench"] >= 1
+    assert evidence["price_rows_by_source"]["litellm"] >= 1

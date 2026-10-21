@@ -7,7 +7,9 @@
 # subject, and the commit is refused when that gate fails:
 #   check-fast  -- any commit, a merge, and one with nothing staged;
 #   check-red   -- a declared red test commit (`test: ..., red`, with a test staged): check-fast without the
-#                  legs that run tests, building the Swift tests and collecting the Python ones instead;
+#                  legs that run tests, building the Swift tests and collecting the Python ones instead, and
+#                  without the compiled privacy gate (`client-decls`), whose self-test compares its fixture
+#                  with the committed dump (R-1, #256);
 #   check-docs  -- a docs-only commit: check-fast without the Swift tests and the compiled gate.
 # Any other name the gate prints is refused (the fixes review's round 2, R1), so a changed gate cannot pick a
 # make target that checks nothing.

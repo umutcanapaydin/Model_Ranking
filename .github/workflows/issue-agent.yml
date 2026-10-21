@@ -16,7 +16,9 @@ name: Issue agent
 #
 # Safety rails:
 #   - Label-gated: only fires on agent:triage or agent:fix
-#   - Draft PR only (cannot self-merge; branch protection on main enforces)
+#   - Draft PR only; a human marks it ready and merges. Branch protection requires a pull request to main,
+#     with 0 required approvals (#31, docs/branch-protection.md): it is that rule, and this agent's token
+#     holding no merge step, not an approval count, that keeps it from merging its own work (#81).
 #   - Least-privilege token (contents/issues/pull-requests: write; nothing else)
 #   - Timeout-capped (20 min per run)
 #   - Concurrency cancel (newer event cancels stale runs on same issue)

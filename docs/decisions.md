@@ -3479,6 +3479,8 @@ branch). M18 holds it as follows; the measure is `docs/research/m18-w3-question-
 
 **Amended by D-203 (2026-10-16)**: clause 3 -- the wording tier also holds small talk, text with no meaning and a dictated answer, measured on a fresh held-out set (#66).
 
+**Amended by D-213 (2026-10-19)**: the closed verdict field's two values become `model search` and five named non-search kinds, each read as the model's "not a search"; the reading rules stand.
+
 ## D-170 — The engine runs as a launchd service, from a deployed release of `main`
 
 **Status:** accepted -- **ruled by the owner on the review of #32** (2026-09-25), recorded as an ADR
@@ -5472,3 +5474,115 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 **Mitigation if violated:** A general question with a descriptive clause (`en çok kullanılan yapay zeka`, *(translated: the most used AI)*) would leave `everyday`; the fresh set's general rows catch it.
 
 **Revisit when:** the fresh measurement fails the bar, or the on-device model tier is on every supported phone.
+
+---
+
+## D-210 — The Golden Rules: the product's backbone, as the owner set them
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat ("these are the backbone of this project ... write them down somewhere very important, in golden letters, under the name Golden Rules; stop working on empty tasks, these are our goals" *(translated)*)
+
+**Context.** After run bug-night the owner was shown where the product stands against its goals. Their reply set the goals as the project's backbone: what the owner expects from the app is that it can use every source's data, understand what the user wants through Apple Intelligence (or another LLM when it is not there), and show the most correct list, building one itself with an LLM when needed *(translated)*.
+
+**Decision.** The Golden Rules. They outrank every other priority. `AGENTS.md` carries them at the top, so every session reads them.
+
+1. **Every source's data, used lawfully.** Each board and price source is either under an open licence or used with its publisher's written permission. Before v1, no source stays unlicensed.
+2. **Understand the question with an AI model, always.** Apple Intelligence reads every question whenever the device has it. Where it does not, another LLM reads it. Matching words alone is a fallback for when no model answers. It is never the plan.
+3. **The most correct list for every question.** The answer is the list from our boards that fits the question. When no board ranks what was asked, the app composes the list itself with an LLM, from the boards' data, and shows it.
+4. **No empty work.** Every task serves rules 1-3 or the v1 order below. Anything else waits, and the agent says so instead of doing it.
+
+**The v1 order** (the owner's): (1) every open issue closed, no code work left; (2) permission from every source; (3) Apple Intelligence used fully and (4) the question understood fully, worked together; (5) routing to the right lists; (6) composing a list no board ranks, last.
+
+**The owner's answers (2026-10-19, in chat, before this ADR merged):**
+- **Rule 2 and D-160.** "I said 'if needed': Apple Intelligence must be used in every case" *(translated)*. Apple Intelligence reads every question on every device that has it, and the work goes there first. Another LLM is only the fallback for a device without it. Where that fallback runs (on the phone, which keeps D-160 clause 1, or hosted, which would supersede it) is decided by its own ADR when it is built.
+- **Rule 3 and D-104.** Agreed: "it will produce or interpret from our lists, of course it will not make something up on its own" *(translated)*. The LLM chooses and combines boards and facets. Every model, position and number it shows comes from a board. D-104 stands.
+
+**Rationale.** The owner's own statement of what the product is for. The roadmap had drifted to guard and process work while understanding stood at 83/173 on the fresh set (D-206) and accuracy on the Apple Intelligence tier had never been measured.
+
+**Mitigation if violated:** A plan, wave or issue that serves none of rules 1-3 or the v1 order is challenged at triage. An app that answers from word matching while the device has Apple Intelligence is a defect against rule 2.
+
+**Revisit when:** v1 ships, or the owner changes the goals.
+
+---
+
+## D-211 — The task itself and a question of fact get the note, on the golden set too
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat, on #351
+
+**Context.** #351 measured Apple Intelligence for the first time (`make model-tier`). The two sets it scores by disagreed on one class of input. The m24 set, written by an independent seat, labels the task itself ("write me a haiku", "solve 2x+5=11") and a question of fact ("the population of Ankara") `NOT_A_SEARCH`, as D-169 clause 1 does. The golden set (D-202 clause 2) labelled the same kinds of rows as searches of their surface ("summarise my lease for me", "how many people are in this group picture"). The model's instructions (`ModelRouter`) follow neither: they call "explain quantum entanglement" a model search. Asked which way, with examples, the owner chose the note for both classes.
+
+**Decision.**
+1. **D-169 clause 1 stands, as written.** The task itself, addressed to the app, and a question of fact or knowledge get the guiding note, not a ranking. So do instructions to the app, small talk and nonsense. A person describing what they need a model for is a search, even when the task's content is pasted in.
+2. **The golden set says so.** A row of either class carries `not_a_search`, naming its class ("the task itself" or "a question of fact"). Its `expected_surface` stays, as the surface the wording tier gives it: without the model the wording tier does not decide this (D-169 clause 3), and `GoldenQuestionTests` keeps checking it there. `make model-tier` scores such a row as `NOT_A_SEARCH`.
+3. **The model's instructions follow clause 1.** Each change is measured twice on m24 and the golden set (#351 phase 2), and judged on m25 against #351's bar.
+
+**Rationale.** The owner's ruling, the same as D-169's. A ranking answers a person choosing a model. The person who asks the app to do a task, or asks it a fact, is not choosing one, and the note tells them what the app is for.
+
+**Mitigation if violated:** If a genuine search gets the note, the reader has to tap "Change" (D-169 clause 4 cost). D-169 clause 6's bar (at most 2 genuine searches per run) and #351's bar (85% of searches) catch it on m25.
+
+**Revisit when:** readers on TestFlight type tasks and leave on the note, or the owner asks for lists on tasks.
+
+---
+
+## D-212 — Run night-351's rulings: #348's smoke, #353's example pool, m25, and one integration PR
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat, for run night-351
+
+**Context.** The owner opened run night-351 to carry #351 (Apple Intelligence reads every question) on through the night, with #348 and the issues filed for #351's rest: #353 (retrieved examples), #354 (prewarm) and #355 (m25). The run's decisions message asked four questions, and the owner took the recommended answer to each. Earlier the same day the owner ruled on m25's size and bar after reading the three research reports.
+
+**Decision.**
+1. **#348.** When the real-data recommend smoke finds no eligible model, it says which source came back short, so an upstream blip and a defect can be told apart. The engine's answer is not re-checked against the snapshot.
+2. **#353's example pool.** The older probe sets are relabelled to D-169 and D-211 (the task itself and a question of fact are not searches) by an independent seat that reads no routing code, and the run's author checks where the two disagree. m24, the golden set and m25 never enter the pool.
+3. **m25 (#355).** An independent seat writes it tonight, about 300 searches and about 200 non-searches, without seeing the model tier's instructions, hints or tuning sets. It stays out of the repository, sealed by its sha256, and judges once, on macOS 27, recording the OS build and the model variant. #351's bar is met on the observed rates; the Wilson interval is reported beside them.
+4. **One integration PR.** The run's work, #352 included, stacks on `integration/run-night-351`, merged with a merge commit.
+
+**Rationale.** The owner's answers. A blip should not read as a defect (1). Examples labelled to an old line teach the model that line (2). 173 rows tell apart only about 8 points, and the non-search side needs 170-350 rows to show 80% at all (3).
+
+**Mitigation if violated:** A pool row from m24, golden or m25, or a near-duplicate of one, inflates every score it touches: the pool is checked against them before any run. An m25 read or tuned on before it judges is no longer held out, and a new set is written.
+
+**Revisit when:** m25 has judged, or the owner changes the bar.
+
+---
+
+## D-213 — The model names the kind of a non-search, in its verdict field
+
+**Status:** proposed
+**Owner ruling:** 2026-10-19, in chat, on #351 ("yes, add the kinds", with INV-69's tests changed and an ADR before the code *(translated)*)
+**Amends** D-169 as amended at M18-W3 (clause 2: the closed yes/no field) and INV-69's closed set.
+
+**Context.** The owner's three research reports agreed that a small model under-chooses a catch-all answer such as "something else", and that named, positively described non-search kinds catch more. On 2026-09-28 (#66, variant 4) five named kinds had caught 25 of 39 non-searches but cut 45 of 89 searches, under the line D-211 has since moved. Measured again on 2026-10-19 with greedy decoding (#351 phase 2), three layouts against the committed state, on m24 and the golden set, question by question:
+- the verdict field kept last, its two values replaced by "model search" and five kinds: m24 133 → 139 of 173; not a search caught 43 → 51 of 61 (8 fixed, 0 broken, exact McNemar p = 0.008; the task itself 9 → 13 of 13); searches 90 → 88 of 112 (2 fixed, 4 broken, p = 0.69, surface moves); the golden set 37 → 39 of 49;
+- the kinds beside the surfaces in the surface field, the verdict kept: m24 +1, golden -4;
+- the kinds in the surface field alone, no verdict field: m24 -22, golden -17.
+
+**Decision.**
+1. **The verdict field names the kind.** It stays a closed field generated last (D-169 as amended, the M18-W3 order). Its values are `model search` and five kinds, each with its meaning in the model's instructions: `task itself`, `fact question`, `app question`, `small talk`, `instruction attempt`. The first words differ, so no value is a prefix of another.
+2. **Only `ModelOutputBoundary` maps them.** Each kind is the model's "not a search", with D-169's reading rules unchanged: alone it is a doubt, with a doubt in code it is the note. `model search`, no value, or a value outside the set reads as a search, as before. A kind never becomes an engine id or a surface.
+3. **INV-69 holds the wider set.** Its tests assert the six values exactly, and that the schema offers nothing else.
+
+**Rationale.** The gap to the owner's bar was non-searches, and this closes it on m24 (84% against 80%) with no non-search broken. The search loss is within the run's guardrail (at most 2) and not significant; m25 judges both.
+
+**Mitigation if violated:** A sixth value, or a free one, would let the model say something the boundary does not map: the schema test fails. If m25 shows searches lost to the kinds, the kinds' meanings are narrowed, or this ADR is superseded.
+
+**Revisit when:** m25 judges (#355), or a new on-device model (OS 27) is measured.
+
+---
+
+## D-214 — Run night-1021's rulings: #242's allowlists never loosen, and m25 judges last and closes on its bar
+
+**Status:** proposed
+**Owner ruling:** 2026-10-21, in chat, for run night-1021
+
+**Context.** On 2026-10-20 the owner re-assessed the open queue against the Golden Rules (D-210) after the macOS 27 upgrade: four issues closed, #242 kept at the end of the queue, #265 waits on a new Hugging Face token, and the eight guard issues wait on the owner's bundle. #361 merged in #366. The owner then opened a night run over what the agent can work, with m25 (#355) last. The run's decisions message asked two questions, and the owner took the recommended answer to each.
+
+**Decision.**
+1. **#242 runs tonight, under one rule: no loosening.** The compiled client gate's deny-lists (sinks, served numbers, the request surface, the by-name set, the stores' URLs: #242's triage, five slices) become allowlists. Every input the gate refuses today is still refused (a test holds the fixture's refusals before against after), and every twin #242 names is refused. An allowlist entry for the app's own code names its reason. The Security-Reviewer reviews the change, whatever `make review-need` says. A slice not finished by morning stays a stop for the owner, never a weaker rule.
+2. **m25 judges last, once,** on the run's final integration head: the model tier, greedy, recording the OS build and `SystemLanguageModel.default.variant`. #351's bar (D-212 clause 3): at least 80% of searches and 80% of non-searches read right, on the observed rates, with the Wilson interval beside them. Met → #351 and #355 close with the result. Not met → the result is recorded, both stay open, and nothing is tuned on m25's rows.
+
+**Rationale.** The owner's answers. A gate that guards D-160 must not be weakened to be rewritten (1). m25 is held out once, so it judges the build that ships, and what it shows is final for this round (2).
+
+**Mitigation if violated:** An allowlist that refuses less than the deny-list did would open a hole the reviews already closed: the before/after test fails. Tuning on m25 would spend the held-out set: a new one is written.
+
+**Revisit when:** m25 has judged, or the next review plants a twin that the allowlists pass.

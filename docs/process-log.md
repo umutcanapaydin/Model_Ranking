@@ -1014,3 +1014,82 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `unseen_permissions` now requires the load path's `keep` and each allowed decode on the shipping client, so a renamed `keep` or kept type fails the gate (fail closed).
 - The fixture plants each shape the review found, and the five surviving mutants are each killed. A synthesised `init(from:)` called by name prints no location, so the old `.init(from:)` branch never fired on one. Red first: `test_322_*` in `tests/unit/test_kept_answer_provenance.py`.
 - Lesson: a rule over printed types must read the aliases the dump declares, or it holds only the spellings it was shown.
+
+## 2026-10-18 · integration/run-bug-night — run bug-night ends: twelve PRs stacked, the owner bundle reviewed
+
+- The queue of D-209, bugs first: #295 and #326 stacked as drafts; #331, #332, #325, #330, #328, #341 (found tonight), #314, #309, #319 and #322 fixed red-first and stacked on #335. #319 was a policy edit and had its own security review, whose findings were fixed on its branch.
+- The owner bundle (#256, #287, #305, #317, #318, #320, #344, #81) took four review rounds. Round 1 was BLOCKING: the #287 fix made an unknown value read as safe, a loosening. Rounds 2-4 closed that, the minors, and #344. Its agent half is `f716219` on `owner/bug-night-bundle-v2`; the owner's half is one patch in the owner's clone.
+- The merge of #333 left conflict markers in `docs/decisions.md` that no gate caught; #341 now catches them.
+- Lesson: a guard change that turns "unknown" into "allowed" is a loosening even when every listed case passes; a reviewer probing the old guard against the new one finds it, a test list does not.
+
+## 2026-10-19 · fix/issue-328-maintenance-lock — the guard test's flake was git's background maintenance
+
+- #339 and #343 went red in CI on `test-bash-guard.py`. Now that run-all.py prints a dead test's stderr, both showed `shutil.Error` on a vanished `.git/objects/maintenance.lock`: each fixture commit starts a detached `git maintenance run --auto`, and `main()` copies the fixture while it runs.
+- #340 (the `TimeoutExpired` handling) had targeted the timeout #328 suspected; it stays useful but did not close #328.
+- The fixture's `git()` now passes `maintenance.auto=false` and `gc.auto=0`; red test `tests/unit/test_guard_fixture_maintenance.py` first. review-need: none.
+- Lesson: hold a flake's fix until the traceback names its cause; a fix built on the suspect closes the issue without closing the flake.
+
+## 2026-10-19 · enhancement/golden-rules — the owner's Golden Rules at the top of AGENTS.md (D-210)
+
+- Shown where the product stands against its goals, the owner set four Golden Rules as the project's backbone: every source used lawfully, every question understood by an AI model (Apple Intelligence, or another LLM), the most correct list for every question (composed by an LLM when no board ranks it), and no empty work.
+- D-210 records them with the v1 order and the owner's two answers: Apple Intelligence in every case, another LLM only where it is missing; an LLM-composed list takes every number from our boards (D-104 stands).
+- Lesson: measure the product against the owner's goals at every run's end, not only the queue; a queue of green fixes can drift from what the product is for.
+
+## 2026-10-20 · fix/issue-348-smoke-short-source — "no eligible model" says what it was computed from
+
+- The real-data recommend smoke once failed with `no eligible model for this budget` (low, assistant) and passed on a rerun; a source that came back short and a budget that truly excludes everything printed the same line.
+- The owner chose the remedy in run night-351's decisions message (D-212 clause 1): the CLI's answer now carries `evidence` -- the models the task ranks, how many have a price, and the rows each score and price source gave. The workflow is unchanged, so no owner patch is owed.
+- Red test `tests/unit/test_recommend.py::test_no_eligible_model_says_what_the_evidence_held` first. review-need: none.
+- Lesson: a smoke that can fail on upstream data should print the data it judged, or its red reads as a defect.
+
+## 2026-10-20 · enhancement/issue-351-apple-intelligence — Apple Intelligence measured, then raised: 107-111 to 139 of m24's 173
+
+- `make model-tier` scores the on-device model for the first time, beside the wording tier, and keeps every question's row so two runs compare by an exact McNemar test.
+- Raised on m24 (tuning): the request paragraph by D-169/D-211, surface descriptions, greedy decoding (one answer per question on one model version; two runs agree on every row), and the verdict naming the kind of a non-search (D-213). Searches 81-85 to 88 of 112; non-searches caught 23-27 to 51 of 61.
+- The owner's three research reports were read against each other; the named kinds had been tried on #66 under the old line, so they were measured before the ADR, and kept on 8 non-searches fixed and none broken.
+- The glow is on while Apple Intelligence is available and livelier while it reads. Retrieved examples (#353), prewarm (#354) and the m25 verdict (#355) are their own issues.
+- Lesson: on a small model, fix the decoder before the prompt; with random sampling the 3-7 row noise hid every change smaller than it.
+
+## 2026-10-20 · enhancement/issue-354-prewarm — the on-device model loads while the question is typed
+
+- When the question field gains focus and Apple Intelligence is available, the model tier prewarms a session with its instructions (`LanguageModelSession.prewarm()`); Apple asks for at least a second before the question, which typing gives. All three research reports: latency only.
+- The instructions moved, unchanged, into `ModelRouter.session(for:)`, so the prewarm and the reading build the same session; a measurement run confirmed no m24 or golden reading moved.
+- Red tests first (`PrewarmTests`), the recorder in the shared `TierStubs.swift`. REQ-APP-007's evidence names them.
+- Lesson: a stub belongs where the suite's rule says, even for one test; the shared-stubs pin caught it at the first commit.
+
+## 2026-10-20 · integration/run-night-351 — run night-351: #351 raised to 139 of 173, #348, #354; #353 and #355 stopped
+
+- Stacked on #357, in order: #352 (#351, Apple Intelligence measured and raised; D-213), #358 (#348), #360 (#354). The owner's four answers are D-212.
+- Stopped: #353 at a control change (the retrieved examples gave 152 of m24's 173, p = 0.015, but sorting the example pool in a client file needs an exemption in Ruling A's two pins), #355 at the environment (m25, 511 rows, written and sealed; it judges on macOS 27).
+- Twelve tracked paths vanished from the first work tree while a subagent's post-edit hook and a commit's check ran at once in it (#359); two were under `.claude/`, which the agent may not restore, so the run moved to fresh trees, with `advisor.db` copied into them (assumption 4).
+- Lesson: in a run, subagents that write files run their hooks in the coordinator's tree; give them no Write tool there, or one tree each, before the first check overlaps.
+
+## 2026-10-20 — fix/issue-363-sdk-header-path: macOS 27 and Xcode 27.1 turn the Mac's gate red twice (#362, #363)
+
+- macOS 27.0.1: FoundationModels writes each closed choice set inline (`properties.<f>.enum`), not under `$defs`, so the INV-69 schema test failed (#362). Its reading moved into `closedChoices(in:)`, which accepts either OS's shape and refuses any other. A negative test, now cited in INV-69, feeds it six open or unknown shapes.
+- Xcode 27.1 updated itself mid-session (which blocked `git` until the owner accepted the licence). Swift 6.4 prints an Objective-C declaration with its header after the name, so five client-decls rules stopped reading names at their end and the gate stopped refusing an `NSArray` sort (#363). Each rule now accepts `@`. Rewriting the snapshot showed two more changes: `@State` is now a macro whose accessors add four refusals to the fixture (12, still fails closed), and `data.append(byte)` binds to Foundation, which the owner allowed onto the sink list.
+- Inside the test run's offline sandbox the `@State` macro's plugin could not start its own sandbox (macOS refuses a nested one), so the fixture stopped type-checking there only. The dump drops the compiler's sandbox inside that run alone.
+- `make gate` then found a third: macOS 27's `sort` collates by locale, so the Swift manifest (byte order) stopped matching the discovered list on an unchanged suite. The Makefile now sorts with `LC_ALL=C`, and a test holds both sides to byte order.
+- Neither fix can be committed green without the other, so both ship in one PR. Every gate change was escalated, and the owner approved each one in session.
+- **Lesson:** an OS or Xcode upgrade changes every test and gate that reads a framework's output; run `make check` in the first session after one, before any other work.
+
+## 2026-10-20 — fix/issue-361-instruction-naming-an-ai: an instruction that names an AI no longer gets a ranking (#361)
+
+- Before any change, the issue's remedy was probed on macOS 27 (AFM 3 Core Advanced): the model labelled 9 of 10 instruction texts that name an AI as `model search`, so carrying its `instruction attempt` through the boundary alone would have fixed almost nothing.
+- Two parts. The model is told that saying what to say about a named model, or where to rank it, is an instruction attempt. `ModelOutputBoundary` then carries that kind on the outcome, and the AI-name rule no longer overrides it. Only the boundary sets the flag, and it never reaches the engine.
+- Measured question by question against `main` on the same OS: m24 154 → 156 of 173 (4 fixed, 2 broken, p = 0.69; not a search 51 → 55, searches 103 → 101), golden 43 → 44 of 49; all 10 probe instructions are no longer searches, and the 3 real searches that name an AI stay searches.
+- The macOS 27 baseline (154) is new: the same code read 139 on macOS 26. Every measurement from now on compares on one OS.
+- Lesson: test an issue's remedy against the model of the day before writing it; an OS upgrade can move the failure from the code to the model.
+
+## 2026-10-21 — fix/issue-367-ca-bundle: the locks leave a CA root with compromised intermediates (#367)
+
+- Run night-1021's first push met two advisories published that day: certifi 2026.7.22 (PYSEC-2026-4320) and uv 0.12.23 (GHSA-hq85-5cpj-mr62) both trust `emSign ECC Root CA - G3`, whose eMudhra intermediates' keys leaked. `deps` refused every push.
+- `make lock` (D-177's one writer) re-resolved every lock: certifi 2026.10.19 and uv 0.13.4, and with them the rest moved to their latest (fastapi 0.142 → 0.156, pyarrow 25 → 26, pydantic 2.13 → 2.14 among them). `make gate` is green on the new set, every suite included.
+- No red test of its own: the reproduction is the `deps` leg itself, which refused before the change and passes after it.
+- Lesson: `deps` grades the day's advisory feed, not the change, so a run's first push can be refused by news; fix the locks first and stack everything else on that fix.
+
+## 2026-10-21 — integration/run-night-1021: #367's lock fix stacked, m25 judged once, #242 stopped on its third BLOCKING
+
+- The queue, in the order of D-214: #367, then #242, then #355. #368 stacked. #242's allowlists (#372) went through three rounds with the Security-Reviewer. Each round's fixes held, and no pre-#242 refusal was lost. The third BLOCKING on B1 ended the loop, so #242 is a stop for the owner, and #371 holds the classes the review named but did not block on.
+- m25 judged once on the final head 8bd3da5, on macOS 27.0.1 (26A434) with AFM 3 Core Advanced. Searches were 249/301 (82.7%, Wilson 78.0–86.6%) and non-searches 177/210 (84.3%, Wilson 78.8–88.6%). The bar is met on observed rates, so #351 and #355 close (`docs/research/reading-heldout-m25-result.md`). The set stays out of the repository and is loaded for this one run from outside it.
+- Lesson: a gate that reads spellings meets a new spelling every round; when a reviewer's BLOCKINGs keep finding new forms of one class rather than a wrong fix, the third round is the owner's question of where the class ends, not a fourth patch.

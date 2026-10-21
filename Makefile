@@ -63,7 +63,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need closing-keywords deploy-check guard-pin ci-diff gate-ok next-adr review-need-branch
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need closing-keywords deploy-check guard-pin ci-diff gate-ok next-adr review-need-branch model-tier
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -202,12 +202,12 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 			echo "  A suite that stops being discovered exits 0 and reports nothing."; \
 			exit 1; \
 		fi; \
-		( cd ios && $(SWIFT_TEST) --list-tests 2>/dev/null ) | sort > build/swift-tests-discovered.txt; \
+		( cd ios && $(SWIFT_TEST) --list-tests 2>/dev/null ) | LC_ALL=C sort > build/swift-tests-discovered.txt; \
 		if ! diff -u $(SWIFT_TEST_MANIFEST) build/swift-tests-discovered.txt > build/swift-manifest.diff 2>&1; then \
 			echo "swift-test FAIL: the discovered tests are not the manifest (D-150)."; \
 			head -20 build/swift-manifest.diff; \
 			echo "  A test deleted from the code but left here, or added and not listed, stops the gate."; \
-			echo "  Regenerate deliberately: cd ios && swift test --list-tests | sort > EngineTests/test-manifest.txt"; \
+			echo "  Regenerate deliberately: cd ios && swift test --list-tests | LC_ALL=C sort > EngineTests/test-manifest.txt"; \
 			exit 1; \
 		fi; \
 		echo "swift-test PASS: $$n test(s), each one named in $(SWIFT_TEST_MANIFEST)"; \
@@ -330,6 +330,10 @@ shell-dialect:  ## every shipped .sh parses and declares one dialect
 
 mode:  ## this project's working mode, light or heavy (docs/project-brief.md `Working mode:`; unset: heavy)
 	@$(SYS_PY) scripts/brief_fields.py mode
+
+model-tier:  ## #351: how well Apple Intelligence reads the golden set and m24, beside the wording tier (needs the model)
+# ci: none -- CI has no Apple Intelligence; the probe exits 2 NOT RUNNABLE where the model is not available
+	@$(PY) scripts/model_tier.py $(MODEL_TIER_ARGS)
 
 next-adr:  ## the next free ADR ids (D- and P-) in docs/decisions.md -- /log-decision asks this instead of reading the file
 # ci: none -- a number for the session writing an ADR; CI writes none

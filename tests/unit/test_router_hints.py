@@ -960,8 +960,9 @@ def test_the_model_is_told_what_each_of_its_two_verdicts_means() -> None:
     session = re.search(r'LanguageModelSession\(\s*instructions: """(.*?)"""', code, re.S)
     assert session, "the model tier's instructions are gone"
     told = session.group(1)
-    for value in ("searchValue", "notASearchValue"):
-        assert f"\\(ModelOutputBoundary.{value})" in told, f"the model is not told what `{value}` means"
+    # D-213: the search value, and every named kind with its meaning, from the boundary's own table.
+    assert "\\(ModelOutputBoundary.searchValue)" in told, "the model is not told what `searchValue` means"
+    assert "ModelOutputBoundary.notASearchKinds" in told, "the model is not told what each non-search kind means"
 
 
 def test_only_tests_hand_the_gap_register_a_writer_of_their_own() -> None:
