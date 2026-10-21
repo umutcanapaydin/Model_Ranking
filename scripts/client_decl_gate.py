@@ -787,6 +787,8 @@ FIXTURE_REFUSALS = {
     ("Arithmetic.swift", "`Swift.Int.words` on a served position (its receiver) in `shapeStructMapWords`"),
     ("Arithmetic.swift", "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeCurriedAdvanced`"),
     ("Arithmetic.swift", "`Swift.Int.signum(` on a served position (its receiver) in `shapeCurriedSignum`"),
+    # #371: the twins D-218 clause 4 admits include a sort and a `max(by:)`, which the sort rule counts per file.
+    ("Arithmetic.swift", "sorts `ranked`"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one

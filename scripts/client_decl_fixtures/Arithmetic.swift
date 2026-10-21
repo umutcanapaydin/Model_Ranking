@@ -39,7 +39,7 @@ struct ShapeDecoded { let points: Int }
 extension ShapeDecoded: Decodable {}
 func shapeDecodedInExtension(_ d: ShapeDecoded) -> Int { d.points + 1 } // shape: decoded-in-extension
 
-func shapeFilterCount(_ s: Standing) -> Int { [s].filter { $0.position > 0 }.count + 1 } // allowed: filter-count
+func shapeFilterCount(_ s: Standing) -> Int { [s].filter { $0.position > 0 }.count + 1 } // shape: filter-count
 
 // #171: a served number through `Any` and through text, and a served fact's number. REFUSED.
 func shapeThroughAny(_ s: Standing) -> Int {
@@ -167,3 +167,59 @@ func shapeStructMapMagnitude(_ s: Standing) -> [UInt] { [s].map(\.position.magni
 func shapeStructMapWords(_ s: Standing) -> [Int] { [s].map(\.position.words.count) } // shape: struct-map-words
 func shapeCurriedAdvanced(_ s: Standing) -> Int { Int.advanced(by:)(s.position)(1) } // shape: curried-advanced
 func shapeCurriedSignum(_ s: Standing) -> Int { Int.signum(s.position)() } // shape: curried-signum
+
+// #371 (D-218 clause 4, G-2): a served number handed to a generic of the app's own whose parameter is constrained to a
+// numeric protocol, directly, by a `where` clause, through a protocol of the app's own that refines one, as `some`, as
+// an existential, and into a generic type and a generic method. The gate cannot follow arithmetic on `T`. REFUSED,
+// each, on the line marked.
+func shapeGenericTwice<T: Numeric>(_ x: T) -> T { x + x }
+func shapeGenericWhere<T>(_ x: T) -> T where T: BinaryInteger { x * 2 }
+protocol ShapeBumpable: AdditiveArithmetic {}
+extension Int: ShapeBumpable {}
+func shapeGenericOwn<T: ShapeBumpable>(_ x: T) -> T { x + x }
+func shapeGenericSome(_ x: some BinaryInteger) -> Int { Int(x) + 1 }
+func shapeGenericAny(_ x: any Numeric) -> Int { (x as? Int ?? 0) + 1 }
+struct ShapeGenericBox<T: Numeric> { let v: T; func doubled() -> T { v + v } }
+struct ShapeGenericHelper { func twice<T: FixedWidthInteger>(_ x: T) -> T { x &* 2 } }
+func shapeGeneric(_ s: Standing) -> Int { shapeGenericTwice(s.position) } // shape: generic-numeric
+func shapeGenericByWhere(_ s: Standing) -> Int { shapeGenericWhere(s.position) } // shape: generic-where
+func shapeGenericByOwn(_ s: Standing) -> Int { shapeGenericOwn(s.position) } // shape: generic-own-protocol
+func shapeGenericBySome(_ s: Standing) -> Int { shapeGenericSome(s.position) } // shape: generic-some
+func shapeGenericByAny(_ s: Standing) -> Int { shapeGenericAny(s.position) } // shape: generic-any
+func shapeGenericType(_ s: Standing) -> Int { ShapeGenericBox(v: s.position).doubled() } // shape: generic-type
+func shapeGenericMethod(_ s: Standing) -> Int { ShapeGenericHelper().twice(s.position) } // shape: generic-method
+
+// #371 (D-218 clause 4, G-2): a served number rebuilt from comparisons inside a closure that counts or searches, one
+// shape for each method the ruling names; a test inside such a closure by `if`, by `contains(_:)` and by a function
+// of the app's own; and a predicate handed by name and held in a constant. REFUSED, each, on the line marked.
+func shapeRebuiltFilter(_ s: Standing) -> Int { (1...100).filter { $0 <= s.position }.count + 1 } // shape: rebuilt-filter
+func shapeRebuiltFirst(_ s: Standing) -> Int? { (0..<100).first { $0 == s.position } } // shape: rebuilt-first
+func shapeRebuiltFirstIndex(_ s: Standing) -> Int? { Array(0..<100).firstIndex { $0 == s.position } } // shape: rebuilt-first-index
+func shapeRebuiltLastIndex(_ s: Standing) -> Int? { Array(0..<100).lastIndex { $0 == s.position } } // shape: rebuilt-last-index
+func shapeRebuiltLast(_ s: Standing) -> Int? { Array(0..<100).last { $0 == s.position } } // shape: rebuilt-last
+func shapeRebuiltCountWhere(_ s: Standing) -> Int { (1...100).count { $0 <= s.position } } // shape: rebuilt-count-where
+func shapeRebuiltContains(_ s: Standing) -> Bool { (1...100).contains { $0 == s.position } } // shape: rebuilt-contains
+func shapeRebuiltAllSatisfy(_ s: Standing) -> Bool { (1...100).allSatisfy { $0 != s.position } } // shape: rebuilt-all-satisfy
+func shapeRebuiltDropWhile(_ s: Standing) -> Int { (1...100).drop { $0 < s.position }.count } // shape: rebuilt-drop-while
+func shapeRebuiltPrefixWhile(_ s: Standing) -> Int { (1...100).prefix { $0 <= s.position }.count } // shape: rebuilt-prefix-while
+func shapeRebuiltReduce(_ s: Standing) -> Int { (1...100).reduce(0) { $1 <= s.position ? $0 + 1 : $0 } } // shape: rebuilt-reduce
+func shapeRebuiltInIf(_ s: Standing) -> Int { (1...100).filter { if $0 <= s.position { return true }; return false }.count } // shape: rebuilt-in-if
+func shapeRebuiltByContains(_ s: Standing) -> Int { (1...100).filter { [s.position, 0].contains($0) }.count } // shape: rebuilt-by-contains
+func shapeAtMost(_ x: Int, _ limit: Int) -> Bool { x <= limit }
+func shapeRebuiltByHelper(_ s: Standing) -> Int { (1...100).filter { shapeAtMost($0, s.position) }.count } // shape: rebuilt-by-helper
+func shapeRebuiltByName(_ s: Standing) -> Int {
+    func below(_ x: Int) -> Bool { x <= s.position } // shape: rebuilt-by-name
+    return (1...100).filter(below).count
+}
+func shapeRebuiltHeld(_ s: Standing) -> Int {
+    let below = { (x: Int) -> Bool in x <= s.position } // shape: rebuilt-held
+    return (1...100).filter(below).count
+}
+func shapeRebuiltTwice(_ s: Standing) -> Int { (1...100).filter { $0 <= s.position && $0 * 2 <= s.position }.count } // shape: rebuilt-twice
+
+// #371 (D-218 clause 4): a comparison with a served number in `if`, in a closure that neither counts nor searches, in
+// a sort and in `max(by:)` stays ADMITTED, each line (a sort is counted per file by `SORTS_PERMITTED` all the same).
+func shapeComparedInIf(_ s: Standing) -> Int { if s.position > 3 { return 1 }; return 0 } // allowed: compared-in-if
+func shapeComparedInMap(_ s: Standing) -> [Int] { [s].map { if $0.position > 3 { return 1 }; return 0 } } // allowed: compared-in-map
+func shapeComparedInSort(_ ranked: [Standing]) -> [Standing] { ranked.sorted { $0.position < $1.position } } // allowed: compared-in-sort
+func shapeComparedInMax(_ ranked: [Standing]) -> Standing? { ranked.max { $0.position < $1.position } } // allowed: compared-in-max

@@ -728,9 +728,12 @@ def test_each_shape_the_second_review_planted_is_refused(shape: str) -> None:
 
 def test_a_count_of_served_things_is_not_arithmetic_on_a_served_number() -> None:
     """#173, the review's M5: `filter { $0.position > 0 }.count + 1` counts things; the walk read the
-    closure inside the operand and refused it as `+` on a served position."""
-    line = _marked("// allowed: filter-count")
-    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    closure inside the operand and refused it as `+` on a served position. It is still never arithmetic; since #371
+    (D-218 clause 4) the comparison inside `filter`, a closure that counts, is refused, and only that. # covers D-218"""
+    line = _marked("// shape: filter-count")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"Arithmetic.swift:{line} is not refused"
+    assert all("inside the closure given to `filter`" in found for found in refused), refused
 
 
 def test_a_labels_length_is_not_a_served_number() -> None:
@@ -1463,3 +1466,104 @@ def test_375_a_pinned_refusal_removed_or_reworded_fails_the_pin(monkeypatch: pyt
         monkeypatch.setattr(gate, "PINNED_REFUSALS", pin)
         for each, _, _ in gate.CONFIGURATIONS:
             assert gate._pin_broken(each, made), (name, each)
+
+
+# --- #371 (D-218 clause 4, G-2) ----------------------------------------------------------------------------------------
+
+#: #371: a served number handed to a generic of the app's own over a numeric protocol, each shape marked in
+#: `Arithmetic.swift`, and the protocol its refusal names.
+NUMERIC_GENERIC_TWINS = [
+    ("generic-numeric", "Numeric"), ("generic-where", "BinaryInteger"), ("generic-own-protocol", "ShapeBumpable"),
+    ("generic-some", "BinaryInteger"), ("generic-any", "Numeric"), ("generic-type", "Numeric"),
+    ("generic-method", "FixedWidthInteger"),
+]
+
+
+@pytest.mark.parametrize(("shape", "protocol"), NUMERIC_GENERIC_TWINS)
+def test_371_a_served_number_handed_to_a_numeric_generic_of_the_apps_own_is_refused(shape: str, protocol: str) -> None:
+    """#371 (D-218 clause 4, G-2, INV-76): `func f<T: Numeric>(_ x: T) -> T { x + x }` called with `s.position` passed in
+    all four configurations: the operand's type is `T`, which no number type the rules read names. The ruling refuses a
+    served number handed to a generic parameter constrained to a numeric protocol: directly, by a `where` clause,
+    through a protocol of the app's own that refines one, as `some` and as `any` of one, into a generic type and into a
+    generic method. Each is refused on its own line, and the self-test asks the same of all four configurations.
+    # covers D-218, D-181"""
+    line = _marked(f"// shape: {shape}")
+    phrase = f"over the numeric protocol `{protocol}`"
+    refused = [found for found in gate.problems(gate.references(FLOW_AST))
+               if found.startswith(f"Arithmetic.swift:{line}:") and phrase in found]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as {phrase}"
+    assert ("Arithmetic.swift", "over the numeric protocol") in gate.FIXTURE_REFUSALS, "the self-test does not hold it"
+
+
+#: #371: a served number rebuilt inside a closure that counts or searches, each shape marked in `Arithmetic.swift`: one
+#: for each method D-218 clause 4 names, then a test by `if`, by `contains(_:)` and by a function of the app's own
+#: inside one, a predicate handed by name and one held in a constant, and two meetings in one closure.
+REBUILT_TWINS = [
+    ("rebuilt-filter", "filter", "Swift.Int.<="), ("rebuilt-first", "first(where:)", "Swift.Int.=="),
+    ("rebuilt-first-index", "firstIndex(where:)", "Swift.Int.=="), ("rebuilt-last-index", "lastIndex(where:)", "Swift.Int.=="),
+    ("rebuilt-last", "last(where:)", "Swift.Int.=="), ("rebuilt-count-where", "count(where:)", "Swift.Int.<="),
+    ("rebuilt-contains", "contains(where:)", "Swift.Int.=="), ("rebuilt-all-satisfy", "allSatisfy", "Swift.Int.!="),
+    ("rebuilt-drop-while", "drop(while:)", "Swift.Int.<"), ("rebuilt-prefix-while", "prefix(while:)", "Swift.Int.<="),
+    ("rebuilt-reduce", "reduce", "Swift.Int.<="), ("rebuilt-in-if", "filter", "Swift.Int.<="),
+    ("rebuilt-by-contains", "filter", "Swift.Sequence.contains"), ("rebuilt-by-helper", "filter", "main.shapeAtMost"),
+    ("rebuilt-by-name", "filter", "Swift.Int.<="), ("rebuilt-held", "filter", "Swift.Int.<="),
+    ("rebuilt-twice", "filter", "Swift.Int.<="),
+]
+
+
+@pytest.mark.parametrize(("shape", "method", "declared"), REBUILT_TWINS)
+def test_371_a_served_number_met_inside_a_closure_that_counts_or_searches_is_refused(
+        shape: str, method: str, declared: str) -> None:
+    """#371 (D-218 clause 4, G-2, INV-76): `(1...100).filter { $0 <= s.position }.count + 1` and `(0..<100).first { $0 ==
+    s.position }` passed in all four configurations: a comparison is admitted by rule, and the count is a fresh number.
+    The ruling refuses a comparison with a served number inside the closures given to `filter`, `first`, `firstIndex`,
+    `lastIndex`, `last`, `count(where:)`, `contains(where:)`, `allSatisfy`, `drop(while:)`, `prefix(while:)` and
+    `reduce`; in such a closure, written in place or handed by name, a served number meets nothing, an `if`, a
+    `contains(_:)` or a function of the app's own included. Each is refused on its own line, and the self-test asks the
+    same of all four configurations. # covers D-218, D-181"""
+    line = _marked(f"// shape: {shape}")
+    phrase = f"`{declared}` meets a served position inside the closure given to `{method}`"
+    refused = [found for found in gate.problems(gate.references(FLOW_AST))
+               if found.startswith(f"Arithmetic.swift:{line}:") and phrase in found]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as {phrase}"
+    assert ("Arithmetic.swift", "which counts or searches") in gate.FIXTURE_REFUSALS, "the self-test does not hold it"
+
+
+@pytest.mark.parametrize("mark", ["compared-in-if", "compared-in-map", "compared-in-sort", "compared-in-max"])
+def test_371_a_comparison_in_if_a_map_a_sort_or_max_by_stays_admitted(mark: str) -> None:
+    """#371 (D-218 clause 4): a comparison with a served number in `if`, in a closure that neither counts nor searches
+    (`map`), in a sort and in `max(by:)` stays admitted, so the rule is no wider than the ruling. A sort is still counted
+    per file by `SORTS_PERMITTED`, on no line. # covers D-218"""
+    line = _marked(f"// allowed: {mark}")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+
+
+def test_371_a_meeting_inside_a_count_or_a_search_is_admitted_only_where_listed_and_counted(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """#371 (D-218 clause 4): the shipping client's own counts and searches over a served number (the staleness notice's
+    ages, whether a source is dated) are admitted by place, counted, each with its reason; a place that makes one more
+    meeting than its entry counts is refused, and an entry the client no longer makes fails the gate, as a stale
+    permission does (the W2 review's R3). # covers D-218"""
+    line = _marked("// shape: rebuilt-twice")
+    key = ("Arithmetic.swift", "shapeRebuiltTwice", "filter", "position", "Swift.Int.<=")
+
+    def made() -> tuple[dict[str, set[str]], list[str]]:
+        found = gate.references(FLOW_AST)
+        return found, [fact for fact in gate.problems(found) if fact.startswith(f"Arithmetic.swift:{line}:")]
+
+    monkeypatch.setitem(gate.COUNTS_OR_SEARCHES_PERMITTED, key, (1, "one of the two meetings"))
+    _, refused = made()
+    assert refused and all("1 such meeting(s) are permitted there" in fact for fact in refused), refused
+    monkeypatch.setitem(gate.COUNTS_OR_SEARCHES_PERMITTED, key, (2, "both meetings"))
+    found, refused = made()
+    assert not refused, refused
+    listed = "main.<counts listed>.Swift.Int.<=|filter|position|shapeRebuiltTwice"
+    assert listed in found["Arithmetic.swift"]
+    assert not [entry for entry in gate.unseen_permissions(found) if "shapeRebuiltTwice" in entry]
+    found["Arithmetic.swift"].discard(listed)
+    assert [entry for entry in gate.unseen_permissions(found) if "`shapeRebuiltTwice`" in entry]
+    shipping = [entry for entry in gate.COUNTS_OR_SEARCHES_PERMITTED if entry != key]
+    assert len(shipping) == 6, shipping
+    unseen = gate.unseen_permissions({})
+    for file, where, method, _, declared in shipping:
+        assert [entry for entry in unseen if entry.startswith(f"{file}: `{declared}` inside `{method}` in `{where}`")], where
