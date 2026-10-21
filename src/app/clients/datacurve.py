@@ -1,10 +1,14 @@
-"""DeepSWE from Datacurve's own dataset: client + parser (REQ-SRC-012, D-216).
-
-Datacurve publishes the DeepSWE runs as `datacurve/deep-swe-leaderboard` on Hugging Face, under CC BY 4.0. The
-dataset is gated, so every read carries the owner's Hugging Face read token. It replaces Epoch's copy of the board
+"""DeepSWE from Datacurve itself: client + parser (REQ-SRC-012, D-216). It replaces Epoch's copy of the board
 (`epoch_deepswe_external`), which publishes no licence (#265).
 
-The board is one job directory under `raw/jobs/`. The client lists them through the hub's tree API and reads the
+**First, Datacurve's own leaderboard:** the JSON its site loads (`LEADERBOARD_URL`, DeepSWE v1.1), one row a
+configuration with its model, harness, stated `reasoning_effort` and Pass@1. It needs no token, and no token is ever
+sent to it. It publishes no licence; it is used under D-215, attributed to Datacurve with its link. Its rows are
+undated: the list gathers jobs of several dates and names none per row.
+
+**When the leaderboard fails** (no answer, not the board, a redirect off its host), the client reads Datacurve's
+dataset instead: `datacurve/deep-swe-leaderboard` on Hugging Face, under CC BY 4.0, gated, so every read carries the
+owner's Hugging Face read token. The dataset's board is one job directory under `raw/jobs/`. The client lists them through the hub's tree API and reads the
 newest (a name that starts with its date), so a later job is read without a code change. From that job it reads two
 files: the result file, whose `stats.evals` holds one entry a run keyed `<agent>__<model>[__<effort>]__deep-swe`,
 with its Pass@1; and the config file, whose `agents` list gives each run the `reasoning_effort` it ran at, if any.
@@ -15,7 +19,8 @@ holds.
 **The token** comes from `HF_TOKEN`, or else from the owner's file (`TOKEN_FILE`, mode 600). It is sent only to
 `huggingface.co`: the fetch refuses any other host, on the first URL and on every redirect. It is never logged, put
 in an error, stored in the artifact or written to the repository. Without it the source fails, saying where the token
-goes; the build then carries the last good rows or says the surface has no evidence (D-216 clause 4).
+goes; when the leaderboard failed as well, the build then carries the last good rows or says the surface has no
+evidence (D-216 clause 6).
 """
 
 from __future__ import annotations
@@ -35,6 +40,13 @@ from app.workflows.schema import EFFORT_LEVELS, ScoreRow
 SOURCE_NAME = "datacurve_deepswe"
 BENCHMARK = "DeepSWE"
 METRIC = "% resolved"
+SITE_URL = "https://deepswe.datacurve.ai/"
+LEADERBOARD_URL = "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json"
+#: Each read's own host: the token goes to the hub alone, and the site is never sent it.
+_SITE_HOSTS = ("deepswe.datacurve.ai",)
+_HUB_HOSTS = ("huggingface.co",)
+#: The benchmark a leaderboard row must name.
+_LEADERBOARD_SOURCE = "deep-swe"
 DATASET_URL = "https://huggingface.co/datasets/datacurve/deep-swe-leaderboard"
 JOBS_URL = "https://huggingface.co/api/datasets/datacurve/deep-swe-leaderboard/tree/main/raw/jobs"
 _FILE_URL = "https://huggingface.co/datasets/datacurve/deep-swe-leaderboard/resolve/main/raw/jobs/{job}/{file}"
@@ -102,20 +114,38 @@ def read_token(environ: Mapping[str, str] | None = None, path: Path | None = Non
 
 
 class DatacurveClient:
-    """Production RawSource for Datacurve's DeepSWE dataset (D-001); the token is read at each fetch."""
+    """Production RawSource for Datacurve's DeepSWE board (D-001): the leaderboard, else the dataset, whose token
+    is read only when it is needed."""
 
     name = SOURCE_NAME
-    url = JOBS_URL
-    hosts: tuple[str, ...] = ("huggingface.co",)
+    url = LEADERBOARD_URL
+    hosts: tuple[str, ...] = (*_SITE_HOSTS, *_HUB_HOSTS)
 
     def __init__(self, *, token_file: Path | None = None, environ: Mapping[str, str] | None = None) -> None:
         self._token_file = token_file
         self._environ = environ
 
     def _get(self, url: str, headers: Mapping[str, str]) -> str:
-        return fetch_bounded(url, self.name, _TIMEOUT_S, hosts=self.hosts, headers=headers)
+        return fetch_bounded(url, self.name, _TIMEOUT_S, hosts=_HUB_HOSTS, headers=headers)
 
     def fetch_raw(self) -> str:
+        try:
+            board = fetch_bounded(LEADERBOARD_URL, self.name, _TIMEOUT_S, hosts=_SITE_HOSTS)
+            envelope = json.dumps({"leaderboard": board})
+            rows, _ = parse_datacurve(envelope, source=self.name)
+            if not rows:
+                msg = f"{self.name}: the leaderboard holds no usable row"
+                raise SourceError(msg)
+            return envelope
+        except SourceError as failed:
+            try:
+                return self._dataset()
+            except SourceError as exc:
+                msg = f"{self.name}: the leaderboard failed ({failed}), and so did the dataset: {exc}"
+                raise SourceError(msg) from exc
+
+    def _dataset(self) -> str:
+        """The dataset's newest job, read with the owner's token (D-216 clause 5)."""
         headers = {"Authorization": f"Bearer {read_token(self._environ, self._token_file)}"}
         try:
             listing: Any = json.loads(self._get(JOBS_URL, headers))
@@ -210,6 +240,8 @@ def parse_datacurve(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
     the board fails the source. Each row links the job's public page, which opens without a token's help.
     """
     envelope = _object(raw, "payload", source)
+    if "leaderboard" in envelope:
+        return _parse_leaderboard(envelope["leaderboard"], source)
     job = envelope.get("job")
     if not isinstance(job, str) or _JOB.fullmatch(job) is None:
         msg = f"{source}: the payload names no dated job"
@@ -255,3 +287,53 @@ def parse_datacurve(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
                 continue
         best[(model, agent, effort)] = row
     return list(best.values()), skipped
+
+
+def _parse_leaderboard(text: object, source: str) -> tuple[list[ScoreRow], int]:
+    """Datacurve's leaderboard: one row a configuration at its stated effort, the one that states none at `high`
+    (D-216 clause 3); undated (clause 4). A row that is not a usable DeepSWE score is skipped and counted."""
+    board = _object(text, "leaderboard", source)
+    entries = board.get("rows")
+    if not isinstance(entries, list) or not entries:
+        msg = f"{source}: the leaderboard holds no rows"
+        raise SourceError(msg)
+    best: dict[tuple[str, str, str], ScoreRow] = {}
+    skipped = 0
+    for entry in entries:
+        row = _leaderboard_row(entry, source)
+        if row is None:
+            skipped += 1
+            continue
+        key = (row.raw_name, row.harness, row.effort or "")
+        if key in best:
+            skipped += 1
+            if row.score <= best[key].score:
+                continue
+        best[key] = row
+    return list(best.values()), skipped
+
+
+def _leaderboard_row(entry: object, source: str) -> ScoreRow | None:
+    if not isinstance(entry, dict) or entry.get("source") != _LEADERBOARD_SOURCE:
+        return None
+    model, harness, mean = entry.get("model"), entry.get("harness"), entry.get("pass_at_1")
+    if not isinstance(model, str) or not model.strip() or not isinstance(harness, str) or not harness.strip():
+        return None
+    if not isinstance(mean, int | float) or isinstance(mean, bool) or not math.isfinite(mean) or not 0 <= mean <= 1:
+        return None
+    stated = entry.get("reasoning_effort")
+    effort = DEFAULT_EFFORT if stated is None else stated if stated in EFFORT_LEVELS else None
+    if effort is None:
+        return None
+    return ScoreRow(
+        raw_name=model.strip(),
+        benchmark=BENCHMARK,
+        metric=METRIC,
+        score=float(mean) * 100.0,
+        harness=harness.strip(),
+        run_date=None,
+        cost_total=None,
+        source=source,
+        source_url=SITE_URL,
+        effort=effort,
+    )

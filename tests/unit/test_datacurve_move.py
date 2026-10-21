@@ -61,7 +61,11 @@ def test_datacurve_is_credited_under_cc_by_4_0_with_its_dataset() -> None:
     credit = board_tables.CREDITS["datacurve"]
     assert (credit.publisher, credit.url, credit.licence, credit.licence_url) == (
         "Datacurve", DATASET, "CC BY 4.0", CC_BY)
-    assert [c["id"] for c in rank.credits_for([citation])] == ["datacurve"]
+    assert [c["id"] for c in rank.credits_for([citation])] == ["datacurve_site", "datacurve"]
+    # D-216 (revised): the leaderboard, read first, is credited with its link and says it publishes no licence.
+    site = board_tables.CREDITS["datacurve_site"]
+    assert (site.url, site.licence_url) == ("https://deepswe.datacurve.ai/", None) and "D-215" in site.licence
+    assert "https://deepswe.datacurve.ai/" in citation
 
 
 def test_epochs_copy_stays_attributed_and_credited_as_a_retired_source() -> None:

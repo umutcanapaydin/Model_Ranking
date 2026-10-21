@@ -247,11 +247,12 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         minimum_rows=ARENA_BOARDS["search_factuality"].minimum_rows,
         required=False,
     ),
-    # D-216 (#265): Datacurve's own DeepSWE runs, CC BY 4.0, read with the owner's Hugging Face token.
-    # OPTIONAL as every board fetched from Hugging Face is (D-121), and for the token: without it the
-    # source fails loudly and carries its last good rows, or `agentic-coding` says it has no evidence;
-    # it never fails another source's night, nor CI's contract build, which holds no token. 27 runs in
-    # the job of 2026-06-06; half of that is a partial job or a broken file, not a quiet month.
+    # D-216 (#265): Datacurve's own DeepSWE board: its site's leaderboard (70 configurations on
+    # 2026-10-21), else its CC BY 4.0 dataset read with the owner's Hugging Face token (27 runs in the
+    # job of 2026-06-06). OPTIONAL as every board fetched from Hugging Face is (D-121): when both fail
+    # the source carries its last good rows, or `agentic-coding` says it has no evidence; it never fails
+    # another source's night. The floor is half the fallback's job: below it, a partial job or a broken
+    # file, not a quiet month.
     RemoteSource(
         name="datacurve_deepswe",
         client=DatacurveClient,
