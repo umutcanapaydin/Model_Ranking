@@ -817,7 +817,7 @@ FIXTURE_RULES: dict[str, str] = {
     # #242 (G-12).
     "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
     "a selector by its type": "(it takes a `Selector`, whatever its label)",
-    "a key labelled `key:`": "(a key labelled `key:` or `keyPath:`)",
+    "a Foundation key by its label": "(a key labelled `key:` or `keyPath:`)",
     # #242 (G-13).
     "what a served number may meet": "`Swift.abs` on a served position",
     "a function value called with a served number": "`a function value` on a served position",
