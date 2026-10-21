@@ -134,3 +134,17 @@ func shapeRepeatElement(_ s: Standing) -> Int { Array(repeatElement(0, count: s.
 // ALLOWED, each: a served number compared, and shown.
 func shapeCompared(_ s: Standing) -> Bool { s.position > 3 } // allowed: compared
 func shapeShown(_ s: Standing) -> String { "#\(s.position)" } // allowed: shown
+
+// #242, the security review's B1: the twins above, met by reference rather than applied: a function handed to an
+// element method, held as a value, or named in a key path; and (past the review) an app function handed to `map`,
+// which the flow does not follow, and a closure literal called on the spot. REFUSED, each, on its line.
+func shapeMapAbs(_ s: Standing) -> Int { [s.position].map(abs).first ?? 0 } // shape: map-abs
+func shapeAbsValue(_ s: Standing) -> Int { let f: (Int) -> Int = abs; return f(s.position) } // shape: abs-value
+func shapeMaxValue(_ s: Standing) -> Int { let m: (Int, Int) -> Int = max; return m(s.position, 3) } // shape: max-value
+func shapeMapMagnitude(_ s: Standing) -> UInt { [s.position].map(\.magnitude).first ?? 0 } // shape: map-magnitude
+func shapeKeyPathMagnitude(_ s: Standing) -> UInt { s.position[keyPath: \.magnitude] } // shape: keypath-magnitude
+func shapeMapWords(_ s: Standing) -> [Int] { [s.position].map(\.words.count) } // shape: map-words
+func shapeMapTruncating(_ s: Standing) -> [Int] { [s.position].map(Int.init(truncatingIfNeeded:)) } // shape: map-truncating
+func shapeBumped(_ x: Int) -> Int { x + 1 }
+func shapeMapAppFunction(_ s: Standing) -> [Int] { [s.position].map(shapeBumped) } // shape: map-app-function
+func shapeCalledLiteral(_ s: Standing) -> Int { { $0 + 1 }(s.position) } // shape: called-literal

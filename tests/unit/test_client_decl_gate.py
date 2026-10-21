@@ -1261,3 +1261,20 @@ def test_242_a_selector_made_from_text_and_asked_of_an_object_is_refused(declare
     """#242 (G-12; the M21-W3 review's round 2, B3): `Selector.init` and `responds(to:)` are declared in
     `ObjectiveC`, off the module allowlist since the M21 closure (S6); the fixture plants both. # covers D-214"""
     assert _refused_in("ContentView.swift", f"`{declared}` in `ObjectiveC`")
+
+
+#: #242, the security review's B1: the G-2 twins met by reference, each marked in `Arithmetic.swift`.
+BY_REFERENCE_TWINS = ["map-abs", "abs-value", "max-value", "map-magnitude", "keypath-magnitude", "map-words",
+                      "map-truncating", "map-app-function", "called-literal"]
+
+
+@pytest.mark.parametrize("shape", BY_REFERENCE_TWINS)
+def test_242_a_served_number_meeting_a_declaration_by_reference_is_refused(shape: str) -> None:
+    """#242, the security review's B1 (G-2, INV-76): `abs`, `max`, `.magnitude`, `.words` and
+    `Int.init(truncatingIfNeeded:)` met by reference passed: handed to `map`, held as a value and called, or named
+    in a key path. The element-passing admission's premise, a closure the flow follows, was not checked. So are an
+    app function handed to `map` and a closure literal called on the spot. Each is refused on its own line.
+    # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
