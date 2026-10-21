@@ -36,16 +36,17 @@ with no Xcode, and this one runs where the toolchain is. Neither is the whole ch
   passes (B19); the file system is whole inside `FrontDoor.swift`, so a write to the temporary
   directory from there passes too (B31). What a file does with a capability it owns is for review
   and the tests. The first exception is the two privacy sinks (#85, D-180, `_SinkReach`); the second
-  is a served number (#60, D-181, `_Flow`). For both, the compiled gate refuses the shapes its fixture
-  holds (`scripts/client_decl_fixtures/`), each as written there; the same form written another way
-  (bound to a name first, split over lines, behind a widened type) is not held, and any other form is
-  not held (G-1, G-2; see INV-66 and INV-76 in `docs/security-invariants.md`).
-- The gap register's own URLs: `FrontDoor.swift` may make a URL and load it with `Data(contentsOf:)`.
-  Since #246 a URL initialiser or a decode whose type prints as `URL` is refused there, and its Foundation
-  declarations are listed (`STORE_FOUNDATION_ALLOWED`); a URL decoded through a generic helper is not held
-  (G-13, #276).
-  `StandingsStore.swift` is a privacy sink, so a Foundation declaration off `SINK_FOUNDATION_ALLOWED`
-  is refused there, and any other form is not held (G-1).
+  is a served number (#60, D-181, `_Flow`). Since #242 (D-214) both are allowlists: a sink file references
+  only its own Foundation list, the code a sink runs only `SINK_RUNS_ALLOWED`, and a constant of another
+  file only when `SINK_CONSTANT_TYPES` admits its type; a served number meets only what `SERVED_MAY_MEET`
+  and its rules admit. What each still does not hold is G-1 and G-2 (INV-66, INV-76 in
+  `docs/security-invariants.md`); every refusal the fixture made before #242 is pinned
+  (`PINNED_REFUSALS`).
+- The two stores' URLs: since #242 a store makes a URL only from the file manager's folders
+  (`STORE_FOLDER_MAKERS`) or by a function of its own file not generic over it, reads only its own `url`
+  (`STORE_READS`), and takes a URL parameter only in an initialiser `PROVENANCE` keeps to its file; since
+  #246 a URL initialiser or decode by name is refused there, and `FrontDoor.swift`'s Foundation
+  declarations are listed (`STORE_FOUNDATION_ALLOWED`). What is not held is G-13.
 - The kept answers' file (#297, INV-67): `StandingsStore.keep` is refused outside `ContentView.load()`, both
   matched by their full names (#322), and a kept answer's type outside its files when a decode's generic
   substitution gives a `Decodable` parameter that type, read through every `typealias` the dump declares,
@@ -740,6 +741,8 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "not the store's own `GapRegisterStore.url`"),
     ("StandingsStore.swift", "a store makes a URL only"), ("ContentView.swift", "builds GapRegisterStore"),
     ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
+    # #242 (G-2): what a served number meets off its list.
+    ("Arithmetic.swift", "`Swift.abs` on a served position"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -793,6 +796,7 @@ FIXTURE_RULES: dict[str, str] = {
     # #242 (G-12).
     "by name, by its label": "reaches a value, a class or a selector by name (an argument labelled",
     # #242 (G-13).
+    "what a served number may meet": "`Swift.abs` on a served position",
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
     "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
