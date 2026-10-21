@@ -1319,4 +1319,4 @@ def test_242_a_url_a_store_reads_through_a_key_path_off_another_files_type_is_re
     """#242, the security review's M2 (G-13): `_store_received` read only a direct reference or a member read, so a
     URL-typed declaration of another file read through a key path (`held[keyPath: \\Holder.address]`) passed, and the
     register's store was built on it. # covers D-214, REQ-GAP-001"""
-    assert _refused_in("FrontDoor.swift", "receives a URL, `FixtureAddressHolder.address`, declared in ContentView.swift")
+    assert _refused_in("FrontDoor.swift", "receives a URL, by `FixtureAddressHolder.address`, declared in ContentView.swift")

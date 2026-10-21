@@ -746,6 +746,8 @@ FIXTURE_REFUSALS = {
     ("FrontDoor.swift", "not the store's own `GapRegisterStore.url`"),
     ("StandingsStore.swift", "a store makes a URL only"), ("ContentView.swift", "builds GapRegisterStore"),
     ("FrontDoor.swift", "`GapRegisterStore.fixtureAt(_:)` takes a URL"),
+    # #242, the security review's M2: a URL of another file's type, read through a key path.
+    ("FrontDoor.swift", "receives a URL, by `FixtureAddressHolder.address`, declared in ContentView.swift"),
     # #242 (G-12): a selector made from text and asked of an object, both `ObjectiveC`'s (the module rule).
     ("ContentView.swift", "`ObjectiveC.Selector.init(_:` in `ObjectiveC`"),
     # #242, the security review's M3: a selector passed unlabelled, and a key labelled `key:`.
@@ -1121,7 +1123,12 @@ def _store_made(file: str, node: _Node, line: str, aliases: dict[str, str]) -> l
 
 def _store_received(file: str, node: _Node, line: str) -> list[str]:
     """#242 (G-13): a URL a store reads off a declaration another file declares (not a call, which `_store_made`
-    judges)."""
+    judges): directly, as a member, or (the security review's M2) through a key path, whose members it names."""
+    if node.kind == "keypath_application_expr" and len(node.kids) >= 2 and (typed := TYPE_OF["type"].search(line)) \
+            and re.search(r"\bURL\b", typed.group(1)):
+        return [f"main.<store url>.`{place.group(1)}`, declared in {declared},@{_line(node)}"
+                for item in node.kids[1].walk() for place in MAIN_REF.finditer(item.line)
+                if (declared := pathlib.Path(place.group(2)).name) != file]
     if node.kind not in ("declref_expr", "member_ref_expr") or " implicit " in node.line \
             or (typed := TYPE_OF["type"].search(line)) is None or "->" in typed.group(1) \
             or not re.search(r"\bURL\b", typed.group(1)) or (place := MAIN_REF.search(line)) is None:
