@@ -1153,3 +1153,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `scripts/nightly_hosted.sh` is now a brief deploy command, so the Bash guard judges it. It already refused a `bash -n` of the deploy script during this work.
 - The Security-Reviewer's round 1 was BLOCKING (B1): once installed, a writer could dispatch the workflow on any branch, with the repository's token in reach. The token is now a `fly-production` environment's secret that only `main` reaches, and both jobs run only on main. M1, M2, M4, M5 and R2 are fixed on the branch; M3, R1 and R3 are filed (#389, #391, #392), and the guard half of M1 is filed too (#390).
 - Lesson: when a job moves to CI, list every writer of what the next run reads back; artifacts are shared across workflows and forks, so read them by the run that made them, never by name.
+
+## 2026-10-21 — fix/issue-371-generic-and-rebuilt: a served number into a numeric generic, or rebuilt inside a count or a search (#371)
+
+- Run queue-1021's, stacked on its integration branch; the #242 Security-Reviewer's M1, ruled by the owner in D-218 clause 4.
+- Red: 24 shapes planted in the client fixture, each passing in all four configurations, beside four admitted twins (a comparison in `if`, in `map`, in a sort, in `max(by:)`).
+- Two rules beside the arithmetic and meeting rules: a served number handed to a declaration of the app's own generic over a numeric protocol, or erased to `any` of one; and anything a served number meets inside a closure given to the eleven methods the ruling names, written in place or handed by name.
+- The shipping client failed the second rule six times (the staleness notice). Those places are admitted by name and counted, as sorts are, and the fixture's `filter-count` twin, admitted since #173, is now refused (assumptions file, two rows).
+- The pin is untouched; G-2 drops both shapes and names what the new rules do not hold, a counting loop with `if` among them.
+- Lesson: an allowlist written as a list of shapes leaks at the first spelling it does not name, so a rule over a closure should read what the closure is given to, not the operator inside it.

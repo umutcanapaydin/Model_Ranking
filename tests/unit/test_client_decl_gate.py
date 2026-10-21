@@ -576,7 +576,9 @@ def test_a_permission_the_client_no_longer_uses_fails_the_gate(monkeypatch: pyte
                   "STORE_FOUNDATION_ALLOWED", "ENGINE_CLIENT_REACHABLE", "CALLED_ONLY_IN", "KEPT_ANSWER_TYPES",
                   # #242: each sink's own list, what the code a sink runs may reference, the constants it may read.
                   "SINK_FOUNDATION_ALLOWED", "SINK_RUNS_ALLOWED", "SINK_CONSTANT_TYPES", "SERVED_MAY_MEET",
-                  "BY_NAME_ALLOWED", "STORE_FOLDER_MAKERS", "STORE_READS"):
+                  "BY_NAME_ALLOWED", "STORE_FOLDER_MAKERS", "STORE_READS",
+                  # #371: the client's own counts and searches over a served number.
+                  "COUNTS_OR_SEARCHES_PERMITTED"):
         monkeypatch.setattr(gate, table, {})
     assert gate.main() == 0
 
