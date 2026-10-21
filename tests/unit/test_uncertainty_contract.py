@@ -206,7 +206,7 @@ def test_discovery_answers_without_an_artifact_and_says_the_age_is_unknown(
 def test_an_undated_surface_names_its_benchmark_on_the_live_route(seeded: Path) -> None:
     """REQ-UNC-003: the undated source is NAMED on screen, through the real entry point.
 
-    The fixture's DeepSWE board carries release dates only, which is the shipping board's shape.
+    The fixture's DeepSWE board carries no run date (its job file names no finish), so it is undated.
     """
     body = TestClient(adapter.app).get("/v1/recommendations", params={"task": "agentic-coding"})
     answer = body.json()["answers"][0]

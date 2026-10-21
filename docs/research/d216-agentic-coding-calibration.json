@@ -1,0 +1,35 @@
+{
+  "surface": "agentic-coding",
+  "source": "datacurve_deepswe",
+  "benchmark": "DeepSWE",
+  "ranked_population": 19,
+  "floor": 67.0,
+  "above_floor": [
+    [
+      "Gemini 3.8 Flash",
+      73.8255033557047
+    ],
+    [
+      "GPT 6 Astra",
+      73.23008849557522
+    ],
+    [
+      "Claude Opus 5",
+      72.82850779510022
+    ],
+    [
+      "GPT-5.6 Sol",
+      69.40133037694012
+    ],
+    [
+      "Claude Fable 5",
+      68.6046511627907
+    ]
+  ],
+  "stderr": 1.313,
+  "stderr_from": "Datacurve's published 95% run-to-run interval per row of its leaderboard (leaderboard-live.json v1.1, ci_half / 1.96), median of its 70 rows, read 2026-10-21",
+  "rule": "close_call = 2 x stderr; value_window ends mid-gap in the first gap wider than close_call past 3 candidates, else at the floor (D-194 clause 4)",
+  "close_call": 2.6,
+  "value_window": 3.0,
+  "candidates": 3
+}

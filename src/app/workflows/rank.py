@@ -21,6 +21,7 @@ from app.workflows.board_tables import (
     ARENA_SLICES,
     CC_BY_NC_4,
     CREDITS,
+    DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
     RETIRED_EXTERNAL_ATTRIBUTION,
@@ -59,6 +60,9 @@ ARC_ATTRIBUTION = ("ARC-AGI-2 scores: ARC Prize's public evaluation runs, "
 #: D-194 (#265): TB 4.0's leaderboard, read from its repository in place of Epoch's copy of TB 2.0.
 TERMINALBENCH_ATTRIBUTION = ("Terminal-Bench 4.0 scores: Terminal-Bench leaderboard submissions, "
                              "https://github.com/harbor-framework/terminal-bench (Apache-2.0)")
+#: D-216 (#265): Datacurve's own DeepSWE leaderboard, in place of Epoch's copy. It publishes no licence; its public
+#: numbers are used with this attribution (D-215).
+DATACURVE_ATTRIBUTION = f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE leaderboard, {DATACURVE_SITE_URL}"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
@@ -66,6 +70,7 @@ ATTRIBUTIONS = (
     AIDER_ATTRIBUTION,
     TERMINALBENCH_ATTRIBUTION,
     ARC_ATTRIBUTION,
+    DATACURVE_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
     *RETIRED_EXTERNAL_ATTRIBUTION.values(),
@@ -97,9 +102,8 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "aider": AIDER_ATTRIBUTION,
     "terminalbench_4": TERMINALBENCH_ATTRIBUTION,
     "arc_agi_2": ARC_ATTRIBUTION,
+    "datacurve_deepswe": DATACURVE_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
-    # #124: compiled by Epoch from another publisher, and credited to it.
-    "epoch_deepswe_external": EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"],
     # D-127's boards. All seven come out of the same owner-placed Epoch bundle, and are listed
     # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
     # nobody had reviewed the licence of, which is the opposite of what this table is for. Three
@@ -137,16 +141,16 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     AIDER_ATTRIBUTION: ("aider",),
     TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
     ARC_ATTRIBUTION: ("arc_prize", "arc_prize_solutions"),
+    DATACURVE_ATTRIBUTION: ("datacurve_site",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).
     **{EPOCH_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
-        ("epoch_deepswe_external", "datacurve"),
-        ("epoch_mmlu", "helm"))},
+        ("epoch_mmlu", "helm"),)},
     # The #265 review's B2: as D-193 credited them, for an artifact an older release built.
     **{RETIRED_EXTERNAL_ATTRIBUTION[source]: (publisher, "epoch_compilation") for source, publisher in (
         ("epoch_arc_agi", "arc_prize_leaderboard"), ("epoch_terminalbench", "terminal_bench_2"),
-        ("epoch_webdev", "arena_site"))},
+        ("epoch_webdev", "arena_site"), ("epoch_deepswe_external", "datacurve_leaderboard"))},
 }
 
 

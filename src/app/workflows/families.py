@@ -21,7 +21,7 @@ from __future__ import annotations
 #: surface -> its family, the primary board first (`categories.CATEGORIES[surface].primary_source`).
 FAMILIES: dict[str, tuple[str, ...]] = {
     "coding": ("swebench", "epoch_swe_bench_verified", "aider", "arena_text_coding"),
-    "agentic-coding": ("epoch_deepswe_external", "terminalbench_4", "arena_agent"),
+    "agentic-coding": ("datacurve_deepswe", "terminalbench_4", "arena_agent"),
     "assistant": ("arena",),
     "everyday": ("epoch_eci", "arena", "epoch_mmlu"),
     "expert": ("epoch_gpqa", "arena_text_expert", "epoch_mmlu"),

@@ -73,11 +73,12 @@ Proprietary — ILGAR / Umut Can Apaydın. All rights reserved.
 ## Data attribution
 
 Epoch AI benchmark data is used under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Required citation: Epoch AI, ‘Capabilities & benchmarking’. Published online at epoch.ai. Retrieved from ‘https://epoch.ai/benchmarks’ [online resource].
-Three boards Epoch compiles from other publishers (DeepSWE, WebDev Arena and MMLU) keep their
-publishers' own licences, as Epoch says; each is credited to its source in the payloads that carry it
-(#124). Since D-194 (#265) ARC-AGI-2 is read from ARC Prize's own public-evaluation runs (MIT),
-Terminal-Bench 4.0 from its leaderboard repository (Apache-2.0), and the second price source is
-models.dev (MIT), in place of OpenRouter.
+Two boards Epoch compiles from other publishers (WebDev Arena and MMLU) keep their publishers' own
+licences, as Epoch says; each is credited to its source in the payloads that carry it (#124). Since
+D-194 (#265) ARC-AGI-2 is read from ARC Prize's own public-evaluation runs (MIT), Terminal-Bench 4.0
+from its leaderboard repository (Apache-2.0), and the second price source is models.dev (MIT), in place
+of OpenRouter. Since D-216 (#265) DeepSWE is read from Datacurve's own leaderboard,
+https://deepswe.datacurve.ai/ (© Datacurve; public numbers, attributed), in place of Epoch's copy.
 This citation also travels in every ranking export and recommendation payload source list
 (REQ-LIC-001).
 The app's Credits screen names every publisher the served boards credit, with its licence or terms and

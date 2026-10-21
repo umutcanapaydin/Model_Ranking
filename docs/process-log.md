@@ -1135,3 +1135,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Each pinned refusal is now keyed by file, planted line (stripped, with its rank among identical lines, since seven pinned lines share their text with another) and text without the line number. The 183 lines were converted one for one from the old pin, which the fixture's line numbers still matched.
 - The pin's first 183 lines are held by their SHA-256 in the gate, so an edited, cut, reordered or regenerated pin fails the self-test in every configuration; lines may still be appended.
 - Lesson: a pin that lets a refactor break it will be regenerated, so key it by what stays put, and hold the pin itself, or the regeneration hides the loosening it exists to catch.
+
+## 2026-10-21 — enhancement/issue-265-datacurve: agentic-coding ranks on Datacurve's own DeepSWE leaderboard (#265)
+
+- The first build read only Datacurve's gated Hugging Face dataset, with the owner's token, and its one job is of 2026-06-06. Shown that it was four months behind Epoch's copy, the owner asked to stay up to date. The JSON Datacurve's own site loads (v1.1, 70 configurations over 28 models, compiled 2026-09-22) is now the only source, used under D-215. A second ruling dropped the dataset fallback: the daily refresh's carry-forward already keeps the previous night's rows when a site fails. No token is read (D-216, revised twice before merge).
+- The re-triage assumed the dataset's effortless runs had no effort; the job's config stated one for four of them. The rule kept from that: a row keeps the effort its publisher states, and a default run stands at `high`, as Datacurve's own leaderboard labels Gemini 3.1 Pro's.
+- All 70 rows link a catalogue model with no alias added; 19 models rank at `high`, five clear the floor of 67.0. Rounding the calibrated window to the half point put it below its close call, and `scripts/calibrate_surface.py` now rounds up in that case.
+- Merged `main` (#385, D-215) mid-branch: `epoch_webdev` and `epoch_deepswe_external` are retired side by side. A test pins a failed site night through the build's carry-forward.
+- Lesson: before wiring a gated copy of a board, look for the list the publisher's own site loads, and before adding a fallback, check what the refresh already does on a failed night.

@@ -45,14 +45,13 @@ EPOCH_ATTRIBUTION = f"{EPOCH_CITATION} ({CC_BY_4})"
 EPOCH_EXTERNAL_ATTRIBUTION: dict[str, str] = {
     source: f"{credit}. Via {EPOCH_CITATION}"
     for source, credit in (
-        ("epoch_deepswe_external", "DeepSWE scores: Datacurve's DeepSWE leaderboard, https://deepswe.datacurve.ai/"),
         ("epoch_mmlu", "MMLU scores: Stanford CRFM's HELM Lite leaderboard, "
                        "https://crfm.stanford.edu/helm/lite/latest/#/leaderboard/mmlu, and the model makers' "
                        "technical reports Epoch names for its other rows"),
     )
 }
 
-#: The #265 review's B2: boards D-194 stopped building, attributed as they were. An artifact an older release
+#: The #265 review's B2: boards D-194 and D-216 stopped building, attributed as they were. An artifact an older release
 #: built still holds them, and a citation missing from every map refuses the engine's start, so the install
 #: rolled back before the startup refresh could replace that artifact. Kept for the artifacts that still
 #: hold them; never declared, so no build writes them again. #376 (D-215): Epoch's WebDev copy joins them,
@@ -64,8 +63,13 @@ RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
         ("epoch_terminalbench", "Terminal-Bench 2.0 scores: Terminal-Bench v2 leaderboard, "
                                 "https://www.tbench.ai/leaderboard/terminal-bench/2.0"),
         ("epoch_webdev", "WebDev Arena scores: LMArena's WebDev Arena leaderboard, https://arena.ai/leaderboard"),
+        # D-216 (#265): Epoch's copy of DeepSWE, replaced by Datacurve's own dataset (`datacurve_deepswe`).
+        ("epoch_deepswe_external", "DeepSWE scores: Datacurve's DeepSWE leaderboard, https://deepswe.datacurve.ai/"),
     )
 }
+
+#: D-216 (#265): Datacurve's own DeepSWE leaderboard, `agentic-coding`'s board.
+DATACURVE_SITE_URL = "https://deepswe.datacurve.ai/"
 
 #: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
 #: process and the client read one string (W-125).
@@ -131,8 +135,11 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("arc_prize_solutions", "ARC Prize Foundation", "ARC-AGI-2 public evaluation tasks and solutions, "
            "which this app scores the runs against", "https://github.com/arcprize/ARC-AGI-2", "Apache-2.0",
            "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE", "Copyright 2019 ARC Prize Foundation."),
-    Credit("datacurve", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI", "https://deepswe.datacurve.ai/",
-           "\u00a9 Datacurve; no licence published", None),
+    # D-216 (#265): Datacurve's own leaderboard, in place of Epoch's copy of it. It publishes no licence; its
+    # numbers are used with this credit under D-215.
+    Credit("datacurve_site", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard (v1.1), as its site publishes it",
+           DATACURVE_SITE_URL, "\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)",
+           None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
            "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
@@ -144,6 +151,8 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     # an older release built (`RETIRED_EXTERNAL_ATTRIBUTION`; `arena_site` since D-215, #376).
     Credit("arc_prize_leaderboard", "ARC Prize", "ARC-AGI leaderboard, compiled by Epoch AI",
            "https://arcprize.org/leaderboard", "ARC Prize Terms", "https://arcprize.org/terms"),
+    Credit("datacurve_leaderboard", "Datacurve", "DeepSWE leaderboard, compiled by Epoch AI",
+           "https://deepswe.datacurve.ai/", "\u00a9 Datacurve; no licence published", None),
     Credit("terminal_bench_2", "Terminal-Bench", "Terminal-Bench 2.0 leaderboard, compiled by Epoch AI",
            "https://www.tbench.ai/leaderboard/terminal-bench/2.0", "No licence stated on the leaderboard", None),
     Credit("openrouter", "OpenRouter", "Public model catalogue: prices", "https://openrouter.ai/api/v1/models",

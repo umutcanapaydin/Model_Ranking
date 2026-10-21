@@ -37,7 +37,7 @@ from app.clients.arena import (
     parse_arena,
 )
 from app.clients.arena_slices import ArenaSliceClient
-from app.clients.deepswe import DeepSWEClient
+from app.clients.datacurve import DatacurveClient, parse_datacurve
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
@@ -52,7 +52,7 @@ from app.workflows.ingest import (
     ingest_aider,
     ingest_arc_agi_2,
     ingest_arena,
-    ingest_deepswe,
+    ingest_datacurve,
     ingest_epoch,
     ingest_litellm,
     ingest_models_dev,
@@ -247,6 +247,19 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         minimum_rows=ARENA_BOARDS["search_factuality"].minimum_rows,
         required=False,
     ),
+    # D-216 (#265): Datacurve's own DeepSWE leaderboard, public, no token (70 configurations on
+    # 2026-10-21). OPTIONAL as every sole-evidence board is (D-121): a night the site fails is carried
+    # by the refresh (D-156), or past the carry window `agentic-coding` says it has no evidence; it never
+    # fails another source's night. The floor is half the recorded board, as Arena's are: below it, a
+    # cut file, not a quiet month.
+    RemoteSource(
+        name="datacurve_deepswe",
+        client=DatacurveClient,
+        ingest=ingest_datacurve,
+        parse=parse_datacurve,
+        minimum_rows=35,
+        required=False,
+    ),
     # M21-W1 (#185): LMArena's own WebDev board, `web-dev`'s primary under CC-BY-4.0. OPTIONAL as
     # every Arena board is (D-121): without it the surface says it has no evidence.
     RemoteSource(
@@ -266,14 +279,8 @@ LOCAL_BUNDLES: tuple[LocalBundle, ...] = (
         ingest=ingest_epoch,
         reason="D-101: owner-placed bundle, read from disk; a runtime fetch would breach the boundary",
     ),
-    LocalBundle(
-        name="epoch_deepswe_external",
-        client_type=DeepSWEClient,
-        ingest=ingest_deepswe,
-        # This one is the sole primary evidence for `agentic-coding`, which is half of the answer
-        # Ruling A froze. Without it that surface has nothing to say.
-        reason="M5 data boundary: an allowlisted CSV inside the same owner-placed Epoch bundle",
-    ),
+    # D-216 (#265): `epoch_deepswe_external`, Epoch's copy of DeepSWE, is no longer read from the bundle;
+    # `agentic-coding` ranks on Datacurve's own dataset (`datacurve_deepswe` above).
 )
 
 

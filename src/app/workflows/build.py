@@ -628,10 +628,9 @@ def _ingest_bundles(
                 msg = f"stored 0 rows from {bundle_dir}"
                 raise SourceError(msg)
         except (SourceError, OSError) as exc:
-            # Same rollback as a rejected remote source (MINOR-1), and the reason applies harder
-            # here: `epoch_deepswe_external` is the sole primary evidence for `agentic-coding`, so
-            # a partial bundle left in place would make that surface answer from fragments while
-            # the build reports it as having none.
+            # Same rollback as a rejected remote source (MINOR-1): a partial bundle left in place
+            # would make a surface answer from fragments while the build reports it as having none.
+            # (`epoch_deepswe_external` was `agentic-coding`'s sole evidence here until D-216.)
             for table in ("pricing", "scores"):
                 reset_source(conn, table, bundle.name)
             if drift is not None:

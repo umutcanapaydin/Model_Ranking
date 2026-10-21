@@ -120,8 +120,11 @@ def test_arena_is_the_only_optional_source() -> None:
         "arena_search_factuality",
         # M21-W1 (#185): LMArena's own WebDev board, the same dataset.
         "arena_webdev",
+        # D-216 clause 4 (#265): the one exception outside the LMArena dataset, ruled by its own ADR. A
+        # board fetched from Hugging Face with the owner's token, which CI's contract build never holds.
+        "datacurve_deepswe",
     }, (
-        f"D-121 + D-144 name the LMArena boards and only those as optional; found {optional}"
+        f"D-121 + D-144 name the LMArena boards, and D-216 Datacurve's, as the only optional ones; found {optional}"
     )
 
 

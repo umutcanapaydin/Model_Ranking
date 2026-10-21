@@ -116,11 +116,18 @@ CATEGORIES: dict[str, CategorySpec] = {
         metric="% resolved",
         score_unit="points",
         secondary_benchmark=None,
-        primary_source="epoch_deepswe_external",
+        # D-216 (#265): Datacurve's own CC BY 4.0 dataset, in place of Epoch's copy of the board.
+        primary_source="datacurve_deepswe",
         # The floor is taken over every effort level on the board, like every surface (D-148, D-159;
         # the owner ruled 2026-09-23: no exception), though the surface ranks at `high`.
-        value_window=6.0,
-        close_call=1.5,
+        # D-216 clause 7 (#265): measured on Datacurve's own leaderboard (v1.1, compiled 2026-09-22), the list
+        # the source reads first, by `scripts/calibrate_surface.py` (`docs/research/d216-agentic-coding-calibration.json`,
+        # `docs/reviews/issue-265-agentic-coding-calibration.md`). 19 models ranked at `high`, all priced; five above
+        # the floor of 67.0. The tie margin is twice Datacurve's median run-to-run standard error (1.313); the
+        # window ends in the 3.4-point gap below the third model, at its half point (3.0, rounded up so it never
+        # falls below the tie margin). Epoch's copy's 6.0 / 1.5 were measured on a snapshot of the same list.
+        value_window=3.0,
+        close_call=2.6,
         ranking_effort="high",
     ),
     # ── D-127's new surfaces ────────────────────────────────────────────────────────────────────

@@ -220,13 +220,14 @@ def test_an_age_nothing_can_read_is_expired_and_the_report_stays_json(tmp_path: 
     json.loads(json.dumps(report.as_json(), allow_nan=False))
 
 
-@pytest.mark.parametrize("source", ["epoch_gpqa", "epoch_deepswe_external"])
+@pytest.mark.parametrize("source", ["epoch_gpqa", "epoch_swe_bench_verified"])
 def test_a_board_or_bundle_that_fails_with_its_directory_present_is_carried(
     tmp_path: Path, source: str
 ) -> None:
     """Review MAJOR-3: the realistic Epoch outage is a directory that is there with a file missing
     or broken, which takes the `except` path, not the no-directory one. A board (`epoch_gpqa`) and a
-    bundle (`epoch_deepswe_external`) each carry there too. Red on the review's M18 and M19."""
+    bundle each carry there too. Red on the review's M18 and M19. The bundle was `epoch_deepswe_external`
+    until D-216 (#265) stopped building it; `epoch_swe_bench_verified` is the bundle left."""
     live = _live(tmp_path)
     with sqlite3.connect(live) as db:
         db.execute(

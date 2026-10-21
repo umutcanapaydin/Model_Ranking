@@ -54,13 +54,12 @@ def test_an_attribution_with_no_credit_is_refused() -> None:
 
 
 def test_each_publisher_is_credited_once_in_the_order_the_attributions_come() -> None:
-    owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_deepswe_external"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
-    assert _ids(owed) == ["datacurve", "epoch_compilation", "epoch", "litellm", "models_dev"]
+    owed = [EPOCH_EXTERNAL_ATTRIBUTION["epoch_mmlu"], EPOCH_ATTRIBUTION, PRICING_ATTRIBUTION]
+    assert _ids(owed) == ["helm", "epoch_compilation", "epoch", "litellm", "models_dev"]
 
 
 def test_a_board_epoch_compiles_credits_its_publisher_and_epochs_compilation() -> None:
-    for source, publisher in (("epoch_deepswe_external", "datacurve"),
-                              ("epoch_mmlu", "helm")):
+    for source, publisher in (("epoch_mmlu", "helm"),):
         assert _ids([SOURCE_ATTRIBUTION[source]]) == [publisher, "epoch_compilation"], source
 
 
@@ -233,7 +232,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "models_dev": ("MIT", "https://github.com/sst/models.dev/blob/dev/LICENSE"),
         "arc_prize": ("MIT", "https://opensource.org/license/mit"),
         "arc_prize_solutions": ("Apache-2.0", "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE"),
-        "datacurve": ("\u00a9 Datacurve; no licence published", None),
+        "datacurve_site": ("\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)", None),
         "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",
                  "https://github.com/stanford-crfm/helm/blob/main/LICENSE"),
@@ -241,6 +240,7 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         # The #265 review's B2: the retired sources' publishers, for an artifact an older release built.
         "arc_prize_leaderboard": ("ARC Prize Terms", "https://arcprize.org/terms"),
         "terminal_bench_2": ("No licence stated on the leaderboard", None),
+        "datacurve_leaderboard": ("\u00a9 Datacurve; no licence published", None),
         "openrouter": ("OpenRouter Terms of Service", "https://openrouter.ai/terms"),
     }
 
