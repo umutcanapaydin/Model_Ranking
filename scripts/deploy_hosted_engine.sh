@@ -20,9 +20,12 @@
 #     release that built that data, read from the refresh's record beside it (#198). Data another
 #     release built is refused unless DEPLOY_ACCEPT_DATA_FROM names that release (the M21-W1 review's M4).
 #     A dry run writes that stamp beside the copy, build/hosted/build.txt. --ship opens neither the served
-#     artifact nor its record: it reads the stamp, checks that it names this commit, data this release
-#     built and the copy's own digest, and deploys it unless /health already answers it (D-217 clause 5;
-#     #389: the step that holds the token never parses a database).
+#     artifact nor its record: it reads the stamp, checks that it names this commit, that its writer said
+#     this release built the data, and that it carries the copy's own digest, and deploys it unless /health
+#     already answers it (D-217 clause 5; #389: the step that holds the token never parses a database).
+#     --ship trusts whoever wrote build/hosted: in the night that is the token-free refresh job. By hand,
+#     build/hosted is gitignored and no gate sees it, so ship only what a dry run of yours just wrote
+#     (the #389 review's M2).
 #  4. https://<app>.fly.dev/health must answer that build.
 #
 # The first time, the owner's own steps (D-123): `fly auth login`, a payment method on the Fly
@@ -57,6 +60,8 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
   exit 1
 fi
 APP="$("$PYTHON" -c 'import tomllib; print(tomllib.load(open("fly.toml", "rb"))["app"])')"
+# Seven characters always: `git rev-parse --short` grows with the clone, and the night's two jobs clone
+# differently (the #389 review's M1).
 HEAD_SHORT="$(git rev-parse HEAD | cut -c1-7)"
 
 # The build /health answers, or nothing when it does not answer one.
@@ -75,7 +80,7 @@ if [ "$SHIP" = 1 ]; then
   fi
   BUILD="$(head -n 1 build/hosted/build.txt | tr -d '[:space:]')"
   DATA="$("$PYTHON" -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest()[:8])' build/hosted/advisor.db)"
-  WANT="release-$(git rev-parse --short HEAD)-data-$DATA-from-$HEAD_SHORT"
+  WANT="release-$HEAD_SHORT-data-$DATA-from-$HEAD_SHORT"
   if [ "$BUILD" != "$WANT" ]; then
     echo "[deploy] refused: the prepared stamp '$BUILD' is not $WANT -- this commit, data this release" >&2
     echo "         built, and the prepared copy's own digest $DATA" >&2
@@ -137,7 +142,7 @@ fi
 mkdir -p build/hosted
 "$PYTHON" -m app.workflows.public --from "$SERVED" --to build/hosted/advisor.db
 DATA="$("$PYTHON" -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest()[:8])' build/hosted/advisor.db)"
-BUILD="release-$(git rev-parse --short HEAD)-data-$DATA-from-$FROM"
+BUILD="release-$HEAD_SHORT-data-$DATA-from-$FROM"
 printf '%s\n' "$BUILD" > build/hosted/build.txt
 if [ "$DRY" = 1 ]; then
   echo "[deploy] dry run: build/hosted/advisor.db is ready; $BUILD would be deployed to $APP"
