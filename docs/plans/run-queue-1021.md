@@ -10,7 +10,7 @@
 Mode: light
 Started: 2026-10-21
 Ended: open
-Integration branch: none · PR: none
+Integration branch: `integration/run-queue-1021` · PR: #394
 Plan PR: #393
 Rulings: D-218
 
@@ -26,7 +26,7 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | cd34b95 | issues | running |
 
 <!-- Base: the integration-branch sha the milestone's first wave was cut from (`none` until it
      starts); the milestone Tester and the last wave's cross-wave review take their range from it. Status: `queued` ·
@@ -39,7 +39,7 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-387 | fix/issue-387-hosted-refresh | #388 | none | queued |
+| issue-387 | fix/issue-387-hosted-refresh | #388 | none | running |
 | issue-389 | fix/issue-389-token-apart | none | none | queued |
 | issue-391 | fix/issue-391-repo-pin | none | none | queued |
 | issue-371 | fix/issue-371-generic-and-rebuilt | none | none | queued |

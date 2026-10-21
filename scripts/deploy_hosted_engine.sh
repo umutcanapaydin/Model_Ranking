@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-# M19-W5: deploy the hosted engine to Fly.io (D-116, `fly.toml`). The owner runs it; nothing else does.
+# M19-W5: deploy the hosted engine to Fly.io (D-116, `fly.toml`). The owner runs it, and since D-217 the
+# owner's nightly workflow does (`scripts/nightly_hosted.sh`); no agent does.
 #
 #   scripts/deploy_hosted_engine.sh             derive the public artifact, deploy, check /health
 #   scripts/deploy_hosted_engine.sh --dry-run   derive it and check the tree; deploy nothing
+#   scripts/deploy_hosted_engine.sh --if-new    as with no argument, unless /health already answers the build
 #
 # In order, stopping at the first failure:
 #  1. The tree must be committed, untracked files included, and its commit on origin/main: the image
 #     is stamped with this commit (APP_BUILD, L.7) and built from this tree, and a release is what
 #     `main` holds.
 #  2. The public artifact (#88, `app.workflows.public`) is derived from the one this Mac's engine
-#     serves (MODEL_RANKING_SERVED) into build/hosted/advisor.db, the file the image's `hosted` stage
-#     copies. The Mac's artifact is only read; the refresh stays on the Mac (D-116).
+#     serves (MODEL_RANKING_SERVED; the night's kept state, D-217) into build/hosted/advisor.db, the file
+#     the image's `hosted` stage copies. The served artifact is only read; the refresh never runs on the
+#     serving host (D-116).
 #  3. `fly deploy` builds that stage on Fly's builder, on one machine (`--ha=false`; Fly places two by
 #     default), stamped release-<sha>-data-<digest>-from-<sha>: the code, the data it carries, and the
 #     release that built that data, read from the refresh's record beside it (#198). Data another
 #     release built is refused unless DEPLOY_ACCEPT_DATA_FROM names that release (the M21-W1 review's M4).
+#     With --if-new, a build /health already answers is not deployed again (D-217 clause 5).
 #  4. https://<app>.fly.dev/health must answer that build.
 #
 # The first time, the owner's own steps (D-123): `fly auth login`, a payment method on the Fly
@@ -24,13 +28,15 @@ REPO="${MODEL_RANKING_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 SERVED="${MODEL_RANKING_SERVED:-$HOME/Library/Application Support/model-ranking/engine/data/advisor.db}"
 PYTHON="${PYTHON:-$REPO/.venv/bin/python}"
 TRIES="${DEPLOY_HEALTH_TRIES:-12}"
-# No argument, or exactly --dry-run: anything else is refused, never read as a deploy (the second W5
-# review's M1).
+# No argument, or exactly --dry-run or --if-new: anything else is refused, never read as a deploy (the
+# second W5 review's M1).
 DRY=0
+IF_NEW=0
 case "$#:${1:-}" in
   0:) ;;
   1:--dry-run) DRY=1 ;;
-  *) echo "[deploy] refused: the only argument is --dry-run (got: $*)" >&2; exit 2 ;;
+  1:--if-new) IF_NEW=1 ;;
+  *) echo "[deploy] refused: the only arguments are --dry-run and --if-new (got: $*)" >&2; exit 2 ;;
 esac
 
 cd "$REPO"
@@ -109,16 +115,24 @@ if [ "$DRY" = 1 ]; then
   exit 0
 fi
 
+# The build /health answers, or nothing when it does not answer one.
+live_build() {
+  curl -fsS --max-time 20 "https://$APP.fly.dev/health" 2>/dev/null | "$PYTHON" -c 'import json, sys
+try:
+    print(json.load(sys.stdin).get("build", ""))
+except ValueError:
+    print("")' || true
+}
+if [ "$IF_NEW" = 1 ] && [ "$(live_build)" = "$BUILD" ]; then
+  echo "[deploy] https://$APP.fly.dev already serves $BUILD; nothing deployed"
+  exit 0
+fi
+
 fly deploy --build-arg "APP_BUILD=$BUILD" --remote-only --ha=false
 
 LIVE=""
 for try in $(seq 1 "$TRIES"); do
-  ANSWER="$(curl -fsS --max-time 20 "https://$APP.fly.dev/health" || true)"
-  LIVE="$(printf '%s' "$ANSWER" | "$PYTHON" -c 'import json, sys
-try:
-    print(json.load(sys.stdin).get("build", ""))
-except ValueError:
-    print("")')"
+  LIVE="$(live_build)"
   if [ "$LIVE" = "$BUILD" ]; then
     echo "[deploy] https://$APP.fly.dev serves $BUILD"
     exit 0

@@ -1143,3 +1143,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - All 70 rows link a catalogue model with no alias added; 19 models rank at `high`, five clear the floor of 67.0. Rounding the calibrated window to the half point put it below its close call, and `scripts/calibrate_surface.py` now rounds up in that case.
 - Merged `main` (#385, D-215) mid-branch: `epoch_webdev` and `epoch_deepswe_external` are retired side by side. A test pins a failed site night through the build's carry-forward.
 - Lesson: before wiring a gated copy of a board, look for the list the publisher's own site loads, and before adding a fallback, check what the refresh already does on a failed night.
+
+## 2026-10-21 — fix/issue-387-hosted-refresh: the hosted engine is refreshed and deployed each night without the Mac (#387)
+
+- The owner ruled in chat: a scheduled GitHub Actions job, the previous night's state kept as an Actions artifact, and the deploy gate run every night with a stale gate skipping the deploy (D-217, amending D-116 clause 2, D-185 clauses 2 and 5, and D-154's revisit). The branch's first commit also closes two owner rows that #383's merge settled.
+- Red first: 25 tests on `scripts/nightly_hosted.sh` and the workflow's shape. Green: the script's `refresh` mode refuses to run beside a token and passes only a night that published or kept its data. Its `deploy` mode runs the real deploy gate, then the deploy script's new `--if-new`, and drops `DEPLOY_ACCEPT_DATA_FROM`.
+- The workflow is a proposal at `scripts/ci/nightly-hosted.yml`, which the owner copies. It has two jobs, and only `deploy` holds `FLY_API_TOKEN`; neither checkout keeps a credential. A test holds the installed copy equal to the proposal.
+- Found while writing it: a pull request's run, a fork's included, can upload an artifact named `hosted-state`. So the state is read only from this workflow's scheduled or dispatched runs on main, in this repository.
+- `scripts/nightly_hosted.sh` is now a brief deploy command, so the Bash guard judges it. It already refused a `bash -n` of the deploy script during this work.
+- The Security-Reviewer's round 1 was BLOCKING (B1): once installed, a writer could dispatch the workflow on any branch, with the repository's token in reach. The token is now a `fly-production` environment's secret that only `main` reaches, and both jobs run only on main. M1, M2, M4, M5 and R2 are fixed on the branch; M3, R1 and R3 are filed (#389, #391, #392), and the guard half of M1 is filed too (#390).
+- Lesson: when a job moves to CI, list every writer of what the next run reads back; artifacts are shared across workflows and forks, so read them by the run that made them, never by name.
