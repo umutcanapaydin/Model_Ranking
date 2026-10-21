@@ -6914,7 +6914,84 @@
                         (type_expr type="Selector.Type" location=/x/ContentView.swift:431:25 range=[/x/ContentView.swift:431:25 - line:431:25] typerepr="Selector"))))
                   (argument_list
                     (argument
-                      (declref_expr type="String" location=/x/ContentView.swift:431:34 range=[/x/ContentView.swift:431:34 - line:431:34] decl="main.(file).fixtureViewSelectorByName(_:_:).typed@/x/ContentView.swift:430:34" function_ref=unapplied))))))))))))
+                      (declref_expr type="String" location=/x/ContentView.swift:431:34 range=[/x/ContentView.swift:431:34 - line:431:34] decl="main.(file).fixtureViewSelectorByName(_:_:).typed@/x/ContentView.swift:430:34" function_ref=unapplied)))))))))))
+  (func_decl range=[/x/ContentView.swift:436:1 - line:440:1] "fixtureViewUnlabelledSelectors(_:_:_:_:_:)" interface_type="(Selector, NSObject, String, NSObject, NSObject) -> ()" access=internal result="()" thrown_type="<null>"
+    (parameter_list range=[/x/ContentView.swift:436:36 - line:436:121]
+      (parameter "named" interface_type="Selector")
+      (parameter "target" interface_type="NSObject")
+      (parameter "typed" interface_type="String")
+      (parameter "a" interface_type="NSObject")
+      (parameter "b" interface_type="NSObject"))
+    (brace_stmt range=[/x/ContentView.swift:436:123 - line:440:1]
+      (call_expr type="Void" location=/x/ContentView.swift:437:12 range=[/x/ContentView.swift:437:5 - line:437:70] nothrow isolation_crossing="none"
+        (dot_syntax_call_expr type="(Selector, Any, Any?) -> Void" location=/x/ContentView.swift:437:12 range=[/x/ContentView.swift:437:5 - line:437:12] nothrow isolation_crossing="none"
+          (declref_expr type="(Thread.Type) -> (Selector, Any, Any?) -> Void" location=/x/ContentView.swift:437:12 range=[/x/ContentView.swift:437:12 - line:437:12] decl="Foundation.(file).Thread.detachNewThreadSelector(_:toTarget:with:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSThread.h:43:1" function_ref=single apply)
+          (argument_list implicit
+            (argument
+              (type_expr type="Thread.Type" location=/x/ContentView.swift:437:5 range=[/x/ContentView.swift:437:5 - line:437:5] typerepr="Thread"))))
+        (argument_list labels="_:toTarget:with:"
+          (argument
+            (declref_expr type="Selector" location=/x/ContentView.swift:437:36 range=[/x/ContentView.swift:437:36 - line:437:36] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).named@/x/ContentView.swift:436:39" function_ref=unapplied))
+          (argument label="toTarget"
+            (erasure_expr implicit type="Any" location=/x/ContentView.swift:437:53 range=[/x/ContentView.swift:437:53 - line:437:53]
+              (normal_conformance type="NSObject" protocol="Copyable" explicit nonisolated lazy)
+              (normal_conformance type="NSObject" protocol="Escapable" explicit nonisolated lazy)
+              (declref_expr type="NSObject" location=/x/ContentView.swift:437:53 range=[/x/ContentView.swift:437:53 - line:437:53] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).target@/x/ContentView.swift:436:58" function_ref=unapplied)))
+          (argument label="with"
+            (nil_literal_expr type="Any?" location=/x/ContentView.swift:437:67 range=[/x/ContentView.swift:437:67 - line:437:67] initializer="**NULL**"))))
+      (call_expr type="Void" location=/x/ContentView.swift:438:18 range=[/x/ContentView.swift:438:5 - line:438:91] nothrow isolation_crossing="none"
+        (dot_syntax_call_expr type="(Selector, Any, Any?, Int, [RunLoop.Mode]) -> Void" location=/x/ContentView.swift:438:18 range=[/x/ContentView.swift:438:5 - line:438:18] nothrow isolation_crossing="none"
+          (declref_expr type="(RunLoop) -> (Selector, Any, Any?, Int, [RunLoop.Mode]) -> Void" location=/x/ContentView.swift:438:18 range=[/x/ContentView.swift:438:18 - line:438:18] decl="Foundation.(file).RunLoop extension.perform(_:target:argument:order:modes:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSRunLoop.h:183:1" function_ref=single apply)
+          (argument_list implicit
+            (argument
+              (member_ref_expr type="RunLoop" location=/x/ContentView.swift:438:13 range=[/x/ContentView.swift:438:5 - line:438:13] decl="Foundation.(file).RunLoop.main@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSRunLoop.h:39:48"
+                (type_expr type="RunLoop.Type" location=/x/ContentView.swift:438:5 range=[/x/ContentView.swift:438:5 - line:438:5] typerepr="RunLoop")))))
+        (argument_list labels="_:target:argument:order:modes:"
+          (argument
+            (declref_expr type="Selector" location=/x/ContentView.swift:438:26 range=[/x/ContentView.swift:438:26 - line:438:26] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).named@/x/ContentView.swift:436:39" function_ref=unapplied))
+          (argument label="target"
+            (erasure_expr implicit type="Any" location=/x/ContentView.swift:438:41 range=[/x/ContentView.swift:438:41 - line:438:41]
+              (normal_conformance type="NSObject" protocol="Copyable" explicit nonisolated lazy)
+              (normal_conformance type="NSObject" protocol="Escapable" explicit nonisolated lazy)
+              (declref_expr type="NSObject" location=/x/ContentView.swift:438:41 range=[/x/ContentView.swift:438:41 - line:438:41] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).target@/x/ContentView.swift:436:58" function_ref=unapplied)))
+          (argument label="argument"
+            (nil_literal_expr type="Any?" location=/x/ContentView.swift:438:59 range=[/x/ContentView.swift:438:59 - line:438:59] initializer="**NULL**"))
+          (argument label="order"
+            (integer_literal_expr type="Int" location=/x/ContentView.swift:438:71 range=[/x/ContentView.swift:438:71 - line:438:71] value="0" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**"))
+          (argument label="modes"
+            (array_expr type="[RunLoop.Mode]" location=/x/ContentView.swift:438:81 range=[/x/ContentView.swift:438:81 - line:438:90] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> RunLoop.Mode)]"
+              (member_ref_expr type="Array<RunLoop.Mode>.ArrayLiteralElement" location=/x/ContentView.swift:438:83 range=[/x/ContentView.swift:438:82 - line:438:83] decl="Foundation.(file).Mode extension.default@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSRunLoop.h:16:39"
+                (type_expr implicit type="Array<RunLoop.Mode>.ArrayLiteralElement.Type" location=/x/ContentView.swift:438:82 range=[/x/ContentView.swift:438:82 - line:438:82] typerepr="Array<RunLoop.Mode>.ArrayLiteralElement"))))))
+      (assign_expr type="()" location=/x/ContentView.swift:439:7 range=[/x/ContentView.swift:439:5 - line:439:71]
+        (discard_assignment_expr type="@lvalue ComparisonResult" location=/x/ContentView.swift:439:5 range=[/x/ContentView.swift:439:5 - line:439:5])
+        (call_expr type="ComparisonResult" location=/x/ContentView.swift:439:55 range=[/x/ContentView.swift:439:9 - line:439:71] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="(Any, Any) -> ComparisonResult" location=/x/ContentView.swift:439:55 range=[/x/ContentView.swift:439:9 - line:439:55] nothrow isolation_crossing="none"
+            (declref_expr type="(NSSortDescriptor) -> (Any, Any) -> ComparisonResult" location=/x/ContentView.swift:439:55 range=[/x/ContentView.swift:439:55 - line:439:55] decl="Foundation.(file).NSSortDescriptor.compare(_:to:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSSortDescriptor.h:118:1" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (call_expr type="NSSortDescriptor" location=/x/ContentView.swift:439:9 range=[/x/ContentView.swift:439:9 - line:439:53] nothrow isolation_crossing="none"
+                  (constructor_ref_call_expr type="(String?, Bool) -> NSSortDescriptor" location=/x/ContentView.swift:439:9 range=[/x/ContentView.swift:439:9 - line:439:9] nothrow isolation_crossing="none"
+                    (declref_expr implicit type="(NSSortDescriptor.Type) -> (String?, Bool) -> NSSortDescriptor" location=/x/ContentView.swift:439:9 range=[/x/ContentView.swift:439:9 - line:439:9] decl="Foundation.(file).NSSortDescriptor.init(key:ascending:)@/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator27.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSSortDescriptor.h:53:1" function_ref=single apply)
+                    (argument_list implicit
+                      (argument
+                        (type_expr type="NSSortDescriptor.Type" location=/x/ContentView.swift:439:9 range=[/x/ContentView.swift:439:9 - line:439:9] typerepr="NSSortDescriptor"))))
+                  (argument_list labels="key:ascending:"
+                    (argument label="key"
+                      (inject_into_optional implicit type="String?" location=/x/ContentView.swift:439:31 range=[/x/ContentView.swift:439:31 - line:439:31]
+                        (declref_expr type="String" location=/x/ContentView.swift:439:31 range=[/x/ContentView.swift:439:31 - line:439:31] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).typed@/x/ContentView.swift:436:78" function_ref=unapplied)))
+                    (argument label="ascending"
+                      (boolean_literal_expr type="Bool" location=/x/ContentView.swift:439:49 range=[/x/ContentView.swift:439:49 - line:439:49] value=true builtin_initializer="Swift.(file).Bool extension.init(_builtinBooleanLiteral:)" initializer="**NULL**")))))))
+          (argument_list labels="_:to:"
+            (argument
+              (erasure_expr implicit type="Any" location=/x/ContentView.swift:439:63 range=[/x/ContentView.swift:439:63 - line:439:63]
+                (normal_conformance type="NSObject" protocol="Copyable" explicit nonisolated lazy)
+                (normal_conformance type="NSObject" protocol="Escapable" explicit nonisolated lazy)
+                (declref_expr type="NSObject" location=/x/ContentView.swift:439:63 range=[/x/ContentView.swift:439:63 - line:439:63] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).a@/x/ContentView.swift:436:95" function_ref=unapplied)))
+            (argument label="to"
+              (erasure_expr implicit type="Any" location=/x/ContentView.swift:439:70 range=[/x/ContentView.swift:439:70 - line:439:70]
+                (normal_conformance type="NSObject" protocol="Copyable" explicit nonisolated lazy)
+                (normal_conformance type="NSObject" protocol="Escapable" explicit nonisolated lazy)
+                (declref_expr type="NSObject" location=/x/ContentView.swift:439:70 range=[/x/ContentView.swift:439:70 - line:439:70] decl="main.(file).fixtureViewUnlabelledSelectors(_:_:_:_:_:).b@/x/ContentView.swift:436:110" function_ref=unapplied)))))))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Detail.swift:4:1 - line:4:8] module="SwiftUI")

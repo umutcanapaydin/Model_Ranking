@@ -1303,3 +1303,13 @@ def test_242_an_unused_constant_type_folder_maker_or_store_read_fails_the_gate(t
         seen["StandingsStore.swift"].discard("main.<store reads listed>.StandingsStore.url")
         dropped = "`StandingsStore.url`"
     assert [line for line in gate.unseen_permissions(seen) if words in line and dropped in line], (table, dropped)
+
+
+@pytest.mark.parametrize("declared", ["Foundation.Thread.detachNewThreadSelector(_:toTarget:with:",
+                                      "Foundation.RunLoop.perform(_:target:argument:order:modes:",
+                                      "Foundation.NSSortDescriptor.init(key:ascending:"])
+def test_242_a_selector_unlabelled_or_a_key_labelled_key_is_refused(declared: str) -> None:
+    """#242, the security review's M3 (G-12): matching by label missed a selector passed with no label and a key
+    labelled `key:`. A declaration whose type takes a `Selector`, whatever its label, and a Foundation declaration
+    labelled `key:` or `keyPath:` are refused unless `BY_NAME_ALLOWED` names them. # covers D-214"""
+    assert _refused_in("ContentView.swift", f"`{declared}` reaches a value, a class or a selector by name")

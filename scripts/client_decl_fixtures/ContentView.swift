@@ -430,3 +430,11 @@ func fixtureViewPointsTheRegister() -> Data? {
 func fixtureViewSelectorByName(_ typed: String, _ target: NSObject) -> Bool {
     target.responds(to: Selector(typed))
 }
+
+// #242, the security review's M3: a selector passed unlabelled, and key-value coding by a key labelled `key:`.
+// REFUSED, each: a declaration that takes a `Selector`, whatever its label, and a Foundation one labelled `key:`.
+func fixtureViewUnlabelledSelectors(_ named: Selector, _ target: NSObject, _ typed: String, _ a: NSObject, _ b: NSObject) {
+    Thread.detachNewThreadSelector(named, toTarget: target, with: nil)
+    RunLoop.main.perform(named, target: target, argument: nil, order: 0, modes: [.default])
+    _ = NSSortDescriptor(key: typed, ascending: true).compare(a, to: b)
+}
