@@ -53,7 +53,10 @@ def thresholds(scores: list[float], *, floor: float, stderr: float) -> dict[str,
     lead = above[0]
     for i in range(MIN_CANDIDATES, len(above)):
         if above[i - 1] - above[i] > close_call:
-            window = _half(((lead - above[i - 1]) + (lead - above[i])) / 2)
+            middle = ((lead - above[i - 1]) + (lead - above[i])) / 2
+            window = _half(middle)
+            if window < close_call:  # #265: rounded down past the close call; the half point above stays in the gap
+                window = math.ceil(middle * 2) / 2
             return {"close_call": close_call, "value_window": window, "candidates": i}
     return {"close_call": close_call, "value_window": _half(lead - floor), "candidates": len(above)}
 
