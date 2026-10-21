@@ -95,6 +95,8 @@ def test_the_ids_are_unchanged_because_they_are_the_contract() -> None:
         "text_to_video",
         "image_to_video",
         "video_edit",
+        # #379 (D-218 clause 2): METR's time horizons.
+        "long-tasks",
     }
 
 

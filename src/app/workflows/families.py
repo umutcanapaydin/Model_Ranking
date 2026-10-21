@@ -40,6 +40,8 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "text_to_video": ("arena_text_to_video",),
     "image_to_video": ("arena_image_to_video",),
     "video_edit": ("arena_video_edit",),
+    # #379 (D-218 clause 2, D-219 clause 3): METR's time horizons, the surface's only board.
+    "long-tasks": ("metr_time_horizons",),
 }
 
 #: surface -> the board a refinement takes the place of: the family's board of Arena's text vote. Every

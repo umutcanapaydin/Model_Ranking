@@ -74,6 +74,10 @@ DATACURVE_SITE_URL = "https://deepswe.datacurve.ai/"
 #: #379 (D-219): the OSWorld team's site, whose workbook `computer-use`'s second board reads.
 OSWORLD_SITE_URL = "https://osworld-v1.xlang.ai/"
 CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+#: #379 (D-219): METR's time-horizon page, whose file `long-tasks` ranks on.
+METR_SITE_URL = "https://metr.org/time-horizons/"
+#: How a publisher that states no licence is credited (D-215).
+NO_LICENCE_D215 = "No licence published. Public numbers, used with attribution (D-215)"
 
 #: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
 #: process and the client read one string (W-125).
@@ -147,6 +151,7 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     # #379 (D-219 clauses 1 and 4): the site states CC BY-SA 4.0, and the workbook is served from it.
     Credit("osworld", "XLANG Lab (OSWorld)", "OSWorld-Verified leaderboard: the general models' runs at 100 steps",
            OSWORLD_SITE_URL, "CC BY-SA 4.0", CC_BY_SA_4_URL),
+    Credit("metr", "METR", "Time Horizon 1.1: each model's 50% time horizon", METR_SITE_URL, NO_LICENCE_D215, None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
            "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),

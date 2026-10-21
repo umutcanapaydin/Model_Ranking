@@ -172,6 +172,7 @@ public func localisedUnit(_ unit: String, in language: Language) -> String {
     case "points": return "puan"
     case "% resolved": return "% çözülen"
     case "% correct": return "% doğru"
+    case "minutes": return "dakika"
     default: return unit
     }
 }
@@ -189,6 +190,9 @@ public func scaleExplanation(for metric: String, in language: Language) -> Strin
         return "modelin çözdüğü gerçek görevlerin yüzdesi"
     case "% correct":
         return "modelin doğru yanıtladığı soruların yüzdesi"
+    // #379 (D-219): METR's time horizon.
+    case "minutes":
+        return "yarısını bitirdiği görevlerin, deneyimli bir insanın dakikasıyla uzunluğu"
     default:
         return nil
     }
@@ -565,6 +569,8 @@ public enum UIText {
             "text_to_video": ("Making a video clip from a description", "Tariften bir video klip oluşturmak"),
             "image_to_video": ("Turning a photo into a moving video", "Bir fotoğrafı hareketli videoya dönüştürmek"),
             "video_edit": ("Changing a video you already have", "Elindeki bir videoyu değiştirmek"),
+            // #379 (D-218 clause 2): METR's time horizons.
+            "long-tasks": ("How long a job it finishes on its own", "Kendi başına ne kadar uzun bir işi bitirdiği"),
         ]
         guard let line = lines[id] else { return nil }
         return language == .turkish ? line.1 : line.0
@@ -615,6 +621,7 @@ public enum UIText {
         case "text_to_video": return "Video oluşturma"
         case "image_to_video": return "Fotoğrafı canlandırma"
         case "video_edit": return "Video düzenleme"
+        case "long-tasks": return "Uzun görevler"
         default: return engineTitle
         }
     }

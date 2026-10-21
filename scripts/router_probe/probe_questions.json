@@ -10,5 +10,5 @@
 ["write a script that resizes images","coding|agentic-coding~"],["optimise the latency of my web api","coding|web-dev~"],
 ["make my profile photo look better","image_edit"],["paint a watercolour of a lighthouse at dawn","text_to_image"],
 ["make a short video of a rocket launch from my description","text_to_video"],
-["animate the old photo of my grandmother","image_to_video"],["cut the silent parts out of my video","video_edit"],["which model answers fastest","DECLINE"],
+["animate the old photo of my grandmother","image_to_video"],["cut the silent parts out of my video","video_edit"],["give an agent a job that would take me a whole day","long-tasks"],["which model answers fastest","DECLINE"],
 ["which model has the longest context window","DECLINE"]]

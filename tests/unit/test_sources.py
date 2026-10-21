@@ -132,6 +132,7 @@ def test_arena_is_the_only_optional_source() -> None:
         # #379 (D-219 clause 2): each board it serves is optional, ruled by its own ADR. None is a surface's only
         # evidence but METR's, and a failed night is carried by the refresh (D-156).
         "osworld_verified",
+        "metr_time_horizons",
     }, (
         f"D-121 + D-144 name the LMArena boards, D-216 Datacurve's and D-219 #379's, as the only optional ones; "
         f"found {optional}"

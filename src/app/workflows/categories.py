@@ -383,6 +383,24 @@ CATEGORIES: dict[str, CategorySpec] = {
             ("video_edit", "Video editing", "Arena video edit", _MEDIA_CLOSE_CALL["video_edit"]),
         )
     )},
+    # #379 (D-218 clause 2, D-219 clause 3): METR's time horizons, the length of task -- in a skilled person's
+    # minutes -- a model finishes half the time, on its own. Its own surface, not a board of `agentic-coding`.
+    # Measured by `scripts/calibrate_surface.py` on a copy of the Mac's artifact with the board ingested through its
+    # registered ingest, by D-194 clause 4's rule: `docs/research/issue-379-long-tasks-calibration.json`, and the
+    # note `docs/reviews/issue-379-new-boards-calibration.md`. 20 models ranked, all priced; eight at or above the floor (223.7
+    # minutes). The tie margin is twice METR's median published error (21.862 minutes, from each model's 95%
+    # interval); the window ends in the 48.7-minute gap below the fifth model. Minutes are their own scale (D-105).
+    "long-tasks": CategorySpec(
+        id="long-tasks",
+        title="Long tasks",
+        primary_benchmark="METR time horizon",
+        metric="minutes",
+        score_unit="minutes",
+        secondary_benchmark=None,
+        primary_source="metr_time_horizons",
+        value_window=401.5,
+        close_call=43.7,
+    ),
 }
 
 

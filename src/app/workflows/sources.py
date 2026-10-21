@@ -46,6 +46,7 @@ from app.clients.datacurve import DatacurveClient, parse_datacurve
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
+from app.clients.metr import MetrClient, parse_metr
 from app.clients.models_dev import ModelsDevClient, parse_models_dev
 from app.clients.osworld import OSWorldClient, parse_osworld
 from app.clients.protocols import RawSource
@@ -61,6 +62,7 @@ from app.workflows.ingest import (
     ingest_datacurve,
     ingest_epoch,
     ingest_litellm,
+    ingest_metr,
     ingest_models_dev,
     ingest_osworld,
     ingest_swebench,
@@ -305,6 +307,17 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         ingest=ingest_osworld,
         parse=parse_osworld,
         minimum_rows=10,
+        required=False,
+    ),
+    # #379 (D-218 clause 2, D-219): METR's own time-horizon file, `long-tasks`'s only board: 26 models on
+    # 2026-10-22. OPTIONAL as every sole-evidence board is (D-121): a night the site fails is carried by the
+    # refresh (D-156), or past the carry window the surface says it has no evidence. Floor: half the board.
+    RemoteSource(
+        name="metr_time_horizons",
+        client=MetrClient,
+        ingest=ingest_metr,
+        parse=parse_metr,
+        minimum_rows=13,
         required=False,
     ),
 )

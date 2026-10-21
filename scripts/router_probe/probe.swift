@@ -23,7 +23,7 @@ let cases = raw.map { ($0[0], $0[1]) }
 let mode = ProcessInfo.processInfo.environment["MODE"] ?? "top2"
 let served = ["coding","agentic-coding","assistant","everyday","expert","mathematics","computer-use",
               "abstract","web-dev","document","factuality","vision","search","search_factuality",
-              "text_to_image","image_edit","text_to_video","image_to_video","video_edit"]
+              "text_to_image","image_edit","text_to_video","image_to_video","video_edit","long-tasks"]
 let emb = NLContextualEmbedding(language: .english)!; try! emb.load()
 func vector(_ s: String) -> [Double] {
   let r = try! emb.embeddingResult(for: s, language: .english)
