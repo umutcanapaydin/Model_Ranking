@@ -148,3 +148,14 @@ func shapeMapTruncating(_ s: Standing) -> [Int] { [s.position].map(Int.init(trun
 func shapeBumped(_ x: Int) -> Int { x + 1 }
 func shapeMapAppFunction(_ s: Standing) -> [Int] { [s.position].map(shapeBumped) } // shape: map-app-function
 func shapeCalledLiteral(_ s: Standing) -> Int { { $0 + 1 }(s.position) } // shape: called-literal
+
+// #242, the security review's round 2, B1: a key path not written in place (bound to a name, or a parameter), and a
+// method of a served number referenced without a call. REFUSED, each, on its line: the gate refuses what it cannot
+// read, and judges a method reference as it judges the call.
+func shapeKeyPathHeld(_ s: Standing) -> UInt { let kp = \Int.magnitude; return s.position[keyPath: kp] } // shape: keypath-held
+func shapeKeyPathHeldInClosure(_ s: Standing) -> [UInt] { let kp = \Int.magnitude; return [s.position].map { $0[keyPath: kp] } } // shape: keypath-held-closure
+func shapeKeyPathParameter(_ s: Standing, _ kp: KeyPath<Int, UInt>) -> UInt { s.position[keyPath: kp] } // shape: keypath-parameter
+func shapeKeyPathParameterUse(_ s: Standing) -> UInt { shapeKeyPathParameter(s, \.magnitude) }
+func shapeMethodHeld(_ s: Standing) -> Int { let g = s.position.advanced(by:); return g(1) } // shape: method-held
+func shapeDistanceHeld(_ s: Standing) -> Int { let g = s.position.distance(to:); return g(10) } // shape: distance-held
+func shapeSignumHeld(_ s: Standing) -> Int { let sg = s.position.signum; return sg() } // shape: signum-held

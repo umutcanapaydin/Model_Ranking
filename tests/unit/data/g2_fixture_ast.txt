@@ -3623,7 +3623,209 @@
           (argument_list
             (argument
               (member_ref_expr type="Int" location=/x/Arithmetic.swift:150:62 range=[/x/Arithmetic.swift:150:60 - line:150:62] decl="main.(file).Standing.position@/x/Models.swift:7:9"
-                (declref_expr type="Standing" location=/x/Arithmetic.swift:150:60 range=[/x/Arithmetic.swift:150:60 - line:150:60] decl="main.(file).shapeCalledLiteral(_:).s@/x/Arithmetic.swift:150:27" function_ref=unapplied)))))))))
+                (declref_expr type="Standing" location=/x/Arithmetic.swift:150:60 range=[/x/Arithmetic.swift:150:60 - line:150:60] decl="main.(file).shapeCalledLiteral(_:).s@/x/Arithmetic.swift:150:27" function_ref=unapplied))))))))
+  (func_decl range=[/x/Arithmetic.swift:155:1 - line:155:104] "shapeKeyPathHeld(_:)" interface_type="(Standing) -> UInt" access=internal result="UInt" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:155:22 - line:155:36]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:155:46 - line:155:104]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:155:48 - line:155:62]
+        (pattern_entry
+          (pattern_named type="KeyPath<Int, UInt>" "kp")
+          (original_init=keypath_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:155:57 range=[/x/Arithmetic.swift:155:57 - line:155:62]
+            (components
+              (member decl="Swift.(file).Int.magnitude" type="UInt"))
+            (parsed_root=unresolved_dot_expr type="<null>" field="magnitude" function_ref=unapplied
+              (type_expr type="<null>" typerepr="Int")))
+          (processed_init=keypath_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:155:57 range=[/x/Arithmetic.swift:155:57 - line:155:62]
+            (components
+              (member decl="Swift.(file).Int.magnitude" type="UInt"))
+            (parsed_root=unresolved_dot_expr type="<null>" field="magnitude" function_ref=unapplied
+              (type_expr type="<null>" typerepr="Int")))))
+      (var_decl range=[/x/Arithmetic.swift:155:52 - line:155:52] trailing_semi "kp" interface_type="KeyPath<Int, UInt>" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Arithmetic.swift:155:73 - line:155:102]
+        (keypath_application_expr type="UInt" location=/x/Arithmetic.swift:155:90 range=[/x/Arithmetic.swift:155:80 - line:155:102]
+          (member_ref_expr type="Int" location=/x/Arithmetic.swift:155:82 range=[/x/Arithmetic.swift:155:80 - line:155:82] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+            (declref_expr type="Standing" location=/x/Arithmetic.swift:155:80 range=[/x/Arithmetic.swift:155:80 - line:155:80] decl="main.(file).shapeKeyPathHeld(_:).s@/x/Arithmetic.swift:155:25" function_ref=unapplied))
+          (declref_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:155:100 range=[/x/Arithmetic.swift:155:100 - line:155:100] decl="main.(file).shapeKeyPathHeld(_:).kp@/x/Arithmetic.swift:155:52" function_ref=unapplied)))))
+  (func_decl range=[/x/Arithmetic.swift:156:1 - line:156:128] "shapeKeyPathHeldInClosure(_:)" interface_type="(Standing) -> [UInt]" access=internal result="[UInt]" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:156:31 - line:156:45]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:156:57 - line:156:128]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:156:59 - line:156:73]
+        (pattern_entry
+          (pattern_named type="KeyPath<Int, UInt>" "kp")
+          (original_init=keypath_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:156:68 range=[/x/Arithmetic.swift:156:68 - line:156:73]
+            (components
+              (member decl="Swift.(file).Int.magnitude" type="UInt"))
+            (parsed_root=unresolved_dot_expr type="<null>" field="magnitude" function_ref=unapplied
+              (type_expr type="<null>" typerepr="Int")))
+          (processed_init=keypath_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:156:68 range=[/x/Arithmetic.swift:156:68 - line:156:73]
+            (components
+              (member decl="Swift.(file).Int.magnitude" type="UInt"))
+            (parsed_root=unresolved_dot_expr type="<null>" field="magnitude" function_ref=unapplied
+              (type_expr type="<null>" typerepr="Int")))))
+      (var_decl range=[/x/Arithmetic.swift:156:63 - line:156:63] trailing_semi "kp" interface_type="KeyPath<Int, UInt>" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Arithmetic.swift:156:84 - line:156:126]
+        (call_expr type="[UInt]" location=/x/Arithmetic.swift:156:104 range=[/x/Arithmetic.swift:156:91 - line:156:126] nothrow isolation_crossing="none"
+          (dot_syntax_call_expr type="((Int) -> UInt) -> [UInt]" location=/x/Arithmetic.swift:156:104 range=[/x/Arithmetic.swift:156:91 - line:156:104] nothrow isolation_crossing="none"
+            (declref_expr type="([Int]) -> ((Int) -> UInt) -> [UInt]" location=/x/Arithmetic.swift:156:104 range=[/x/Arithmetic.swift:156:104 - line:156:104] decl="Swift.(file).Collection extension.map [with (substitution_map generic_signature=<Self, T, E where Self : Collection, T : Copyable, T : Escapable, E : Error> Self -> [Int] T -> UInt E -> Never)]" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (array_expr type="[Int]" location=/x/Arithmetic.swift:156:91 range=[/x/Arithmetic.swift:156:91 - line:156:102] initializer="Swift.(file).Array extension.init(arrayLiteral:) [with (substitution_map generic_signature=<Element where Element : Copyable, Element : Escapable> Element -> Int)]"
+                  (member_ref_expr type="Int" location=/x/Arithmetic.swift:156:94 range=[/x/Arithmetic.swift:156:92 - line:156:94] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                    (declref_expr type="Standing" location=/x/Arithmetic.swift:156:92 range=[/x/Arithmetic.swift:156:92 - line:156:92] decl="main.(file).shapeKeyPathHeldInClosure(_:).s@/x/Arithmetic.swift:156:34" function_ref=unapplied))))))
+          (argument_list
+            (argument
+              (closure_expr type="(Int) -> UInt" location=/x/Arithmetic.swift:156:108 range=[/x/Arithmetic.swift:156:108 - line:156:126] discriminator=0 nonisolated captures=(kp<direct><noescape>) single_expression
+                (parameter_list range=[/x/Arithmetic.swift:156:108 - line:156:108]
+                  (parameter "$0" interface_type="Int"))
+                (brace_stmt range=[/x/Arithmetic.swift:156:108 - line:156:126]
+                  (return_stmt implicit range=[/x/Arithmetic.swift:156:110 - line:156:124]
+                    (keypath_application_expr type="UInt" location=/x/Arithmetic.swift:156:112 range=[/x/Arithmetic.swift:156:110 - line:156:124]
+                      (declref_expr type="Int" location=/x/Arithmetic.swift:156:110 range=[/x/Arithmetic.swift:156:110 - line:156:110] decl="main.(file).shapeKeyPathHeldInClosure(_:).explicit closure discriminator=0.$0@/x/Arithmetic.swift:156:108" function_ref=unapplied)
+                      (declref_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:156:122 range=[/x/Arithmetic.swift:156:122 - line:156:122] decl="main.(file).shapeKeyPathHeldInClosure(_:).kp@/x/Arithmetic.swift:156:63" function_ref=unapplied)))))))))))
+  (func_decl range=[/x/Arithmetic.swift:157:1 - line:157:103] "shapeKeyPathParameter(_:_:)" interface_type="(Standing, KeyPath<Int, UInt>) -> UInt" access=internal result="UInt" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:157:27 - line:157:67]
+      (parameter "s" interface_type="Standing")
+      (parameter "kp" interface_type="KeyPath<Int, UInt>"))
+    (brace_stmt range=[/x/Arithmetic.swift:157:77 - line:157:103]
+      (return_stmt implicit range=[/x/Arithmetic.swift:157:79 - line:157:101]
+        (keypath_application_expr type="UInt" location=/x/Arithmetic.swift:157:89 range=[/x/Arithmetic.swift:157:79 - line:157:101]
+          (member_ref_expr type="Int" location=/x/Arithmetic.swift:157:81 range=[/x/Arithmetic.swift:157:79 - line:157:81] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+            (declref_expr type="Standing" location=/x/Arithmetic.swift:157:79 range=[/x/Arithmetic.swift:157:79 - line:157:79] decl="main.(file).shapeKeyPathParameter(_:_:).s@/x/Arithmetic.swift:157:30" function_ref=unapplied))
+          (declref_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:157:99 range=[/x/Arithmetic.swift:157:99 - line:157:99] decl="main.(file).shapeKeyPathParameter(_:_:).kp@/x/Arithmetic.swift:157:45" function_ref=unapplied)))))
+  (func_decl range=[/x/Arithmetic.swift:158:1 - line:158:94] "shapeKeyPathParameterUse(_:)" interface_type="(Standing) -> UInt" access=internal result="UInt" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:158:30 - line:158:44]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:158:54 - line:158:94]
+      (return_stmt implicit range=[/x/Arithmetic.swift:158:56 - line:158:92]
+        (call_expr type="UInt" location=/x/Arithmetic.swift:158:56 range=[/x/Arithmetic.swift:158:56 - line:158:92] nothrow isolation_crossing="none"
+          (declref_expr type="(Standing, KeyPath<Int, UInt>) -> UInt" location=/x/Arithmetic.swift:158:56 range=[/x/Arithmetic.swift:158:56 - line:158:56] decl="main.(file).shapeKeyPathParameter@/x/Arithmetic.swift:157:6" function_ref=single apply)
+          (argument_list
+            (argument
+              (declref_expr type="Standing" location=/x/Arithmetic.swift:158:78 range=[/x/Arithmetic.swift:158:78 - line:158:78] decl="main.(file).shapeKeyPathParameterUse(_:).s@/x/Arithmetic.swift:158:33" function_ref=unapplied))
+            (argument
+              (keypath_expr type="KeyPath<Int, UInt>" location=/x/Arithmetic.swift:158:81 range=[/x/Arithmetic.swift:158:81 - line:158:83]
+                (components
+                  (member decl="Swift.(file).Int.magnitude" type="UInt"))
+                (parsed_path=unresolved_dot_expr type="<null>" field="magnitude" function_ref=unapplied
+                  (key_path_dot_expr implicit type="<null>")))))))))
+  (func_decl range=[/x/Arithmetic.swift:159:1 - line:159:92] "shapeMethodHeld(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:159:21 - line:159:35]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:159:44 - line:159:92]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:159:46 - line:159:77]
+        (pattern_entry
+          (pattern_named type="(Int) -> Int" "g")
+          (original_init=unresolved_dot_expr type="<null>" field="advanced(by:)" function_ref=unapplied (compound)
+            (member_ref_expr type="Int" location=/x/Arithmetic.swift:159:56 range=[/x/Arithmetic.swift:159:54 - line:159:56] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+              (declref_expr type="Standing" location=/x/Arithmetic.swift:159:54 range=[/x/Arithmetic.swift:159:54 - line:159:54] decl="main.(file).shapeMethodHeld(_:).s@/x/Arithmetic.swift:159:24" function_ref=unapplied)))
+          (processed_init=dot_syntax_call_expr type="(Int) -> Int" location=/x/Arithmetic.swift:159:65 range=[/x/Arithmetic.swift:159:54 - line:159:77] nothrow isolation_crossing="none"
+            (autoclosure_expr implicit type="(Int) -> (Int) -> Int" location=/x/Arithmetic.swift:159:65 range=[/x/Arithmetic.swift:159:65 - line:159:77] discriminator=0 unspecified_isolation escaping
+              (parameter_list
+                (parameter "self" interface_type="Int"))
+              (autoclosure_expr implicit type="(Int) -> Int" location=/x/Arithmetic.swift:159:65 range=[/x/Arithmetic.swift:159:65 - line:159:77] discriminator=1 unspecified_isolation captures=(self<direct>) escaping
+                (parameter_list
+                  (parameter "n" apiName="by" interface_type="Int"))
+                (call_expr implicit type="Int" location=/x/Arithmetic.swift:159:65 range=[/x/Arithmetic.swift:159:65 - line:159:77] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Int) -> Int" location=/x/Arithmetic.swift:159:65 range=[/x/Arithmetic.swift:159:65 - line:159:77] nothrow isolation_crossing="none"
+                    (declref_expr type="(Int) -> (Int) -> Int" location=/x/Arithmetic.swift:159:65 range=[/x/Arithmetic.swift:159:65 - line:159:77] decl="Swift.(file).Int extension.advanced(by:)" function_ref=unapplied (compound))
+                    (argument_list implicit
+                      (argument
+                        (declref_expr implicit type="Int" decl="main.(file).shapeMethodHeld(_:).autoclosure discriminator=0.self" function_ref=unapplied))))
+                  (argument_list implicit
+                    (argument
+                      (declref_expr implicit type="Int" decl="main.(file).shapeMethodHeld(_:).autoclosure discriminator=0.autoclosure discriminator=1.n" function_ref=unapplied))))))
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="Int" location=/x/Arithmetic.swift:159:56 range=[/x/Arithmetic.swift:159:54 - line:159:56] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                  (declref_expr type="Standing" location=/x/Arithmetic.swift:159:54 range=[/x/Arithmetic.swift:159:54 - line:159:54] decl="main.(file).shapeMethodHeld(_:).s@/x/Arithmetic.swift:159:24" function_ref=unapplied)))))))
+      (var_decl range=[/x/Arithmetic.swift:159:50 - line:159:50] trailing_semi "g" interface_type="(Int) -> Int" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Arithmetic.swift:159:80 - line:159:90]
+        (call_expr type="Int" location=/x/Arithmetic.swift:159:87 range=[/x/Arithmetic.swift:159:87 - line:159:90] nothrow isolation_crossing="none"
+          (declref_expr type="(Int) -> Int" location=/x/Arithmetic.swift:159:87 range=[/x/Arithmetic.swift:159:87 - line:159:87] decl="main.(file).shapeMethodHeld(_:).g@/x/Arithmetic.swift:159:50" function_ref=single apply)
+          (argument_list
+            (argument
+              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:159:89 range=[/x/Arithmetic.swift:159:89 - line:159:89] value="1" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+  (func_decl range=[/x/Arithmetic.swift:160:1 - line:160:95] "shapeDistanceHeld(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:160:23 - line:160:37]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:160:46 - line:160:95]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:160:48 - line:160:79]
+        (pattern_entry
+          (pattern_named type="(Int) -> Int" "g")
+          (original_init=unresolved_dot_expr type="<null>" field="distance(to:)" function_ref=unapplied (compound)
+            (member_ref_expr type="Int" location=/x/Arithmetic.swift:160:58 range=[/x/Arithmetic.swift:160:56 - line:160:58] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+              (declref_expr type="Standing" location=/x/Arithmetic.swift:160:56 range=[/x/Arithmetic.swift:160:56 - line:160:56] decl="main.(file).shapeDistanceHeld(_:).s@/x/Arithmetic.swift:160:26" function_ref=unapplied)))
+          (processed_init=dot_syntax_call_expr type="(Int) -> Int" location=/x/Arithmetic.swift:160:67 range=[/x/Arithmetic.swift:160:56 - line:160:79] nothrow isolation_crossing="none"
+            (autoclosure_expr implicit type="(Int) -> (Int) -> Int" location=/x/Arithmetic.swift:160:67 range=[/x/Arithmetic.swift:160:67 - line:160:79] discriminator=0 unspecified_isolation escaping
+              (parameter_list
+                (parameter "self" interface_type="Int"))
+              (autoclosure_expr implicit type="(Int) -> Int" location=/x/Arithmetic.swift:160:67 range=[/x/Arithmetic.swift:160:67 - line:160:79] discriminator=1 unspecified_isolation captures=(self<direct>) escaping
+                (parameter_list
+                  (parameter "other" apiName="to" interface_type="Int"))
+                (call_expr implicit type="Int" location=/x/Arithmetic.swift:160:67 range=[/x/Arithmetic.swift:160:67 - line:160:79] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="(Int) -> Int" location=/x/Arithmetic.swift:160:67 range=[/x/Arithmetic.swift:160:67 - line:160:79] nothrow isolation_crossing="none"
+                    (declref_expr type="(Int) -> (Int) -> Int" location=/x/Arithmetic.swift:160:67 range=[/x/Arithmetic.swift:160:67 - line:160:79] decl="Swift.(file).Int extension.distance(to:)" function_ref=unapplied (compound))
+                    (argument_list implicit
+                      (argument
+                        (declref_expr implicit type="Int" decl="main.(file).shapeDistanceHeld(_:).autoclosure discriminator=0.self" function_ref=unapplied))))
+                  (argument_list implicit
+                    (argument
+                      (declref_expr implicit type="Int" decl="main.(file).shapeDistanceHeld(_:).autoclosure discriminator=0.autoclosure discriminator=1.other" function_ref=unapplied))))))
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="Int" location=/x/Arithmetic.swift:160:58 range=[/x/Arithmetic.swift:160:56 - line:160:58] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                  (declref_expr type="Standing" location=/x/Arithmetic.swift:160:56 range=[/x/Arithmetic.swift:160:56 - line:160:56] decl="main.(file).shapeDistanceHeld(_:).s@/x/Arithmetic.swift:160:26" function_ref=unapplied)))))))
+      (var_decl range=[/x/Arithmetic.swift:160:52 - line:160:52] trailing_semi "g" interface_type="(Int) -> Int" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Arithmetic.swift:160:82 - line:160:93]
+        (call_expr type="Int" location=/x/Arithmetic.swift:160:89 range=[/x/Arithmetic.swift:160:89 - line:160:93] nothrow isolation_crossing="none"
+          (declref_expr type="(Int) -> Int" location=/x/Arithmetic.swift:160:89 range=[/x/Arithmetic.swift:160:89 - line:160:89] decl="main.(file).shapeDistanceHeld(_:).g@/x/Arithmetic.swift:160:52" function_ref=single apply)
+          (argument_list
+            (argument
+              (integer_literal_expr type="Int" location=/x/Arithmetic.swift:160:91 range=[/x/Arithmetic.swift:160:91 - line:160:91] value="10" builtin_initializer="Swift.(file).Int.init(_builtinIntegerLiteral:)" initializer="**NULL**")))))))
+  (func_decl range=[/x/Arithmetic.swift:161:1 - line:161:86] "shapeSignumHeld(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
+    (parameter_list range=[/x/Arithmetic.swift:161:21 - line:161:35]
+      (parameter "s" interface_type="Standing"))
+    (brace_stmt range=[/x/Arithmetic.swift:161:44 - line:161:86]
+      (pattern_binding_decl range=[/x/Arithmetic.swift:161:46 - line:161:66]
+        (pattern_entry
+          (pattern_named type="() -> Int" "sg")
+          (original_init=unresolved_dot_expr type="<null>" field="signum" function_ref=unapplied
+            (member_ref_expr type="Int" location=/x/Arithmetic.swift:161:57 range=[/x/Arithmetic.swift:161:55 - line:161:57] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+              (declref_expr type="Standing" location=/x/Arithmetic.swift:161:55 range=[/x/Arithmetic.swift:161:55 - line:161:55] decl="main.(file).shapeSignumHeld(_:).s@/x/Arithmetic.swift:161:24" function_ref=unapplied)))
+          (processed_init=dot_syntax_call_expr type="() -> Int" location=/x/Arithmetic.swift:161:66 range=[/x/Arithmetic.swift:161:55 - line:161:66] nothrow isolation_crossing="none"
+            (autoclosure_expr implicit type="(Int) -> () -> Int" location=/x/Arithmetic.swift:161:66 range=[/x/Arithmetic.swift:161:66 - line:161:66] discriminator=0 unspecified_isolation escaping
+              (parameter_list
+                (parameter "self" interface_type="Int"))
+              (autoclosure_expr implicit type="() -> Int" location=/x/Arithmetic.swift:161:66 range=[/x/Arithmetic.swift:161:66 - line:161:66] discriminator=1 unspecified_isolation captures=(self<direct>) escaping
+                (parameter_list)
+                (call_expr implicit type="Int" location=/x/Arithmetic.swift:161:66 range=[/x/Arithmetic.swift:161:66 - line:161:66] nothrow isolation_crossing="none"
+                  (dot_syntax_call_expr implicit type="() -> Int" location=/x/Arithmetic.swift:161:66 range=[/x/Arithmetic.swift:161:66 - line:161:66] nothrow isolation_crossing="none"
+                    (declref_expr type="(Int) -> () -> Int" location=/x/Arithmetic.swift:161:66 range=[/x/Arithmetic.swift:161:66 - line:161:66] decl="Swift.(file).Int.signum()" function_ref=unapplied)
+                    (argument_list implicit
+                      (argument
+                        (declref_expr implicit type="Int" decl="main.(file).shapeSignumHeld(_:).autoclosure discriminator=0.self" function_ref=unapplied))))
+                  (argument_list implicit))))
+            (argument_list implicit
+              (argument
+                (member_ref_expr type="Int" location=/x/Arithmetic.swift:161:57 range=[/x/Arithmetic.swift:161:55 - line:161:57] decl="main.(file).Standing.position@/x/Models.swift:7:9"
+                  (declref_expr type="Standing" location=/x/Arithmetic.swift:161:55 range=[/x/Arithmetic.swift:161:55 - line:161:55] decl="main.(file).shapeSignumHeld(_:).s@/x/Arithmetic.swift:161:24" function_ref=unapplied)))))))
+      (var_decl range=[/x/Arithmetic.swift:161:50 - line:161:50] trailing_semi "sg" interface_type="() -> Int" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/Arithmetic.swift:161:74 - line:161:84]
+        (call_expr type="Int" location=/x/Arithmetic.swift:161:81 range=[/x/Arithmetic.swift:161:81 - line:161:84] nothrow isolation_crossing="none"
+          (declref_expr type="() -> Int" location=/x/Arithmetic.swift:161:81 range=[/x/Arithmetic.swift:161:81 - line:161:81] decl="main.(file).shapeSignumHeld(_:).sg@/x/Arithmetic.swift:161:50" function_ref=single apply)
+          (argument_list))))))
 (source_file "/x/Combine.swift"
   (import_decl range=[/x/Combine.swift:3:1 - line:3:8] module="Foundation")
   (func_decl range=[/x/Combine.swift:5:1 - line:7:1] "fixtureCombinedRank(_:)" interface_type="(Standing) -> Int" access=internal result="Int" thrown_type="<null>"
@@ -7010,6 +7212,25 @@
     (constructor_decl implicit range=[/x/ContentView.swift:443:8 - line:443:8] "init(address:)" interface_type="(FixtureAddressHolder.Type) -> (URL) -> FixtureAddressHolder" access=internal designated
       (parameter "self" interface_type="FixtureAddressHolder" inout) thrown_type="<null>"
       (parameter_list range=[/x/ContentView.swift:443:8 - line:443:8]
+        (parameter "address" apiName="address" interface_type="URL"))))
+  (struct_decl range=[/x/ContentView.swift:449:1 - line:451:1] "FixtureAddressHolderAgain" interface_type="FixtureAddressHolderAgain.Type" access=internal non_resilient
+    (pattern_binding_decl range=[/x/ContentView.swift:450:5 - line:450:18]
+      (pattern_entry init_context=0x0
+        (pattern_typed type="URL"
+          (pattern_named type="URL" "address")
+          (type_unqualified_ident id="URL" bind="Foundation.(file).URL"))))
+    (var_decl range=[/x/ContentView.swift:450:9 - line:450:9] "address" interface_type="URL" access=internal let readImpl=stored immutable
+      (has_storage_attr implicit)
+      (accessor_decl implicit range=[/x/ContentView.swift:450:9 - line:450:9] <anonymous @ 0x0> interface_type="(FixtureAddressHolderAgain) -> () -> URL" access=internal get for="address"
+        (parameter "self" interface_type="FixtureAddressHolderAgain") result="URL" thrown_type="<null>"
+        (parameter_list)
+        (brace_stmt implicit range=[/x/ContentView.swift:450:9 - line:450:9]
+          (return_stmt implicit
+            (member_ref_expr implicit type="URL" decl="main.(file).FixtureAddressHolderAgain.address@/x/ContentView.swift:450:9" direct_to_storage
+              (declref_expr implicit type="FixtureAddressHolderAgain" decl="main.(file).FixtureAddressHolderAgain.<anonymous>.self@/x/ContentView.swift:450:9" function_ref=unapplied))))))
+    (constructor_decl implicit range=[/x/ContentView.swift:449:8 - line:449:8] "init(address:)" interface_type="(FixtureAddressHolderAgain.Type) -> (URL) -> FixtureAddressHolderAgain" access=internal designated
+      (parameter "self" interface_type="FixtureAddressHolderAgain" inout) thrown_type="<null>"
+      (parameter_list range=[/x/ContentView.swift:449:8 - line:449:8]
         (parameter "address" apiName="address" interface_type="URL")))))
 (source_file "/x/Detail.swift"
   (import_decl range=[/x/Detail.swift:3:1 - line:3:8] module="Foundation")
@@ -9509,7 +9730,39 @@
                   (components
                     (member decl="main.(file).FixtureAddressHolder.address@/x/ContentView.swift:444:9" type="URL"))
                   (parsed_root=unresolved_dot_expr type="<null>" field="address" function_ref=unapplied
-                    (type_expr type="<null>" typerepr="FixtureAddressHolder")))))))))))
+                    (type_expr type="<null>" typerepr="FixtureAddressHolder"))))))))))
+  (func_decl range=[/x/FrontDoor.swift:70:1 - line:73:1] "fixtureStoreKeyPathHeld(_:)" interface_type="(FixtureAddressHolderAgain) -> GapRegisterStore" access=internal result="GapRegisterStore" thrown_type="<null>"
+    (parameter_list range=[/x/FrontDoor.swift:70:29 - line:70:63]
+      (parameter "held" interface_type="FixtureAddressHolderAgain"))
+    (brace_stmt range=[/x/FrontDoor.swift:70:85 - line:73:1]
+      (pattern_binding_decl range=[/x/FrontDoor.swift:71:5 - line:71:43]
+        (pattern_entry
+          (pattern_named type="KeyPath<FixtureAddressHolderAgain, URL>" "path")
+          (original_init=keypath_expr type="KeyPath<FixtureAddressHolderAgain, URL>" location=/x/FrontDoor.swift:71:16 range=[/x/FrontDoor.swift:71:16 - line:71:43]
+            (components
+              (member decl="main.(file).FixtureAddressHolderAgain.address@/x/ContentView.swift:450:9" type="URL"))
+            (parsed_root=unresolved_dot_expr type="<null>" field="address" function_ref=unapplied
+              (type_expr type="<null>" typerepr="FixtureAddressHolderAgain")))
+          (processed_init=keypath_expr type="KeyPath<FixtureAddressHolderAgain, URL>" location=/x/FrontDoor.swift:71:16 range=[/x/FrontDoor.swift:71:16 - line:71:43]
+            (components
+              (member decl="main.(file).FixtureAddressHolderAgain.address@/x/ContentView.swift:450:9" type="URL"))
+            (parsed_root=unresolved_dot_expr type="<null>" field="address" function_ref=unapplied
+              (type_expr type="<null>" typerepr="FixtureAddressHolderAgain")))))
+      (var_decl range=[/x/FrontDoor.swift:71:9 - line:71:9] "path" interface_type="KeyPath<FixtureAddressHolderAgain, URL>" access=private let readImpl=stored immutable
+        (has_initial_value_attr implicit)
+        (has_storage_attr implicit))
+      (return_stmt range=[/x/FrontDoor.swift:72:5 - line:72:53]
+        (call_expr type="GapRegisterStore" location=/x/FrontDoor.swift:72:12 range=[/x/FrontDoor.swift:72:12 - line:72:53] nothrow isolation_crossing="none"
+          (constructor_ref_call_expr type="(URL) -> GapRegisterStore" location=/x/FrontDoor.swift:72:12 range=[/x/FrontDoor.swift:72:12 - line:72:12] nothrow isolation_crossing="none"
+            (declref_expr implicit type="(GapRegisterStore.Type) -> (URL) -> GapRegisterStore" location=/x/FrontDoor.swift:72:12 range=[/x/FrontDoor.swift:72:12 - line:72:12] decl="main.(file).GapRegisterStore.init(url:)@/x/FrontDoor.swift:40:8" function_ref=single apply)
+            (argument_list implicit
+              (argument
+                (type_expr type="GapRegisterStore.Type" location=/x/FrontDoor.swift:72:12 range=[/x/FrontDoor.swift:72:12 - line:72:12] typerepr="GapRegisterStore"))))
+          (argument_list labels="url:"
+            (argument label="url"
+              (keypath_application_expr type="URL" location=/x/FrontDoor.swift:72:38 range=[/x/FrontDoor.swift:72:34 - line:72:52]
+                (declref_expr type="FixtureAddressHolderAgain" location=/x/FrontDoor.swift:72:34 range=[/x/FrontDoor.swift:72:34 - line:72:34] decl="main.(file).fixtureStoreKeyPathHeld(_:).held@/x/FrontDoor.swift:70:32" function_ref=unapplied)
+                (declref_expr type="KeyPath<FixtureAddressHolderAgain, URL>" location=/x/FrontDoor.swift:72:48 range=[/x/FrontDoor.swift:72:48 - line:72:48] decl="main.(file).fixtureStoreKeyPathHeld(_:).path@/x/FrontDoor.swift:71:9" function_ref=unapplied)))))))))
 (source_file "/x/Imports.swift"
   (import_decl range=[/x/Imports.swift:3:1 - line:3:8] module="Foundation")
   (import_decl range=[/x/Imports.swift:4:1 - line:4:8] module="Network")

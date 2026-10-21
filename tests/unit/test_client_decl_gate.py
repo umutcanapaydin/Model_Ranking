@@ -1337,3 +1337,27 @@ def test_242_a_served_numbers_listed_meeting_is_admitted_only_in_its_place(
     computed property `disclosures`, which the place names. # covers D-214"""
     assert gate._meeting(declared, role, "position", *place, 1) == f"main.<meets listed>.{declared}|{role}|{place[1]}"
     assert (gate._meeting(declared, role, "position", *elsewhere, 1) or "").startswith("main.<meets>."), elsewhere
+
+
+#: #242, the security review's round 2, B1: a key path not written in place, and a method referenced without a call.
+ROUND_TWO_TWINS = ["keypath-held", "keypath-held-closure", "keypath-parameter", "method-held", "distance-held",
+                   "signum-held"]
+
+
+@pytest.mark.parametrize("shape", ROUND_TWO_TWINS)
+def test_242_a_key_path_not_written_in_place_or_a_method_referenced_unapplied_is_refused(shape: str) -> None:
+    """#242, the security review's round 2, B1 (G-2): `.magnitude` through a key path bound to a name or passed as a
+    parameter, which the gate cannot read, and `advanced(by:)`, `distance(to:)` and `signum` referenced on a served
+    number without a call. A key-path application on a served number is refused unless its key path is written in
+    place; a method referenced on one is judged as its call is. # covers D-214, D-181"""
+    line = _marked(f"// shape: {shape}")
+    refused = [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused"
+
+
+def test_242_a_store_reads_a_url_only_through_a_key_path_written_in_place() -> None:
+    """#242, the security review's round 2, M2 (G-13): the register's store built on a URL read through a key path bound
+    to a name first passed, since only a key path written at the application was read. # covers D-214, REQ-GAP-001"""
+    line = _marked_in("FrontDoor.swift", "return GapRegisterStore(url: held[keyPath: path])")
+    assert [found for found in gate.problems(gate.references(FLOW_AST))
+            if found.startswith(f"FrontDoor.swift:{line}:") and "a key path not written in place" in found]

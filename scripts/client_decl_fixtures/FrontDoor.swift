@@ -64,3 +64,10 @@ extension GapRegisterStore {
 func fixtureStoreKeyPath(_ held: FixtureAddressHolder) -> GapRegisterStore {
     GapRegisterStore(url: held[keyPath: \FixtureAddressHolder.address])
 }
+
+// #242, the security review's round 2, M2: the same read with the key path bound to a name first. REFUSED: a store
+// reads a URL through a key path only when the key path is written in place, where the gate can read its members.
+func fixtureStoreKeyPathHeld(_ held: FixtureAddressHolderAgain) -> GapRegisterStore {
+    let path = \FixtureAddressHolderAgain.address
+    return GapRegisterStore(url: held[keyPath: path])
+}

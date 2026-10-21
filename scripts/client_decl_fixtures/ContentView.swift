@@ -443,3 +443,9 @@ func fixtureViewUnlabelledSelectors(_ named: Selector, _ target: NSObject, _ typ
 struct FixtureAddressHolder {
     let address: URL
 }
+
+// #242, the security review's round 2, M2: a second type holding a URL, which the register's file reads through a key
+// path bound to a name first.
+struct FixtureAddressHolderAgain {
+    let address: URL
+}
