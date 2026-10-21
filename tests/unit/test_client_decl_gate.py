@@ -1320,3 +1320,20 @@ def test_242_a_url_a_store_reads_through_a_key_path_off_another_files_type_is_re
     URL-typed declaration of another file read through a key path (`held[keyPath: \\Holder.address]`) passed, and the
     register's store was built on it. # covers D-214, REQ-GAP-001"""
     assert _refused_in("FrontDoor.swift", "receives a URL, by `FixtureAddressHolder.address`, declared in ContentView.swift")
+
+
+@pytest.mark.parametrize(("declared", "role", "place", "elsewhere"), [
+    ("Swift.Set.init(_:", "argument", ("AnswerPlan.swift", "disclosures"), ("AnswerPlan.swift", "-")),
+    ("Swift.String.init(_:", "argument", ("Language.swift", "number"), ("Detail.swift", "detailFacts")),
+    ("Swift.ClosedRange.contains", "argument", ("Uncertainty.swift", "evidenceBreadth"), ("Notices.swift", "staleSentence")),
+    ("Swift.Array.subscript(_:", "receiver", ("Notices.swift", "staleSentence"), ("Language.swift", "number")),
+    ("Swift.Sequence.sorted(", "receiver", ("Notices.swift", "staleSentence"), ("Combine.swift", "combined")),
+])
+def test_242_a_served_numbers_listed_meeting_is_admitted_only_in_its_place(
+        declared: str, role: str, place: tuple[str, str], elsewhere: tuple[str, str]) -> None:
+    """#242, the security review's R1 and R2: `Set(_:)` was admitted anywhere in `AnswerPlan.swift` outside a function
+    (a computed property, a closure, an initialiser's expression), and four entries were open to any file though the
+    shipping client meets each in one or a few places. Each is now admitted only where it is met: `Set(_:)` in the
+    computed property `disclosures`, which the place names. # covers D-214"""
+    assert gate._meeting(declared, role, "position", *place, 1) == f"main.<meets listed>.{declared}|{role}|{place[1]}"
+    assert (gate._meeting(declared, role, "position", *elsewhere, 1) or "").startswith("main.<meets>."), elsewhere
