@@ -5783,6 +5783,7 @@ release's name on its data and is refused until a night changes it.
 from a data centre, Fly's deploy token scope changes, a source goes into `LEFT_OUT` (the public state would then
 publish it), the repository goes private (the deploy's anonymous `git fetch` then needs a credential), or the app
 moves to a public release (then the state's retention and the deploy cadence are read again).
+
 ## D-218 — Run queue-1021's rulings: the media surfaces on quality, new surfaces for new boards, #371's rule, and the first release's name
 
 **Status:** proposed

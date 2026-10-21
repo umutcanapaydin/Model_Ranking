@@ -39,7 +39,7 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-387 | fix/issue-387-hosted-refresh | #388 | none | running |
+| issue-387 | fix/issue-387-hosted-refresh | #388 | none | stacked |
 | issue-389 | fix/issue-389-token-apart | none | none | queued |
 | issue-391 | fix/issue-391-repo-pin | none | none | queued |
 | issue-371 | fix/issue-371-generic-and-rebuilt | none | none | queued |
