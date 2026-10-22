@@ -1205,3 +1205,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - M4: the hosted deploy refuses a call from any tree but its own checkout; the #391 test now runs its scratch copy from inside the scratch tree.
 - Round 2 (PASS WITH FINDINGS, M1, M3 and M4 closed): both OSWorld `zipfile` calls now also catch `ValueError`, `NotImplementedError` and `OSError` (M2's rest, two one-field edits of the recorded workbook). Both deploy scripts unset git's place variables (M5). The reader joins each element's text once (N1), and the client dumps unescaped JSON (N2).
 - Lesson: a parser's contract is the exception class it raises, and `RecursionError`, a zip read's errors and `csv.Error` are not `ValueError`, so every new reader of fetched input needs a deep-nesting case and a broken-container case beside its malformed-text case.
+
+## 2026-10-22 · fix/issue-405-unpriced-coverage — plan coverage leaves out the surfaces ranked on quality only
+
+- `live-contracts` had been red since #378. The coverage report counted the five image and video surfaces as zero plans, and none of them takes a price (D-218 clause 1).
+- `plan_surfaces()` reads `CategorySpec.priced`, so plan coverage and plan evidence health cover the priced surfaces only. The JSON lists the rest under `unpriced_surfaces`, and a priced surface left at zero still exits 1.
+- Red, then green: `test_a_surface_ranked_on_quality_only_is_no_plan_coverage_gap`, committed alone first.
+- Lesson: a new kind of surface must be replayed against every report that loops over the surfaces, because the local gate never runs the network-only contract job, and that job was the one that went red.
