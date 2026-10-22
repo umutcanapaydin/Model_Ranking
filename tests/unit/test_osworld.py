@@ -100,9 +100,9 @@ def test_a_workbook_that_is_not_the_board_fails_the_source(raw: str) -> None:
         _parse(raw)
 
 
-def _zip(members: dict[str, bytes]) -> bytes:
+def _zip(members: dict[str, bytes], compression: int = zipfile.ZIP_STORED) -> bytes:
     buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as archive:
+    with zipfile.ZipFile(buffer, "w", compression) as archive:
         for name, body in members.items():
             archive.writestr(name, body)
     return buffer.getvalue()
@@ -120,6 +120,51 @@ def test_a_file_that_is_not_a_plain_workbook_fails_the_source(data: bytes) -> No
 
     with pytest.raises(SourceError):
         _ow().workbook_rows(data)
+
+
+SPREADSHEET_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+
+
+def _sheet(rows: str) -> bytes:
+    """A namespaced sheet, as a workbook writes one, holding these `<row>` elements."""
+    return f'<worksheet xmlns="{SPREADSHEET_NS}"><sheetData>{rows}</sheetData></worksheet>'.encode()
+
+
+def _shared(*strings: str) -> bytes:
+    items = "".join(f"<si><t>{text}</t></si>" for text in strings)
+    return f'<sst xmlns="{SPREADSHEET_NS}">{items}</sst>'.encode()
+
+
+_REPEATED_VALUE = _zip({
+    "xl/sharedStrings.xml": _shared("Model", "x" * 1_048_576),
+    "xl/worksheets/sheet1.xml": _sheet('<row r="1"><c r="A1" t="s"><v>0</v></c></row>' + "".join(
+        f'<row r="{i}"><c r="A{i}" t="s"><v>1</v></c></row>' for i in range(2, 302))),
+}, zipfile.ZIP_DEFLATED)
+_REPEATED_HEADER = _zip({
+    "xl/sharedStrings.xml": _shared("x" * 1_048_576),
+    "xl/worksheets/sheet1.xml": _sheet('<row r="1"><c r="A1" t="s"><v>0</v></c></row>' + "".join(
+        f'<row r="{i}"><c r="A{i}"><v>1</v></c></row>' for i in range(2, 302))),
+}, zipfile.ZIP_DEFLATED)
+
+
+@pytest.mark.parametrize("data", [_REPEATED_VALUE, _REPEATED_HEADER], ids=["a-value", "a-header-name"])
+def test_a_shared_string_repeated_past_the_output_cap_fails_the_source(data: bytes) -> None:
+    """covers REQ-SRC-013 (the queue-1021 integration review's M1): a cell `t="s"` copies one shared string, so a
+    download of a few KB resolves to 300 MB of rows (one 1 MB string, 300 cells), and the client's `json.dumps`
+    would build every copy. The reader bounds what it produces, a header name repeated as each row's key included,
+    and refuses past the cap before anything serialises it."""
+    from app.clients.protocols import SourceError
+
+    assert len(data) < 16_384
+    with pytest.raises(SourceError, match="cells resolve to more than"):
+        _ow().workbook_rows(data)
+
+
+def test_the_recorded_board_resolves_far_inside_the_output_cap() -> None:
+    """covers REQ-SRC-013 (the queue-1021 integration review's M1): the cap leaves the real board room to grow."""
+    rows = _ow().workbook_rows(FIXTURE.read_bytes())
+    resolved = sum(len(key) + len(value or "") for row in rows for key, value in row.items())
+    assert resolved * 50 < _ow().MAX_ROWS_CHARS
 
 
 def test_a_sheet_larger_than_the_cap_fails_the_source(monkeypatch: pytest.MonkeyPatch) -> None:
