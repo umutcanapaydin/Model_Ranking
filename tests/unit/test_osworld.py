@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib
 import io
 import json
+import struct
 import zipfile
 from pathlib import Path
 
@@ -165,6 +166,54 @@ def test_the_recorded_board_resolves_far_inside_the_output_cap() -> None:
     rows = _ow().workbook_rows(FIXTURE.read_bytes())
     resolved = sum(len(key) + len(value or "") for row in rows for key, value in row.items())
     assert resolved * 50 < _ow().MAX_ROWS_CHARS
+
+
+_HEADER_ONLY = _sheet('<row r="1"><c r="A1" t="inlineStr"><is><t>Model</t></is></c></row>')
+
+
+def _lying_size() -> bytes:
+    """A member whose declared size is five bytes short of what it unpacks to: `zipfile` reads the declared size and
+    fails the CRC check."""
+    data = bytearray(_zip({"xl/worksheets/sheet1.xml": _HEADER_ONLY}, zipfile.ZIP_DEFLATED))
+    central = data.rfind(b"PK\x01\x02")
+    for field in (central + 24, 22):  # uncompressed size: central directory, then local header
+        struct.pack_into("<I", data, field, struct.unpack_from("<I", data, field)[0] - 5)
+    return bytes(data)
+
+
+def _corrupt_stream() -> bytes:
+    data = bytearray(_zip({"xl/worksheets/sheet1.xml": _HEADER_ONLY}, zipfile.ZIP_DEFLATED))
+    start = data.find(b"xl/worksheets/sheet1.xml") + len("xl/worksheets/sheet1.xml")
+    data[start + 3] ^= 0xFF
+    data[start + 4] ^= 0xFF
+    return bytes(data)
+
+
+def _encrypted() -> bytes:
+    data = bytearray(_zip({"xl/worksheets/sheet1.xml": _HEADER_ONLY}, zipfile.ZIP_DEFLATED))
+    central = data.rfind(b"PK\x01\x02")
+    struct.pack_into("<H", data, central + 8, struct.unpack_from("<H", data, central + 8)[0] | 0x1)
+    return bytes(data)
+
+
+_DEEP = (f'<worksheet xmlns="{SPREADSHEET_NS}">'.encode() + b"<a>" * 100_000 + b"</a>" * 100_000
+         + b"</worksheet>")
+
+
+@pytest.mark.parametrize("data", [
+    _lying_size(), _corrupt_stream(), _encrypted(),
+    _zip({"xl/worksheets/sheet1.xml": _HEADER_ONLY}, zipfile.ZIP_BZIP2),
+    _zip({"xl/worksheets/sheet1.xml": _DEEP}, zipfile.ZIP_DEFLATED),
+], ids=["a-size-that-lies", "a-corrupt-stream", "an-encrypted-member", "another-compression", "xml-nested-past-the-recursion-limit"])
+def test_a_workbook_that_breaks_the_reader_fails_the_source_and_nothing_else(data: bytes) -> None:
+    """covers REQ-SRC-013, D-121 (the queue-1021 integration review's M2): `zipfile.BadZipFile`, `zlib.error`,
+    `RuntimeError` and `RecursionError` are bad input, not builder bugs, so they fail this optional source as
+    `SourceError` and never abort the night. A workbook's members are stored or deflated; any other method's decoder
+    raises a class of its own, so it is refused before it is read."""
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError):
+        _ow().workbook_rows(data)
 
 
 def test_a_sheet_larger_than_the_cap_fails_the_source(monkeypatch: pytest.MonkeyPatch) -> None:

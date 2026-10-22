@@ -12,9 +12,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import httpx
 import pytest
+import respx
 
-from app.clients.arena import ARENA_BOARDS, METRIC, ArenaClient, parse_arena
+from app.clients.arena import ARENA_BOARDS, METRIC, ROWS_API, ArenaClient, parse_arena
 from app.clients.protocols import SourceError
 from app.workflows.board_tables import ARENA_ATTRIBUTION
 from app.workflows.rank import SOURCE_ATTRIBUTION
@@ -87,3 +89,14 @@ def test_the_fixtures_are_the_recorded_overall_boards_and_nothing_else() -> None
         payload = json.loads(_recorded(config))
         assert f"config={config}" in payload["_note"]
         assert {wrapper["row"]["category"] for wrapper in payload["rows"]} == {"overall"}
+
+
+@respx.mock
+@pytest.mark.parametrize("config", sorted(MEDIA_BOARDS))
+def test_a_page_nested_past_the_recursion_limit_fails_the_board_and_nothing_else(config: str) -> None:
+    """D-121 (the queue-1021 integration review's M2, checked on #378's boards): `RecursionError` from a page's
+    `json.loads` is bad input, not a builder bug, so it fails this optional board as `SourceError` and never aborts
+    the night."""
+    respx.get(ROWS_API).mock(return_value=httpx.Response(200, text="[" * 100_000))
+    with pytest.raises(SourceError, match="arena fetch failed"):
+        ArenaClient(config=config).fetch_raw()

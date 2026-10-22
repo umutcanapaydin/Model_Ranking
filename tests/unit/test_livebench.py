@@ -189,3 +189,52 @@ def test_a_point_release_of_minimax_m3_is_never_read_as_minimax_m3(name: str) ->
                      "together_ai/MiniMaxAI/MiniMax-M3", "azure_ai/FW-MiniMax-M3"):
         found = canonicalize(spelling)
         assert found is not None and found.canonical_id == "minimax-m3", spelling
+
+
+@pytest.mark.parametrize("raw", [
+    json.dumps({"table": "model,a\n" + "x" * 200_000 + ",1\n", "categories": {"c": ["a"]}}),
+    "[" * 100_000,
+], ids=["a-field-past-csvs-limit", "json-nested-past-the-recursion-limit"])
+def test_a_release_that_breaks_the_readers_fails_the_source_and_nothing_else(raw: str) -> None:
+    """covers REQ-SRC-013, D-121 (the queue-1021 integration review's M2): `csv.Error` and `RecursionError` are bad
+    input, not builder bugs, so they fail this optional source as `SourceError` and never abort the night."""
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError):
+        _parse(raw)
+
+
+@pytest.mark.respx(assert_all_called=False)
+def test_categories_nested_past_the_recursion_limit_fail_the_source(respx_mock: respx.MockRouter) -> None:
+    """covers REQ-SRC-013, D-121 (the queue-1021 integration review's M2): the client's own `json.loads` too."""
+    from app.clients.protocols import SourceError
+
+    respx_mock.get(TABLE).mock(return_value=httpx.Response(200, text=_table()))
+    respx_mock.get(CATEGORIES).mock(return_value=httpx.Response(200, text="[" * 100_000))
+    with pytest.raises(SourceError, match=r"categories\.json"):
+        _lb().LiveBenchClient().fetch_raw()
+
+
+def test_a_bad_optional_source_leaves_the_build_going_on_to_the_next() -> None:
+    """covers D-121 (the queue-1021 integration review's M2): through `_ingest_sources`, LiveBench's oversized field
+    is named as a missing optional source, and SimpleBench, declared after it, is still read and stored."""
+    import dataclasses
+
+    from app.clients.fakes import FakeRawSource
+    from app.workflows import build, sources
+    from app.workflows.ingest import RunContext
+    from app.workflows.schema import connect
+
+    simplebench_file = Path(__file__).resolve().parents[1] / "fixtures" / "simplebench" / "leaderboard-data.js"
+    bad = json.dumps({"table": "model,a\n" + "x" * 200_000 + ",1\n", "categories": {"c": ["a"]}})
+    declared = {s.name: s for s in sources.REMOTE_SOURCES}
+    chain = (
+        dataclasses.replace(declared["livebench"], client=lambda: FakeRawSource("livebench", bad)),
+        dataclasses.replace(declared["simplebench"], client=lambda: FakeRawSource(
+            "simplebench", simplebench_file.read_text(encoding="utf-8"))),
+    )
+    conn = connect(":memory:")
+    reports, missing = build._ingest_sources(conn, chain, RunContext(observed_at="2026-10-22T00:00:00Z"))
+    assert [line.split(":")[0] for line in missing] == ["livebench"]
+    assert [(report.source, report.stored) for report in reports] == [("simplebench", 106)]
+    assert conn.execute("SELECT COUNT(*) FROM scores WHERE source = 'livebench'").fetchone()[0] == 0

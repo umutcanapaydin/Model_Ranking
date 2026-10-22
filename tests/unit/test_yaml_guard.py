@@ -358,3 +358,11 @@ def test_the_savepoint_wrapper_has_a_citing_test() -> None:
     assert any(
         isinstance(node, ast.Try) and node.finalbody for node in ast.walk(fn)
     ), "the RELEASE is not in a finally, so a path exists that leaves the savepoint open"
+
+
+@pytest.mark.parametrize("raw", ["[" * 5_000, "{a: " * 5_000], ids=["a-sequence", "a-mapping"])
+def test_a_document_nested_past_the_recursion_limit_is_refused_as_a_guard_error(raw: str) -> None:
+    """The queue-1021 integration review's M2: PyYAML composes recursively, so a deep document raised
+    `RecursionError`, which no caller's `except yaml.YAMLError` catches. The guard refuses it in its own class."""
+    with pytest.raises(YamlGuardError, match="nested"):
+        safe_load_bounded(raw, what="a probe")

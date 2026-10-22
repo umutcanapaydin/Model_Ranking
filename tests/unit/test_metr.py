@@ -161,3 +161,12 @@ def test_the_registered_ingest_stores_each_row() -> None:
                              RunContext(observed_at="2026-10-22T00:00:00Z"))
     assert (report.stored, report.skipped) == (26, 0)
     assert conn.execute("SELECT COUNT(*) FROM scores WHERE source = 'metr_time_horizons'").fetchone()[0] == 26
+
+
+def test_a_file_nested_past_the_recursion_limit_fails_the_source() -> None:
+    """covers REQ-SRC-013, D-121 (the queue-1021 integration review's M2): `RecursionError` from the YAML composer is
+    bad input, so it fails this optional source as `SourceError` and never aborts the night."""
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError):
+        _parse("[" * 5_000)
