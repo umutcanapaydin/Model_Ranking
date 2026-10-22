@@ -66,10 +66,12 @@ def _scratch(tmp_path: Path, health_build: str | None = None) -> tuple[Path, Pat
     return repo, served, calls, env
 
 
-def _deploy(env: dict[str, str], *flags: str) -> subprocess.CompletedProcess[str]:
+def _deploy(env: dict[str, str], *flags: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """Run the scratch repository's copy of the script, by default from inside that repository: the call's
+    tree is the one the deploy gate judges, and the script refuses any other (the queue-1021 review's M4)."""
     script = Path(env[_UNDER_TEST]) / "scripts" / SCRIPT.name
     return subprocess.run(["/bin/bash", str(script), *flags], capture_output=True, text=True, timeout=120,
-                          env=env, check=False)
+                          env=env, check=False, cwd=cwd or env[_UNDER_TEST])
 
 
 def test_the_deploy_ships_its_own_checkout_whatever_model_ranking_repo_names(tmp_path: Path) -> None:
@@ -82,6 +84,33 @@ def test_the_deploy_ships_its_own_checkout_whatever_model_ranking_repo_names(tmp
     assert done.returncode == 0, done.stdout + done.stderr
     assert calls.exists() and (repo / "build" / "hosted" / "advisor.db").is_file()
     assert not (elsewhere / "build").exists()
+
+
+@pytest.mark.parametrize("caller", ["another-clone", "no-git-tree"])
+def test_a_call_from_another_tree_than_the_scripts_own_checkout_is_refused(tmp_path: Path, caller: str) -> None:
+    """The queue-1021 integration review's M4, the path form of #391: the deploy gate matches a command by its
+    basename and judges the CALL's tree, while the script `cd`s to its own checkout and ships that. A clone at a
+    reviewed head could stand as the call's directory while a script by path shipped another clone. The script
+    refuses before its `cd` unless the caller's tree is its own checkout: no build, no `fly` call."""
+    repo, _served, calls, env = _scratch(tmp_path)
+    if caller == "another-clone":
+        where = tmp_path / "elsewhere"
+        _git("clone", "-q", str(tmp_path / "origin.git"), str(where))
+    else:
+        where = tmp_path / "plain"
+        where.mkdir()
+    done = _deploy(env, cwd=where)
+    assert done.returncode != 0 and "its own checkout" in done.stderr, done.stdout + done.stderr
+    assert not calls.exists()
+    assert not (repo / "build").exists() and not (where / "build").exists()
+
+
+def test_a_call_from_a_folder_inside_its_own_checkout_runs(tmp_path: Path) -> None:
+    """The queue-1021 integration review's M4: the refusal compares trees, not folders."""
+    repo, _served, calls, env = _scratch(tmp_path)
+    done = _deploy(env, "--dry-run", cwd=repo / "scripts")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert (repo / "build" / "hosted" / "advisor.db").is_file() and not calls.exists()
 
 
 def test_a_deploy_stamps_the_commit_ships_the_public_artifact_and_checks_health(tmp_path: Path) -> None:
