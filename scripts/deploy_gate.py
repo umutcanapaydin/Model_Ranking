@@ -18,6 +18,20 @@ command carries options itself (`fly deploy` matches `fly --verbose deploy` and 
 `./deploy.sh --prod` matches `./deploy.sh --prod` only). A commit message, an echo or a heredoc that
 mentions the command is not a deploy, because the guard never hands those words over.
 
+A `gh` COMMAND IS READ BY WHAT IT STARTS (#390), not word for word: `gh workflow run <workflow>`, `gh api` on
+`.../actions/workflows/<workflow>/dispatches` (its path URL-encoded too), a repository dispatch, and a rerun
+(`gh run rerun`, `gh api` on `.../rerun`). Its options are read where they sit, with their values
+(`gh workflow run -R a/b x.yml`). An alias, an extension (any word that is not one of gh's own commands) and an
+alias definition are judged as a workflow it cannot name. A DEPLOY WORKFLOW is derived, never listed: a workflow
+file (under `.github/workflows/`, or a proposal under `scripts/ci/` that the owner installs there), in the tree or at
+the protected base (a dispatch with no `--ref` runs the default branch's copy), with a line that runs a declared
+deploy command (`flyctl` is `fly`; a backslash continuation is joined); and every workflow a declared
+`gh workflow run <file>` names. gh knows it by its file name, its stem and its `name:`. A dispatch whose workflow
+cannot be told -- an id, an expansion, a pattern or a brace, a name no workflow read here has, none given, a rerun
+of a run this cannot see, an alias -- is a deploy whenever a deploy workflow exists (fail closed), and none when
+none does; a workflow file at the base that git cannot read makes every dispatch a deploy. The Bash guard hands
+this the words of every simple command, so it needs no rule of its own for `gh`.
+
 THE REPOSITORY IS THE ONE THE COMMAND RUNS IN. The guard resolves it from the call's own directory
 (`git rev-parse --show-toplevel`), a worktree included, and runs this script -- always its own
 project's copy, never the one in the tree it judges -- with that tree as its directory; the verdicts and
@@ -71,6 +85,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 # No bytecode: a `__pycache__` written beside the gate would itself read as a code change in a tree
 # that does not ignore it, and the tree about to ship is what this compares.
@@ -339,12 +354,223 @@ def matches(words: list[str], declared_words: list[str]) -> bool:
 
 
 def deploy_in(commands: list[list[str]], root: Path) -> str | None:
-    """The declared deploy command one of these word lists runs, or None."""
-    for d in declared(root):
+    """The declared deploy command one of these word lists runs, or the `gh` command among them that starts a
+    deploy workflow (#390), or None."""
+    decl = declared(root)
+    for d in decl:
         for words in commands:
             if matches(words, d):
                 return " ".join(d)
+    starts = [(words, start) for words in commands if (start := gh_dispatch(words)) is not None]
+    if not starts:
+        return None
+    texts, complete = _workflow_texts(root)
+    workflows = deploy_workflows(root, decl, texts)
+    deploys = {name for known in workflows.values() for name in known}
+    # A workflow word no file read here is known by is one this cannot name (round 1's M2): it may be a
+    # workflow the default branch has and this tree does not, or one a wrapper rewrites.
+    known = deploys | {name for file, versions in texts.items() for name in _names(file, versions)}
+    for words, start in starts:
+        start = {s if s in known else UNKNOWN for s in start}
+        if not complete or (workflows and (UNKNOWN in start or start & deploys)):
+            what = ("a workflow, and a workflow file at the protected base could not be read" if not complete else
+                    "a workflow it does not name" if UNKNOWN in start else "a deploy workflow")
+            return (f"{' '.join(_program_position(words))} (it starts {what}; "
+                    f"{', '.join(sorted(workflows)) or 'which workflow deploys is not known'} deploys)")
     return None
+
+
+# --- gh: what a command starts (#390) -------------------------------------------------------------------
+
+#: A workflow a dispatch starts that its words do not name: an id, an expansion, a pattern, none given, a rerun,
+#: an alias or an extension.
+UNKNOWN = "\0unknown"
+#: Flags of the `gh` commands read here that take a value, so a value is never read as the workflow.
+GH_VALUED = {"-R", "--repo", "--hostname", "-r", "--ref", "-f", "--raw-field", "-F", "--field", "-X", "--method",
+             "-H", "--header", "--input", "-q", "--jq", "-t", "--template", "-p", "--preview", "--cache", "-j",
+             "--job"}
+#: gh's own top-level commands and help topics, as `gh help` lists them in gh 2.100.0 (2026-09-03). A NAMED
+#: ENUMERATION, kept by hand for a written reason (AGENTS.md section 3.5): the gate runs on every Bash call with
+#: no network and cannot ask gh, and whatever is not here is an alias or an extension, whose expansion lives in
+#: the user's gh config, out of this gate's sight (round 1's M3). Such a command is UNKNOWN, so a command a newer
+#: gh adds is refused while a deploy workflow exists and the verdicts are stale, never allowed. `co` is a default
+#: alias, which the user may have redefined, and is left out on purpose.
+GH_COMMANDS = frozenset({
+    "agent-task", "alias", "api", "attestation", "auth", "browse", "cache", "codespace", "completion", "config",
+    "copilot", "discussion", "extension", "gist", "gpg-key", "help", "issue", "label", "licenses", "org", "pr",
+    "preview", "project", "release", "repo", "ruleset", "run", "search", "secret", "skill", "ssh-key", "status",
+    "variable", "version", "workflow",
+    "accessibility", "actions", "environment", "exit-codes", "formatting", "mintty", "reference", "telemetry",
+})
+#: Where workflow files live: the installed ones, and the proposals the owner copies there (D-217 clause 7).
+WORKFLOW_DIRS = (".github/workflows", "scripts/ci")
+#: Read on the decoded endpoint, so `.github%2Fworkflows%2Fx.yml` -- a path GitHub accepts -- is one segment.
+DISPATCH = re.compile(r"/actions/workflows/(.+?)/dispatches(?:$|[/?#])")
+RERUN = re.compile(r"/actions/(?:runs|jobs)/[^/?#]+/rerun")
+REPOSITORY_DISPATCH = re.compile(r"(?:^|/)repos/[^/]+/[^/]+/dispatches(?:$|[/?#])")
+#: What the Bash guard leaves in a word it cannot read: a parameter, a substitution (written `$(...)`), a backtick.
+UNREAD = re.compile(r"[$`]")
+#: What the shell, `find -exec` or `xargs -I` may rewrite: a pattern or a brace.
+REWRITTEN = re.compile(r"[*?\[\]{}]")
+#: A workflow's top-level `name:`, which `gh workflow run` takes as well as the file: quoted, or plain up to a
+#: comment.
+WORKFLOW_NAME = re.compile(r"""^name:[ \t]*(?:"((?:[^"\\]|\\.)*)"|'((?:[^']|'')*)'|([^\n]*?))[ \t]*(?:#[^\n]*)?$""",
+                           re.M)
+#: `flyctl` is `fly` (the guard holds both names, D-185): a workflow that runs either runs the declared deploy.
+SAME_PROGRAM = {"flyctl": "fly"}
+
+
+def _gh_positionals(words: list[str]) -> list[str]:
+    """The words of a `gh` command (its program word left off) that are neither options nor an option's value."""
+    out: list[str] = []
+    i = 0
+    while i < len(words):
+        w = words[i]
+        if w == "--":
+            return out + words[i + 1:]
+        if w.startswith("-") and len(w) > 1:
+            i += 2 if ("=" not in w and w in GH_VALUED) else 1
+            continue
+        out.append(w)
+        i += 1
+    return out
+
+
+def _unread_leading_option(words: list[str]) -> bool:
+    """Whether an option before gh's command word is one this does not read: not a flag in GH_VALUED (with its
+    value), and not help or version."""
+    i = 0
+    while i < len(words) and words[i].startswith("-") and words[i] != "--" and len(words[i]) > 1:
+        name, eq, _ = words[i].partition("=")
+        if name in ("-h", "--help", "--version"):
+            i += 1
+        elif name in GH_VALUED:
+            i += 1 if eq else 2
+        else:
+            return True
+    return False
+
+
+def _workflow_of(word: str) -> str:
+    """A workflow word as gh reads it -- a file, a path to one, or a name -- lower-cased; UNKNOWN for an id, a word
+    the guard could not read, or one the shell or a wrapper rewrites."""
+    if UNREAD.search(word) or REWRITTEN.search(word) or word.strip().isdigit() or not word.strip():
+        return UNKNOWN
+    return os.path.basename(word.strip().rstrip("/")).lower() or UNKNOWN
+
+
+def gh_dispatch(words: list[str]) -> set[str] | None:
+    """The workflows a `gh` command may start (lower-cased; UNKNOWN among them when its words do not say which),
+    or None when it starts none."""
+    words = _program_position(words)
+    if not words or os.path.basename(words[0]).lower() != "gh":
+        return None
+    given = _gh_positionals(words[1:])
+    pos = [w.lower() for w in given]
+    if not pos:
+        return None
+    # An alias or an extension runs what the user's gh config says, and a definition can be invoked later,
+    # unjudged: the invocation is what is judged, and this cannot read it (round 1's M3). gh resolves the command
+    # word case-sensitively (`gh Api` may be an alias: round 2's M7), so it is compared as written. An option
+    # before it that this does not read may take the next word as its value in gh, so the command gh runs is
+    # not the one read here (`gh -z workflow zz` ran the alias `zz`: round 2's M8). `gh extension exec` runs an
+    # extension (round 2's M9).
+    if (given[0] not in GH_COMMANDS or _unread_leading_option(words[1:])
+            or (pos[0] == "alias" and pos[1:2] in (["set"], ["import"]))
+            or (pos[0] == "extension" and pos[1:2] == ["exec"])):
+        return {UNKNOWN}
+    if pos[:2] == ["workflow", "run"]:
+        return {_workflow_of(w) for w in pos[2:]} or {UNKNOWN}
+    if pos[:2] == ["run", "rerun"]:
+        return {UNKNOWN}
+    if pos[0] == "api":
+        return _gh_api(pos[1:])
+    return None
+
+
+def _gh_api(endpoints: list[str]) -> set[str] | None:
+    """What `gh api` starts on these endpoints (lower-cased): a workflow's dispatch, a rerun, a repository
+    dispatch."""
+    for endpoint in endpoints:
+        text = unquote(endpoint)
+        if (m := DISPATCH.search(text)):
+            return {_workflow_of(m.group(1))}
+        if RERUN.search(text) or REPOSITORY_DISPATCH.search(text):
+            return {UNKNOWN}
+        # An endpoint's tail names it: an expansion there, or one beside a dispatch, may be a dispatch.
+        if UNREAD.search(endpoint) and (re.search(r"[$`)][^/]*$", endpoint) or re.search(r"dispatch|rerun", text)):
+            return {UNKNOWN}
+    return None
+
+
+def _workflow_texts(root: Path) -> tuple[dict[str, list[str]], bool]:
+    """(every workflow file's text by its lower-cased file name -- the tree's, and the protected base's, since a
+    dispatch runs the default branch's copy --; whether every file at the base could be read). A file git cannot
+    list or show there is not skipped quietly (round 1's N1): the rest are still read, and the read is incomplete,
+    which makes every dispatch a deploy. No base at all adds nothing: the verdicts refuse every deploy then (#283)."""
+    out: dict[str, list[str]] = {}
+    for d in WORKFLOW_DIRS:
+        folder = root / d
+        for p in sorted(folder.iterdir()) if folder.is_dir() else []:
+            if p.suffix in (".yml", ".yaml") and p.is_file():
+                out.setdefault(p.name.lower(), []).append(p.read_text(encoding="utf-8", errors="replace"))
+    base = protected_base(root)
+    if base is None:
+        return out, True
+    try:
+        listed = subprocess.run(["git", "-C", str(root), "ls-tree", "-r", "-z", "--name-only", base, "--",
+                                 *WORKFLOW_DIRS], capture_output=True, check=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return out, False
+    complete = True
+    for path in (p.decode("utf-8", "replace") for p in listed.split(b"\0") if p):
+        if not path.endswith((".yml", ".yaml")):
+            continue
+        try:
+            shown = subprocess.run(["git", "-C", str(root), "show", f"{base}:{path}"], capture_output=True,
+                                   check=True, timeout=30).stdout.decode("utf-8", "replace")
+        except (OSError, subprocess.SubprocessError):
+            complete = False
+            continue
+        out.setdefault(os.path.basename(path).lower(), []).append(shown)
+    return out, complete
+
+
+def _runs_deploy(text: str, decl: list[list[str]]) -> bool:
+    """Whether a line of a workflow file runs a declared deploy command: a `run:` value, or a line of its block,
+    with a `\\` continuation joined. Read wide on purpose: a line that only looks like one makes the workflow a
+    deploy, which refuses more."""
+    for line in re.sub(r"\\\n\s*", " ", text).splitlines():
+        line = re.sub(r"^\s*(?:-\s*)?(?:run:\s*)?", "", line)
+        try:
+            commands = split_line(line)
+        except ValueError:
+            commands = [line.split()]
+        for words in commands:
+            at = len(words) - len(_program_position(words))
+            if at < len(words):
+                program = os.path.basename(words[at]).lower()
+                words = [*words[:at], SAME_PROGRAM.get(program, words[at]), *words[at + 1:]]
+            if any(matches(words, d) for d in decl):
+                return True
+    return False
+
+
+def _names(file: str, versions: list[str]) -> set[str]:
+    """Every name gh knows a workflow file by: the file, its stem, and the `name:` of each copy read."""
+    known = {file, re.sub(r"\.ya?ml$", "", file)}
+    for text in versions:
+        known |= {next(g for g in m.groups() if g is not None).strip().lower() for m in WORKFLOW_NAME.finditer(text)}
+    return known - {""}
+
+
+def deploy_workflows(root: Path, decl: list[list[str]],
+                     texts: dict[str, list[str]] | None = None) -> dict[str, set[str]]:
+    """Each deploy workflow's file name, with every name gh knows it by: the file, its stem, its `name:`."""
+    texts = _workflow_texts(root)[0] if texts is None else texts
+    files = {name for d in decl for name in (gh_dispatch(d) or set()) if name != UNKNOWN}
+    files |= {name for name, versions in texts.items() if any(_runs_deploy(t, decl) for t in versions)}
+    return {name: _names(name, texts.get(name, [])) for name in files}
 
 
 def split_line(text: str) -> list[list[str]]:
