@@ -22,7 +22,8 @@ import XCTest
 
 final class ReadingProbe: XCTestCase {
     let served = ["coding", "agentic-coding", "assistant", "everyday", "expert", "mathematics", "computer-use",
-                  "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality"]
+                  "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality",
+                  "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit", "long-tasks"]
 
     func testProbe() async throws {
         let env = ProcessInfo.processInfo.environment

@@ -1451,7 +1451,8 @@ def test_the_detail_screen_is_reachable_and_composes_nothing_itself() -> None:
     pick_row = re.search(r"PickRow\((.*?)\n\s*\)", view, re.S)
     assert pick_row, "the picks are no longer built here"
     for argument in ("benchmark: answer.primaryBenchmark", "closeCallMargin: info?.closeCallMargin",
-                     "minQuality: info?.minQuality", "priceExcludes: info?.priceExcludes"):
+                     # #378: the surface's price note: its `price_excludes`, or "not measured" (`priceNote`)
+                     "minQuality: info?.minQuality", "priceExcludes: info?.priceNote"):
         assert argument in pick_row.group(1), f"the picks are built without `{argument}`"
 
     # The view renders the Engine's facts and NOTHING else. Brace-matched rather than sliced to
@@ -1561,7 +1562,8 @@ def test_every_place_that_prints_a_search_price_says_what_it_leaves_out() -> Non
         "the full ranking": ("struct RankingList: View", r"priceExclusion\(\s*priceExcludes,"),
         "the home preview": (
             "private func rankingPreview(",
-            r"priceExclusion\(\s*category\(for:\s*answer\)\?\.priceExcludes,",
+            # #378: `priceNote` is the surface's `price_excludes`, or "not measured" on a quality-only one.
+            r"priceExclusion\(\s*category\(for:\s*answer\)\?\.priceNote,",
         ),
     }
     for place, (marker, pattern) in places.items():

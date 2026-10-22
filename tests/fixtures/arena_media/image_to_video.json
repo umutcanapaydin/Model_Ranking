@@ -1,0 +1,534 @@
+{
+ "_note": "Recorded 2026-10-21 from https://datasets-server.huggingface.co/rows?dataset=lmarena-ai/leaderboard-dataset&config=image_to_video&split=latest (LMArena, CC-BY-4.0): the whole overall board, as ArenaClient.fetch_raw merges it, trimmed to the fields this project reads.",
+ "rows": [
+  {
+   "row_idx": 0,
+   "row": {
+    "model_name": "minimax-h3",
+    "rating": 1495.4129234217028,
+    "rating_lower": 1490.2078197285562,
+    "rating_upper": 1500.6180271148494,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 1,
+   "row": {
+    "model_name": "gemini-omni-1.1-flash",
+    "rating": 1488.4906811724961,
+    "rating_lower": 1477.5724223845652,
+    "rating_upper": 1499.408939960427,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 2,
+   "row": {
+    "model_name": "wan3.0",
+    "rating": 1479.8060779755199,
+    "rating_lower": 1469.0141977027752,
+    "rating_upper": 1490.5979582482646,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 3,
+   "row": {
+    "model_name": "dreamina-seedance-2.5-720p",
+    "rating": 1477.4129374929146,
+    "rating_lower": 1470.1970331155082,
+    "rating_upper": 1484.628841870321,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 4,
+   "row": {
+    "model_name": "dreamina-seedance-2.0-720p",
+    "rating": 1474.5724124696908,
+    "rating_lower": 1467.52256173987,
+    "rating_upper": 1481.6222631995113,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 5,
+   "row": {
+    "model_name": "gemini-omni-flash",
+    "rating": 1464.827931386498,
+    "rating_lower": 1459.286933491042,
+    "rating_upper": 1470.3689292819538,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 6,
+   "row": {
+    "model_name": "hidream-o1-video-1.0",
+    "rating": 1456.465317098215,
+    "rating_lower": 1448.546782739169,
+    "rating_upper": 1464.383851457261,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 7,
+   "row": {
+    "model_name": "grok-imagine-video-1.5-720p",
+    "rating": 1456.0170160700688,
+    "rating_lower": 1451.8293083959477,
+    "rating_upper": 1460.2047237441898,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 8,
+   "row": {
+    "model_name": "flux-3-video-20260811",
+    "rating": 1449.4473750556915,
+    "rating_lower": 1444.504025113913,
+    "rating_upper": 1454.39072499747,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 9,
+   "row": {
+    "model_name": "happyhorse-1.0",
+    "rating": 1441.6631836234085,
+    "rating_lower": 1431.8358007508234,
+    "rating_upper": 1451.4905664959936,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 10,
+   "row": {
+    "model_name": "wan2.7-i2v",
+    "rating": 1428.2142043136757,
+    "rating_lower": 1423.3784181201736,
+    "rating_upper": 1433.0499905071777,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 11,
+   "row": {
+    "model_name": "grok-imagine-video-720p",
+    "rating": 1415.3041442928777,
+    "rating_lower": 1411.1784058594844,
+    "rating_upper": 1419.429882726271,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 12,
+   "row": {
+    "model_name": "veo-3.1-audio",
+    "rating": 1398.0958709582592,
+    "rating_lower": 1387.5989501661693,
+    "rating_upper": 1408.5927917503493,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 13,
+   "row": {
+    "model_name": "veo-3.1-audio-1080p",
+    "rating": 1390.2367113612709,
+    "rating_lower": 1381.666469293481,
+    "rating_upper": 1398.806953429061,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 14,
+   "row": {
+    "model_name": "veo-3.1-fast-audio",
+    "rating": 1385.0582064359148,
+    "rating_lower": 1376.2307955379201,
+    "rating_upper": 1393.8856173339093,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 15,
+   "row": {
+    "model_name": "grok-imagine-video-480p",
+    "rating": 1384.855331216425,
+    "rating_lower": 1376.441430920893,
+    "rating_upper": 1393.2692315119568,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 16,
+   "row": {
+    "model_name": "veo-3.1-fast-audio-1080p",
+    "rating": 1371.5950379327135,
+    "rating_lower": 1362.1133405504402,
+    "rating_upper": 1381.076735314987,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 17,
+   "row": {
+    "model_name": "vidu-q3-pro",
+    "rating": 1363.148682824981,
+    "rating_lower": 1354.4169110974506,
+    "rating_upper": 1371.8804545525115,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 18,
+   "row": {
+    "model_name": "kling-v3-pro",
+    "rating": 1354.014060785636,
+    "rating_lower": 1348.501149004131,
+    "rating_upper": 1359.526972567141,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 19,
+   "row": {
+    "model_name": "veo-3-audio",
+    "rating": 1331.4941173383877,
+    "rating_lower": 1319.8745407112247,
+    "rating_upper": 1343.1136939655507,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 20,
+   "row": {
+    "model_name": "veo-3-fast-audio",
+    "rating": 1326.044175905657,
+    "rating_lower": 1316.53992250091,
+    "rating_upper": 1335.5484293104037,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 21,
+   "row": {
+    "model_name": "wan2.5-i2v-preview",
+    "rating": 1321.3786104559142,
+    "rating_lower": 1311.0749254673865,
+    "rating_upper": 1331.682295444442,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 22,
+   "row": {
+    "model_name": "wan2.6-i2v",
+    "rating": 1309.5358287019499,
+    "rating_lower": 1302.762980447742,
+    "rating_upper": 1316.3086769561576,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 23,
+   "row": {
+    "model_name": "seedance-v1.5-pro",
+    "rating": 1307.197082115737,
+    "rating_lower": 1300.0601507665936,
+    "rating_upper": 1314.3340134648806,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 24,
+   "row": {
+    "model_name": "pixverse-v5.6",
+    "rating": 1299.2575526319624,
+    "rating_lower": 1291.9523015567133,
+    "rating_upper": 1306.5628037072115,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 25,
+   "row": {
+    "model_name": "kling-2.6-pro",
+    "rating": 1293.953181223861,
+    "rating_lower": 1286.1787690963451,
+    "rating_upper": 1301.727593351377,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 26,
+   "row": {
+    "model_name": "kling-2.5-turbo-1080p",
+    "rating": 1275.5587970208678,
+    "rating_lower": 1263.0424336234057,
+    "rating_upper": 1288.0751604183297,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 27,
+   "row": {
+    "model_name": "seedance-v1-pro",
+    "rating": 1272.9701722884283,
+    "rating_lower": 1265.2399265644385,
+    "rating_upper": 1280.7004180124177,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 28,
+   "row": {
+    "model_name": "hailuo-2.3",
+    "rating": 1261.9720613447057,
+    "rating_lower": 1257.066083188608,
+    "rating_upper": 1266.8780395008037,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 29,
+   "row": {
+    "model_name": "veo-3",
+    "rating": 1258.0304185314144,
+    "rating_lower": 1247.6516285350635,
+    "rating_upper": 1268.4092085277653,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 30,
+   "row": {
+    "model_name": "veo-3-fast",
+    "rating": 1257.442598049954,
+    "rating_lower": 1247.6252262835956,
+    "rating_upper": 1267.2599698163124,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 31,
+   "row": {
+    "model_name": "p-video",
+    "rating": 1243.5810110261416,
+    "rating_lower": 1227.3901804332168,
+    "rating_upper": 1259.7718416190667,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 32,
+   "row": {
+    "model_name": "vidu-q2-turbo",
+    "rating": 1243.5536818841956,
+    "rating_lower": 1226.816996275521,
+    "rating_upper": 1260.2903674928707,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 33,
+   "row": {
+    "model_name": "kling-v2.1-master",
+    "rating": 1234.9951574127272,
+    "rating_lower": 1227.1280144732912,
+    "rating_upper": 1242.8623003521632,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 34,
+   "row": {
+    "model_name": "hailuo-02-pro",
+    "rating": 1228.6496259989663,
+    "rating_lower": 1218.0066708110235,
+    "rating_upper": 1239.292581186909,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 35,
+   "row": {
+    "model_name": "kling-v2.1-standard",
+    "rating": 1228.632113891771,
+    "rating_lower": 1220.2977599334608,
+    "rating_upper": 1236.966467850081,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 36,
+   "row": {
+    "model_name": "ray-3",
+    "rating": 1225.904100719842,
+    "rating_lower": 1206.9286716217057,
+    "rating_upper": 1244.8795298179784,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 37,
+   "row": {
+    "model_name": "hailuo-02-standard",
+    "rating": 1223.709098146764,
+    "rating_lower": 1214.1562370929146,
+    "rating_upper": 1233.2619592006135,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 38,
+   "row": {
+    "model_name": "vidu-q2-pro",
+    "rating": 1223.3551139030083,
+    "rating_lower": 1206.6162322379437,
+    "rating_upper": 1240.0939955680728,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 39,
+   "row": {
+    "model_name": "hunyuan-video-1.5",
+    "rating": 1197.7731120974167,
+    "rating_lower": 1182.1175144221288,
+    "rating_upper": 1213.4287097727051,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 40,
+   "row": {
+    "model_name": "hailuo-02-fast",
+    "rating": 1193.9192486573502,
+    "rating_lower": 1183.2845499786897,
+    "rating_upper": 1204.5539473360109,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 41,
+   "row": {
+    "model_name": "seedance-v1-lite",
+    "rating": 1185.3004857912556,
+    "rating_lower": 1177.5405334190627,
+    "rating_upper": 1193.0604381634485,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 42,
+   "row": {
+    "model_name": "wan-v2.2-a14b",
+    "rating": 1170.1965488322867,
+    "rating_lower": 1160.1863483836935,
+    "rating_upper": 1180.2067492808799,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 43,
+   "row": {
+    "model_name": "veo-2",
+    "rating": 1165.789899762161,
+    "rating_lower": 1149.6264663764498,
+    "rating_upper": 1181.9533331478724,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 44,
+   "row": {
+    "model_name": "ltx-2-19b",
+    "rating": 1159.3500255361387,
+    "rating_lower": 1154.4836120529953,
+    "rating_upper": 1164.216439019282,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 45,
+   "row": {
+    "model_name": "ray2",
+    "rating": 1108.474233542956,
+    "rating_lower": 1092.2395207062023,
+    "rating_upper": 1124.70894637971,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 46,
+   "row": {
+    "model_name": "runway-gen4-turbo",
+    "rating": 1052.348586663998,
+    "rating_lower": 1038.9601203663601,
+    "rating_upper": 1065.7370529616358,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  },
+  {
+   "row_idx": 47,
+   "row": {
+    "model_name": "pika-v2.2",
+    "rating": 997.073436049672,
+    "rating_lower": 983.4029799167074,
+    "rating_upper": 1010.7438921826363,
+    "category": "overall",
+    "leaderboard_publish_date": "2026-09-22"
+   }
+  }
+ ],
+ "num_rows_total": 48
+}

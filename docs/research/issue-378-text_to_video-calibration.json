@@ -1,0 +1,21 @@
+{
+  "board_distinct_models": 48,
+  "floor_shipped": 1347.9,
+  "board_third_D145": 1347.9,
+  "config": "text_to_video",
+  "source": "arena_text_to_video",
+  "benchmark": "Arena text-to-video",
+  "board_rows": 48,
+  "skipped": 0,
+  "ranked_population": 48,
+  "rankable_board_names": 48,
+  "dropped": [],
+  "overlapping_pairs": 133,
+  "rating_min": 1006.6,
+  "rating_max": 1516.2,
+  "threshold_candidates": {
+    "min_quality": 1347.9,
+    "close_call": 12.3
+  },
+  "priced": false
+}

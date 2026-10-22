@@ -23,10 +23,10 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "coding": ("swebench", "epoch_swe_bench_verified", "aider", "arena_text_coding"),
     "agentic-coding": ("datacurve_deepswe", "terminalbench_4", "arena_agent"),
     "assistant": ("arena",),
-    "everyday": ("epoch_eci", "arena", "epoch_mmlu"),
+    "everyday": ("epoch_eci", "arena", "epoch_mmlu", "livebench", "simplebench"),  # #379 (D-219 clause 3)
     "expert": ("epoch_gpqa", "arena_text_expert", "epoch_mmlu"),
     "mathematics": ("epoch_aime", "epoch_frontiermath", "epoch_frontiermath_t4", "arena_text_math"),
-    "computer-use": ("terminalbench_4", "arena_agent"),
+    "computer-use": ("terminalbench_4", "osworld_verified", "arena_agent"),  # #379 (D-219 clause 3)
     "abstract": ("arc_agi_2", "epoch_chess", "epoch_mystery"),
     "web-dev": ("arena_webdev", "arena_text_coding"),
     "document": ("arena_document", "arena_text_longer_query"),
@@ -34,6 +34,14 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "vision": ("arena_vision",),
     "search": ("arena_search",),
     "search_factuality": ("arena_search_factuality",),
+    # #378 (D-218 clause 1): each image and video surface is its own board, ranked on quality only.
+    "text_to_image": ("arena_text_to_image",),
+    "image_edit": ("arena_image_edit",),
+    "text_to_video": ("arena_text_to_video",),
+    "image_to_video": ("arena_image_to_video",),
+    "video_edit": ("arena_video_edit",),
+    # #379 (D-218 clause 2, D-219 clause 3): METR's time horizons, the surface's only board.
+    "long-tasks": ("metr_time_horizons",),
 }
 
 #: surface -> the board a refinement takes the place of: the family's board of Arena's text vote. Every

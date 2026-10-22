@@ -12,7 +12,8 @@ def test_pick_cards_keep_scale_familiar_price_and_evidence() -> None:
     view = _code((CLIENT / "ContentView.swift").read_text(encoding="utf-8"))
     pick = view.split("struct PickRow: View", 1)[1].split("struct RankedRow: View", 1)[0]
     assert re.search(r"if let scale\s*\{\s*Text\(scale\)", pick)
-    assert "Text(priceInPages(pick.blendedPerM, in: language))" in pick
+    # #378: a pick on a quality-only surface has no price, and shows none.
+    assert "if let price = pick.blendedPerM { Text(priceInPages(price, in: language)) }" in pick
     for rendered in ("Text(evidence)", "Text(tradeOff)"):
         assert rendered in pick
     # #63 finding 1 (M18-W2): a card holding several labels says each kept reason.

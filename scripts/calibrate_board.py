@@ -43,6 +43,7 @@ def provisional_spec(client: ArenaClient) -> CategorySpec:
     benchmark and joins the price median, and touches none of the three numbers being derived.
     Spelling them as zero rather than as a guess keeps that visible.
     """
+    priced = client.name not in _unpriced_sources()
     return CategorySpec(
         id=f"provisional-{client.config}",
         title=f"(provisional) {client.benchmark}",
@@ -51,9 +52,17 @@ def provisional_spec(client: ArenaClient) -> CategorySpec:
         score_unit="Elo",
         secondary_benchmark=None,
         primary_source=client.name,
-        value_window=0.0,
+        value_window=0.0 if priced else None,
         close_call=0.0,
+        priced=priced,
     )
+
+
+def _unpriced_sources() -> set[str]:
+    """#378 (D-218 clause 1): the boards of the surfaces ranked on quality only."""
+    from app.workflows.categories import CATEGORIES
+
+    return {spec.primary_source for spec in CATEGORIES.values() if not spec.priced}
 
 
 def threshold_candidates(ratings: list[float], overlap_gaps: list[float]) -> dict[str, float]:
@@ -91,8 +100,16 @@ def threshold_candidates(ratings: list[float], overlap_gaps: list[float]) -> dic
     }
 
 
-def _display_of(conn: sqlite3.Connection, raw_name: str) -> str | None:
-    """The display name the engine ranks this board row under, or None if it does not rank it."""
+def _display_of(conn: sqlite3.Connection, raw_name: str, source: str | None = None) -> str | None:
+    """The display name the engine ranks this board row under, or None if it does not rank it.
+
+    On a quality-only surface's board (`source`, #378) the name is the one the build's media pass linked
+    the row to: no curated rule names an image or video model."""
+    if source is not None:
+        linked = conn.execute(
+            "SELECT m.display FROM scores s JOIN models m ON m.id = s.model_id"
+            " WHERE s.raw_name = ? AND s.source = ?", (raw_name, source)).fetchone()
+        return str(linked[0]) if linked else None
     rule = canonicalize(resolve_effort(raw_name).model_name)
     if rule is None:
         return None
@@ -213,11 +230,12 @@ def main(argv: list[str] | None = None) -> int:
         conn.commit()
         population = ranked_population(conn, provisional_spec(client))
         ranked_models = {row.model for row in population}
-        rankable = [n for n in by_name if _display_of(conn, n) in ranked_models]
+        media = client.name if client.name in _unpriced_sources() else None
+        rankable = [n for n in by_name if _display_of(conn, n, media) in ranked_models]
         # W-113: one name per model -- its best-rated one, the score the engine ranks it on.
         # Pairing every name with every other paired a model with its own snapshot and moved
         # `close_call` (vision 8.1 on names, 7.8 on models; search_factuality 4.2 against 4.9).
-        best_name = one_name_per_model({n: _display_of(conn, n) for n in rankable}, by_name)
+        best_name = one_name_per_model({n: str(_display_of(conn, n, media)) for n in rankable}, by_name)
         conn.close()
     ratings = [row.score for row in population]
     dropped = [n for n in by_name if n not in set(rankable)]
@@ -254,8 +272,12 @@ def main(argv: list[str] | None = None) -> int:
         "rating_min": round(min(ratings), 1) if ratings else None,
         "rating_max": round(max(ratings), 1) if ratings else None,
         "threshold_candidates": threshold_candidates(ratings, gaps) if ratings else None,
+        # #378: a surface ranked on quality only has no Best Value, so no window is a candidate.
+        "priced": media is None,
     }
 
+    if media is not None and record["threshold_candidates"]:
+        del record["threshold_candidates"]["value_window"]  # no Best Value to size (D-218 clause 1)
     print(json.dumps(record, indent=2, ensure_ascii=False))
     if args.out:
         with Path(args.out).open("w", encoding="utf-8") as handle:

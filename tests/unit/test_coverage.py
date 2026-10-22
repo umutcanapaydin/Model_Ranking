@@ -444,3 +444,22 @@ def test_a_plans_evidence_draws_the_sources_line() -> None:
 
     assert status(60) == "fresh", "60 days old against a 60-day window"
     assert status(59) == "stale"
+
+
+def test_a_surface_ranked_on_quality_only_is_no_plan_coverage_gap(tmp_path, capsys) -> None:
+    """#405 (D-218 clause 1): a plan is a monthly price, and a surface ranked on quality only takes no
+    price, so the plan question is not asked there. Its zero is not a gap: the report names it as not
+    priced, and only a priced surface at zero fails the exit."""
+    unpriced = sorted(spec.id for spec in CATEGORIES.values() if not spec.priced)
+    priced = sorted(spec.id for spec in CATEGORIES.values() if spec.priced)
+    assert unpriced and priced  # an empty set would pass vacuously
+
+    assert sorted(c.category for c in plan_coverage(_db())) == priced
+
+    db = tmp_path / "advisor.db"
+    _db(path=str(db)).close()
+    main(["--db", str(db), "--today", "2026-08-15"])
+    out = json.loads(capsys.readouterr().out)
+    assert out["unpriced_surfaces"] == unpriced
+    assert sorted(c["category"] for c in out["plan_coverage"]) == priced
+    assert sorted(h["category"] for h in out["plan_evidence_health"]) == priced

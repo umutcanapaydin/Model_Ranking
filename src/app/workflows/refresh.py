@@ -50,7 +50,7 @@ from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
 from app.workflows.floors import board_rows, derived_floor
 from app.workflows.rank import build_price_medians, ranked_with_ids
-from app.workflows.recommend import BUDGETS, eligible_rows, round_optional_score, round_score
+from app.workflows.recommend import BUDGETS, eligible_for, round_optional_score, round_score
 from app.workflows.registry import MODEL_RULES
 from app.workflows.schema import open_readonly
 from app.workflows.serving_bounds import bounds_from_env, egress_problems
@@ -530,7 +530,7 @@ def _row_digest(row: object) -> str:
             value = round_score(value)
         elif field.name == "secondary_score":
             value = round_optional_score(value)
-        elif field.name in ("input_per_m", "output_per_m"):
+        elif field.name in ("input_per_m", "output_per_m") and value is not None:
             # `rank.py:311` rounds `blended_per_m` to two decimals and leaves these two RAW, so a
             # median carrying float noise in its ninth decimal would otherwise read as a change
             # nobody can see. Two decimals, matching the precision the product prints prices at —
@@ -653,11 +653,15 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         # change reads as "nothing a user would notice" and is never published.
         digest.update(f"floor:{name}:{derived_floor(conn, spec)}\n".encode())
         surfaces[name] = len(rows)
-        eligible[name] = {b: len(eligible_rows(rows, b)) for b in sorted(BUDGETS)}
+        eligible[name] = {b: len(eligible_for(spec, rows, b)) for b in sorted(BUDGETS)}
         names[name] = frozenset(model_id for model_id, _ in ranked)
         displays.update((model_id, row.model) for model_id, row in ranked)
         boards[name], spellings[OWN_BOARD.format(name=name)] = board_identities(board_rows(conn, spec))
-        prices[name] = statistics.median([row.blended_per_m for row in rows]) if rows else 0.0
+        # A surface ranked on quality only has no price to take a median of (D-218 clause 1), so it
+        # has no entry: the guard reads an absent median as one it cannot compare.
+        priced = [row.blended_per_m for row in rows if row.blended_per_m is not None]
+        if spec.priced:
+            prices[name] = statistics.median(priced) if priced else 0.0
         for row in rows:
             digest.update(_row_digest(row).encode())
     # D-164: a board is published content (W4 serves the standings, D-160). Every row's name, the

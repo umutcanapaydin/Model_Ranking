@@ -787,6 +787,11 @@ FIXTURE_REFUSALS = {
     ("Arithmetic.swift", "`Swift.Int.words` on a served position (its receiver) in `shapeStructMapWords`"),
     ("Arithmetic.swift", "`Swift.Int.advanced(by:` on a served position (its receiver) in `shapeCurriedAdvanced`"),
     ("Arithmetic.swift", "`Swift.Int.signum(` on a served position (its receiver) in `shapeCurriedSignum`"),
+    # #371: the twins D-218 clause 4 admits include a sort and a `max(by:)`, which the sort rule counts per file.
+    ("Arithmetic.swift", "sorts `ranked`"),
+    # #371 (D-218 clause 4): a served number handed to a generic over a numeric protocol, and met inside a closure that
+    # counts or searches.
+    ("Arithmetic.swift", "over the numeric protocol"), ("Arithmetic.swift", "which counts or searches"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -855,6 +860,9 @@ FIXTURE_RULES: dict[str, str] = {
     "a store's URL makers": "makes a URL by `main.fixtureStoreHelper`",
     "a store's one read": "not the store's own `GapRegisterStore.url`",
     "a store function's URL parameter": "`GapRegisterStore.fixtureAt(_:)` takes a URL",
+    # #371 (D-218 clause 4).
+    "a served number into a numeric generic": "over the numeric protocol",
+    "a served number inside a count or a search": "which counts or searches",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -2086,6 +2094,9 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     flow.run()
     facts: dict[str, set[str]] = {}
     sorts: dict[tuple[str, str, str], int] = {}
+    protocols = _numeric_protocols(flow.roots)
+    bodies = _predicate_bodies(flow.roots)
+    counted: dict[tuple[str, str, str, str, str], set[tuple[int, int]]] = {}
     for root in flow.roots:
         file = _file_of(root)
         for node, function, place in _placed(root):
@@ -2096,8 +2107,20 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
                 facts.setdefault(file, set()).add(fact)
             if (ordering := _ordering(node)) is not None:
                 sorts[(file, *ordering)] = sorts.get((file, *ordering), 0) + 1
+            # #371 (D-218 clause 4): beside both rules, and whatever they admit.
+            where = place or function or "-"
+            facts.setdefault(file, set()).update(_numeric_generic(node, flow, protocols, where))
+            for method, met, declared, kind in _counts_or_searches(node, flow, bodies):
+                counted.setdefault((file, where, method, kind, declared), set()).add((_line(met), _column(met)))
     for (file, method, receiver), count in sorts.items():
         facts.setdefault(file, set()).add(f"main.<sorts>.{method}.{receiver}={count}")
+    for (file, where, method, kind, declared), meetings in counted.items():
+        allowed, _ = COUNTS_OR_SEARCHES_PERMITTED.get((file, where, method, kind, declared), (0, ""))
+        if len(meetings) <= allowed:
+            facts.setdefault(file, set()).add(f"main.<counts listed>.{declared}|{method}|{kind}|{where}")
+            continue
+        facts.setdefault(file, set()).update(f"main.<counts>.{kind}@{line} {declared}|{method}|{allowed} in {where}"
+                                             for line, _ in meetings)
     for root in flow.roots:
         facts.setdefault(_file_of(root), set()).update(_declaration_facts(root))
     return {file: found for file, found in facts.items() if found}
@@ -2364,6 +2387,145 @@ def _ordering(node: _Node) -> tuple[str, str] | None:
 
 def _arithmetic_permitted(name: str, kind: str, function: str) -> bool:
     return (name, kind, None) in ARITHMETIC_PERMITTED or (name, kind, function) in ARITHMETIC_PERMITTED
+
+
+#: #371 (D-218 clause 4, G-2): the numeric protocols of the standard library and SwiftUI, each a way to do arithmetic on
+#: a value whose type is a generic parameter, `some` or `any` of it, which no number type the rules read names. A
+#: protocol of the app's own that refines one is one too (`_numeric_protocols`).
+NUMERIC_PROTOCOLS = frozenset({"Numeric", "SignedNumeric", "AdditiveArithmetic", "BinaryInteger", "FixedWidthInteger",
+                               "SignedInteger", "UnsignedInteger", "FloatingPoint", "BinaryFloatingPoint", "Strideable",
+                               "VectorArithmetic"})
+PROTOCOL_REFINES = re.compile(r'^ *\(protocol [^"]*"(\w+)"[^\n]*?\b(?:requirement_signature|inherits)="([^"]*)"')
+#: A generic declaration's substitution, which the compiler prints after its name: `<T where T : Numeric> T -> Int`,
+#: and ` some Numeric -> Int` for a `some` parameter.
+SUBSTITUTED = re.compile(r"\[with \(substitution_map generic_signature=([^\]]*)\)\]")
+#: #371 (D-218 clause 4): the closures that count or search, by the standard library's or Foundation's method they are
+#: given to, as the ruling names them. What such a closure returns decides a count, an index, an element or a total, so
+#: whatever a served number meets inside one can come back as a new number.
+COUNTS_OR_SEARCHES = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+(?: extension)?\.(filter|first|firstIndex|'
+                                r'lastIndex|last|count|contains|allSatisfy|drop|prefix|reduce)' + _CALLED)
+#: #371 (D-218 clause 4): `(file, place, method, kind, declaration met) -> (how many such meetings, the reason)` inside a
+#: closure that counts or searches, each in the shipping client (measured, the four configurations, 2026-10-21). Counted
+#: per place, so a second meeting there is refused; an entry not seen is reported (`unseen_permissions`). Every other
+#: meeting inside such a closure is refused.
+COUNTS_OR_SEARCHES_PERMITTED: dict[tuple[str, str, str, str, str], tuple[int, str]] = {
+    # The staleness notice (#63 finding 2, D-176): the stale sources' ages it lists, those dated in the future left out,
+    # and how many carry no date or a date in the future, counts of sources, never one of their ages.
+    ("Notices.swift", "staleSentence", "filter", "number", "Swift.Int.>="): (
+        1, "the ages the notice lists: a source dated in the future is left out"),
+    ("Notices.swift", "staleSentence", "filter", "number", "Swift.Optional.=="): (
+        1, "how many stale sources carry no date"),
+    ("Notices.swift", "staleSentence", "filter", "number", "Swift.??"): (
+        1, "an undated source read as dated today, so it counts as no future date"),
+    ("Notices.swift", "staleSentence", "filter", "number", "Swift.Int.<"): (
+        1, "how many stale sources are dated in the future"),
+    # D-135's weight: whether any source or row carries a date at all.
+    ("Notices.swift", "combinedDisclosure", "contains(where:)", "number", "Swift.Equatable.!="): (
+        1, "a stale board is a state when any source is dated, else a property of the board"),
+    ("Router.swift", "classifyDisclosures", "contains(where:)", "number", "Swift.Equatable.!="): (
+        1, "the staleness notice is the dating note when no row is dated"),
+}
+
+
+def _numeric_protocols(roots: list[_Node]) -> frozenset[str]:
+    """#371: `NUMERIC_PROTOCOLS` and every protocol of the app's own that refines one, however many steps away."""
+    refines = {m.group(1): set(re.findall(r"\w+", m.group(2))) for root in roots for node in root.walk()
+               if (m := PROTOCOL_REFINES.match(node.line))}
+    found = set(NUMERIC_PROTOCOLS)
+    while grown := {name for name, parents in refines.items() if name not in found and parents & found}:
+        found |= grown
+    return frozenset(found)
+
+
+def _numeric_generic(node: _Node, flow: _Flow, protocols: frozenset[str], where: str) -> list[str]:
+    """#371 (D-218 clause 4, G-2): a served number handed to a declaration of the app's own that is generic over a
+    numeric protocol (a function, a method, an initialiser of a generic type, a `some` parameter), as its receiver or
+    an argument, or erased to `any` of one: arithmetic on its `T` is arithmetic no rule can follow."""
+    if node.kind == "erasure_expr":
+        typed = TYPE_OF["type"].search(node.line)
+        over = sorted(set(re.findall(r"\w+", typed.group(1))) & protocols) if typed else []
+        kinds = set().union(set(), *(_served_operand(flow, kid) for kid in node.kids)) if over else set()
+        return [f"main.<numeric generic>.{kind}@{_line(node)} {over[0]}|`{typed.group(1)}`, an existential in {where}"
+                for kind in sorted(kinds) if typed]
+    if (applied := _application(node)) is None:
+        return []
+    head, receivers, arguments = applied
+    named, substituted = DECL.search(head.line), SUBSTITUTED.search(head.line)
+    if named is None or named.group(1) != "main" or substituted is None:
+        return []
+    over = sorted(set(re.findall(r"\w+", substituted.group(1))) & protocols)
+    if not over:
+        return []
+    kinds = set().union(set(), *(_served_operand(flow, operand) for operand in (*receivers, *arguments)))
+    return [f"main.<numeric generic>.{kind}@{_line(node)} {over[0]}|`main.{_symbol(named.group(2))}` in {where}"
+            for kind in sorted(kinds)]
+
+
+def _column(node: _Node) -> int:
+    found = LOCATION.search(node.line)
+    return int(found.group(3)) if found else 0
+
+
+def _predicate_bodies(roots: list[_Node]) -> dict[tuple[object, ...], _Node]:
+    """#371: what a predicate handed by name runs: a function by `(file, name, line)`, and a constant's or a variable's
+    binding by where the name is declared, `(file, line, column)`."""
+    found: dict[tuple[object, ...], _Node] = {}
+    for root in roots:
+        file = _file_of(root)
+        for node in root.walk():
+            if function := FUNCTION.match(node.line):
+                found[(file, function.group(2), int(function.group(1)))] = node
+            for index, kid in enumerate(node.kids):
+                if kid.kind != "pattern_binding_decl":
+                    continue
+                for sibling in node.kids[index + 1:]:
+                    if sibling.kind != "var_decl" or not (place := LOCAL_VAR.match(sibling.line)):
+                        break
+                    found[(pathlib.Path(place.group(1)).name, int(place.group(2)), int(place.group(3)))] = kid
+    return found
+
+
+def _predicate(argument: _Node, flow: _Flow, bodies: dict[tuple[object, ...], _Node]) -> _Node | None:
+    """#371: the body a function-typed argument runs: a closure written in place, or the function, the constant or the
+    variable of the app's own it names. None for anything else (a parameter, a member), which G-2 names."""
+    top = _top(argument)
+    if top.kind == "closure_expr":
+        return top
+    if top.kind != "declref_expr" or (place := MAIN_REF.search(top.line)) is None:
+        return None
+    symbol, file, row, column = place.group(1), pathlib.Path(place.group(2)).name, int(place.group(3)), int(place.group(4))
+    if (held := bodies.get((file, row, column))) is not None:
+        return held
+    name = _base(symbol.split(".")[-1])
+    at = flow.declared(file, name, row)
+    return bodies.get((file, name, at)) if at is not None else None
+
+
+def _counts_or_searches(node: _Node, flow: _Flow,
+                        bodies: dict[tuple[object, ...], _Node]) -> list[tuple[str, _Node, str, str]]:
+    """#371 (D-218 clause 4, G-2): `(method, meeting, declaration, kind)` for each declaration a served number meets,
+    as its receiver or an argument, inside the closure given to a method that counts or searches (`COUNTS_OR_SEARCHES`),
+    written in place or handed by name: a comparison, which the rules admit elsewhere, and anything else, a function
+    of the app's own among them. A served number rebuilt that way (`(1...100).filter { $0 <= s.position }.count`) is a
+    number no board published."""
+    if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+        return []
+    callee = _top(node.kids[0])
+    if callee.kind != "dot_syntax_call_expr" or not callee.kids or (
+            method := COUNTS_OR_SEARCHES.search(callee.kids[0].line)) is None:
+        return []
+    called = method.group(1) + (f"({method.group(2)})" if method.group(2) else "")
+    found: list[tuple[str, _Node, str, str]] = []
+    for argument in (kid for kid in node.kids[1].kids if kid.kind == "argument" and kid.kids):
+        typed = TYPE_OF["type"].search(_top(argument.kids[0]).line)
+        if typed is None or "->" not in typed.group(1) or (body := _predicate(argument.kids[0], flow, bodies)) is None:
+            continue
+        for item in body.walk():
+            if (applied := _application(item)) is None or (named := DECL.search(applied[0].line)) is None:
+                continue
+            kinds = set().union(set(), *(_served_operand(flow, operand) for operand in (*applied[1], *applied[2])))
+            found += [(called, item, f"{named.group(1)}.{_symbol(named.group(2))}", kind) for kind in sorted(kinds)]
+    return found
 
 
 REQUEST_CALL = re.compile(r'decl="main\.\(file\)\.(EngineClient\.\w+\([^)"]*\))@')
@@ -2741,6 +2903,25 @@ def _flow_problem(name: str, symbol: str) -> str | None:
         return (f"{name}:{line}: `{declared}` on a served {what} (its {role}) in `{function}`, which is not on the list "
                 "of what a served number may meet (`SERVED_MAY_MEET`: a comparison, its display, what passes it along "
                 "unchanged, and the places named there); a new one is a reviewed edit (REQ-APP-005, D-181, #242)")
+    if fact == "<numeric generic":
+        kind, _, where = subject.partition("@")
+        line, _, rest = where.partition(" ")
+        meeting, _, function = rest.rpartition(" in ")
+        protocol, _, shown = meeting.partition("|")
+        what = "number" if kind == "number" else kind
+        return (f"{name}:{line}: a served {what} is handed to {shown} in `{function}`, over the numeric protocol "
+                f"`{protocol}`, whose arithmetic on it no rule can follow; no served number goes to one (D-218 clause 4, "
+                "REQ-APP-005, #371)")
+    if fact == "<counts":
+        kind, _, where = subject.partition("@")
+        line, _, rest = where.partition(" ")
+        meeting, _, function = rest.rpartition(" in ")
+        declared, method, allowed = meeting.split("|")
+        what = "number" if kind == "number" else kind
+        listed = f"; {allowed} such meeting(s) are permitted there" if allowed != "0" else ""
+        return (f"{name}:{line}: `{declared}` meets a served {what} inside the closure given to `{method}` in "
+                f"`{function}`, which counts or searches, so its result can be a new number (D-218 clause 4, "
+                f"REQ-APP-005, #371){listed}")
     if fact == "<declares operator":
         operator, _, line = subject.partition("@")
         return (f"{name}:{line}: declares the operator `{operator}`, arithmetic no rule can follow; the client "
@@ -2810,6 +2991,12 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 at = f"{place[0]}: " if place else ""
                 missing.append(f"{at}`{declared}` as a {role}{f' in {place[1]}' if place else ''} on the list of what "
                                "a served number may meet")
+    # #371 (D-218 clause 4): what a served number meets inside a closure that counts or searches, in each place named.
+    seen_counts = {(name, fact.split(">.", 1)[1]) for name, facts in found.items() for fact in facts
+                   if fact.startswith("main.<counts listed>.")}
+    missing += [f"{file}: `{declared}` inside `{method}` in `{where}` on the list of what a served {kind} meets inside a "
+                "closure that counts or searches" for file, where, method, kind, declared in sorted(COUNTS_OR_SEARCHES_PERMITTED)
+                if (file, f"{declared}|{method}|{kind}|{where}") not in seen_counts]
     # #322 (M2): the kept answers' allowed sides. Rename `keep`, the load path or a kept type, and its rule
     # matched nothing while the gate passed.
     seen_kept = {(name, fact.split(">.", 1)[1].rpartition("@")[0])

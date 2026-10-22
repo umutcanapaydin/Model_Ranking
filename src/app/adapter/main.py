@@ -1510,6 +1510,9 @@ def categories() -> dict[str, Any]:
                 # D-153 (W-119). What this surface's price leaves out, as a code the client words in
                 # its own language; absent where the price is the whole story.
                 "price_excludes": spec.price_excludes,
+                # D-218 clause 1 (#378): False on a surface ranked on quality only. Its answers carry
+                # no price (null, never zero), one pick (the best quality), and no budget filter.
+                "priced": spec.priced,
                 # M17-W5 (D-168): the board the surface ranks on, by id. The phone's first board
                 # when a question selects this surface; the benchmark's name cannot say which,
                 # since two boards publish SWE-bench Verified (#53).
@@ -1634,7 +1637,9 @@ def recommendations(
         return _error(
             400,
             "unknown_task",
-            f"unknown task {_echo(task)!r}; expected one of {sorted(CATEGORIES)}",
+            # The surfaces are listed at `/v1/categories`, not here: with #378's five the list alone
+            # outgrew the bound on an error body that reflects the caller's text (REQ-API-005).
+            f"unknown task {_echo(task)!r}; the surfaces are listed at /{API_VERSION}/categories",
         )
     if budget not in BUDGETS:
         return _error(

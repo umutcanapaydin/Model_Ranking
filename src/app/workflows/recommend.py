@@ -164,9 +164,10 @@ class Pick:
     score: float
     metric: str
     secondary_score: float | None
-    blended_per_m: float
-    input_per_m: float
-    output_per_m: float
+    # None only on a surface ranked on quality only (D-218 clause 1): no model there is priced per token.
+    blended_per_m: float | None
+    input_per_m: float | None
+    output_per_m: float | None
     evidence_date: str | None
     harness: str
     # The effort the SELECTED EVIDENCE carries. M5 security review BLOCKING-1: this
@@ -285,10 +286,25 @@ def confidence_of(
     return "Medium", f"one independent benchmark ({spec.primary_benchmark})"
 
 
+def price_of(row: RankingRow) -> float:
+    """A priced surface's row price. Every row of a priced surface carries one (the ranking joins the
+    price median), so a missing one is a defect, refused rather than read as free (D-218 clause 1)."""
+    if row.blended_per_m is None:
+        msg = f"{row.model}: a priced surface ranked a row with no price"
+        raise ValueError(msg)
+    return row.blended_per_m
+
+
 def eligible_rows(ranking: list[RankingRow], budget: str) -> list[RankingRow]:
     """REQ-REC-002: hard budget constraint BEFORE any scoring."""
     cap = BUDGETS[budget]
-    return [r for r in ranking if cap is None or r.blended_per_m <= cap]
+    return [r for r in ranking if cap is None or price_of(r) <= cap]
+
+
+def eligible_for(spec: CategorySpec, ranking: list[RankingRow], budget: str) -> list[RankingRow]:
+    """The rows a reader on `budget` can be offered. A surface ranked on quality only has no price to
+    cap, so no budget filter applies to it (D-218 clause 1): every ranked row is eligible."""
+    return eligible_rows(ranking, budget) if spec.priced else list(ranking)
 
 
 def _dominates(o: RankingRow, r: RankingRow) -> bool:
@@ -323,15 +339,15 @@ def _dominates(o: RankingRow, r: RankingRow) -> bool:
     strict clause false, so both survive. Dropping one would trade an overstated count for a model
     that vanishes for no reason a reader could see, which is the worse defect of the two.
     """
-    at_least_as_good = o.score >= r.score and o.blended_per_m <= r.blended_per_m
-    strictly_better = o.score > r.score or o.blended_per_m < r.blended_per_m
+    at_least_as_good = o.score >= r.score and price_of(o) <= price_of(r)
+    strictly_better = o.score > r.score or price_of(o) < price_of(r)
     return at_least_as_good and strictly_better
 
 
 def first_cheapest(rows: list[RankingRow]) -> RankingRow:
     """The cheapest row, a price tie going to the first in the ranking's order (score, then model
     id): `min` keeps the first of equal keys, and the display name is not one (#44, D-173)."""
-    return min(rows, key=lambda r: r.blended_per_m)
+    return min(rows, key=price_of)
 
 
 def pareto_frontier(rows: list[RankingRow]) -> list[RankingRow]:
@@ -341,7 +357,7 @@ def pareto_frontier(rows: list[RankingRow]) -> list[RankingRow]:
     stable, and the display name is not a key, so a re-spelling moves nothing."""
     return sorted(
         (r for r in rows if not any(_dominates(o, r) for o in rows)),
-        key=lambda r: (-r.score, r.blended_per_m),
+        key=lambda r: (-r.score, price_of(r)),
     )
 
 
@@ -508,6 +524,8 @@ def recommend(
     # D-182 (#138): each row's model id, by the row itself: the filters, the frontier and
     # `first_cheapest` hand rows on without copying them (#102), so a row's identity finds its id.
     ranked = ranked_with_ids(conn, spec)
+    if not spec.priced:
+        return _quality_only(conn, spec, budget, ranked)
     ids = {id(row): model_id for model_id, row in ranked}
     rows = eligible_rows([row for _, row in ranked], budget)
     if not rows:
@@ -517,8 +535,10 @@ def recommend(
     quality = frontier[0]
 
     window = spec.value_window
+    if window is None:
+        msg = f"{spec.id}: a priced surface declares no value window"
+        raise ValueError(msg)
     floor = derived_floor(conn, spec)  # D-159: from the board this answer reads
-    close_pts = spec.close_call
 
     value_pool = [r for r in frontier if quality.score - r.score <= window]
     value = first_cheapest(value_pool)
@@ -527,18 +547,7 @@ def recommend(
     floor_met = bool(floor_pool)
     cheap = first_cheapest(floor_pool or rows)
 
-    close_call: str | None = None
-    close_call_fact: dict[str, object] | None = None
-    if len(frontier) > 1:
-        gap = quality.score - frontier[1].score  # RAW: the threshold decision
-        shown = shown_gap(quality.score, frontier[1].score)
-        if gap <= close_pts:
-            tie = "is level" if shown == 0 else f"is only {shown:.1f} {spec.score_unit} behind"
-            close_call = (
-                f"{frontier[1].model} {tie} — the gap is within the margin of error and either "
-                "choice is defensible."
-            )
-            close_call_fact = {"model": frontier[1].model, "behind_by": shown, "unit": spec.score_unit}
+    close_call, close_call_fact = _close_call(quality, frontier[1] if len(frontier) > 1 else None, spec)
 
     # #102: the same MODEL, not the same name. Each ranked model is one row, and the filters, the
     # frontier and `first_cheapest` hand rows on without copying them, so the leader's own row is
@@ -553,28 +562,10 @@ def recommend(
     # so three picks asking the same question would get the same answer three times and tempt a
     # future reader into thinking they could differ.
     secondary_age = secondary_age_days(conn, spec)
-    value_trade_off = trade_off_facts(
-        quality.score, value.score, unit, quality.blended_per_m, value.blended_per_m
-    )
-    cheap_trade_off = trade_off_facts(
-        quality.score, cheap.score, unit, quality.blended_per_m, cheap.blended_per_m
-    )
+    value_trade_off = trade_off_facts(quality.score, value.score, unit, price_of(quality), price_of(value))
+    cheap_trade_off = trade_off_facts(quality.score, cheap.score, unit, price_of(quality), price_of(cheap))
     picks = (
-        _pick(
-            "best_quality",
-            quality,
-            ids[id(quality)],
-            spec,
-            why=f"Highest {spec.primary_benchmark} score among eligible models ({quality.score:.1f} {unit}).",
-            trade_off=None,
-            why_fact={
-                "reason": "highest_score",
-                "benchmark": spec.primary_benchmark,
-                "score": round_score(quality.score),
-                "unit": unit,
-            },
-            secondary_age_days=secondary_age,
-        ),
+        _best_quality(quality, ids[id(quality)], spec, secondary_age),
         _pick(
             "best_value",
             value,
@@ -641,6 +632,77 @@ def recommend(
         ),
         eligible_count=len(rows),
         frontier_size=len(frontier),
+        close_call=close_call,
+        close_call_fact=close_call_fact,
+        effort_mix_notice=effort_mix_notice([p.effort for p in picks], spec),
+        stale_notice=_stale_notice(conn, spec),
+        picks=picks,
+    )
+
+
+def _close_call(
+    leader: RankingRow, runner_up: RankingRow | None, spec: CategorySpec
+) -> tuple[str | None, dict[str, object] | None]:
+    """The near-tie disclosure between the leader and the next model, and its fact (D-176)."""
+    if runner_up is None:
+        return None, None
+    gap = leader.score - runner_up.score  # RAW: the threshold decision
+    shown = shown_gap(leader.score, runner_up.score)
+    if gap > spec.close_call:
+        return None, None
+    tie = "is level" if shown == 0 else f"is only {shown:.1f} {spec.score_unit} behind"
+    sentence = (
+        f"{runner_up.model} {tie} — the gap is within the margin of error and either "
+        "choice is defensible."
+    )
+    return sentence, {"model": runner_up.model, "behind_by": shown, "unit": spec.score_unit}
+
+
+def _best_quality(row: RankingRow, model_id: str, spec: CategorySpec, secondary_age: int | None) -> Pick:
+    """The Best Quality pick: the highest score among the eligible models."""
+    unit = spec.score_unit
+    return _pick(
+        "best_quality",
+        row,
+        model_id,
+        spec,
+        why=f"Highest {spec.primary_benchmark} score among eligible models ({row.score:.1f} {unit}).",
+        trade_off=None,
+        why_fact={
+            "reason": "highest_score",
+            "benchmark": spec.primary_benchmark,
+            "score": round_score(row.score),
+            "unit": unit,
+        },
+        secondary_age_days=secondary_age,
+    )
+
+
+def _quality_only(
+    conn: sqlite3.Connection, spec: CategorySpec, budget: str, ranked: list[tuple[str, RankingRow]]
+) -> Recommendation | None:
+    """The answer on a surface ranked on quality only (D-218 clause 1, #378): one pick, the best quality.
+
+    No model there is priced per token, so there is no price to filter by (the budget is not applied:
+    every ranked model is eligible), no value window to size and no cheapest model to name: Best Value
+    and the Budget Pick have nothing to stand on. The near-tie with the runner-up is still disclosed,
+    on the surface's own margin. With no cost axis, the models no other model beats are the ones at
+    the leader's score, so `frontier_size` counts those. No pricing source is cited, because none was
+    read.
+    """
+    if not ranked:
+        return None
+    rows = [row for _, row in ranked]
+    leader_id, leader = ranked[0]
+    close_call, close_call_fact = _close_call(leader, rows[1] if len(rows) > 1 else None, spec)
+    picks = (_best_quality(leader, leader_id, spec, secondary_age_days(conn, spec)),)
+    return Recommendation(
+        task=spec.id,
+        budget=budget,
+        ranking_effort=spec.ranking_effort,
+        sources=attributions_for({r.evidence_source for r in rows}, priced=False),
+        eligible_count=len(rows),
+        frontier_size=sum(1 for r in rows if r.score == leader.score),
         close_call=close_call,
         close_call_fact=close_call_fact,
         effort_mix_notice=effort_mix_notice([p.effort for p in picks], spec),

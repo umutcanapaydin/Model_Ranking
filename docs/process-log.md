@@ -1143,3 +1143,72 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - All 70 rows link a catalogue model with no alias added; 19 models rank at `high`, five clear the floor of 67.0. Rounding the calibrated window to the half point put it below its close call, and `scripts/calibrate_surface.py` now rounds up in that case.
 - Merged `main` (#385, D-215) mid-branch: `epoch_webdev` and `epoch_deepswe_external` are retired side by side. A test pins a failed site night through the build's carry-forward.
 - Lesson: before wiring a gated copy of a board, look for the list the publisher's own site loads, and before adding a fallback, check what the refresh already does on a failed night.
+
+## 2026-10-21 — fix/issue-387-hosted-refresh: the hosted engine is refreshed and deployed each night without the Mac (#387)
+
+- The owner ruled in chat: a scheduled GitHub Actions job, the previous night's state kept as an Actions artifact, and the deploy gate run every night with a stale gate skipping the deploy (D-217, amending D-116 clause 2, D-185 clauses 2 and 5, and D-154's revisit). The branch's first commit also closes two owner rows that #383's merge settled.
+- Red first: 25 tests on `scripts/nightly_hosted.sh` and the workflow's shape. Green: the script's `refresh` mode refuses to run beside a token and passes only a night that published or kept its data. Its `deploy` mode runs the real deploy gate, then the deploy script's new `--if-new`, and drops `DEPLOY_ACCEPT_DATA_FROM`.
+- The workflow is a proposal at `scripts/ci/nightly-hosted.yml`, which the owner copies. It has two jobs, and only `deploy` holds `FLY_API_TOKEN`; neither checkout keeps a credential. A test holds the installed copy equal to the proposal.
+- Found while writing it: a pull request's run, a fork's included, can upload an artifact named `hosted-state`. So the state is read only from this workflow's scheduled or dispatched runs on main, in this repository.
+- `scripts/nightly_hosted.sh` is now a brief deploy command, so the Bash guard judges it. It already refused a `bash -n` of the deploy script during this work.
+- The Security-Reviewer's round 1 was BLOCKING (B1): once installed, a writer could dispatch the workflow on any branch, with the repository's token in reach. The token is now a `fly-production` environment's secret that only `main` reaches, and both jobs run only on main. M1, M2, M4, M5 and R2 are fixed on the branch; M3, R1 and R3 are filed (#389, #391, #392), and the guard half of M1 is filed too (#390).
+- Lesson: when a job moves to CI, list every writer of what the next run reads back; artifacts are shared across workflows and forks, so read them by the run that made them, never by name.
+
+## 2026-10-21 — fix/issue-389-token-apart: the nightly deploy job opens no database beside the token (#389)
+
+- Run queue-1021, stacked on #388. The #387 Security-Reviewer's M3: the deploy job derived the public copy from the refresh's SQLite file while `FLY_API_TOKEN` was in its environment.
+- Red first: 17 tests. Among them, the token's step ships a file that is not SQLite at all, and a logging interpreter shows that no `sqlite` and no `app.workflows` ran. A copy changed after its stamp is refused, and so is a stamp naming other code or other data.
+- Fixed by job, not by step. Steps of one job share a disk, so a compromised token-free step could rewrite the scripts the token's step runs next. The `refresh` job now also runs `prepare` (the deploy script's dry run, which now writes the copy's stamp beside it). The `deploy` job installs no package and runs `--ship`, which only hashes the copy and checks the stamp. `--if-new` is gone, folded into `--ship`.
+- Lesson: isolate a secret by job or by machine, never by step; steps that share a disk share whatever the first one plants.
+
+## 2026-10-21 — fix/issue-391-repo-pin: the hosted deploy script ships only its own checkout (#391)
+
+- Run queue-1021. This was the #387 Security-Reviewer's R1. The Bash guard runs the deploy gate on the tree a call runs in, but the deploy script built and deployed whatever tree `MODEL_RANKING_REPO` named.
+- Red first: a clean clone of the same origin, named in `MODEL_RANKING_REPO`, got the build while the judged checkout did not. The script now reads no `MODEL_RANKING_REPO`.
+- The deploy tests set that variable to point the script at their scratch repositories. They now copy the script into each scratch repository and run it there, as the nightly tests already did.
+- Lesson: a test hook that redirects a guarded script to another tree is a bypass the gate cannot see; run the copy in the tree instead of pointing the original at it.
+
+## 2026-10-21 — fix/issue-371-generic-and-rebuilt: a served number into a numeric generic, or rebuilt inside a count or a search (#371)
+
+- Run queue-1021's, stacked on its integration branch; the #242 Security-Reviewer's M1, ruled by the owner in D-218 clause 4.
+- Red: 24 shapes planted in the client fixture, each passing in all four configurations, beside four admitted twins (a comparison in `if`, in `map`, in a sort, in `max(by:)`).
+- Two rules beside the arithmetic and meeting rules: a served number handed to a declaration of the app's own generic over a numeric protocol, or erased to `any` of one; and anything a served number meets inside a closure given to the eleven methods the ruling names, written in place or handed by name.
+- The shipping client failed the second rule six times (the staleness notice). Those places are admitted by name and counted, as sorts are, and the fixture's `filter-count` twin, admitted since #173, is now refused (assumptions file, two rows).
+- The pin is untouched; G-2 drops both shapes and names what the new rules do not hold, a counting loop with `if` among them.
+- Lesson: an allowlist written as a list of shapes leaks at the first spelling it does not name, so a rule over a closure should read what the closure is given to, not the operator inside it.
+
+## 2026-10-21 — enhancement/issue-378-arena-media: LMArena's image and video boards open as five surfaces ranked on quality only (#378)
+
+- D-218 clause 1 was the plan's first phase, so no new ADR. Five `ArenaBoard` entries come with fixtures recorded from the real dataset, parser tests and a live contract test. The four `*_style_control` configs stay unread.
+- No media model has a per-token price, and D-157 registers a derived model only when it has a price and a score. So these boards link their names in a pass of their own. No text rule enters it: `kling-o3-pro` used to read as OpenAI's `o3-pro`. A quality-only surface joins no price and has no value window or budget filter. Its one pick is the best quality. `/v1` publishes `priced: false` and null prices.
+- The installed app decodes every price as a number. One null in `/v1/boards` `models` would break its combined lists on every surface. So the unpriced models arrive under a new `unpriced_models` key, and only the media answers carry nulls.
+- Router: hints, examples, keyword rules before `vision`, and the retired image decline. The on-device model tier routed every probe right. The wording tier held the tuning and retired sets at 520 against 518. Adding 30 examples moved a few far questions through the centring mean.
+- Phases 3 and 4 were split as engine plus routing, then screens, because the hint-pairing test binds a served surface to its hint.
+- Lesson: before a served field may become null, check what an installed client decodes it as; a new key beside the old one keeps an old build working where a null in place breaks it.
+
+## 2026-10-22 — enhancement/issue-379-new-boards: ten boards read under D-215, four served and six skipped, and `long-tasks` opens on METR (#379)
+
+- D-219 records each board's publisher, terms, link and the date read, then serve or skip with the reason. Served: OSWorld-Verified (`computer-use`), LiveBench 2.0 and SimpleBench (`everyday`), METR's time horizons (a new `long-tasks` surface, by D-218 clause 2). Skipped: HLE, DeepResearch Bench, SciCode, Vending-Bench 2, Video-MME and GDPval, and OSWorld 2.0, found on the way.
+- Each served board: a red parser test on a recorded fixture, then an optional source on its publisher's own host, no token, a live contract test, a credit, and the unlinked count measured on a copy of the Mac's artifact.
+- OSWorld's site had moved to its own host, and the old address redirects over plain HTTP; the client asks only the new host. Its workbook is read with a defused expat reader, because ruff refused `xml.etree` on fetched data and `defusedxml` is not a dependency.
+- Two publishers keep their numbers only inside compiled app code (CAIS's dashboard, Andon Labs), so those boards were skipped. LiveBench stores no overall score, but its page states the rule, so the source computes that rule and pins the release.
+- Measuring the unlinked count found a real mislink: the MiniMax M3 rule took M3.1 Flash. It was fixed with its own red test.
+- Routing was measured against the integration head with `make model-tier`. The model tier sent nothing wrongly to `long-tasks` (golden +1, m24 +2). The first wording examples drew ordinary questions there; the shipped ones name hours and days, and hold both sets at net 0. All 727 Swift tests stayed green.
+- Lesson: count a new board's links on a copy of the real artifact before serving it, because a curated prefix rule fails quietly, giving one model another model's score.
+
+## 2026-10-22 · integration/run-queue-1021 — the four MINOR findings of the stack's delta security review
+
+- The review's M1-M4, each a red test committed alone and then the smallest fix, on `fix/integration-queue-1021-review`, fast-forwarded onto the integration branch.
+- M1: the OSWorld reader bounds the text its cells resolve to (`MAX_ROWS_CHARS`, the 32 MB fetch cap, about a hundred times the recorded board's 0.32 M characters), header names repeated as keys included.
+- M2: LiveBench, the OSWorld reader, the shared YAML guard (METR, Aider and the curated files) and the Arena page read now turn `csv.Error`, a zip read's errors and `RecursionError` into `SourceError`. #378's image and video boards had the gap through the shared Arena page read. One test through `_ingest_sources` shows a bad optional source leaves the build going on to the next.
+- M3: the document-type and entity refusal has a test that a mutant deleting both handlers turns red, restored byte-identical.
+- M4: the hosted deploy refuses a call from any tree but its own checkout; the #391 test now runs its scratch copy from inside the scratch tree.
+- Round 2 (PASS WITH FINDINGS, M1, M3 and M4 closed): both OSWorld `zipfile` calls now also catch `ValueError`, `NotImplementedError` and `OSError` (M2's rest, two one-field edits of the recorded workbook). Both deploy scripts unset git's place variables (M5). The reader joins each element's text once (N1), and the client dumps unescaped JSON (N2).
+- Lesson: a parser's contract is the exception class it raises, and `RecursionError`, a zip read's errors and `csv.Error` are not `ValueError`, so every new reader of fetched input needs a deep-nesting case and a broken-container case beside its malformed-text case.
+
+## 2026-10-22 · fix/issue-405-unpriced-coverage — plan coverage leaves out the surfaces ranked on quality only
+
+- `live-contracts` had been red since #378. The coverage report counted the five image and video surfaces as zero plans, and none of them takes a price (D-218 clause 1).
+- `plan_surfaces()` reads `CategorySpec.priced`, so plan coverage and plan evidence health cover the priced surfaces only. The JSON lists the rest under `unpriced_surfaces`, and a priced surface left at zero still exits 1.
+- Red, then green: `test_a_surface_ranked_on_quality_only_is_no_plan_coverage_gap`, committed alone first.
+- Lesson: a new kind of surface must be replayed against every report that loops over the surfaces, because the local gate never runs the network-only contract job, and that job was the one that went red.

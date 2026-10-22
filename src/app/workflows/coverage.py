@@ -101,8 +101,15 @@ class CategoryEvidenceHealth:
     plans: tuple[PlanEvidenceHealth, ...]
 
 
+def plan_surfaces() -> tuple[CategorySpec, ...]:
+    """The surfaces a plan is ranked on: the priced ones (#405). A plan is a monthly price, and a
+    surface ranked on quality only takes no price and no budget (D-218 clause 1), so the plan question
+    is not asked there and its zero is no gap. The report names those apart (`unpriced_surfaces`)."""
+    return tuple(spec for spec in CATEGORIES.values() if spec.priced)
+
+
 def plan_coverage(conn: sqlite3.Connection) -> tuple[CategoryCoverage, ...]:
-    """Per category: which plans can be ranked, and why the rest cannot."""
+    """Per priced category: which plans can be ranked, and why the rest cannot."""
     total = conn.execute("SELECT COUNT(*) FROM plans").fetchone()[0]
     linked = {
         pid
@@ -114,7 +121,7 @@ def plan_coverage(conn: sqlite3.Connection) -> tuple[CategoryCoverage, ...]:
     # report honest if a link ever outlives its plan: show the id, never crash.
     names: dict[str, str] = dict(conn.execute("SELECT id, name FROM plans"))
     out: list[CategoryCoverage] = []
-    for spec in CATEGORIES.values():
+    for spec in plan_surfaces():
         scoreable = {
             pid
             for (pid,) in conn.execute(
@@ -292,7 +299,7 @@ def main(argv: list[str] | None = None) -> int:
         conn = open_readonly(args.db)
         cov = plan_coverage(conn)
         health = source_health(conn, today)
-        plan_health = tuple(plan_evidence_health(conn, spec, today) for spec in CATEGORIES.values())
+        plan_health = tuple(plan_evidence_health(conn, spec, today) for spec in plan_surfaces())
     except (sqlite3.Error, ValueError) as exc:
         print(f"error: evidence unusable: {exc}", file=sys.stderr)
         return 2
@@ -304,6 +311,9 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(
             {
                 "plan_coverage": [asdict(c) for c in cov],
+                "unpriced_surfaces": sorted(
+                    spec.id for spec in CATEGORIES.values() if not spec.priced
+                ),
                 "source_health": [asdict(h) for h in health],
                 "plan_evidence_health": [asdict(h) for h in plan_health],
             },

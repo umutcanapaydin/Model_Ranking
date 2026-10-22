@@ -30,7 +30,8 @@ OWNER'S MAC: launchd service com.ilgar.modelranking.engine, a deployed release o
       |  whose terms do not permit it (D-185), and the image carries it
       v
 FLY.IO, serving TestFlight since 2026-10-07: one machine, the `hosted` image, Host model-ranking.fly.dev
-    the same five routes over HTTPS; no refresh (D-116); a new deploy per refresh made public;
+    the same five routes over HTTPS; no refresh on it (D-116); a scheduled GitHub Actions run refreshes
+    on a runner each night and deploys what is new, once the deploy gate is green (D-217, #387);
     one client limited to 120 requests a minute, a /v1/boards answer counting thirty (#187, INV-88)
       |
       v
@@ -84,6 +85,12 @@ both derive from that list:
   board since D-216: Datacurve's own leaderboard, the JSON its site loads, public and read with no token (public
   numbers used with attribution, D-215; `src/app/clients/datacurve.py`). A night the site fails is carried by the
   refresh, as for every source (D-156).
+- **#379's boards (D-219), each from its publisher's own host, optional and read with no token:**
+  `osworld_verified` (OSWorld-Verified's workbook, CC BY-SA 4.0 as its site states, read with the standard library;
+  `src/app/clients/osworld.py`) in `computer-use`'s family; `livebench` (LiveBench 2.0's pinned release;
+  `src/app/clients/livebench.py`) and `simplebench` (`src/app/clients/simplebench.py`) in `everyday`'s; and
+  `metr_time_horizons` (METR's Time Horizon 1.1; `src/app/clients/metr.py`), the only board of `long-tasks`. The
+  last three publish no licence and are used with attribution under D-215.
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked
@@ -372,6 +379,9 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
 guards, then an atomic rename onto the artifact. The engine reads the new file on its next request.
 Nothing in this flow involves the phone.
 
+**Nightly, for the hosted engine** (D-217). The same cycle on a GitHub Actions runner, on the last good
+night's state, then the deploy gate, then a deploy to Fly.io when the build is new.
+
 **A question, on the phone.**
 
 1. The reader types a question.
@@ -512,7 +522,15 @@ owner's Mac
   privacy manifest, the encryption answer, a scheme that archives in Release).
 
 ```
-Fly.io (D-116, D-185): prepared, deployed only by the owner
+Fly.io (D-116, D-185, D-217): deployed by the owner, or by the owner's nightly workflow
+  .github/workflows/nightly-hosted.yml   the owner applies scripts/ci/nightly-hosted.yml (D-217):
+                                    job `refresh` (no secret) runs scripts/nightly_hosted.sh refresh on the
+                                    last good night's state (the `hosted-state` Actions artifact, 90 days)
+                                    and keeps the new state, then `prepare` derives the public copy and
+                                    its stamp (`hosted-public`, the script below with --dry-run); job
+                                    `deploy` (FLY_API_TOKEN) installs nothing and opens no database
+                                    (#389): the deploy gate, then the script below with --ship, which
+                                    checks the copy against its stamp and ships it
   scripts/deploy_hosted_engine.sh   origin/main's tip only, a clean tree; derives the public artifact,
                                     stamps APP_BUILD=release-<sha>-data-<digest>-from-<sha>
                                     (the release that built the data, #198; data another release
@@ -530,8 +548,11 @@ Fly.io (D-116, D-185): prepared, deployed only by the owner
   source (D-186): only the vendor plans go. A source put in `LEFT_OUT` loses every score, price and
   accessibility row and its copies under another source, the price medians are rebuilt, and the file
   is vacuumed so no byte of it is left.
-- **No refresh on Fly.** A production environment refuses the nightly switch (D-154). The Mac
-  refreshes; a refresh the owner wants public is one more deploy.
+- **No refresh on Fly.** A production environment refuses the nightly switch (D-154). The hosted
+  engine's refresh runs on a GitHub Actions runner each night, in a job that holds no secret, and a
+  second job deploys the result when the deploy gate is green and `/health` does not already answer
+  its build (D-217). A failed night keeps the last good state and deploys nothing. The Mac refreshes
+  its own engine as before.
 
 ## 6. Cross-cutting concerns
 

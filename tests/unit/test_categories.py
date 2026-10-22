@@ -125,7 +125,15 @@ def test_categories_are_data_not_code(monkeypatch: pytest.MonkeyPatch) -> None:
         "vision",
         "search",
         "search_factuality",
-    }
+            # #378 (D-218 clause 1): the five image and video surfaces, ranked on quality only.
+        "text_to_image",
+        "image_edit",
+        "text_to_video",
+        "image_to_video",
+        "video_edit",
+        # #379 (D-218 clause 2): METR's time horizons, one map entry.
+        "long-tasks",
+}
     for spec in CATEGORIES.values():
         assert spec.primary_benchmark and spec.metric and spec.primary_source
     assert CATEGORIES["agentic-coding"].ranking_effort == "high"
@@ -214,6 +222,11 @@ def test_no_category_can_exclude_a_model_it_calls_level_with_the_leader() -> Non
     close_call and this goes red.
     """
     for name, spec in CATEGORIES.items():
+        # D-218 clause 1 (#378): a surface ranked on quality only has no value pick, so no window, and
+        # every priced surface has one.
+        assert (spec.value_window is None) == (not spec.priced), name
+        if spec.value_window is None:
+            continue
         assert spec.value_window >= spec.close_call, (
             f"{name}: value_window {spec.value_window} is narrower than close_call "
             f"{spec.close_call}; models the surface calls indistinguishable from the leader "
@@ -290,6 +303,10 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
     # D-194 (#265): TB 4.0's client declares the benchmark and metric its rows carry.
     boards[terminalbench.SOURCE_NAME] = Declared(terminalbench.BENCHMARK, terminalbench.METRIC)
     boards[arc_prize.SOURCE_NAME] = Declared(arc_prize.BENCHMARK, arc_prize.METRIC)
+    # #379 (D-219): METR's client declares the benchmark and metric `long-tasks` reads.
+    from app.clients import metr
+
+    boards[metr.SOURCE_NAME] = Declared(metr.BENCHMARK, metr.METRIC)
     checked = 0
     for name, spec in CATEGORIES.items():
         board = boards.get(spec.primary_source)
@@ -428,6 +445,13 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "computer-use": "terminalbench_4",  # D-194 (#265): TB 4.0's leaderboard, Apache-2.0
         "abstract": "arc_agi_2",  # D-194 (#265): ARC Prize's MIT public-evaluation runs
         "web-dev": "arena_webdev",  # #185 (M21-W1): LMArena's own board, under CC-BY-4.0
+        # #378 (D-218 clause 1): LMArena's image and video boards, the same dataset and grant
+        "text_to_image": "arena_text_to_image",
+        "image_edit": "arena_image_edit",
+        "text_to_video": "arena_text_to_video",
+        "image_to_video": "arena_image_to_video",
+        "video_edit": "arena_video_edit",
+        "long-tasks": "metr_time_horizons",  # #379 (D-219): METR's own time-horizon file
     }
     assert set(pairs) == set(CATEGORIES), "a surface was added or removed without pinning its source"
     for surface, source in pairs.items():
@@ -526,7 +550,10 @@ def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> Non
     }
     for surface in surfaces:
         own = rating[CATEGORIES[surface].primary_source]
-        assert seen[surface].get(shared) == own, (surface, seen[surface])
+        # #378: an image or video board's names are read by the media grammar, never by a text rule,
+        # so the shared name ranks there under its own spelling, at that board's own rating.
+        name = shared if CATEGORIES[surface].priced else "gpt-5"
+        assert seen[surface].get(name) == own, (surface, seen[surface])
     # The model that exists on ONE board reaches ONE surface. This is the assertion the mutant that
     # merged the boards at ingest died on, now stated where a reader meets it.
     assert only_here in seen["document"], seen["document"]

@@ -8,7 +8,8 @@ average two scales, whatever a later change tries (D-105, D-167 clause 2).
 A board is a source: every source holds exactly one benchmark under one metric (measured on the
 2026-09-25 candidate, and refused here if that ever stops being true). The models that stand on it
 are the ones the engine can rank: reconciled AND priced, the population every surface ranks
-(REQ-EVI-002). Effort follows D-112, as every surface does: a board a surface ranks at one effort
+(REQ-EVI-002); on the board of a surface ranked on quality only, reconciled, with no price (D-218
+clause 1, #378). Effort follows D-112, as every surface does: a board a surface ranks at one effort
 (`ranking_effort`) stands at that effort; any other board stands on each model's best evidence, and
 every standing says which effort its evidence was run at, so the phone can disclose an unequal
 comparison (M17-W4 review B1).
@@ -16,6 +17,7 @@ comparison (M17-W4 review B1).
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from typing import Any
@@ -33,16 +35,24 @@ from app.workflows.rank import (
 
 #: The metrics served today, every one higher-is-better. A position needs to know which way a board
 #: runs; a metric not named here is refused rather than ranked the wrong way round.
-HIGHER_IS_BETTER = frozenset({"elo", "ips", "% correct", "% resolved", "% pass_rate_2", "ECI"})
+#: #379 (D-219): `minutes` is METR's time horizon, the length of task a model finishes half the time.
+HIGHER_IS_BETTER = frozenset({"elo", "ips", "% correct", "% resolved", "% pass_rate_2", "ECI", "minutes"})
 
-# Every rankable row, with what picking a model's evidence row needs.
+# Every rankable row, with what picking a model's evidence row needs. A row of a priced board needs
+# its model's price median; a row of a quality-only surface's board needs none (D-218 clause 1).
 _ROWS = """
     SELECT s.source, s.benchmark, s.metric, s.model_id, s.score, s.effort, s.run_date, s.observed_at,
            s.harness, s.raw_name
     FROM scores s
     JOIN models m ON m.id = s.model_id
-    JOIN px_median p ON p.model_id = s.model_id
+    LEFT JOIN px_median p ON p.model_id = s.model_id
+    WHERE p.model_id IS NOT NULL OR s.source IN (SELECT value FROM json_each(?))
 """
+
+
+def _unpriced_boards() -> list[str]:
+    """The boards of the surfaces ranked on quality only (D-218 clause 1, #378)."""
+    return sorted(spec.primary_source for spec in CATEGORIES.values() if not spec.priced)
 
 
 @dataclass(frozen=True)
@@ -90,7 +100,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
     policies = _policies()
     grouped: dict[str, dict[str, list[_Row]]] = {}
     shape: dict[str, tuple[str, str]] = {}
-    for raw in conn.execute(_ROWS):
+    for raw in conn.execute(_ROWS, (json.dumps(_unpriced_boards()),)):
         row = _Row(*raw)
         if row.metric not in HIGHER_IS_BETTER:
             msg = f"{row.source}: metric {row.metric!r} has no declared direction; add it to HIGHER_IS_BETTER"
@@ -128,17 +138,24 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
 
     accessibility = access_served.served(conn)
     standing_models = {s["model"] for board in boards for s in board["standings"]}
-    models = [
-        {"id": mid, "display": display, "vendor": vendor,
-         "blended_per_m": round(in_m * BLEND_INPUT_WEIGHT + out_m * BLEND_OUTPUT_WEIGHT, 2),
-         "accessibility": accessibility.get(mid)}
-        for mid, display, vendor, in_m, out_m in conn.execute(
+    models: list[dict[str, Any]] = []
+    # D-218 clause 1 (#378): a model only a quality-only board names has no price, so it is listed
+    # apart, with no price field at all, rather than in `models` with a null one: every `models`
+    # entry keeps its price, as every client already reads it, and a missing price is never a zero.
+    unpriced: list[dict[str, Any]] = []
+    for mid, display, vendor, in_m, out_m in conn.execute(
             "SELECT m.id, m.display, m.vendor, p.in_m, p.out_m FROM models m "
-            "JOIN px_median p ON p.model_id = m.id ORDER BY m.id")
-        if mid in standing_models
-    ]
+            "LEFT JOIN px_median p ON p.model_id = m.id ORDER BY m.id"):
+        if mid not in standing_models:
+            continue
+        entry: dict[str, Any] = {"id": mid, "display": display, "vendor": vendor}
+        if in_m is None or out_m is None:
+            unpriced.append({**entry, "accessibility": accessibility.get(mid)})
+        else:
+            models.append({**entry, "blended_per_m": round(in_m * BLEND_INPUT_WEIGHT + out_m * BLEND_OUTPUT_WEIGHT, 2),
+                           "accessibility": accessibility.get(mid)})
     # The #260 review's M1: the accessibility served is credited too, whatever boards are served.
-    accessible = {model["id"] for model in models if model["accessibility"] is not None}
+    accessible = {model["id"] for model in models + unpriced if model["accessibility"] is not None}
     # #262: a recommendation also cites its secondary benchmark's sources, every row of them, past the
     # effort filter above; so the credits cover them too, and the screen credits all an answer cites.
     secondaries = {source for spec in CATEGORIES.values() for source in secondary_evidence_sources(conn, spec)}
@@ -152,6 +169,7 @@ def board_standings(conn: sqlite3.Connection) -> dict[str, Any]:
         "credits": credits_for(attributions),
         "boards": boards,
         "models": models,
+        "unpriced_models": unpriced,
     }
 
 

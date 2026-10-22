@@ -120,11 +120,24 @@ def test_arena_is_the_only_optional_source() -> None:
         "arena_search_factuality",
         # M21-W1 (#185): LMArena's own WebDev board, the same dataset.
         "arena_webdev",
+        # #378 (D-218 clause 1): LMArena's five image and video boards, the same dataset.
+        "arena_image_edit",
+        "arena_text_to_image",
+        "arena_image_to_video",
+        "arena_text_to_video",
+        "arena_video_edit",
         # D-216 clause 4 (#265): the one exception outside the LMArena dataset, ruled by its own ADR. A
         # board fetched from Hugging Face with the owner's token, which CI's contract build never holds.
         "datacurve_deepswe",
+        # #379 (D-219 clause 2): each board it serves is optional, ruled by its own ADR. None is a surface's only
+        # evidence but METR's, and a failed night is carried by the refresh (D-156).
+        "osworld_verified",
+        "metr_time_horizons",
+        "livebench",
+        "simplebench",
     }, (
-        f"D-121 + D-144 name the LMArena boards, and D-216 Datacurve's, as the only optional ones; found {optional}"
+        f"D-121 + D-144 name the LMArena boards, D-216 Datacurve's and D-219 #379's, as the only optional ones; "
+        f"found {optional}"
     )
 
 

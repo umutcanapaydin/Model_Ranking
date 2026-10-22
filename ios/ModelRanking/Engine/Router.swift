@@ -117,6 +117,21 @@ enum CategoryHints {
             + "lookup",
         "search_factuality": "look it up online and quote it correctly: real sources it actually "
             + "fetched, real numbers, nothing invented from the page",
+        // #378 (D-218 clause 1): the image and video boards, ranked on quality only. Each is worded for
+        // what the person wants MADE or CHANGED, away from `vision`, which reads a picture they have.
+        "text_to_image": "make a new picture from a description: generate an image, a drawing, a logo, an "
+            + "illustration or digital art",
+        "image_edit": "change a photo or picture the person already has: retouch it, remove the background, "
+            + "add or remove something in it",
+        "text_to_video": "make a new video clip from a description: generate a short film, a scene or an "
+            + "animated clip from text",
+        "image_to_video": "turn a photo or picture the person has into a moving video: animate an image, "
+            + "bring a photo to life",
+        "video_edit": "change a video the person already has: edit, restyle or alter an existing clip",
+        // #379 (D-218 clause 2): METR's time horizons. Worded for how LONG a job the AI can carry alone, away from
+        // `agentic-coding` (a code repository) and `computer-use` (apps and websites).
+        "long-tasks": "how long a job an AI can carry out on its own: a task that would take a person hours or a "
+            + "whole day, many steps planned and finished without help; not only code, not clicking through apps",
     ]
 
     /// Where a question the catalogue does not measure goes (REQ-RTR-005, owner's ruling).
@@ -125,10 +140,11 @@ enum CategoryHints {
     /// What this catalogue does NOT measure, in the words a person would use. M13-W3 review
     /// BLOCKING-1.
     ///
-    /// **Since D-187 (the owner's ruling, 2026-10-08) these decline nothing.** A question closest to
-    /// the first group (making or changing an image) is answered from `vision`; one closest to the
-    /// others (sound and video, speed and context) from the closest surface. The history below is
-    /// why the groups exist; read it as such.
+    /// **Since D-187 (the owner's ruling, 2026-10-08) these decline nothing**, and a question closest
+    /// to them is answered from the closest surface. **Since #378 (D-218 clause 1) images and videos
+    /// are measured**: the group of making or changing an image left this table, with D-187's rule
+    /// that sent it to `vision`, and so did making a video; what stays is sound, speed and context.
+    /// The history below is why the groups exist; read it as such.
     ///
     /// The model tier can say "none of these" through its decline sentinel. The wording tier had no
     /// such way out: its only refusal is a similarity FLOOR, and a question about a photo is not
@@ -149,21 +165,17 @@ enum CategoryHints {
     /// does. What stays unmeasured is MAKING and CHANGING images, which no board here ranks.
     ///
     /// **Since M15-W3's re-calibration, each decline is a GROUP of example questions**, read the
-    /// same way as `examples` below: images made or changed, sound and video, speed and context.
+    /// same way as `examples` below: sound, and speed and context (#378 measures images and videos).
     static let unmeasuredHints: [[String]] = [
-        ["edit this photo", "remove the background from my picture", "generate an image of a cat",
-         "draw a logo for me", "make my selfie look better", "create an illustration"],
-        ["make a video", "generate music", "turn text into speech", "transcribe this audio recording",
+        ["read this text aloud", "generate music", "turn text into speech", "transcribe this audio recording",
          "clone my voice", "edit this sound clip"],
         ["which model is fastest", "compare response times between models", "how long is the context window",
          "which model responds quickest", "how many tokens can it read at once", "tokens per second"],
     ]
 
-    /// #222: the same three groups in Turkish, read against a confidently Turkish question.
+    /// #222: the same groups in Turkish, read against a confidently Turkish question.
     static let unmeasuredHintsTurkish: [[String]] = [
-        ["bu fotoğrafı düzenle", "resmimin arka planını kaldır", "bir kedi resmi oluştur", "bana bir logo çiz",
-         "selfiemi daha güzel göster", "bir illüstrasyon yap"],
-        ["bir video yap", "müzik üret", "metni sese çevir", "bu ses kaydını yazıya dök", "sesimi klonla",
+        ["bu metni sesli oku", "müzik üret", "metni sese çevir", "bu ses kaydını yazıya dök", "sesimi klonla",
          "bu ses kaydını düzenle"],
         ["en hızlı model hangisi", "modellerin yanıt sürelerini karşılaştır", "bağlam penceresi ne kadar uzun",
          "hangi model en çabuk cevap veriyor", "aynı anda kaç token okuyabilir", "saniyede kaç token"],
@@ -245,6 +257,29 @@ enum CategoryHints {
                               "find the original article and quote it", "research this online with accurate citations",
                               "find scientific studies on this topic and link them",
                               "show me the research papers behind this with their links"],
+        // #378 (D-218 clause 1): what a reader asks to have made or changed, never what they ask to read.
+        "text_to_image": ["generate an image of an astronaut riding a horse", "draw a logo for my coffee shop",
+                          "create an illustration for a children's book", "make a picture of a sunset over the sea",
+                          "turn my description into digital art", "design a poster image for a concert"],
+        "image_edit": ["edit this photo to look brighter", "remove the background from my picture",
+                       "make my selfie look better", "retouch the skin in this portrait",
+                       "replace the sky in this photo", "turn my photo into a watercolour painting"],
+        "text_to_video": ["make a video of a dog running on a beach", "generate a short film from my script",
+                          "create a video clip from this description", "turn a text prompt into a video",
+                          "make an animated video for my product", "generate a cinematic scene of a city at night"],
+        "image_to_video": ["animate this photo", "turn my picture into a short video",
+                           "make the people in this photo move", "bring this old family photo to life",
+                           "add motion to this image", "make a video from this drawing"],
+        "video_edit": ["edit this video clip", "change the style of my video",
+                       "remove an object from this video", "speed up the boring parts of my video",
+                       "replace the background in my video", "cut and restyle this clip"],
+        // #379 (D-218 clause 2): how long a job the AI can carry alone, in a reader's words.
+        "long-tasks": ["an agent that keeps working for eight hours straight",
+                       "run it overnight on a twelve hour job",
+                       "how many hours of a skilled person's work can it do alone",
+                       "a multi day project it should carry to the end by itself",
+                       "the length of task it completes half the time",
+                       "work through a whole afternoon of steps without anyone checking in"],
     ]
 
     /// #222 (the reading wave of 2026-10-14): the same six questions per surface (eight for #293's
@@ -307,6 +342,28 @@ enum CategoryHints {
                               "orijinal makaleyi bulup alıntı yap", "bunu doğru kaynak göstererek internette araştır",
                               "bu konudaki bilimsel çalışmaları bul ve linklerini ver",
                               "bunun arkasındaki araştırma makalelerini bağlantılarıyla göster"],
+        // #378 (D-218 clause 1)
+        "text_to_image": ["uzay giysili bir kedi resmi oluştur", "kahve dükkanım için bir logo çiz",
+                          "bir çocuk kitabı için illüstrasyon yap", "denizde gün batımının resmini yap",
+                          "tarifimi dijital sanata dönüştür", "bir konser için afiş görseli tasarla"],
+        "image_edit": ["bu fotoğrafı daha aydınlık olacak şekilde düzenle", "resmimin arka planını kaldır",
+                       "selfiemi daha güzel göster", "bu portredeki cildi rötuşla",
+                       "bu fotoğraftaki gökyüzünü değiştir", "portremi yağlı boya tablo gibi yap"],
+        "text_to_video": ["sahilde koşan bir köpeğin videosunu yap", "senaryomdan kısa bir film üret",
+                          "bu tariften bir video klip oluştur", "bir metni videoya dönüştür",
+                          "ürünüm için animasyonlu bir video yap", "gece bir şehrin sinematik sahnesini üret"],
+        "image_to_video": ["bu fotoğrafı canlandır", "resmimi kısa bir videoya dönüştür",
+                           "bu fotoğraftaki insanları hareket ettir", "bu eski aile fotoğrafına hayat ver",
+                           "bu durağan görsele hareket ekle", "bu çizimden bir video yap"],
+        "video_edit": ["bu video klibi düzenle", "videomun tarzını değiştir", "bu videodan bir nesneyi kaldır",
+                       "tatil videomu kurgula", "videomun renklerini düzelt", "bu video klibini kesip yeniden stillendir"],
+        // #379 (D-218 clause 2)
+        "long-tasks": ["sekiz saat aralıksız çalışmaya devam eden bir ajan",
+                       "on iki saatlik bir işte gece boyunca çalışsın",
+                       "deneyimli bir insanın kaç saatlik işini tek başına yapabilir",
+                       "birkaç gün sürecek bir projeyi kendi başına sonuna kadar götürsün",
+                       "yarısını bitirebildiği görevlerin süresi ne kadar uzun",
+                       "kimse kontrol etmeden bütün bir öğleden sonra boyunca adım adım çalışsın"],
     ]
 }
 
@@ -353,6 +410,8 @@ extension CategoryHints {
         var phrases: [[String]] = []
         var marks: [String] = []
         var unless: [String] = []
+        /// #378: as `unless`, read by a word's start (`renklendir`, `renklendirir`, `renklendirebilir`).
+        var unlessStems: [String] = []
     }
 
     static let surfaceWords: [SurfaceWords] = [
@@ -381,8 +440,15 @@ extension CategoryHints {
                       ["build*", "an", "ios", "app*"], ["build*", "an", "android", "app*"], ["make", "an", "app*"],
                       ["uygulama", "gelistir*"], ["mobil", "uygulama*"], ["swe", "bench"], ["in", "rust"],
                       ["rust", "code"], ["go", "programming"], ["swift", "code"], ["fix", "bugs"], ["bug", "fix*"],
-                      ["programlama", "dil*"]],
+                      ["programlama", "dil*"], ["web", "api*"], ["rest", "api*"]],
             marks: ["c++", "c#", "f#", "node.js"]),
+        // #379 (D-218 clause 2): a long job named as such, read after code, so a long task in a repository stays
+        // the coding surfaces'. Only phrases with one reading: "for hours" alone is too often about something else.
+        SurfaceWords(
+            id: "long-tasks", words: ["saatlerce"],
+            phrases: [["long", "task*"], ["longest", "task*"], ["long", "running", "task*"], ["long", "job*"],
+                      ["time", "horizon*"], ["uzun", "gorev*"], ["uzun", "bir", "gorev*"], ["en", "uzun", "gorev*"],
+                      ["uzun", "isler*"], ["uzun", "bir", "is"], ["uzun", "bir", "isi"]]),
         SurfaceWords(
             id: "computer-use", words: ["browse", "browsing"],
             phrases: [["computer", "use"], ["bilgisayar", "kullan*"], ["my", "browser"], ["browser", "automation"],
@@ -422,12 +488,62 @@ extension CategoryHints {
                     "belgeler", "belgeleri", "belgede", "belgeyle", "belgelerini"],
             phrases: [["release", "notes"], ["this", "contract*"], ["the", "contract*"], ["a", "contract"],
                       ["my", "contract*"], ["our", "contract*"], ["contract", "clause*"]]),
+        // #378 (D-218 clause 1): making or changing a picture or a video, read before `vision`, which
+        // reads a picture the person has. A video before a picture ("turn this photo into a video"), an
+        // edit before a making, and only phrases with one reading: a question that only mentions a video
+        // ("summarise this video", "cut the silent parts out of my video") is left to the embedding.
+        SurfaceWords(
+            id: "video_edit",
+            phrases: [["edit*", "video*"], ["edit*", "this", "video*"], ["edit*", "my", "video*"],
+                      ["edit*", "the", "video*"], ["video", "edit*"], ["video", "clip", "edit*"],
+                      ["restyle*", "video*"], ["restyle*", "this", "video*"], ["restyle*", "my", "video*"],
+                      ["video*", "duzenle*"], ["videoyu", "duzenle*"], ["videomu", "duzenle*"],
+                      ["klibi", "duzenle*"]]),
+        SurfaceWords(
+            id: "image_to_video",
+            phrases: [["animate", "this", "photo*"], ["animate", "my", "photo*"], ["animate", "this", "picture*"],
+                      ["animate", "my", "picture*"], ["animate", "this", "image*"], ["animate", "an", "image*"],
+                      ["photo", "into", "a", "video*"], ["picture", "into", "a", "video*"],
+                      ["image", "into", "a", "video*"], ["photo", "to", "video"], ["image", "to", "video"],
+                      ["video*", "from", "this", "photo*"], ["video*", "from", "my", "photo*"],
+                      ["video*", "from", "this", "picture*"], ["video*", "from", "this", "image*"],
+                      ["fotograf*", "canlandir*"], ["resm*", "canlandir*"], ["gorsel*", "canlandir*"],
+                      ["videoya", "donustur*"]],
+            unless: ["text", "metin", "metni"]),
+        SurfaceWords(
+            id: "text_to_video",
+            phrases: [["make*", "a", "video*"], ["generate*", "a", "video*"], ["create*", "a", "video*"],
+                      ["make*", "videos"], ["generate*", "video*"], ["text", "to", "video"], ["video", "generat*"],
+                      ["video", "olustur*"], ["video", "uret*"], ["video", "yap*"], ["videosunu", "yap*"],
+                      ["videosunu", "olustur*"]]),
+        SurfaceWords(
+            id: "image_edit", stems: ["retouch", "photoshop", "rotus", "colori", "colouri", "renklendir"],
+            phrases: [["edit*", "photo*"], ["edit*", "this", "photo*"], ["edit*", "my", "photo*"],
+                      ["edit*", "the", "photo*"], ["edit*", "image*"], ["edit*", "this", "image*"],
+                      ["edit*", "my", "image*"], ["edit*", "picture*"], ["edit*", "this", "picture*"],
+                      ["edit*", "my", "picture*"], ["photo", "edit*"], ["image", "edit*"], ["remove", "the", "background"],
+                      ["background", "remov*"], ["fotograf*", "duzenle*"], ["resm*", "duzenle*"],
+                      ["gorsel*", "duzenle*"], ["arka", "plan*", "kaldir*"]],
+            unless: ["script", "scripts", "code", "program", "kod", "kodu", "betik"]),
+        SurfaceWords(
+            id: "text_to_image", stems: ["illustrat", "illustrasyon", "cizim"],
+            words: ["draw", "drawing", "logo", "logos", "ciz", "cizer", "cizen", "cizsin", "cizebilir"],
+            phrases: [["generate*", "an", "image*"], ["generate*", "a", "picture*"], ["generate*", "image*"],
+                      ["generate*", "a", "photo*"], ["create*", "an", "image*"], ["create*", "a", "picture*"],
+                      ["make*", "an", "image*"], ["make*", "a", "picture*"], ["image", "generat*"],
+                      ["text", "to", "image"], ["design*", "a", "logo"], ["logo", "design*"],
+                      ["resim", "olustur*"], ["resmi", "olustur*"], ["resmini", "yap*"], ["gorsel", "olustur*"],
+                      ["gorsel", "uret*"], ["gorseli", "olustur*"], ["resim", "uret*"], ["logo", "tasarla*"]],
+            unless: ["script", "scripts", "code", "program", "kod", "kodu", "betik"]),
         SurfaceWords(
             id: "vision", stems: ["image", "picture", "screenshot", "photograph", "gorsel", "resim", "fotograf",
                                   "goruntu", "cizim"],
             words: ["photo", "photos", "ocr", "ciz", "cizer", "cizen", "cizsin", "cizebilir", "foto"],
             phrases: [["ekran", "goruntu*"]],
-            unless: ["script", "scripts", "code", "program", "kod", "kodu", "betik"]),
+            // #378: a verb of making or changing leaves the question to the embedding, where the image
+            // and video surfaces' examples stand beside `vision`'s.
+            unless: ["script", "scripts", "code", "program", "kod", "kodu", "betik", "prettier", "nicer", "better"],
+            unlessStems: makingOrChanging),
         SurfaceWords(
             id: "abstract", stems: ["puzzle", "riddle", "bulmaca", "oruntu", "sequence"],
             words: ["logic", "mantik", "mantigi"], phrases: [["comes", "next"], ["siradaki", "sayi*"]]),
@@ -443,6 +559,16 @@ extension CategoryHints {
             phrases: [["web", "search"], ["search", "the", "web"], ["look", "up"], ["search", "online"],
                       ["internette", "ara*"]]),
         SurfaceWords(id: "assistant", stems: ["chatbot", "sohbet", "asistan", "assistant"], words: ["chat"]),
+    ]
+
+    /// #378 (D-218 clause 1): the starts of words that ask for a picture to be made or changed, never
+    /// read: a question with one is not `vision`'s by its words alone. In plain letters. Not `yap`
+    /// ("make"), which starts `yapay`, nor `change`, which a reader asks of a chart.
+    static let makingOrChanging = [
+        "edit", "retouch", "enhanc", "improv", "remov", "eras", "blur", "brighten", "restyl", "animat",
+        "generat", "creat", "draw", "colori", "colouri", "replac",
+        "duzenle", "kaldir", "silebil", "silin", "silme", "sil", "bulaniklastir", "olustur", "uret", "guzellestir",
+        "iyilestir", "rotus", "canlandir", "renklendir", "degistir", "donustur", "ciz",
     ]
 
     /// A matched word that follows one of these is something else: a dress, tax or postal code; a
@@ -464,6 +590,8 @@ extension CategoryHints {
     static let notBefore: [String: Set<String>] = [
         "code": ["of"], "codes": ["of"], "bilim": ["kurgu"],
         "makale": ["yaz", "yazmak", "yazar", "yazan", "yazsin"],
+        // #378: to draw a conclusion, a parallel or someone's attention is not to make a picture.
+        "draw": ["conclusion", "conclusions", "attention", "parallels", "parallel", "up", "on", "from", "the", "lessons"],
     ]
 
     /// An agent named next to code is an agent that codes: "agent" alone is a user, travel or estate
@@ -614,7 +742,9 @@ extension CategoryHints {
                                                 "iyi", "gercekten"]
 
     private static func names(_ rule: SurfaceWords, _ readings: [[String]], _ raw: String) -> Bool {
-        if readings.contains(where: { words in words.contains(where: rule.unless.contains) }) { return false }
+        if readings.contains(where: { words in
+            words.contains { word in rule.unless.contains(word) || rule.unlessStems.contains(where: word.hasPrefix) }
+        }) { return false }
         return rule.marks.contains(where: raw.contains) || readings.contains { words in
             words.indices.contains { index in matchesWord(rule, words, at: index) }
                 || rule.phrases.contains { phrase in inRow(phrase, words) }
@@ -859,7 +989,6 @@ struct SimilarityRouter: QuestionRouter {
         }
         let language: NLLanguage = turkish ? .turkish : .english
         let exampleSet = turkish ? CategoryHints.examplesTurkishBothSpellings : CategoryHints.examples
-        let unmeasuredHints = turkish ? CategoryHints.unmeasuredHintsTurkishBothSpellings : CategoryHints.unmeasuredHints
         guard turkish || SimilarityRouter.readsEnglish(text),
               let embedding = NLContextualEmbedding(language: language),
               embedding.hasAvailableAssets,
@@ -965,15 +1094,9 @@ struct SimilarityRouter: QuestionRouter {
         }
 
         // D-187 (the owner's ruling, 2026-10-08): an understood question is answered from the closest
-        // board, never "not measured". The decline groups no longer decline. A question closest to
-        // making or changing an image goes to `vision`, the board of models that read images best; one
-        // closest to sound, video or speed is answered by the closest surface below.
-        let declines = unmeasuredHints.map { $0.compactMap(example) }.map { $0.isEmpty ? -Double.infinity : score($0) }
-        if let image = declines.first, image > best.score, declines.allSatisfy({ $0 <= image }),
-           known.contains("vision") {
-            return RoutingOutcome(categoryID: "vision", tier: .similarity, unmeasured: false,
-                                  alternatives: Array(closest.map(\.id).filter { $0 != "vision" }.prefix(2)))
-        }
+        // board, never "not measured"; the decline groups no longer decline. #378 (D-218 clause 1)
+        // retired D-187's rule that sent making or changing an image to `vision`: the image and video
+        // surfaces measure it now, and their examples above are what such a question is closest to.
 
         if best.score < floor {
             guard known.contains(CategoryHints.unmeasuredFallback) else { return nil }
@@ -1078,9 +1201,8 @@ struct ModelRouter: QuestionRouter {
             recommend a model, never say anything is good or best, and never write prose. \
             Choose the surface whose description best matches the question.
 
-            If NOTHING here measures what was asked — making, drawing, generating or editing an \
-            image, a logo or an illustration, cooking, travel, anything outside these descriptions \
-            — answer exactly \
+            If NOTHING here measures what was asked — cooking, travel, anything outside these \
+            descriptions — answer exactly \
             `\(ModelOutputBoundary.declineSentinel)`. Answering with a surface that does not \
             measure the question tells the reader we measured something we did not.
 
@@ -1094,7 +1216,8 @@ struct ModelRouter: QuestionRouter {
             paper, transcripts or a contract, is document, even when the document is about \
             software or money. Reading what is in an image the person has, such as a photo, a \
             screenshot, a receipt or a chart, is vision, even when the image shows an error message \
-            or text; making or changing an image is not measured here.
+            or text; making a new image or video, or changing one the person has, is one of the \
+            image and video surfaces, never vision.
 
             Then fill language and domain. Each is \
             `\(ModelOutputBoundary.noRefinement)` unless the question clearly concerns it. The \
@@ -1541,6 +1664,9 @@ public func scaleExplanation(for metric: String) -> String? {
         return "the share of real tasks it finished"
     case "% correct":
         return "the share of questions it got right"
+    // #379 (D-219): METR's time horizon, a length of task rather than a share.
+    case "minutes":
+        return "how long a task it finishes half the time, in a skilled person's minutes"
     default:
         return nil
     }

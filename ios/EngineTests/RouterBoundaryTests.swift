@@ -21,6 +21,8 @@ private let served = [
     "coding", "agentic-coding", "assistant", "everyday", "expert",
     "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
     "vision", "search", "search_factuality",
+    // #378 (D-218 clause 1): the image and video surfaces
+    "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit",
 ]
 
 final class RouterBoundaryTests: OfflineTestCase {

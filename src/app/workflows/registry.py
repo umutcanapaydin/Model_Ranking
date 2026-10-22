@@ -11,6 +11,7 @@ This table is curated data — the project's core IP. Review at every closure.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -257,7 +258,7 @@ MODEL_RULES: tuple[ModelRule, ...] = (
     ModelRule("mistral-small-3.1", "Mistral Small 3.1", "Mistral",   r"mistral[-_ ]?small[-_ ]?(?:3[.\-]1(?!\d)|2503(?!\d))"),
     ModelRule("devstral",          "Devstral",          "Mistral",   r"devstral(?![-_ ]?(?:small|medium))"),
     ModelRule("doubao-seed-code",  "Doubao Seed Code",  "ByteDance", r"doubao[-_ ]?seed[-_ ]?code"),
-    ModelRule("minimax-m3",        "MiniMax M3",        "MiniMax",   r"minimax[-_ ]?m3"),
+    ModelRule("minimax-m3",        "MiniMax M3",        "MiniMax",   r"minimax[-_ ]?m3(?![.\-p]\d(?!\d))"),
     ModelRule("minimax-m2.7",      "MiniMax M2.7",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]7"),
     ModelRule("minimax-m2.5",      "MiniMax M2.5",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]5"),
     ModelRule("minimax-m2.1",      "MiniMax M2.1",      "MiniMax",   r"minimax[-_ ]?m2[.\-p]1(?!\d)"),
@@ -634,9 +635,18 @@ _LATEST_SUFFIX = "-latest"
 _LATEST_TOKEN = re.compile(re.escape(_LATEST_SUFFIX) + r"(?:-(?!v\d)|\Z)")
 
 
-def derive_identity(name: str) -> DerivedIdentity | None:
-    """The grammar's id for ``name``; None for a different product (the modality guard)."""
-    if any(rx.search(name) for _, rx in _MODALITY_RX):
+#: #378: a media board's name brackets a variant (`FLUX.2 [max]`, `Seedream 4.0 (2K)`); the media
+#: grammar reads each bracket as one more name token, and the text grammar refuses the name.
+_MEDIA_BRACKETS = re.compile(r"\s*[\[\](),]+\s*")
+
+
+def derive_identity(name: str, *, media: bool = False) -> DerivedIdentity | None:
+    """The grammar's id for ``name``; None for a different product (the modality guard).
+
+    ``media`` (#378, D-218 clause 1) reads a name from an image or video board: the modality guard
+    does not apply, since the product IS the image or video model, and a bracketed variant is kept as
+    a name token. No price is ever linked through it (`reconcile_media`)."""
+    if not media and any(rx.search(name) for _, rx in _MODALITY_RX):
         return None
     text = name.strip()
     effort: str | None = None
@@ -645,6 +655,8 @@ def derive_identity(name: str) -> DerivedIdentity | None:
         token = suffix.group(1).lower()
         effort = token if token in EFFORT_LEVELS else None
         text = text[: suffix.start()]
+    if media:
+        text = _MEDIA_BRACKETS.sub("-", text).strip("-")
     text = text.rsplit("/", 1)[-1].lower()         # the route: `openrouter/openai/...`
     if text.startswith("ft:"):
         return None                                # a fine-tune is its owner's model, not the base
@@ -842,7 +854,7 @@ def claude_word_order(name: str) -> str:
     return name
 
 
-def _derived_display(model_id: str, names: list[str]) -> str:
+def _derived_display(model_id: str, names: list[str], *, media: bool = False) -> str:
     """The table's name when it has one (#112); else a board's own spelling when one has it
     (`GPT-6 Astra`), else the shortest, else the id.
 
@@ -857,7 +869,9 @@ def _derived_display(model_id: str, names: list[str]) -> str:
         if dash := _dash_effort(bare):
             bare = bare[: dash.start()]
         bare = bare.strip()
-        derived = derive_identity(bare)
+        if media and not _DISPLAY.fullmatch(bare):
+            bare = _MEDIA_BRACKETS.sub(" ", bare).strip()  # `FLUX.2 [max]` reads as `FLUX.2 max` (#378)
+        derived = derive_identity(bare, media=media)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)
     spaced = sorted(n for n in candidates if " " in n)
@@ -980,6 +994,61 @@ def _unmatched(
     return derived
 
 
+def _media_sources() -> str:
+    """The sources of the surfaces ranked on quality only (D-218 clause 1), as a JSON list for SQL."""
+    from app.workflows.categories import CATEGORIES
+
+    return json.dumps(sorted(spec.primary_source for spec in CATEGORIES.values() if not spec.priced))
+
+
+def _reconcile_media(conn: sqlite3.Connection, dropped: list[str]) -> tuple[int, set[str]]:
+    """#378 (D-218 clause 1): link an image or video board's rows to models, on the score alone.
+
+    These boards' models are priced per image or per second, never per token, so D-157's threshold
+    (a price AND a score) would register none of them; the owner ruled that they rank on quality
+    only. A curated rule wins only when it declares a media modality: every rule that declares
+    `text` names a text model, and a search over a media name can match one (`kling-o3-pro` would
+    read as OpenAI's `o3-pro`). Any other name is read by the media grammar (`derive_identity`,
+    `media=True`), and a model the text pass already registered under the same id keeps its row.
+    Returns (score names linked, the model ids they link to); a name the grammar cannot read is
+    dropped and counted, as every unreadable name is (REQ-CAN-001).
+    """
+    linked = 0
+    models: set[str] = set()
+    names: dict[str, list[str]] = {}
+    for raw_name, effort in conn.execute(
+        "SELECT DISTINCT raw_name, effort FROM scores WHERE source IN (SELECT value FROM json_each(?))",
+        (_media_sources(),),
+    ).fetchall():
+        explicit = None if effort == EFFORT_UNSPECIFIED else effort
+        identity = resolve_effort(split_harness(raw_name)[1], explicit)
+        rule = canonicalize(identity.model_name)
+        if rule is not None and rule.modality != "text":
+            model_id = rule.canonical_id
+            conn.execute("INSERT OR IGNORE INTO models (id, display, vendor) VALUES (?,?,?)",
+                         (rule.canonical_id, rule.display, rule.vendor))
+        else:
+            derived = derive_identity(identity.model_name, media=True)
+            if derived is None:
+                dropped.append(raw_name)
+                continue
+            model_id = derived.model_id
+            names.setdefault(model_id, []).append(identity.model_name)
+        conn.execute(
+            "UPDATE scores SET model_id = ? WHERE raw_name = ? AND effort = ?"
+            " AND source IN (SELECT value FROM json_each(?))",
+            (model_id, raw_name, effort, _media_sources()),
+        )
+        linked += 1
+        models.add(model_id)
+    for model_id, spellings in names.items():
+        conn.execute(
+            "INSERT OR IGNORE INTO models (id, display, vendor) VALUES (?,?,?)",
+            (model_id, _derived_display(model_id, spellings, media=True), _derived_vendor(model_id, [])),
+        )
+    return linked, models
+
+
 def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
     """Map pricing aliases + score raw_names to canonical models.
 
@@ -1017,6 +1086,7 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
             )
         for raw_name, effort in conn.execute(
             "SELECT DISTINCT raw_name, effort FROM scores"
+            " WHERE source NOT IN (SELECT value FROM json_each(?))", (_media_sources(),)
         ).fetchall():
             _, model_part = split_harness(raw_name)
             explicit = None if effort == EFFORT_UNSPECIFIED else effort
@@ -1048,12 +1118,15 @@ def reconcile(conn: sqlite3.Connection) -> ReconcileReport:
         linked = set(derived_ids)
         dropped += [a for mid, aliases in pending.prices.items() if mid not in linked for a in aliases]
         dropped += [n[0] for mid, names in pending.scores.items() if mid not in linked for n in names]
+        media_matched, media_models = _reconcile_media(conn, dropped)
+        s_matched += media_matched
     return ReconcileReport(
         p_matched,
         p_total - p_matched,
         s_matched,
         s_total - s_matched,
-        len(seen) + len(derived_ids),
+        len(seen) + len(derived_ids) + len(media_models - {rule.canonical_id for rule in seen.values()}
+                                            - set(derived_ids)),
         tuple(sorted(dropped)),
         tuple(sorted(modality_drops)),
         tuple(derived_ids),

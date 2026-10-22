@@ -231,7 +231,9 @@ final class ScreenChromeTests: OfflineTestCase {
     func testEverySurfaceHasATurkishName() {
         let ids = ["coding", "agentic-coding", "assistant", "everyday", "expert",
                    "mathematics", "computer-use", "abstract", "web-dev", "document", "factuality",
-                   "vision", "search", "search_factuality"]
+                   "vision", "search", "search_factuality",
+                   // #378 (D-218 clause 1)
+                   "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
         for id in ids {
             let turkish = UIText.surface(id: id, engineTitle: "ENGINE", .turkish)
@@ -683,7 +685,8 @@ final class ScreenExplanationTests: OfflineTestCase {
     /// what it is for, in both languages.
     func testEverySurfaceHasALineSayingWhatItIsFor() {
         for id in ["coding", "agentic-coding", "assistant", "everyday", "expert", "mathematics", "computer-use",
-                   "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality"] {
+                   "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality",
+                   "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"] {
             let english = UIText.surfaceBlurb(id, .english)
             let turkish = UIText.surfaceBlurb(id, .turkish)
             XCTAssertNotNil(english, id)

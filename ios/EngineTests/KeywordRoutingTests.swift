@@ -10,7 +10,8 @@ import XCTest
 final class KeywordRoutingTests: OfflineTestCase {
     private let known = ["coding", "assistant", "agentic-coding", "everyday", "expert", "mathematics",
                          "computer-use", "abstract", "web-dev", "document", "factuality", "vision",
-                         "search", "search_factuality"]
+                         "search", "search_factuality",
+                         "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit"]
 
     private func routed(_ question: String) async -> RoutingOutcome {
         await TieredRouter(model: nil).route(question, within: known)
@@ -353,10 +354,11 @@ final class KeywordRoutingTests: OfflineTestCase {
         XCTAssertEqual(doubted.tier, .model, "a question the model doubts keeps the model's outcome")
     }
 
-    /// D-187: a request to MAKE an image is answered from `vision`, in both languages; a script that
-    /// works on images is code, left to the embedding.
-    func testARequestToMakeAnImageIsAnsweredFromVision() async {
-        await assertRoutes([("generate an image of a cat for me", "vision"), ("bana bir kedi resmi çiz", "vision")])
+    /// #378 (D-218 clause 1, reversing D-187's rule): a request to MAKE an image is answered from the
+    /// image board, in both languages; a script that works on images is code, left to the embedding.
+    func testARequestToMakeAnImageIsAnsweredFromTheImageBoard() async {
+        await assertRoutes([("generate an image of a cat for me", "text_to_image"),
+                            ("bana bir kedi resmi çiz", "text_to_image")])
         XCTAssertNotEqual(CategoryHints.namedSurface("write a script that resizes images", within: known), "vision")
     }
 

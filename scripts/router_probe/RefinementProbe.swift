@@ -20,7 +20,8 @@ import XCTest
 final class RefinementProbe: XCTestCase {
     /// The ids `/v1/categories` served when the probe was written; pass the live list if it changed.
     let served = ["coding", "agentic-coding", "assistant", "everyday", "expert", "mathematics", "computer-use",
-                  "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality"]
+                  "abstract", "web-dev", "document", "factuality", "vision", "search", "search_factuality",
+                  "text_to_image", "image_edit", "text_to_video", "image_to_video", "video_edit", "long-tasks"]
 
     func testProbe() async throws {
         // A failure, not a skip: without the model every row would read `nil`, and a file of `nil`

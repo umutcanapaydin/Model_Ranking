@@ -320,6 +320,8 @@ SERVED_CATEGORY_KEYS = {
     "boards",
     # The M20 repo review's M1, D-188 clause 6: the board a refinement takes the place of.
     "refined_board",
+    # #378, D-218 clause 1: False on a surface ranked on quality only, which carries no price.
+    "priced",
 }
 
 

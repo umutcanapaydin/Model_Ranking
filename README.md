@@ -79,6 +79,9 @@ D-194 (#265) ARC-AGI-2 is read from ARC Prize's own public-evaluation runs (MIT)
 from its leaderboard repository (Apache-2.0), and the second price source is models.dev (MIT), in place
 of OpenRouter. Since D-216 (#265) DeepSWE is read from Datacurve's own leaderboard,
 https://deepswe.datacurve.ai/ (© Datacurve; public numbers, attributed), in place of Epoch's copy.
+Since D-219 (#379) four more boards are read from their publishers: OSWorld-Verified,
+https://osworld-v1.xlang.ai/ (CC BY-SA 4.0), and METR's time horizons, https://metr.org/time-horizons/,
+LiveBench, https://livebench.ai/, and SimpleBench, https://simple-bench.com/ (public numbers, attributed).
 This citation also travels in every ranking export and recommendation payload source list
 (REQ-LIC-001).
 The app's Credits screen names every publisher the served boards credit, with its licence or terms and

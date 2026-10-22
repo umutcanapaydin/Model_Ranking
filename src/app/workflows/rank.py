@@ -24,7 +24,12 @@ from app.workflows.board_tables import (
     DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
+    LIVEBENCH_RELEASE_DATE,
+    LIVEBENCH_SITE_URL,
+    METR_SITE_URL,
+    OSWORLD_SITE_URL,
     RETIRED_EXTERNAL_ATTRIBUTION,
+    SIMPLEBENCH_SITE_URL,
 )
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
@@ -63,6 +68,15 @@ TERMINALBENCH_ATTRIBUTION = ("Terminal-Bench 4.0 scores: Terminal-Bench leaderbo
 #: D-216 (#265): Datacurve's own DeepSWE leaderboard, in place of Epoch's copy. It publishes no licence; its public
 #: numbers are used with this attribution (D-215).
 DATACURVE_ATTRIBUTION = f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE leaderboard, {DATACURVE_SITE_URL}"
+#: #379 (D-219): OSWorld-Verified's workbook, under the CC BY-SA 4.0 licence its site states.
+OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard, {OSWORLD_SITE_URL} "
+                       "(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/)")
+#: #379 (D-219): METR's time horizons. METR publishes no licence; its public numbers are used with this credit (D-215).
+METR_ATTRIBUTION = f"Time-horizon scores: METR's Time Horizon 1.1, {METR_SITE_URL}"
+#: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
+LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release {LIVEBENCH_RELEASE_DATE}), {LIVEBENCH_SITE_URL}"
+#: #379 (D-219): SimpleBench's leaderboard. No licence on its site; its public numbers are used with this credit.
+SIMPLEBENCH_ATTRIBUTION = f"SimpleBench scores: the SimpleBench Team's leaderboard, {SIMPLEBENCH_SITE_URL}"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
@@ -71,6 +85,10 @@ ATTRIBUTIONS = (
     TERMINALBENCH_ATTRIBUTION,
     ARC_ATTRIBUTION,
     DATACURVE_ATTRIBUTION,
+    OSWORLD_ATTRIBUTION,
+    METR_ATTRIBUTION,
+    LIVEBENCH_ATTRIBUTION,
+    SIMPLEBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
     *RETIRED_EXTERNAL_ATTRIBUTION.values(),
@@ -94,6 +112,12 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "arena_search_factuality": ARENA_ATTRIBUTION,
     # M21-W1 (#185): LMArena's own WebDev board, the same dataset and grant.
     "arena_webdev": ARENA_ATTRIBUTION,
+    # #378 (D-218 clause 1): LMArena's five image and video boards, the same dataset and grant.
+    "arena_image_edit": ARENA_ATTRIBUTION,
+    "arena_text_to_image": ARENA_ATTRIBUTION,
+    "arena_image_to_video": ARENA_ATTRIBUTION,
+    "arena_text_to_video": ARENA_ATTRIBUTION,
+    "arena_video_edit": ARENA_ATTRIBUTION,
     # M17-W2: the 35 category slices, the same dataset and grant. Derived from the DECLARED table,
     # which is the reviewed list, and still not from an `arena_` prefix: a slice nobody declared
     # stays unattributed and raises.
@@ -103,6 +127,10 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "terminalbench_4": TERMINALBENCH_ATTRIBUTION,
     "arc_agi_2": ARC_ATTRIBUTION,
     "datacurve_deepswe": DATACURVE_ATTRIBUTION,
+    "osworld_verified": OSWORLD_ATTRIBUTION,
+    "metr_time_horizons": METR_ATTRIBUTION,
+    "livebench": LIVEBENCH_ATTRIBUTION,
+    "simplebench": SIMPLEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     # D-127's boards. All seven come out of the same owner-placed Epoch bundle, and are listed
     # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
@@ -142,6 +170,10 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
     ARC_ATTRIBUTION: ("arc_prize", "arc_prize_solutions"),
     DATACURVE_ATTRIBUTION: ("datacurve_site",),
+    OSWORLD_ATTRIBUTION: ("osworld",),
+    METR_ATTRIBUTION: ("metr",),
+    LIVEBENCH_ATTRIBUTION: ("livebench",),
+    SIMPLEBENCH_ATTRIBUTION: ("simplebench",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).
@@ -257,9 +289,11 @@ class RankingRow:
     evidence_date: str | None
     secondary_score: float | None
     secondary_cost: float | None
-    input_per_m: float
-    output_per_m: float
-    blended_per_m: float
+    # None on a surface ranked on quality only (`CategorySpec.priced`, D-218 clause 1), and only there:
+    # every other surface ranks a model only with its price median.
+    input_per_m: float | None
+    output_per_m: float | None
+    blended_per_m: float | None
 
 
 def higher_effort_evidence(
@@ -366,7 +400,9 @@ def ranked_population(conn: sqlite3.Connection, spec: CategorySpec) -> list[Rank
     """**The models this engine can actually recommend on one surface.** REQ-EVI-002, W-037.
 
     Reconciled to the registry AND carrying a price median. Nothing else can be offered to a
-    reader, because a model nobody can buy is not an answer. It sizes the WINDOW and the tie margin
+    reader, because a model nobody can buy is not an answer. On a surface ranked on quality only
+    (`CategorySpec.priced` False, D-218 clause 1) no model is priced per token, so the population is
+    every reconciled model, and no price is read. It sizes the WINDOW and the tie margin
     on the M8 surfaces (D-148 clause 2); the FLOORS are the top third of the whole board's rows since
     M16-W3 (D-148 clause 1), not of this population.
 
@@ -398,6 +434,9 @@ def ranked_with_ids(conn: sqlite3.Connection, spec: CategorySpec) -> list[tuple[
     because it is serialized whole onto `/v1`, so the id travels beside it rather than in it.
     """
     secondary = spec.secondary_benchmark or "__none__"
+    # D-218 clause 1 (#378): a surface ranked on quality only joins no price (`:priced` is 0), so a
+    # model its board names ranks without one, and every price on its rows is None -- never another
+    # surface's price. A priced surface keeps only the models with a price median, as before.
     rows = conn.execute(
         """
         WITH best_primary AS (
@@ -442,8 +481,9 @@ def ranked_with_ids(conn: sqlite3.Connection, spec: CategorySpec) -> list[tuple[
                p.in_m, p.out_m
         FROM models m
         JOIN best_primary b ON b.model_id = m.id
-        JOIN px_median p ON p.model_id = m.id
+        LEFT JOIN px_median p ON p.model_id = m.id AND :priced
         LEFT JOIN best_secondary a ON a.model_id = m.id
+        WHERE NOT :priced OR p.model_id IS NOT NULL
         ORDER BY b.best DESC, m.id  -- #44 (D-173): a tie is ordered by id, never by a spelling
         """,
         {
@@ -451,6 +491,7 @@ def ranked_with_ids(conn: sqlite3.Connection, spec: CategorySpec) -> list[tuple[
             "metric": spec.metric,
             "secondary": secondary,
             "effort": spec.ranking_effort,
+            "priced": int(spec.priced),
         },
     ).fetchall()
     ranking: list[tuple[str, RankingRow]] = []
@@ -472,7 +513,8 @@ def ranked_with_ids(conn: sqlite3.Connection, spec: CategorySpec) -> list[tuple[
                 secondary_cost=r[9],
                 input_per_m=r[10],
                 output_per_m=r[11],
-                blended_per_m=round(r[10] * BLEND_INPUT_WEIGHT + r[11] * BLEND_OUTPUT_WEIGHT, 2),
+                blended_per_m=None if r[10] is None or r[11] is None
+                else round(r[10] * BLEND_INPUT_WEIGHT + r[11] * BLEND_OUTPUT_WEIGHT, 2),
             )))
     return ranking
 

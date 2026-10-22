@@ -19,12 +19,14 @@ from app.workflows.schema import connect
 
 from .test_api_v1 import _seeded_db
 
-ENVELOPE_KEYS = {"api_version", "attributions", "credits", "boards", "models"}  # #260: credits
+# #260: credits. #378 (D-218 clause 1): `unpriced_models`, the models only a quality-only board names.
+ENVELOPE_KEYS = {"api_version", "attributions", "credits", "boards", "models", "unpriced_models"}
 PAYLOAD_KEYS = ENVELOPE_KEYS - {"api_version"}  # the route adds the version (review M5)
 BOARD_KEYS = {"id", "benchmark", "metric", "ranking_effort", "evidence_date", "observed_at",
               "attribution", "standings"}
 STANDING_KEYS = {"model", "position", "effort"}
 MODEL_KEYS = {"id", "display", "vendor", "blended_per_m", "accessibility"}
+UNPRICED_MODEL_KEYS = MODEL_KEYS - {"blended_per_m"}  # #378: no price field, never a null or a zero
 
 
 def _conn() -> sqlite3.Connection:
@@ -150,6 +152,8 @@ def test_the_key_sets_are_frozen() -> None:
             assert set(standing) == STANDING_KEYS
     for model in payload["models"]:
         assert set(model) == MODEL_KEYS
+    for model in payload["unpriced_models"]:
+        assert set(model) == UNPRICED_MODEL_KEYS
 
 
 def test_each_board_is_dated_and_attributed() -> None:
