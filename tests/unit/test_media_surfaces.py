@@ -231,3 +231,68 @@ def test_a_surface_ranked_on_quality_only_gives_no_plan_answer(media_db: Path, s
             recommend_subscription(conn, "unlimited", "coding")
     finally:
         conn.close()
+
+
+def test_a_priced_row_with_no_price_is_refused_never_read_as_free(media_db: Path) -> None:
+    """D-218 clause 1: only a quality-only surface ranks a row with no price; on a priced surface a missing
+    price is a defect, refused rather than read as zero (`recommend.price_of`, reached by no test before the
+    release Tester)."""
+    from dataclasses import replace
+
+    from app.workflows.recommend import price_of
+
+    conn = sqlite3.connect(media_db)
+    try:
+        row = category_ranking(conn, CATEGORIES["agentic-coding"])[0]
+    finally:
+        conn.close()
+    assert row.blended_per_m is not None and price_of(row) == row.blended_per_m
+    with pytest.raises(ValueError, match="no price"):
+        price_of(replace(row, blended_per_m=None))
+
+
+def test_a_priced_surface_with_no_value_window_is_refused(media_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-218 clause 1: no value window is the quality-only surfaces' rule; a priced surface that declares none
+    is refused, never answered with a Best Value read off no window (reached by no test before the release
+    Tester)."""
+    from dataclasses import replace
+
+    from app.workflows import recommend as recommending
+
+    spec = replace(CATEGORIES["agentic-coding"], value_window=None)
+    monkeypatch.setattr(recommending, "get_category", lambda task: spec)
+    conn = sqlite3.connect(media_db)
+    try:
+        with pytest.raises(ValueError, match="no value window"):
+            recommend(conn, budget="unlimited", task="agentic-coding")
+    finally:
+        conn.close()
+
+
+def test_a_curated_rule_that_declares_a_media_modality_names_the_media_model(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#378 (D-218 clause 1): on a media board a curated rule wins only when it declares a media modality, and
+    its id, display and vendor then name the model. No rule declares one today, so no test reached the branch
+    (`registry._reconcile_media`); the rule here is planted for this test only."""
+    from app.workflows import registry
+
+    db = tmp_path / "pipeline.db"
+    _seeded_db(db)
+    real = registry.canonicalize
+    rule = registry.ModelRule(canonical_id="gpt-image-2-curated", display="GPT Image 2 (curated)", vendor="OpenAI",
+                              pattern=r"gpt-image-2", modality="image")
+    monkeypatch.setattr(registry, "canonicalize",
+                        lambda name: rule if name.lower().startswith("gpt-image-2") else real(name))
+    conn = sqlite3.connect(db)
+    try:
+        board = ARENA_BOARDS["image_edit"]
+        ingest_arena(conn, FakeRawSource(board.id, (FIXTURES / "image_edit.json").read_text(encoding="utf-8")),
+                     RunContext(observed_at="2026-10-21T00:00:00+00:00"))
+        reconcile(conn)
+        linked = conn.execute("SELECT DISTINCT model_id FROM scores WHERE raw_name = ?",
+                              ("GPT-Image-2 (Medium)",)).fetchall()
+        named = conn.execute("SELECT display, vendor FROM models WHERE id = ?", ("gpt-image-2-curated",)).fetchone()
+    finally:
+        conn.close()
+    assert linked == [("gpt-image-2-curated",)]
+    assert named == ("GPT Image 2 (curated)", "OpenAI")

@@ -366,3 +366,19 @@ def test_a_document_nested_past_the_recursion_limit_is_refused_as_a_guard_error(
     `RecursionError`, which no caller's `except yaml.YAMLError` catches. The guard refuses it in its own class."""
     with pytest.raises(YamlGuardError, match="nested"):
         safe_load_bounded(raw, what="a probe")
+
+
+@pytest.mark.parametrize("step", ["_expanded_size", "safe_load"])
+def test_a_recursion_past_the_compose_step_is_refused_as_a_guard_error(step: str,
+                                                                      monkeypatch: pytest.MonkeyPatch) -> None:
+    """The queue-1021 integration review's M2: the guard composes, counts and constructs, and each step recurses,
+    so each catches `RecursionError` in the guard's own class. Only the compose step's catch had a test: the count's
+    and the construct's (`yaml_guard.py`, the release Tester's coverage read) were reached by none."""
+    from app.workflows import yaml_guard
+
+    def too_deep(*_: object, **__: object) -> None:
+        raise RecursionError("maximum recursion depth exceeded")
+
+    monkeypatch.setattr(yaml_guard.yaml if step == "safe_load" else yaml_guard, step, too_deep)
+    with pytest.raises(YamlGuardError, match="nested"):
+        safe_load_bounded("a: 1\n", what="a probe")
