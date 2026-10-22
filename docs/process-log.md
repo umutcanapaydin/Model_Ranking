@@ -1195,3 +1195,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Measuring the unlinked count found a real mislink: the MiniMax M3 rule took M3.1 Flash. It was fixed with its own red test.
 - Routing was measured against the integration head with `make model-tier`. The model tier sent nothing wrongly to `long-tasks` (golden +1, m24 +2). The first wording examples drew ordinary questions there; the shipped ones name hours and days, and hold both sets at net 0. All 727 Swift tests stayed green.
 - Lesson: count a new board's links on a copy of the real artifact before serving it, because a curated prefix rule fails quietly, giving one model another model's score.
+
+## 2026-10-22 · integration/run-queue-1021 — the four MINOR findings of the stack's delta security review
+
+- The review's M1-M4, each a red test committed alone and then the smallest fix, on `fix/integration-queue-1021-review`, fast-forwarded onto the integration branch.
+- M1: the OSWorld reader bounds the text its cells resolve to (`MAX_ROWS_CHARS`, the 32 MB fetch cap, about a hundred times the recorded board's 0.32 M characters), header names repeated as keys included.
+- M2: LiveBench, the OSWorld reader, the shared YAML guard (METR, Aider and the curated files) and the Arena page read now turn `csv.Error`, a zip read's errors and `RecursionError` into `SourceError`. #378's image and video boards had the gap through the shared Arena page read. One test through `_ingest_sources` shows a bad optional source leaves the build going on to the next.
+- M3: the document-type and entity refusal has a test that a mutant deleting both handlers turns red, restored byte-identical.
+- M4: the hosted deploy refuses a call from any tree but its own checkout; the #391 test now runs its scratch copy from inside the scratch tree.
+- Lesson: a parser's contract is the exception class it raises, and `RecursionError`, a zip read's errors and `csv.Error` are not `ValueError`, so every new reader of fetched input needs a deep-nesting case and a broken-container case beside its malformed-text case.
