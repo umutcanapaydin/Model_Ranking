@@ -216,6 +216,30 @@ def test_a_workbook_that_breaks_the_reader_fails_the_source_and_nothing_else(dat
         _ow().workbook_rows(data)
 
 
+def _recorded_with(signature: bytes, offset: int, fmt: str, value: object) -> bytes:
+    """The recorded workbook with one field of its first record carrying `signature` rewritten, `value` given the
+    field's old value."""
+    data = bytearray(FIXTURE.read_bytes())
+    start = data.rfind(signature) if signature == b"PK\x05\x06" else data.find(signature)
+    struct.pack_into(fmt, data, start + offset, value(struct.unpack_from(fmt, data, start + offset)[0]))  # type: ignore[operator]
+    return bytes(data)
+
+
+@pytest.mark.parametrize("data", [
+    _recorded_with(b"PK\x05\x06", 16, "<I", lambda old: old + 10**9),
+    _recorded_with(b"PK\x01\x02", 6, "<H", lambda _old: 161),
+], ids=["a-central-directory-offset-past-its-place", "a-version-needed-no-reader-knows"])
+def test_a_recorded_workbook_with_one_header_field_broken_fails_the_source(data: bytes) -> None:
+    """covers REQ-SRC-013, D-121 (the queue-1021 integration review's M2, round 2): the end record's directory offset
+    moved 10^9 bytes on gave `ValueError` (a negative seek) from `archive.read`, and an entry needing zip version
+    16.1 gave `NotImplementedError` from the `ZipFile` constructor. Both are bad input, so both fail this optional
+    source as `SourceError` and never abort the night."""
+    from app.clients.protocols import SourceError
+
+    with pytest.raises(SourceError):
+        _ow().workbook_rows(data)
+
+
 _PLAIN_ROWS = ('<row r="1"><c r="A1" t="inlineStr"><is><t>Model</t></is></c></row>'
                '<row r="2"><c r="A2" t="inlineStr"><is><t>{value}</t></is></c></row>')
 
