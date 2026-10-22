@@ -115,17 +115,22 @@ def _parse_xml(body: bytes, name: str) -> _Node:
     parser = expat.ParserCreate(namespace_separator=" ")
     root = _Node("", {})
     stack = [root]
+    # Each open element's text, collected in pieces and joined once at its end: expat may deliver text in many
+    # pieces (one a character reference), and `+=` on each made the read quadratic (the queue-1021 integration
+    # review's N1).
+    pieces: list[list[str]] = [[]]
 
     def start(tag: str, attrs: dict[str, str]) -> None:
         node = _Node(tag, attrs)
         stack[-1].children.append(node)
         stack.append(node)
+        pieces.append([])
 
     def end(_: str) -> None:
-        stack.pop()
+        stack.pop().text = "".join(pieces.pop())
 
     def text(data: str) -> None:
-        stack[-1].text += data
+        pieces[-1].append(data)
 
     parser.StartElementHandler = start
     parser.EndElementHandler = end
