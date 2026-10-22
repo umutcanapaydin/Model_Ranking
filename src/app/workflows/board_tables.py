@@ -76,8 +76,10 @@ OSWORLD_SITE_URL = "https://osworld-v1.xlang.ai/"
 CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 #: #379 (D-219): METR's time-horizon page, whose file `long-tasks` ranks on.
 METR_SITE_URL = "https://metr.org/time-horizons/"
-#: #379 (D-219): LiveBench's site, whose pinned release `everyday` reads.
+#: #379 (D-219): LiveBench's site, and the release `everyday` reads, pinned and named once: the client builds its
+#: addresses from it, and the credit and the citation name it.
 LIVEBENCH_SITE_URL = "https://livebench.ai/"
+LIVEBENCH_RELEASE_DATE = "2026-10-14"
 #: #379 (D-219): SimpleBench's site, whose leaderboard file `everyday` reads.
 SIMPLEBENCH_SITE_URL = "https://simple-bench.com/"
 #: How a publisher that states no licence is credited (D-215).
@@ -155,7 +157,7 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     # #379 (D-219 clauses 1 and 4): the site states CC BY-SA 4.0, and the workbook is served from it.
     Credit("osworld", "XLANG Lab (OSWorld)", "OSWorld-Verified leaderboard: the general models' runs at 100 steps",
            OSWORLD_SITE_URL, "CC BY-SA 4.0", CC_BY_SA_4_URL),
-    Credit("livebench", "LiveBench (Abacus.AI and its co-authors)", "LiveBench 2.0, release 2026-10-14",
+    Credit("livebench", "LiveBench (Abacus.AI and its co-authors)", f"LiveBench 2.0, release {LIVEBENCH_RELEASE_DATE}",
            LIVEBENCH_SITE_URL, NO_LICENCE_D215, None),
     Credit("simplebench", "SimpleBench Team", "SimpleBench leaderboard: each model's AVG@5 score", SIMPLEBENCH_SITE_URL,
            NO_LICENCE_D215, None),

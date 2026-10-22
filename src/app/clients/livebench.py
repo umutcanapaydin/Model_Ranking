@@ -20,6 +20,7 @@ import math
 from typing import Any
 
 from app.clients.protocols import SourceError, fetch_bounded
+from app.workflows.board_tables import LIVEBENCH_RELEASE_DATE
 from app.workflows.schema import ScoreRow
 
 SOURCE_NAME = "livebench"
@@ -28,8 +29,9 @@ BENCHMARK = "LiveBench"
 METRIC = "% correct"
 HARNESS = "LiveBench"
 SITE_URL = "https://livebench.ai/"
-RELEASE = "20261014"
-RELEASE_DATE = "2026-10-14"
+#: The pinned release, named once in `board_tables` (its credit and citation name it too).
+RELEASE_DATE = LIVEBENCH_RELEASE_DATE
+RELEASE = RELEASE_DATE.replace("-", "")
 TABLE_URL = f"https://livebench.ai/data/{RELEASE}/table.csv"
 CATEGORIES_URL = f"https://livebench.ai/data/{RELEASE}/categories.json"
 _TIMEOUT_S = 60.0

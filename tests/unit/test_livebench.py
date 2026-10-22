@@ -157,6 +157,9 @@ def test_livebench_is_credited_for_its_public_numbers_with_its_link() -> None:
     [credit] = rank.credits_for([citation])
     assert credit == {**credit, "url": SITE, "licence_url": None}
     assert "D-215" in str(credit["licence"])
+    # The release the client reads is the one the credit and the citation name: one fact, kept once.
+    assert _lb().RELEASE_DATE in str(credit["data"]) and _lb().RELEASE_DATE in citation
+    assert _lb().TABLE_URL == TABLE
 
 
 def test_the_registered_ingest_stores_each_row() -> None:

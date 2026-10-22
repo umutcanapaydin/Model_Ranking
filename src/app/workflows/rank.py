@@ -24,6 +24,7 @@ from app.workflows.board_tables import (
     DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
+    LIVEBENCH_RELEASE_DATE,
     LIVEBENCH_SITE_URL,
     METR_SITE_URL,
     OSWORLD_SITE_URL,
@@ -73,7 +74,7 @@ OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard
 #: #379 (D-219): METR's time horizons. METR publishes no licence; its public numbers are used with this credit (D-215).
 METR_ATTRIBUTION = f"Time-horizon scores: METR's Time Horizon 1.1, {METR_SITE_URL}"
 #: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
-LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release 2026-10-14), {LIVEBENCH_SITE_URL}"
+LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release {LIVEBENCH_RELEASE_DATE}), {LIVEBENCH_SITE_URL}"
 #: #379 (D-219): SimpleBench's leaderboard. No licence on its site; its public numbers are used with this credit.
 SIMPLEBENCH_ATTRIBUTION = f"SimpleBench scores: the SimpleBench Team's leaderboard, {SIMPLEBENCH_SITE_URL}"
 ATTRIBUTIONS = (
