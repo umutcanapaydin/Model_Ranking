@@ -538,6 +538,11 @@ UNREAD_GIT = ("BLOCKED: `git {sub}` is given `{word}`, a value this guard cannot
               "a positional parameter, a `${{...}}` form), not read: it may be `--no-verify`, `--force`, `--hard`, the protected "
               "branch or the owner's files (#344). Write the value out, or assign it from a literal first; a message "
               "(`-m`, `-F`) may hold one.")
+ENV_UNREAD = ("BLOCKED: `{word}` is an `env` option this guard cannot read (#400), so the command it may carry "
+              "(`-S`) cannot be judged. Write env's options apart: `env -i -S '...'`, or the command itself.")
+ENV_S_UNREAD = ("BLOCKED: `env -S` splits `{text}` by its own rules (`\\_`, a tab, a VT, an FF, a CR or a newline "
+                "separate words; `${{NAME}}` expands), which this guard does not read (#400). Write the command out "
+                "without `env -S`, or with plain spaces and no backslash or `$` in its string.")
 UNREAD_PROGRAM = ("BLOCKED: `{word}` names its program through a value this guard cannot read (a command substitution, "
                   "an array, a positional parameter, a `${{...}}` form), which may be `fly` or a deploy (#344). Write "
                   "the value out, or assign it from a literal first.")
@@ -1542,13 +1547,25 @@ def _judge_command_once(cmd: Command, depth: int) -> str | None:
             j = k + 1
             while j < len(words) and (words[j].text.startswith("-") or ASSIGNMENT.match(words[j].text)):
                 arg = words[j].text
-                text = (words[j + 1].text if arg in ("-S", "--split-string") and j + 1 < len(words) else
-                        arg.split("=", 1)[1] if arg.startswith("--split-string=") else
-                        arg[2:] if arg.startswith("-S") and len(arg) > 2 else None)
+                if arg == "--":
+                    break
+                # #400: `-S` read anywhere in a cluster (`-iS 'fly deploy'`, `-vS'...'`), after a valued option
+                # and its value (`-u X -S ...`), and as an abbreviated long option (`--sp`); a cluster or a long
+                # option this cannot read is refused, never passed whole.
+                read = _env_option(arg, words[j + 1].text if j + 1 < len(words) else None)
+                if read is None:
+                    return ENV_UNREAD.format(word=arg)
+                text, used = read
+                # The bundle review's rounds 2 and 3 (B1, B2): env splits the `-S` string by its own rules, not the
+                # shell's -- `\_` separates words, `${NAME}` expands, and a raw tab, VT, FF, CR or LF is a space --
+                # so a string holding a backslash, a `$`, or any character that is not printable but the plain space
+                # is refused rather than read with the shell's (`env -S 'fly\_deploy'`, `env -S $'fly\vdeploy'`).
+                if text is not None and _env_s_unread(text):
+                    return ENV_S_UNREAD.format(text=text.encode("unicode_escape").decode("ascii"))
                 # `-S` carries env's own options as well as the program: judged as an `env` line.
                 if text is not None and (why := judge_text("env " + text, depth + 1)):
                     return why
-                j += 1
+                j += used
         if k > start and word.text.startswith("-") and word.text != "-":
             continue
         if ASSIGNMENT.match(word.text):
@@ -1564,6 +1581,47 @@ def _judge_command_once(cmd: Command, depth: int) -> str | None:
         if (why := judge_words(words[k:], cmd, depth, behind_xargs=xargs_at < k)):
             return why
     return None
+
+
+#: #400: `env`'s short options, GNU's and BSD's: the flags, and those that take a value (the rest of the word, or
+#: the next one). `-S` is the one whose value is a command line.
+ENV_FLAGS = frozenset("i0v")
+ENV_VALUED = frozenset("uCSPaL")
+#: `env`'s long options, each with whether it takes a value; GNU takes any unambiguous prefix (`--sp`).
+ENV_LONG = {"--unset": True, "--chdir": True, "--split-string": True, "--argv0": True,
+            "--ignore-environment": False, "--null": False, "--debug": False, "--help": False, "--version": False,
+            "--list-signal-handling": False, "--default-signal": False, "--ignore-signal": False,
+            "--block-signal": False}
+
+
+def _env_option(arg: str, following: str | None) -> tuple[str | None, int] | None:
+    """One word of `env`'s options: (the command line `-S` carries in it, or None; the words it uses), or None
+    when this cannot read it (#400: `env -iS 'fly deploy'` passed whole)."""
+    if ASSIGNMENT.match(arg) or arg == "-":
+        return None, 1
+    if arg.startswith("--"):
+        name, eq, value = arg.partition("=")
+        found = [long for long in ENV_LONG if long == name] or [long for long in ENV_LONG if long.startswith(name)]
+        if len(name) < 3 or len(found) != 1:
+            return None
+        if not ENV_LONG[found[0]] or eq:
+            return (value if eq and found[0] == "--split-string" else None), 1
+        return (following if found[0] == "--split-string" else None), 2
+    for i, letter in enumerate(arg[1:], 1):
+        if letter in ENV_FLAGS:
+            continue
+        if letter not in ENV_VALUED:
+            return None
+        rest = arg[i + 1:]
+        value, used = (rest, 1) if rest else (following, 2)
+        return (value if letter == "S" else None), used
+    return None, 1
+
+
+def _env_s_unread(text: str) -> bool:
+    """Whether env could split an `-S` string otherwise than the shell reads it: a backslash, a `$`, or any
+    character that is not printable but the plain space (#400; the bundle review's B1 and B2)."""
+    return any(c in "\\$" or (not c.isprintable() and c != " ") for c in text)
 
 
 def _env_options(words: list[Word]) -> list[Word]:
@@ -1673,7 +1731,16 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
             if arg in ("-exec", "-execdir", "-ok", "-okdir"):
                 rest = words[i + 2:]
                 end = next((j for j, w in enumerate(rest) if w.text in (";", "+")), len(rest))
-                if rest[:end] and (why := judge_words(rest[:end], cmd, depth)):
+                if not rest[:end]:
+                    continue
+                # The bundle review's round 3, M10: a wrapper behind `-exec` (`find . -exec env fly deploy \;`) is
+                # walked as at a command position, so `env`, `sudo` and the rest are unwrapped there too.
+                # `{}` stays a pattern there, as any pattern after a wrapper is (`sudo chmod 644 *.txt`): it is a
+                # path this cannot name, so `find ~ -exec env rm -rf {} \;` is refused like `rm -rf {}` there.
+                inner = Command(rest[:end], cmd.fed, cmd.piped, cmd.from_file, cmd.procsub, [], cmd.joined,
+                                cmd.inner, cmd.subshell)
+                if (why := (judge_command(inner, depth + 1) if _program(rest[0]) in WRAPPERS
+                            else judge_words(rest[:end], cmd, depth))):
                     return why
         return None
     if program in ("tee", "cp", "mv", "install", "ln"):

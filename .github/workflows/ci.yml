@@ -2,7 +2,14 @@ name: CI
 
 # Pipeline v2.0 — Layer 1 (Pure CI) per consortium 3-layer model.
 # Hardened YAML per DevOps lens: least-privilege token, timeout, concurrency cancel,
-# dependency cache, pinned action SHAs (replace @v4-style refs with SHAs before going live).
+# pinned action SHAs (replace @v4-style refs with SHAs before going live).
+#
+# #392: no dependency cache (no `cache:`, and no action that restores one), and every `pip install` is
+# hash-checked (a lock under requirements/ with `--require-hashes`, or the project itself with `--no-deps`).
+# Another workflow's job on main (the nightly refresh parses fetched data with the job's runtime token in
+# reach) can write an Actions cache that main's runs restore, and an unhashed install takes whatever the
+# index serves that day.
+# tests/unit/test_ci_installs.py holds both for every workflow.
 
 on:
   pull_request:
@@ -41,12 +48,11 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
       - name: Install
         # D-177 (#81): the locked versions and build backend, hash-checked, then the project with nothing
-        # resolved or fetched -- what `make install` takes.
+        # resolved or fetched -- what `make install` takes. The runner's own pip installs them (#392: an
+        # unpinned `pip install --upgrade pip` took whatever pip the index served).
         run: |
-          python -m pip install --upgrade pip
           pip install --require-hashes -r requirements/dev.lock -r requirements/build.lock
           pip install --no-deps --no-build-isolation -e .
       - name: Lint (ruff)
@@ -85,9 +91,34 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
+      # #392 (the bundle's security review, M5): gitleaks-action restored an Actions cache
+      # (`gitleaks-cache-8.24.3-linux-x64`) and, on a miss, downloaded the release with no checksum, so a job
+      # that can write main's caches could plant the scanner. The same release, from its own URL, checked
+      # against the sha256 in the release's `gitleaks_8.24.3_checksums.txt`, run with the arguments the
+      # action (ff98106e, src/gitleaks.js) passed: the PR's commits, or a push's commits from the first^ to the last.
+      - name: Secret scan (gitleaks 8.24.3, checksum-checked, no cache)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_FIRST: ${{ github.event.commits[0].id }}
+          PUSH_LAST: ${{ github.event.head_commit.id }}
+        run: |
+          set -eu
+          tarball="$RUNNER_TEMP/gitleaks_8.24.3_linux_x64.tar.gz"
+          curl -fsSL --retry 3 -o "$tarball" https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          echo "9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c  $tarball" | sha256sum -c -
+          tar -xzf "$tarball" -C "$RUNNER_TEMP" gitleaks
+          set -- detect --redact -v --exit-code=2 --report-format=sarif --report-path=results.sarif --log-level=debug
+          case "$EVENT" in
+            pull_request) set -- "$@" "--log-opts=--no-merges --first-parent $(git merge-base "$PR_BASE" "$PR_HEAD")..$PR_HEAD" ;;
+            push)
+              # As the action: the pushed commits, first^..last, whatever `before` is (a new branch included).
+              if [ -z "$PUSH_FIRST" ]; then echo "No commits to scan"; exit 0
+              elif [ "$PUSH_FIRST" = "$PUSH_LAST" ]; then set -- "$@" --log-opts=-1
+              else set -- "$@" "--log-opts=--no-merges --first-parent $PUSH_FIRST^..$PUSH_LAST"; fi ;;
+          esac
+          "$RUNNER_TEMP/gitleaks" "$@"
 
   dep-audit:
     runs-on: ubuntu-latest
@@ -97,9 +128,9 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: '3.12'
-          cache: 'pip'
       - name: Install pip-audit
-        run: pip install pip-audit
+        # #392: from the dev lock, hash-checked (`pip-audit` is a dev dependency), not the newest release.
+        run: pip install --require-hashes -r requirements/dev.lock
       # v4.3.2 REPAIR. An earlier edit removed the two governance steps from this job and left their
       # `run:` key behind. YAML folded the orphan into the step ABOVE it, so this step was named
       # "Run pip-audit" and executed `check_records.py`. **The dependency audit had not run at all**,
@@ -131,8 +162,9 @@ jobs:
       # D-155. `conformance/test-ci-yaml.py` falls back to a minimal parser without PyYAML, and that
       # parser crashes (exit 1, no output) on this file's test matrix `python-version: [...]`.
       # Reported to DevFlow (field finding A12); here the real parser is simply installed.
+      # #392: PyYAML from the dev lock, hash-checked, as every install in CI.
       - name: Governance dependencies (PyYAML for the workflow conformance check)
-        run: python -m pip install "PyYAML>=6.0"
+        run: python -m pip install --require-hashes -r requirements/dev.lock
       - name: Install completeness (M1/M2/M3)
         run: python3 scripts/check_records.py --install .
       - name: Governance records (R/X/P/N/C1 -- only on paths named in .governed-records; C2/L1/M3 always)
