@@ -451,7 +451,6 @@ Lesson: when two measurements disagree, run both on the same input before writin
   `docs/research/devflow-v6-field-findings-2026-09-23.md` (see the record for the count).
 Lesson: merge a methodology upgrade three ways against the tag you installed, never copy over it.
 
-
 ## 2026-09-23 — M16 closed agent-side (W3, W4, check-fast, closure)
 
 - W3 (#3): carry-forward (D-156) and D-148 floors; three independent rounds, the last PASS-WITH-MINORS.
@@ -502,7 +501,6 @@ workflow that had failed silently for six weeks.
   carried code before review; re-reviews were written beside the gated path, not to it.
 Lesson: a limit on untrusted input is proven by the process that pays for it, on the platform
 that runs it. Measure the parent as well as the child, and read CI before calling a round green.
-
 
 ## 2026-09-25 — #29-#36 merged, the engine runs as a service; M17-W3 closed agent-side
 
@@ -683,7 +681,6 @@ Lesson: a sentence that describes an order is part of the order; test the words 
 - The ledger's `commit-after-check-fast` control reached its third row, which is the owner's to rule.
 Lesson: review the seams at the milestone's head; a wave reviewed alone cannot see what the next wave joins to it.
 
-
 ## 2026-10-09/10 — M21-W1 to W3: the data a reader sees, reading what is not a search, the phone's promises
 
 - The owner asked for the open queue as drafts, then for the waves one at a time after a parallel run of
@@ -722,7 +719,6 @@ Lesson: a record that describes a gate in prose will be wider or narrower than t
   wave's base (`da6b95f`), and every `swift test` runs under a watchdog.
 Lesson: a rule that reads history must say what a pruned history means as well as a missing one: a branch
 deleted after its merge read as an unreadable range.
-
 
 ## 2026-10-10 — the M21 closure: two reviews, three rounds on the fixes, and the waves merged as one
 
@@ -766,7 +762,6 @@ Lesson: a gate's exceptions are part of the gate. A hook that the DevFlow's own 
   are fixed; #261 and #262 are filed.
 Lesson: a hook is tested by the commits it gates. The commit-msg gate passed its own tests and every
 commit in the closure, and still refused the first ordinary commit in the owner's clone.
-
 
 ## 2026-10-13 — the unlicensed sources move to licensed data (D-194)
 
@@ -819,7 +814,6 @@ maintainers had withdrawn, and models.dev's makers' catalogues held other makers
 - DeepSWE (#265) still waits for the owner to accept the dataset's terms on Hugging Face; the token works.
 Lesson: read the ADRs of an issue's area before writing its test. D-191 named this wave's #218 rule as
 taken out, and its failures as the ones to avoid; a search of the decisions would have found it first.
-
 
 ## 2026-10-14 — the reading wave: Turkish read through the embedding (D-196)
 
@@ -898,7 +892,6 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `make session-check` is red in this session by design. The owner commits and pushes from a terminal.
 - Lesson: an upgrade over a project that grew its own copies of a version's features is a merge of two
   designs, not a patch. The conflicts were where the project had got there first.
-
 
 ## 2026-10-15 — The v7.1 upgrade's reviews, and the queue triaged (D-200)
 
@@ -1205,6 +1198,18 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - M4: the hosted deploy refuses a call from any tree but its own checkout; the #391 test now runs its scratch copy from inside the scratch tree.
 - Round 2 (PASS WITH FINDINGS, M1, M3 and M4 closed): both OSWorld `zipfile` calls now also catch `ValueError`, `NotImplementedError` and `OSError` (M2's rest, two one-field edits of the recorded workbook). Both deploy scripts unset git's place variables (M5). The reader joins each element's text once (N1), and the client dumps unescaped JSON (N2).
 - Lesson: a parser's contract is the exception class it raises, and `RecursionError`, a zip read's errors and `csv.Error` are not `ValueError`, so every new reader of fetched input needs a deep-nesting case and a broken-container case beside its malformed-text case.
+
+## 2026-10-21 — owner/run-queue-1021-bundle: a gh dispatch of a deploy workflow is a deploy, and CI installs only hashed packages (#390, #392)
+
+- Run queue-1021's owner bundle (D-218 clause 6). #390 turned out to need no guard change: the Bash guard already hands the deploy gate every simple command's words, and the gate matched the brief's `gh workflow run nightly-hosted.yml` word for word. So #390's fix is ordinary gate code on this branch.
+- Red first: 66 cases through `deploy_gate.deploy_in` and the guard's `judge_call`, 46 of them red. Green: `gh_dispatch` reads `gh workflow run`, the dispatches API, a repository dispatch, a rerun and a `gh alias`. The deploy workflows are derived from the workflow files that run a declared deploy, in the tree and at the protected base, and from the brief's declared dispatch. An id, an expansion or a rerun is a deploy while any workflow deploys. Five planted mutants each failed the cases.
+- #392: the patch drops `cache: 'pip'` and the unpinned `pip install --upgrade pip` from `ci.yml` and `contract-tests.yml`, and takes `pip-audit` and PyYAML from `requirements/dev.lock`. The agent half, the branch's last commit (a unit test of the workflows' installs and caches), reads every workflow under `.github/workflows/` and `scripts/ci/`. It found eight findings before the patch and none after, with `make check-fast`'s test leg and the conformance suite green on a scratch clone with the patch applied.
+- The Security-Reviewer's round 1: PASS WITH FINDINGS (M1-M6, R1-R3, N1-N3). Fixed on the branch, red first (23 cases): the encoded workflow path, a pattern or an unknown workflow word, every alias and extension judged at the invocation, `flyctl` and continued lines in a workflow, a base file git cannot show, a quoted name holding ` #`. Fixed in the patch: gitleaks runs from its release, checked with `sha256sum -c` against the release's own checksums file, in place of the action that restored an Actions cache (M5), and the guard reads `env -S` anywhere in a cluster and refuses an `env` option it cannot read (M6, #400). The owner's command now checks the patch's sha256 (N3). Filed: #401 (the rest of M4, and R2). Refused: R1 and R3 (`docs/plans/assumptions-queue-1021.md`).
+- To add commits after the red agent half, the half came off in its own commit and returned, extended, as the last one: every commit's gate runs the tree's tests, so a red test mid-branch refuses the commits after it.
+- Round 2 was BLOCKING on B1: `env -S` splits its string by env's own escapes (`\_`, `\t`, `${NAME}`), which the guard read with the shell's rules, so `env -S 'fly\_deploy'` passed. The patch now refuses a `-S` string holding a backslash or a `$` rather than translate env's escapes. The gate fixes M7-M9 (case, an unread leading option, `extension exec`), the test now ties each download to its own checksum line, and R1 and R3 are refusals R-2 and R-3.
+- Round 3 (a fresh seat) was BLOCKING on B2, the same class: a raw VT, FF, CR or LF inside an `env -S` string, which env splits on and the shell does not. The patch now refuses any `-S` string with a backslash, a `$` or a character that is not printable but the plain space, so the rule closes the class rather than list its members. M10 rides in the same patch, so the owner re-pins once: a wrapper behind `find -exec` is unwrapped. N7: the download check matches the checked file whole.
+- Round 4 passed with findings, and the loop ended on a pass. With every issue of the run stacked, the bundle was carried onto the integration head as `owner/run-queue-1021-bundle-v2` (on `fc02b04`), then again as `owner/run-queue-1021-bundle-v3` (on `1306071`), its owner patch byte-identical.
+- Lesson: before filing a guard change as owner-only, follow the words to the code that decides. Here the guard read every spelling, and only the gate's matching was narrow. And a string a program splits itself is not shell text: refuse what its own escapes could change, or read it with its rules.
 
 ## 2026-10-22 · fix/issue-405-unpriced-coverage — plan coverage leaves out the surfaces ranked on quality only
 
