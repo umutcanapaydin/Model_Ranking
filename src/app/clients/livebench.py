@@ -47,12 +47,13 @@ class LiveBenchClient:
     def fetch_raw(self) -> str:
         table = fetch_bounded(TABLE_URL, self.name, _TIMEOUT_S, hosts=self.hosts)
         categories_text = fetch_bounded(CATEGORIES_URL, self.name, _TIMEOUT_S, hosts=self.hosts)
+        # `RecursionError` from a file nested past the limit is bad input, not a builder bug: it fails this optional
+        # source, never the night (D-121; the queue-1021 integration review's M2).
         try:
-            categories = json.loads(categories_text)
-        except json.JSONDecodeError as exc:
+            return json.dumps({"table": table, "categories": json.loads(categories_text)})
+        except (json.JSONDecodeError, RecursionError) as exc:
             msg = f"{self.name}: categories.json is not valid JSON: {exc}"
             raise SourceError(msg) from exc
-        return json.dumps({"table": table, "categories": categories})
 
 
 def _cell(value: object) -> float | None:
@@ -85,22 +86,29 @@ def parse_livebench(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
     """Parse one release into a row a model at the mean of its category averages; returns (rows, skipped)."""
     try:
         release: Any = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, RecursionError) as exc:
         msg = f"{source}: the release is not valid JSON: {exc}"
         raise SourceError(msg) from exc
     table = release.get("table") if isinstance(release, dict) else None
     if not isinstance(table, str):
         msg = f"{source}: the release holds no table"
         raise SourceError(msg)
-    reader = csv.DictReader(io.StringIO(table))
-    columns = list(reader.fieldnames or [])
+    # `csv.Error` (a field past csv's limit, a NUL) is bad input, not a builder bug, as `epoch_board` rules: it
+    # fails this optional source, never the night (D-121; the queue-1021 integration review's M2).
+    try:
+        reader = csv.DictReader(io.StringIO(table))
+        columns = list(reader.fieldnames or [])
+        entries = list(reader)
+    except csv.Error as exc:
+        msg = f"{source}: the table is malformed CSV: {exc}"
+        raise SourceError(msg) from exc
     if "model" not in columns:
         msg = f"{source}: the table has no `model` column"
         raise SourceError(msg)
     categories = _categories(release, source, columns)
     rows: list[ScoreRow] = []
     skipped = 0
-    for entry in reader:
+    for entry in entries:
         model = (entry.get("model") or "").strip()
         averages: list[float] = []
         for members in categories.values():

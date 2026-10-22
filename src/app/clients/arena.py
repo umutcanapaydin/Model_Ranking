@@ -211,9 +211,11 @@ class ArenaClient:
             if answer.status == 429:
                 last_exc = SourceError("429 Too Many Requests, after every retry")
                 break
+            # `RecursionError` from a page nested past the limit is bad input too: it fails this board, never the
+            # night (D-121; the queue-1021 integration review's M2, found on #378's boards).
             try:
                 payload = json.loads(answer.body.decode("utf-8", "replace"))
-            except ValueError as exc:
+            except (ValueError, RecursionError) as exc:
                 last_exc = exc
                 break
             if not isinstance(payload, dict):

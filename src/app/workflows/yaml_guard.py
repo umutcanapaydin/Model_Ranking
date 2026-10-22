@@ -118,15 +118,23 @@ def safe_load_bounded(raw: object, *, what: str) -> Any:
 
     # Compose first: this resolves the anchor/alias GRAPH without materialising the expansion, so
     # the cost here is the document's real size, not its expanded size.
+    # PyYAML composes, counts and constructs recursively, so a document nested past the recursion limit raised
+    # `RecursionError`, which no caller's `except yaml.YAMLError` catches: one remote file aborted the whole night
+    # (the queue-1021 integration review's M2). It is refused here, in the guard's own class, at every step.
     try:
         node = yaml.compose(raw, Loader=yaml.SafeLoader)
     except yaml.YAMLError as exc:
         msg = f"{what}: not parseable as YAML: {exc}"
         raise YamlGuardError(msg) from exc
+    except RecursionError as exc:
+        raise _too_deep(what) from exc
     if node is None:
         return None
 
-    expanded = _expanded_size(node, {}, set())
+    try:
+        expanded = _expanded_size(node, {}, set())
+    except RecursionError as exc:
+        raise _too_deep(what) from exc
     if expanded > MAX_EXPANDED_NODES:
         msg = (
             f"{what}: expands to {expanded} nodes, past the {MAX_EXPANDED_NODES} limit — alias "
@@ -134,4 +142,11 @@ def safe_load_bounded(raw: object, *, what: str) -> Any:
         )
         raise YamlGuardError(msg)
 
-    return yaml.safe_load(raw)
+    try:
+        return yaml.safe_load(raw)
+    except RecursionError as exc:
+        raise _too_deep(what) from exc
+
+
+def _too_deep(what: str) -> YamlGuardError:
+    return YamlGuardError(f"{what}: nested past the parser's recursion limit, which no curated file needs")

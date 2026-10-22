@@ -26,6 +26,7 @@ import json
 import math
 import re
 import zipfile
+import zlib
 from dataclasses import dataclass, field
 from typing import Any
 from xml.parsers import expat
@@ -52,6 +53,9 @@ MAX_MEMBER_BYTES = 16 * 1024 * 1024
 #: `MAX_RESPONSE_BYTES`, the most any source's fetched body may hold: room for the board to grow a hundredfold, and no
 #: more than a source's payload may be anywhere else.
 MAX_ROWS_CHARS = MAX_RESPONSE_BYTES
+#: How a workbook's members are compressed, and the flag an encrypted member carries.
+_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+_ENCRYPTED = 0x1
 _NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main "
 _SHEET = re.compile(r"xl/worksheets/sheet\d+\.xml")
 _COLUMN = re.compile(r"[A-Z]+")
@@ -81,9 +85,16 @@ class _Node:
     text: str = ""
 
     def iter(self, tag: str) -> list[_Node]:
-        found = [self] if self.tag == tag else []
-        for child in self.children:
-            found.extend(child.iter(tag))
+        """Every element with this tag, this one included, in document order. The walk keeps its own stack: a part
+        nested past the recursion limit raised `RecursionError`, which no caller catches, so one file aborted the night
+        (D-121; the queue-1021 integration review's M2)."""
+        found: list[_Node] = []
+        pending = [self]
+        while pending:
+            node = pending.pop()
+            if node.tag == tag:
+                found.append(node)
+            pending.extend(reversed(node.children))
         return found
 
     def find(self, tag: str) -> _Node | None:
@@ -135,7 +146,19 @@ def _member(archive: zipfile.ZipFile, name: str) -> _Node:
     if info.file_size > MAX_MEMBER_BYTES:
         msg = f"{SOURCE_NAME}: {name} unpacks to {info.file_size} bytes, past the cap of {MAX_MEMBER_BYTES}"
         raise SourceError(msg)
-    return _parse_xml(archive.read(name), name)
+    # A workbook's members are stored or deflated, never encrypted: every other method's decoder raises a class of
+    # its own, so it is refused before it is read. What reading a stored or deflated member can raise (a CRC that a
+    # lying size fails, a corrupt stream, a cut one) is bad input, not a builder bug: it fails this optional source,
+    # never the night (D-121; the queue-1021 integration review's M2).
+    if info.compress_type not in _METHODS or info.flag_bits & _ENCRYPTED:
+        msg = f"{SOURCE_NAME}: {name} is encrypted or compressed as a workbook never is"
+        raise SourceError(msg)
+    try:
+        body = archive.read(name)
+    except (zipfile.BadZipFile, zlib.error, EOFError) as exc:
+        msg = f"{SOURCE_NAME}: {name} does not unpack: {exc}"
+        raise SourceError(msg) from exc
+    return _parse_xml(body, name)
 
 
 def _text(element: _Node) -> str:
