@@ -11,12 +11,12 @@ date: 2026-10-22
 **Reviewer:** Security-Reviewer subagent (light mode; `make review-need` on the range: `security`)
 **Independent:** yes. I wrote none of the gate change, the tests, the patch or the issues.
 **Date:** 2026-10-22
-**Release range:** `f8a5f9f..275acbf` (branch `owner/run-queue-1021-bundle`; round 2 read `9bf45eb..78ba0a0`, round 3 read `78ba0a0..275acbf`, 6 commits) + `build/owner-run-queue-1021.patch`
-**Reviewed head:** 275acbf721529864dd3429d6b39f62b4a814ed4f + owner patch sha256 4ac3b3409b9b6d48ac36776b5eb4cdd1734ab2f8fa8b780f0318af7478c7fc2d (round 2: 78ba0a0e87284b17843273e0927d4f371b986b94 + ece1bf5efdae00660bedd850a389287682d2017832fe0411ff7329e41650c741; round 1: 9bf45eb37c9018b4e0aee4b6ed40b67b8301441c + 1835a354bc7847a1fcb38181c2ba2f73deba04edd16d763d71c9ac08e2c0d7d2)
+**Release range:** `f8a5f9f..e837548` (branch `owner/run-queue-1021-bundle`; round 2 read `9bf45eb..78ba0a0`, round 3 read `78ba0a0..275acbf` (6 commits), round 4 read `275acbf..e837548` (4 commits)) + `build/owner-run-queue-1021.patch`
+**Reviewed head:** e8375486c69116cd342f4cbb8f087b830b297ea8 + owner patch sha256 d46a465f6143b671ba72e9f5c4270dd7c9356842f4766d5a81056203a4cd235b (round 3: 275acbf721529864dd3429d6b39f62b4a814ed4f + 4ac3b3409b9b6d48ac36776b5eb4cdd1734ab2f8fa8b780f0318af7478c7fc2d; round 2: 78ba0a0e87284b17843273e0927d4f371b986b94 + ece1bf5efdae00660bedd850a389287682d2017832fe0411ff7329e41650c741; round 1: 9bf45eb37c9018b4e0aee4b6ed40b67b8301441c + 1835a354bc7847a1fcb38181c2ba2f73deba04edd16d763d71c9ac08e2c0d7d2)
 **Risk tier:** MEDIUM. The change touches a control on the safety surface (`scripts/deploy_gate.py` is in `SAFETY_SURFACE`) and CI's install path. The brief declares no HIGH paths (`docs/project-brief.md:110`), and nothing here touches auth, PII, payment or a migration, so no senior-review line is owed.
 
 ## Verdict
-BLOCKING (round 3: B2 in the owner patch's guard change. A raw VT, FF, CR or LF in an `env -S` string is a separator to env, but not to the shell rules the guard reads it with. It is B1's class, and round 2's remedy left it out. B1's six spellings are fixed, and so are M7-M9 and N4-N6. M10 is new: a MINOR outside the change. See "Round 3" below. The round 1 and round 2 text is kept as found. Round 2 was BLOCKING on B1: the `env -S` escapes in the owner patch's guard change, with MINOR M7-M9 and NIT N4-N6.)
+PASS WITH FINDINGS (round 4: B2, M10 and N7 are verified fixed. B2 is closed as a class: 382 must-block probes, none allowed. One NIT remains, N8: behind `find -exec`, any wrapper followed by `{}` is refused. That fails closed, and the guard's docs name it. R5 (#401) stands. See "Round 4" below. The text of rounds 1-3 is kept as found. Round 3 was BLOCKING on B2 in the owner patch's guard change. A raw VT, FF, CR or LF in an `env -S` string is a separator to env, but not to the shell rules the guard reads it with. It is B1's class, and round 2's remedy left it out. B1's six spellings are fixed, and so are M7-M9 and N4-N6. M10 is new: a MINOR outside the change. See "Round 3" below. The round 1 and round 2 text is kept as found. Round 2 was BLOCKING on B1: the `env -S` escapes in the owner patch's guard change, with MINOR M7-M9 and NIT N4-N6.)
 
 Nothing is loosened. `deploy_in` still runs the declared match first (`scripts/deploy_gate.py:357-360`), and the new `gh` reading only adds refusals. A gate exception exits non-zero, and the guard refuses on any non-zero exit (`.claude/hooks/bash_guard.py:3350-3353`), so the gate fails closed. The four spellings #390 names are now refused, through the gate and through the guard. The patch removes both `cache: 'pip'` restores and every unhashed `pip install`.
 
@@ -381,3 +381,102 @@ So a dispatch that slips past the gate still ships only reviewed code. What it l
 ### Risks queued
 - **R4** M10 (`find -exec` in front of a wrapper) needs an issue.
 - **R5** #401 still holds round 1's M4 remainder and round 1's R2. Unchanged by this round.
+
+## Round 4 (2026-10-22, head e837548, patch sha256 d46a465f...)
+
+**Independent:** yes. This is round 3's seat, re-verifying its own items B2, M10 and N7. I wrote none of the fixes.
+
+**Reviewed head:** e8375486c69116cd342f4cbb8f087b830b297ea8 + owner patch `build/owner-run-queue-1021.patch` sha256 `d46a465f6143b671ba72e9f5c4270dd7c9356842f4766d5a81056203a4cd235b`
+
+**Verdict: PASS WITH FINDINGS.** B2, M10 and N7 are fixed, and nothing BLOCKING remains. NIT N8 remains, and R5 stands.
+
+### Method
+- **The seat.** I worked in my own worktree at `e837548` (`$TMPDIR/sr5-bundle-1021`), with its own venv from `make install` (hash-checked locks). I touched neither the main checkout nor `wt-bundle`. At the end I reversed the patch (`git apply -R`) and removed the worktree by its literal path.
+- **The patch.** Its sha256 matched `d46a465f...`, and `git apply --check` was clean.
+  - Its guard hunks: the round-3 `env -S` reading, with `_env_s_unread`, and the `find -exec` walk.
+  - Its settings hunks: the two pins only.
+  - Its workflow hunks: as in round 3.
+- **Before the patch:** `test_bash_guard_env_split.py` and `test_ci_installs.py` gave 52 failed and 62 passed.
+  - The B2 cases: all 15 red.
+  - The M10 cases: all 8 red.
+  - Both `test_ci_installs` tests are red too.
+- **After the patch:**
+  - the gate, guard, CI, nightly, review-need and agent-half files: 1000 passed;
+  - the whole Python suite (`pytest -n auto tests`): 4142 passed, 82 skipped;
+  - `conformance/test-ci-yaml.py`: PASS;
+  - `conformance/run-all.py`: PASS (33 tests, the patched guard included);
+  - `make check-records`: PASS;
+  - `make secrets`: no leaks.
+- **The pin.** The patched guard's sha256 is `728db666f6c22744c79f8f3c1ac9d05c00254dae86af106500fca40df06e870d`. Both hooks pin it, and `guard_pin.py --check` gives `guard-pin PASS ... 728db666f6c2`.
+- **Probes.** I judged 382 must-block strings, plus allowed strings and controls, through the patched guard's `judge_call` only. Nothing was executed.
+- **Mutants.** 5 planted, 5 killed. The guard mutants ran in a scratch mirror under `cl/hooks/`. The N7 mutant ran in the worktree, and `test_ci_installs.py` was restored byte-identical (sha256 compared).
+
+### Round-3 items
+- **B2: fixed, and closed as a class.**
+  - **The rule.** The patched guard's `_env_s_unread` (`.claude/hooks/bash_guard.py:1621`) refuses a `\`, a `$`, or any character that is not printable other than the plain space.
+  - **Where it applies.** It is applied at `:1563`, on the `text` that the guard's only `-S` reader (`_env_option`, called at `:1555`) returns for every short, clustered, glued, long, `=` and abbreviated-long form, so no form of `-S` or `--split-string` skips it.
+  - **The probes.** I crossed 10 characters with 15 forms, plus 18 ANSI-C spellings, and every one was refused:
+    - the characters: VT, FF, CR, LF, TAB, NBSP, NEL, U+2028, `\x01` and ESC;
+    - the forms: `-S ' '`, `-S''`, `-iS`, `-iS''`, `-vS''`, `--split-string X`, `--split-string=`, `--sp`, `--split=`, `-u X -S`, `-C/ -iS''`, `sudo env`, `xargs env`, `find -exec env` and `sh -c "env -S ..."`;
+    - the ANSI-C spellings: `$'\v'`, `\f`, `\r`, `\n`, `\t`, `\x0b`, `\013`, `\u000b` and `\_`, each in the short and the `=` long form.
+  - **What it costs.** `env -S 'ls -l'`, `env -S 'ls  -la'`, `env -S 'grep é x'` and `env -iS 'echo hi'` are still allowed.
+  - **The tests:** `tests/unit/test_bash_guard_env_split.py:111-126` (`test_an_env_s_string_with_a_character_env_splits_on_is_refused`, tab included).
+- **M10: fixed.**
+  - **The code.** Behind `-exec`, `-execdir`, `-ok` and `-okdir`, a wrapper is now walked through `judge_command` at a command position (`.claude/hooks/bash_guard.py:1736-1744`).
+  - **The probes.** I crossed the four actions with four endings (`\;`, `+`, `';'`, `{} +`) and 13 wrapped spellings. Every one was refused. The 13 spellings:
+    - `env fly deploy`, `env -S 'fly deploy'`, `env -S $'fly\vdeploy'`, `env -i env fly deploy`;
+    - `nohup env`, `sudo fly deploy`, `/usr/bin/env`, `\env`;
+    - `command env`, `timeout 5 env`, `nice -n 5 fly deploy`, `exec env`, `time env`.
+  - **More refused spellings:**
+    - a nested `find -exec find -exec env fly deploy`;
+    - an action after another (`-exec ls {} \; -exec env fly deploy \;`);
+    - `xargs find -exec env ...`, `sudo find ...` and `env find ...`.
+  - **The tests:** `:128-140` for the refusals, and `:143-147` for the allowed side.
+  - **Over-refusal:** see N8.
+- **N7: fixed.**
+  - **The code.** `_words_of` (`tests/unit/test_ci_installs.py:200-207`) splits the line with shlex and then on whitespace, and `:225` matches the downloaded file as a whole word. The cases at `:351-353` add a check of `aa.tgz`, and a check of `${t}x` for a download to `$t`.
+  - **CI.** `ci.yml`'s `"$tarball"` check still matches.
+  - **The mutant.** Reverting to the substring match is killed.
+
+### NIT
+- **N8** `.claude/hooks/bash_guard.py:1742`: behind `find -exec`, the wrapper walk tries every later word at a program position, so a wrapper followed by `{}` is refused, with "`{}` names its program by a pattern".
+  - **Not one case but a class.** The over-refusal goes beyond the one example the coordinator relayed (`find -exec sudo chmod 644 {} \;`). These are all refused:
+    - `find . -exec env ls {} \;` and `find . -exec env -i ls {} \;`;
+    - `find . -exec nice grep foo {} +` and `find . -exec timeout 5 cat {} \;`;
+    - `find . -exec command ls {} \;`, `find . -type f -exec nohup cat {} \;` and `find . -exec time ls {} \;`;
+    - `find . -exec env LC_ALL=C grep x {} +`.
+  - **No security impact.** It fails closed, and it matches how the guard already treats a pattern after a wrapper: `sudo chmod 644 *.txt` is refused at top level.
+  - **Still allowed:** the common forms with no wrapper (`find . -exec grep -n foo {} +`, `find . -exec ls {} \;`, `find . -execdir wc -l {} +`, `find . -exec rm -f {} \;`), and a wrapper with no `{}` (`find . -exec env -i ls \;`).
+  - **The docs.** The code comment (`:1739-1740`) and the assumptions row name the class ("`{}` stays a pattern, as after any wrapper").
+  - **Remedy:** none needed for this bundle. If the friction shows, file an enhancement: read `{}` as an argument once a program word has been resolved. It must stay refused when `{}` is itself the program (`find -exec env {} \;`).
+
+### Mutants (round 4)
+- **Guard**, in a scratch mirror, against `test_bash_guard_env_split.py` (69 tests at baseline; 4 of 4 killed):
+  - `_env_s_unread` reverted to the round-3 rule (`\` and `$` only): 16 failed;
+  - a tab let through: 2 failed;
+  - the wrapper walk behind `-exec` removed: 8 failed;
+  - the walk kept for `-exec` only: 4 failed.
+- **Test**, in the worktree: N7 reverted to the substring match: 1 failed. Then restored byte-identical, and the baseline after the restore is 45 passed.
+
+### Gates (round 4)
+- [x] Patch sha256 `d46a465f...` matched; `git apply --check` clean
+- [x] Secret scan: no leaks (patched worktree)
+- [x] No lock or third-party import change in `275acbf..e837548`
+- [x] Default-deny preserved for the guard's `env -S` (B1 and B2, as a class) and behind `find -exec` (M10)
+- [x] Settings pin equals the patched guard (`728db666f6c2`, both hooks; `guard_pin.py --check` PASS)
+- [x] `conformance/run-all.py` and `conformance/test-ci-yaml.py` PASS; the whole Python suite green
+
+### Acceptance criteria evidence (round 4)
+- **#390.** Unchanged since round 3:
+  - `tests/unit/test_deploy_gate_dispatch.py:96-166,185-188`;
+  - `scripts/deploy_gate.py:439-451,468,478-481`.
+- **#392.** The tests in `tests/unit/test_ci_installs.py` are red at `e837548` without the patch and green with it. N7's cases are at `:351-353`.
+- **#400.** `tests/unit/test_bash_guard_env_split.py` is red at `e837548` without the patch and green with it:
+  - B1: `:100-105`;
+  - B2: `:111-126`;
+  - M10: `:128-147`;
+  - the code: `.claude/hooks/bash_guard.py:1555,1563,1621-1624,1736-1744` (patched).
+
+### Risks queued
+- **R4** is closed: M10 is fixed in the patch.
+- **R5** #401 still holds round 1's M4 remainder and round 1's R2. Unchanged.
