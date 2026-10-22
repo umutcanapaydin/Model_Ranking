@@ -13,7 +13,8 @@ the specialized models are not catalogue models.
 
 The workbook is read with the standard library (`zipfile` and `xml.parsers.expat`), so no dependency is added. The
 parser refuses a document type and any entity declaration as it meets them, as `defusedxml` does, and a member that
-unpacks past `MAX_MEMBER_BYTES` is refused before it is read.
+unpacks past `MAX_MEMBER_BYTES` is refused before it is read. What the reader produces is bounded too: shared strings
+resolved into cells may not pass `MAX_ROWS_CHARS`.
 The client hands the parser the sheet's rows as one JSON list, so the build's one-string `RawSource` holds.
 """
 
@@ -29,7 +30,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from xml.parsers import expat
 
-from app.clients.protocols import SourceError, fetch_bounded_bytes
+from app.clients.protocols import MAX_RESPONSE_BYTES, SourceError, fetch_bounded_bytes
 from app.workflows.schema import ScoreRow
 
 SOURCE_NAME = "osworld_verified"
@@ -45,6 +46,12 @@ STEP_BUDGET = "100"
 _APPROACH = "General model"
 #: A member of the workbook may not unpack past this: the recorded sheet is under 2 MB.
 MAX_MEMBER_BYTES = 16 * 1024 * 1024
+#: What the reader may produce: every cell's resolved text, with the header name each row repeats as its key. A cell
+#: `t="s"` copies a shared string, so a few KB of sheet can resolve to gigabytes, which `json.dumps` would then build
+#: (the queue-1021 integration review's M1). The recorded board resolves to about 0.32 M characters; the cap is
+#: `MAX_RESPONSE_BYTES`, the most any source's fetched body may hold: room for the board to grow a hundredfold, and no
+#: more than a source's payload may be anywhere else.
+MAX_ROWS_CHARS = MAX_RESPONSE_BYTES
 _NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main "
 _SHEET = re.compile(r"xl/worksheets/sheet\d+\.xml")
 _COLUMN = re.compile(r"[A-Z]+")
@@ -169,8 +176,23 @@ def workbook_rows(data: bytes) -> list[dict[str, str | None]]:
     if not grid:
         msg = f"{SOURCE_NAME}: the sheet holds no rows"
         raise SourceError(msg)
+    return _keyed(grid)
+
+
+def _keyed(grid: list[dict[str, str | None]]) -> list[dict[str, str | None]]:
+    """Each row after the header keyed by the header's names, refused once their text passes `MAX_ROWS_CHARS`."""
     header = grid[0]
-    return [{str(header.get(column) or column): value for column, value in cells.items()} for cells in grid[1:]]
+    rows: list[dict[str, str | None]] = []
+    resolved = 0
+    for cells in grid[1:]:
+        named = {str(header.get(column) or column): value for column, value in cells.items()}
+        resolved += sum(len(key) + len(value or "") for key, value in named.items())
+        if resolved > MAX_ROWS_CHARS:
+            msg = (f"{SOURCE_NAME}: the sheet's cells resolve to more than {MAX_ROWS_CHARS} characters, past the cap of "
+                   f"{MAX_ROWS_CHARS}: a workbook that repeats its strings this often is not the board")
+            raise SourceError(msg)
+        rows.append(named)
+    return rows
 
 
 def _yes(value: object) -> bool:
