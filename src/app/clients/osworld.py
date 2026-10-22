@@ -76,7 +76,9 @@ class OSWorldClient:
 
     def fetch_raw(self) -> str:
         data = fetch_bounded_bytes(WORKBOOK_URL, self.name, _TIMEOUT_S, hosts=self.hosts)
-        return json.dumps(workbook_rows(data))
+        # Unescaped, so the JSON is about as long as the text `MAX_ROWS_CHARS` bounds: escaping an astral character
+        # makes twelve characters of one (the queue-1021 integration review's N2).
+        return json.dumps(workbook_rows(data), ensure_ascii=False)
 
 
 @dataclass
