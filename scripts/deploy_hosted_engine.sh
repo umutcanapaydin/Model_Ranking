@@ -31,6 +31,10 @@
 # The first time, the owner's own steps (D-123): `fly auth login`, a payment method on the Fly
 # account, and `fly apps create <app>` with the `app` name in fly.toml.
 set -euo pipefail
+# Git's place variables are not read: with GIT_DIR and GIT_WORK_TREE naming this checkout, a call from another
+# clone passed the tree check below and every git step here ran against this checkout (the queue-1021
+# integration review's M5).
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
 # The checkout this script lives in, and no other: the deploy gate judges the tree the call runs in, so
 # MODEL_RANKING_REPO, which pointed it at another clone, is not read (#391).
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

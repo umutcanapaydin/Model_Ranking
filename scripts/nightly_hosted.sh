@@ -21,6 +21,9 @@
 #   and deploys it unless /health already answers its stamp. DEPLOY_ACCEPT_DATA_FROM is never passed, and
 #   neither is MODEL_RANKING_REPO, so the tree the gate judged is the tree that ships (the #387 review's M2).
 set -euo pipefail
+# Git's place variables are not read: the refresh's stamp and the deploy gate's tree are this checkout's,
+# whatever GIT_DIR or GIT_WORK_TREE name (the queue-1021 integration review's M5).
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON="${PYTHON:-$REPO/.venv/bin/python}"
 
