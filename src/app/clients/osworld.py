@@ -56,6 +56,10 @@ MAX_ROWS_CHARS = MAX_RESPONSE_BYTES
 #: How a workbook's members are compressed, and the flag an encrypted member carries.
 _METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
 _ENCRYPTED = 0x1
+#: What `zipfile` raises on broken fetched bytes: a bad CRC or header, a corrupt or cut stream, an offset that seeks
+#: before the start (`ValueError`), a zip version no reader knows (`NotImplementedError`). Both calls that take these
+#: touch only the fetched bytes, so the catch hides no builder bug (the queue-1021 integration review's M2, round 2).
+_ZIP_ERRORS = (zipfile.BadZipFile, zlib.error, EOFError, ValueError, NotImplementedError, OSError)
 _NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main "
 _SHEET = re.compile(r"xl/worksheets/sheet\d+\.xml")
 _COLUMN = re.compile(r"[A-Z]+")
@@ -155,7 +159,7 @@ def _member(archive: zipfile.ZipFile, name: str) -> _Node:
         raise SourceError(msg)
     try:
         body = archive.read(name)
-    except (zipfile.BadZipFile, zlib.error, EOFError) as exc:
+    except _ZIP_ERRORS as exc:
         msg = f"{SOURCE_NAME}: {name} does not unpack: {exc}"
         raise SourceError(msg) from exc
     return _parse_xml(body, name)
@@ -169,7 +173,7 @@ def workbook_rows(data: bytes) -> list[dict[str, str | None]]:
     """The first sheet's rows, each keyed by the header row's names; every value as the cell's text."""
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
-    except zipfile.BadZipFile as exc:
+    except _ZIP_ERRORS as exc:
         msg = f"{SOURCE_NAME}: the file is not a workbook: {exc}"
         raise SourceError(msg) from exc
     with archive:
