@@ -451,7 +451,6 @@ Lesson: when two measurements disagree, run both on the same input before writin
   `docs/research/devflow-v6-field-findings-2026-09-23.md` (see the record for the count).
 Lesson: merge a methodology upgrade three ways against the tag you installed, never copy over it.
 
-
 ## 2026-09-23 — M16 closed agent-side (W3, W4, check-fast, closure)
 
 - W3 (#3): carry-forward (D-156) and D-148 floors; three independent rounds, the last PASS-WITH-MINORS.
@@ -502,7 +501,6 @@ workflow that had failed silently for six weeks.
   carried code before review; re-reviews were written beside the gated path, not to it.
 Lesson: a limit on untrusted input is proven by the process that pays for it, on the platform
 that runs it. Measure the parent as well as the child, and read CI before calling a round green.
-
 
 ## 2026-09-25 — #29-#36 merged, the engine runs as a service; M17-W3 closed agent-side
 
@@ -683,7 +681,6 @@ Lesson: a sentence that describes an order is part of the order; test the words 
 - The ledger's `commit-after-check-fast` control reached its third row, which is the owner's to rule.
 Lesson: review the seams at the milestone's head; a wave reviewed alone cannot see what the next wave joins to it.
 
-
 ## 2026-10-09/10 — M21-W1 to W3: the data a reader sees, reading what is not a search, the phone's promises
 
 - The owner asked for the open queue as drafts, then for the waves one at a time after a parallel run of
@@ -722,7 +719,6 @@ Lesson: a record that describes a gate in prose will be wider or narrower than t
   wave's base (`da6b95f`), and every `swift test` runs under a watchdog.
 Lesson: a rule that reads history must say what a pruned history means as well as a missing one: a branch
 deleted after its merge read as an unreadable range.
-
 
 ## 2026-10-10 — the M21 closure: two reviews, three rounds on the fixes, and the waves merged as one
 
@@ -766,7 +762,6 @@ Lesson: a gate's exceptions are part of the gate. A hook that the DevFlow's own 
   are fixed; #261 and #262 are filed.
 Lesson: a hook is tested by the commits it gates. The commit-msg gate passed its own tests and every
 commit in the closure, and still refused the first ordinary commit in the owner's clone.
-
 
 ## 2026-10-13 — the unlicensed sources move to licensed data (D-194)
 
@@ -819,7 +814,6 @@ maintainers had withdrawn, and models.dev's makers' catalogues held other makers
 - DeepSWE (#265) still waits for the owner to accept the dataset's terms on Hugging Face; the token works.
 Lesson: read the ADRs of an issue's area before writing its test. D-191 named this wave's #218 rule as
 taken out, and its failures as the ones to avoid; a search of the decisions would have found it first.
-
 
 ## 2026-10-14 — the reading wave: Turkish read through the embedding (D-196)
 
@@ -898,7 +892,6 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `make session-check` is red in this session by design. The owner commits and pushes from a terminal.
 - Lesson: an upgrade over a project that grew its own copies of a version's features is a merge of two
   designs, not a patch. The conflicts were where the project had got there first.
-
 
 ## 2026-10-15 — The v7.1 upgrade's reviews, and the queue triaged (D-200)
 
@@ -1217,3 +1210,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Round 3 (a fresh seat) was BLOCKING on B2, the same class: a raw VT, FF, CR or LF inside an `env -S` string, which env splits on and the shell does not. The patch now refuses any `-S` string with a backslash, a `$` or a character that is not printable but the plain space, so the rule closes the class rather than list its members. M10 rides in the same patch, so the owner re-pins once: a wrapper behind `find -exec` is unwrapped. N7: the download check matches the checked file whole.
 - Round 4 passed with findings, and the loop ended on a pass. With every issue of the run stacked, the bundle was carried onto the integration head as `owner/run-queue-1021-bundle-v2` (on `fc02b04`), then again as `owner/run-queue-1021-bundle-v3` (on `1306071`), its owner patch byte-identical.
 - Lesson: before filing a guard change as owner-only, follow the words to the code that decides. Here the guard read every spelling, and only the gate's matching was narrow. And a string a program splits itself is not shell text: refuse what its own escapes could change, or read it with its rules.
+
+## 2026-10-22 · fix/issue-405-unpriced-coverage — plan coverage leaves out the surfaces ranked on quality only
+
+- `live-contracts` had been red since #378. The coverage report counted the five image and video surfaces as zero plans, and none of them takes a price (D-218 clause 1).
+- `plan_surfaces()` reads `CategorySpec.priced`, so plan coverage and plan evidence health cover the priced surfaces only. The JSON lists the rest under `unpriced_surfaces`, and a priced surface left at zero still exits 1.
+- Red, then green: `test_a_surface_ranked_on_quality_only_is_no_plan_coverage_gap`, committed alone first.
+- Lesson: a new kind of surface must be replayed against every report that loops over the surfaces, because the local gate never runs the network-only contract job, and that job was the one that went red.

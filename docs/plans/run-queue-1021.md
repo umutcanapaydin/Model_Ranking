@@ -9,7 +9,7 @@
 
 Mode: light
 Started: 2026-10-21
-Ended: open
+Ended: 2026-10-22 — stopped at control-change, nothing independent left
 Integration branch: `integration/run-queue-1021` · PR: #394
 Plan PR: #393
 Rulings: D-218
@@ -26,7 +26,7 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | cd34b95 | issues | running |
+| 1 | queue | cd34b95 | issues | stopped |
 
 <!-- Base: the integration-branch sha the milestone's first wave was cut from (`none` until it
      starts); the milestone Tester and the last wave's cross-wave review take their range from it. Status: `queued` ·
@@ -45,8 +45,10 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 | issue-371 | fix/issue-371-generic-and-rebuilt | #398 | none | stacked |
 | issue-378 | enhancement/issue-378-arena-media | #399 | none | stacked |
 | issue-379 | enhancement/issue-379-new-boards | #402 | none | stacked |
-| issue-390 | owner/run-queue-1021-bundle | none | none | running |
-| issue-392 | owner/run-queue-1021-bundle | none | none | running |
+| issue-405 | fix/issue-405-unpriced-coverage | #407 | none | stacked |
+| issue-390 | owner/run-queue-1021-bundle-v3 | none | none | stopped |
+| issue-392 | owner/run-queue-1021-bundle-v3 | none | none | stopped |
+| issue-400 | owner/run-queue-1021-bundle-v3 | none | none | stopped |
 
 <!-- Wave: `m<N>-w<W>` (heavy) or `issue-<n>` (light, Close record `none`). Status: `queued` ·
      `running` · `stacked` (closed with `/close-wave`, merged into the integration branch, its
@@ -57,6 +59,9 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 
 | When | Wave | Class | What the owner decides | Continued on |
 |---|---|---|---|---|
+| 2026-10-22 | issue-390 | control-change | Apply the owner bundle (the Bash guard, its pin and two workflows, for #390, #392 and #400): one line in docs/owner-actions.md; reviewed PASS WITH FINDINGS in four rounds | the rest of the queue |
+| 2026-10-22 | issue-392 | control-change | In the owner bundle with #390: apply it with the one line in docs/owner-actions.md | the rest of the queue |
+| 2026-10-22 | issue-400 | control-change | In the owner bundle with #390: apply it with the one line in docs/owner-actions.md | the rest of the queue |
 
 <!-- One row per stop, in order. Class is one of AGENTS.md §3's Escalate-NOW events --
      `secret` · `scanner-suppression` · `blocking-high` · `silent-fault` · `control-change` ·
@@ -70,5 +75,19 @@ The owner opened this run on 2026-10-21 to close the whole open queue before the
 
 ## For the owner
 
-<!-- What the morning needs, in order: the plan PR, the integration PR (merge commit, never a
-     squash), each stop's question. Rewrite in place; this is a live document, not a log. -->
+The run ended on 2026-10-22. Seven PRs are stacked on #394, and the owner bundle is ready to apply. Nothing was deployed, and nothing went to TestFlight.
+
+In the morning, in order:
+
+1. **Merge #393**, the plan, which accepts D-218.
+2. **Merge #394**, the integration PR, as a **merge commit, never a squash**. It carries #388 (#387, which accepts D-217), #395 (#389), #397 (#391), #398 (#371), #399 (#378), #402 (#379, which accepts D-219) and #407 (#405, filed after the run ended: `live-contracts` had been red since #378, because plan coverage counted the five unpriced media surfaces as zero). GitHub marks them merged, and `/post-merge` closes their issues.
+   - Its delta security review is `docs/reviews/integration-run-queue-1021-security.md`. The latest round, round 3 at `1306071`, is PASS with nothing open. The committed file holds round 1; the auto-mode classifier refused the agent's commit of the later rounds, so that commit waits for your word.
+3. **Apply the owner bundle** with its line in `docs/owner-actions.md`. It runs on `owner/run-queue-1021-bundle-v3` (local, the red agent half last), applies `build/owner-run-queue-1021.patch` after checking its sha256, pushes, and opens the bundle's draft.
+   - It closes #390, #392 and #400. The patch changes `.claude/hooks/bash_guard.py`, the guard pin in `.claude/settings.json`, `ci.yml` and `contract-tests.yml`.
+   - Its security review, on the bundle branch, is PASS WITH FINDINGS after four rounds, with no BLOCKING finding left.
+   - Merge that draft, then start a new Claude Code session, which loads the new guard.
+4. **Then `/going-live`** for `v1.0.0-beta.1`. The release Tester and the release Security-Reviewer run over everything merged since the last release verdicts. After that come the deploys: the `fly-production` environment and token, the nightly workflow copy, the first night, the Mac engine, TestFlight and the tag.
+5. **New issues in the run:**
+   - from the reviews: #396 (#371's counting loop, which needs a ruling on D-218 clause 4), #400 (in the bundle), #401 (the dispatch paths the gate cannot see), #403 (a media id meeting a priced text model), #404 (tests for two OSWorld NIT fixes), #405 (stacked as #407) and #406 (`test (py3.12)` near its 15-minute budget; the change is in `ci.yml`, yours);
+   - all triaged.
+
