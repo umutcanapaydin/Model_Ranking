@@ -122,7 +122,8 @@ def test_computer_use_ranks_on_terminal_bench_4_and_epochs_copy_of_2_0_is_gone()
 
     spec = categories.CATEGORIES["computer-use"]
     assert (spec.primary_source, spec.primary_benchmark) == ("terminalbench_4", "Terminal-Bench 4.0")
-    assert families.FAMILIES["computer-use"] == ("terminalbench_4", "arena_agent")
+    # #379 (D-219 clause 3): OSWorld-Verified stands beside it; the primary stays.
+    assert families.FAMILIES["computer-use"] == ("terminalbench_4", "osworld_verified", "arena_agent")
     assert "terminalbench_4" in families.FAMILIES["agentic-coding"]
     assert "terminalbench_4" in {s.name for s in sources.REMOTE_SOURCES}
     assert "epoch_terminalbench" not in {b.source_name for b in board_tables.EPOCH_BOARDS}

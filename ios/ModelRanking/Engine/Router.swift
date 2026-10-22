@@ -128,6 +128,10 @@ enum CategoryHints {
         "image_to_video": "turn a photo or picture the person has into a moving video: animate an image, "
             + "bring a photo to life",
         "video_edit": "change a video the person already has: edit, restyle or alter an existing clip",
+        // #379 (D-218 clause 2): METR's time horizons. Worded for how LONG a job the AI can carry alone, away from
+        // `agentic-coding` (a code repository) and `computer-use` (apps and websites).
+        "long-tasks": "how long a job an AI can carry out on its own: a task that would take a person hours or a "
+            + "whole day, many steps planned and finished without help; not only code, not clicking through apps",
     ]
 
     /// Where a question the catalogue does not measure goes (REQ-RTR-005, owner's ruling).
@@ -269,6 +273,13 @@ enum CategoryHints {
         "video_edit": ["edit this video clip", "change the style of my video",
                        "remove an object from this video", "speed up the boring parts of my video",
                        "replace the background in my video", "cut and restyle this clip"],
+        // #379 (D-218 clause 2): how long a job the AI can carry alone, in a reader's words.
+        "long-tasks": ["an agent that keeps working for eight hours straight",
+                       "run it overnight on a twelve hour job",
+                       "how many hours of a skilled person's work can it do alone",
+                       "a multi day project it should carry to the end by itself",
+                       "the length of task it completes half the time",
+                       "work through a whole afternoon of steps without anyone checking in"],
     ]
 
     /// #222 (the reading wave of 2026-10-14): the same six questions per surface (eight for #293's
@@ -346,6 +357,13 @@ enum CategoryHints {
                            "bu durağan görsele hareket ekle", "bu çizimden bir video yap"],
         "video_edit": ["bu video klibi düzenle", "videomun tarzını değiştir", "bu videodan bir nesneyi kaldır",
                        "tatil videomu kurgula", "videomun renklerini düzelt", "bu video klibini kesip yeniden stillendir"],
+        // #379 (D-218 clause 2)
+        "long-tasks": ["sekiz saat aralıksız çalışmaya devam eden bir ajan",
+                       "on iki saatlik bir işte gece boyunca çalışsın",
+                       "deneyimli bir insanın kaç saatlik işini tek başına yapabilir",
+                       "birkaç gün sürecek bir projeyi kendi başına sonuna kadar götürsün",
+                       "yarısını bitirebildiği görevlerin süresi ne kadar uzun",
+                       "kimse kontrol etmeden bütün bir öğleden sonra boyunca adım adım çalışsın"],
     ]
 }
 
@@ -424,6 +442,13 @@ extension CategoryHints {
                       ["rust", "code"], ["go", "programming"], ["swift", "code"], ["fix", "bugs"], ["bug", "fix*"],
                       ["programlama", "dil*"], ["web", "api*"], ["rest", "api*"]],
             marks: ["c++", "c#", "f#", "node.js"]),
+        // #379 (D-218 clause 2): a long job named as such, read after code, so a long task in a repository stays
+        // the coding surfaces'. Only phrases with one reading: "for hours" alone is too often about something else.
+        SurfaceWords(
+            id: "long-tasks", words: ["saatlerce"],
+            phrases: [["long", "task*"], ["longest", "task*"], ["long", "running", "task*"], ["long", "job*"],
+                      ["time", "horizon*"], ["uzun", "gorev*"], ["uzun", "bir", "gorev*"], ["en", "uzun", "gorev*"],
+                      ["uzun", "isler*"], ["uzun", "bir", "is"], ["uzun", "bir", "isi"]]),
         SurfaceWords(
             id: "computer-use", words: ["browse", "browsing"],
             phrases: [["computer", "use"], ["bilgisayar", "kullan*"], ["my", "browser"], ["browser", "automation"],
@@ -1639,6 +1664,9 @@ public func scaleExplanation(for metric: String) -> String? {
         return "the share of real tasks it finished"
     case "% correct":
         return "the share of questions it got right"
+    // #379 (D-219): METR's time horizon, a length of task rather than a share.
+    case "minutes":
+        return "how long a task it finishes half the time, in a skilled person's minutes"
     default:
         return nil
     }

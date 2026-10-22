@@ -71,6 +71,20 @@ RETIRED_EXTERNAL_ATTRIBUTION: dict[str, str] = {
 #: D-216 (#265): Datacurve's own DeepSWE leaderboard, `agentic-coding`'s board.
 DATACURVE_SITE_URL = "https://deepswe.datacurve.ai/"
 
+#: #379 (D-219): the OSWorld team's site, whose workbook `computer-use`'s second board reads.
+OSWORLD_SITE_URL = "https://osworld-v1.xlang.ai/"
+CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
+#: #379 (D-219): METR's time-horizon page, whose file `long-tasks` ranks on.
+METR_SITE_URL = "https://metr.org/time-horizons/"
+#: #379 (D-219): LiveBench's site, and the release `everyday` reads, pinned and named once: the client builds its
+#: addresses from it, and the credit and the citation name it.
+LIVEBENCH_SITE_URL = "https://livebench.ai/"
+LIVEBENCH_RELEASE_DATE = "2026-10-14"
+#: #379 (D-219): SimpleBench's site, whose leaderboard file `everyday` reads.
+SIMPLEBENCH_SITE_URL = "https://simple-bench.com/"
+#: How a publisher that states no licence is credited (D-215).
+NO_LICENCE_D215 = "No licence published. Public numbers, used with attribution (D-215)"
+
 #: LMArena's dataset, under its card's CC-BY-4.0 grant (D-101). Here, not in its client, so the serving
 #: process and the client read one string (W-125).
 ARENA_ATTRIBUTION = (
@@ -140,6 +154,14 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
     Credit("datacurve_site", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard (v1.1), as its site publishes it",
            DATACURVE_SITE_URL, "\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)",
            None),
+    # #379 (D-219 clauses 1 and 4): the site states CC BY-SA 4.0, and the workbook is served from it.
+    Credit("osworld", "XLANG Lab (OSWorld)", "OSWorld-Verified leaderboard: the general models' runs at 100 steps",
+           OSWORLD_SITE_URL, "CC BY-SA 4.0", CC_BY_SA_4_URL),
+    Credit("livebench", "LiveBench (Abacus.AI and its co-authors)", f"LiveBench 2.0, release {LIVEBENCH_RELEASE_DATE}",
+           LIVEBENCH_SITE_URL, NO_LICENCE_D215, None),
+    Credit("simplebench", "SimpleBench Team", "SimpleBench leaderboard: each model's AVG@5 score", SIMPLEBENCH_SITE_URL,
+           NO_LICENCE_D215, None),
+    Credit("metr", "METR", "Time Horizon 1.1: each model's 50% time horizon", METR_SITE_URL, NO_LICENCE_D215, None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
            "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),

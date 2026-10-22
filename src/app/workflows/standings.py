@@ -35,7 +35,8 @@ from app.workflows.rank import (
 
 #: The metrics served today, every one higher-is-better. A position needs to know which way a board
 #: runs; a metric not named here is refused rather than ranked the wrong way round.
-HIGHER_IS_BETTER = frozenset({"elo", "ips", "% correct", "% resolved", "% pass_rate_2", "ECI"})
+#: #379 (D-219): `minutes` is METR's time horizon, the length of task a model finishes half the time.
+HIGHER_IS_BETTER = frozenset({"elo", "ips", "% correct", "% resolved", "% pass_rate_2", "ECI", "minutes"})
 
 # Every rankable row, with what picking a model's evidence row needs. A row of a priced board needs
 # its model's price median; a row of a quality-only surface's board needs none (D-218 clause 1).

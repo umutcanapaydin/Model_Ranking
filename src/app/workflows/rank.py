@@ -24,7 +24,12 @@ from app.workflows.board_tables import (
     DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
+    LIVEBENCH_RELEASE_DATE,
+    LIVEBENCH_SITE_URL,
+    METR_SITE_URL,
+    OSWORLD_SITE_URL,
     RETIRED_EXTERNAL_ATTRIBUTION,
+    SIMPLEBENCH_SITE_URL,
 )
 from app.workflows.categories import CATEGORIES, CategorySpec
 from app.workflows.schema import EFFORT_LEVELS
@@ -63,6 +68,15 @@ TERMINALBENCH_ATTRIBUTION = ("Terminal-Bench 4.0 scores: Terminal-Bench leaderbo
 #: D-216 (#265): Datacurve's own DeepSWE leaderboard, in place of Epoch's copy. It publishes no licence; its public
 #: numbers are used with this attribution (D-215).
 DATACURVE_ATTRIBUTION = f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE leaderboard, {DATACURVE_SITE_URL}"
+#: #379 (D-219): OSWorld-Verified's workbook, under the CC BY-SA 4.0 licence its site states.
+OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard, {OSWORLD_SITE_URL} "
+                       "(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/)")
+#: #379 (D-219): METR's time horizons. METR publishes no licence; its public numbers are used with this credit (D-215).
+METR_ATTRIBUTION = f"Time-horizon scores: METR's Time Horizon 1.1, {METR_SITE_URL}"
+#: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
+LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release {LIVEBENCH_RELEASE_DATE}), {LIVEBENCH_SITE_URL}"
+#: #379 (D-219): SimpleBench's leaderboard. No licence on its site; its public numbers are used with this credit.
+SIMPLEBENCH_ATTRIBUTION = f"SimpleBench scores: the SimpleBench Team's leaderboard, {SIMPLEBENCH_SITE_URL}"
 ATTRIBUTIONS = (
     ARENA_ATTRIBUTION,
     PRICING_ATTRIBUTION,
@@ -71,6 +85,10 @@ ATTRIBUTIONS = (
     TERMINALBENCH_ATTRIBUTION,
     ARC_ATTRIBUTION,
     DATACURVE_ATTRIBUTION,
+    OSWORLD_ATTRIBUTION,
+    METR_ATTRIBUTION,
+    LIVEBENCH_ATTRIBUTION,
+    SIMPLEBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
     *EPOCH_EXTERNAL_ATTRIBUTION.values(),
     *RETIRED_EXTERNAL_ATTRIBUTION.values(),
@@ -109,6 +127,10 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "terminalbench_4": TERMINALBENCH_ATTRIBUTION,
     "arc_agi_2": ARC_ATTRIBUTION,
     "datacurve_deepswe": DATACURVE_ATTRIBUTION,
+    "osworld_verified": OSWORLD_ATTRIBUTION,
+    "metr_time_horizons": METR_ATTRIBUTION,
+    "livebench": LIVEBENCH_ATTRIBUTION,
+    "simplebench": SIMPLEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
     # D-127's boards. All seven come out of the same owner-placed Epoch bundle, and are listed
     # individually rather than matched by an `epoch_` prefix: a prefix rule would attribute a source
@@ -148,6 +170,10 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     TERMINALBENCH_ATTRIBUTION: ("terminal_bench",),
     ARC_ATTRIBUTION: ("arc_prize", "arc_prize_solutions"),
     DATACURVE_ATTRIBUTION: ("datacurve_site",),
+    OSWORLD_ATTRIBUTION: ("osworld",),
+    METR_ATTRIBUTION: ("metr",),
+    LIVEBENCH_ATTRIBUTION: ("livebench",),
+    SIMPLEBENCH_ATTRIBUTION: ("simplebench",),
     EPOCH_ATTRIBUTION: ("epoch",),
     # A board Epoch compiles credits its publisher first, then Epoch's compilation (#124), which claims
     # no licence of its own (the #260 review's B1).

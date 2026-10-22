@@ -46,8 +46,12 @@ from app.clients.datacurve import DatacurveClient, parse_datacurve
 from app.clients.epoch import EpochClient
 from app.clients.epoch_board import EpochBoardClient
 from app.clients.litellm import LiteLLMClient, parse_pricing
+from app.clients.livebench import LiveBenchClient, parse_livebench
+from app.clients.metr import MetrClient, parse_metr
 from app.clients.models_dev import ModelsDevClient, parse_models_dev
+from app.clients.osworld import OSWorldClient, parse_osworld
 from app.clients.protocols import RawSource
+from app.clients.simplebench import SimpleBenchClient, parse_simplebench
 from app.clients.swebench import SweBenchClient, parse_verified
 from app.clients.terminalbench import TerminalBench4Client, parse_terminalbench_4
 from app.workflows.board_tables import EPOCH_BOARDS as _EPOCH_BOARDS
@@ -60,7 +64,11 @@ from app.workflows.ingest import (
     ingest_datacurve,
     ingest_epoch,
     ingest_litellm,
+    ingest_livebench,
+    ingest_metr,
     ingest_models_dev,
+    ingest_osworld,
+    ingest_simplebench,
     ingest_swebench,
     ingest_terminalbench_4,
 )
@@ -293,6 +301,48 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
             ("text_to_video", ArenaTextToVideoClient),
             ("video_edit", ArenaVideoEditClient),
         )
+    ),
+    # #379 (D-219): OSWorld-Verified's own workbook, `computer-use`'s second board: 20 general models at 100
+    # steps on 2026-10-22. OPTIONAL (D-121): a night the site fails is carried by the refresh (D-156), and
+    # the surface still answers from its primary. The floor is half the recorded board: below it, a cut file.
+    RemoteSource(
+        name="osworld_verified",
+        client=OSWorldClient,
+        ingest=ingest_osworld,
+        parse=parse_osworld,
+        minimum_rows=10,
+        required=False,
+    ),
+    # #379 (D-218 clause 2, D-219): METR's own time-horizon file, `long-tasks`'s only board: 26 models on
+    # 2026-10-22. OPTIONAL as every sole-evidence board is (D-121): a night the site fails is carried by the
+    # refresh (D-156), or past the carry window the surface says it has no evidence. Floor: half the board.
+    RemoteSource(
+        name="metr_time_horizons",
+        client=MetrClient,
+        ingest=ingest_metr,
+        parse=parse_metr,
+        minimum_rows=13,
+        required=False,
+    ),
+    # #379 (D-219): LiveBench 2.0's own release files, a board of `everyday`: 49 models in release 2026-10-14.
+    # OPTIONAL (D-121): a night the site fails is carried (D-156), and the surface answers from its primary.
+    RemoteSource(
+        name="livebench",
+        client=LiveBenchClient,
+        ingest=ingest_livebench,
+        parse=parse_livebench,
+        minimum_rows=24,
+        required=False,
+    ),
+    # #379 (D-219): SimpleBench's own leaderboard file, a board of `everyday`: 106 ranked models on 2026-10-22.
+    # OPTIONAL (D-121): a night the site fails is carried (D-156), and the surface answers from its primary.
+    RemoteSource(
+        name="simplebench",
+        client=SimpleBenchClient,
+        ingest=ingest_simplebench,
+        parse=parse_simplebench,
+        minimum_rows=53,
+        required=False,
     ),
 )
 
