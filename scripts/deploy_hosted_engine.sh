@@ -47,6 +47,17 @@ case "$#:${1:-}" in
   1:--ship) SHIP=1 ;;
   *) echo "[deploy] refused: the only arguments are --dry-run and --ship (got: $*)" >&2; exit 2 ;;
 esac
+# The call's tree must be this checkout. The deploy gate matches a command by its basename and judges the
+# tree the call runs in, so this script called by path from another clone shipped a tree nobody had judged
+# (the queue-1021 integration review's M4, the path form of #391). Both sides are resolved with `pwd -P`.
+OWN="$(cd "$REPO" && pwd -P)"
+CALLER="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+CALLER="${CALLER:+$(cd "$CALLER" && pwd -P)}"
+if [ "$CALLER" != "$OWN" ]; then
+  echo "[deploy] refused: run it from its own checkout ($OWN); this call runs in ${CALLER:-no git tree}," \
+    "and the deploy gate judges the call's tree" >&2
+  exit 1
+fi
 
 cd "$REPO"
 if [ -n "$(git status --porcelain)" ]; then
