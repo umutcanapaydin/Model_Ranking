@@ -213,3 +213,21 @@ def test_the_priced_surfaces_credit_their_prices_as_before(media_db: Path) -> No
         conn.close()
     assert rec is not None and PRICING_ATTRIBUTION_LITELLM in rec.sources
     assert all(p.blended_per_m is not None for p in rec.picks)
+
+
+@pytest.mark.parametrize("surface", sorted(MEDIA))
+def test_a_surface_ranked_on_quality_only_gives_no_plan_answer(media_db: Path, surface: str) -> None:
+    """D-218 clause 1 (#378, #405): a plan is a monthly price, and a quality-only surface takes no price, no
+    value window and no budget, so the subscription answer is none under every budget. No test reached
+    `recommend_subscription`'s quality-only branch before the release Tester (subscribe.py, uncovered)."""
+    from app.workflows.subscribe import recommend_subscription
+
+    conn = sqlite3.connect(media_db)
+    try:
+        assert {budget: recommend_subscription(conn, budget, surface) for budget in BUDGETS} == dict.fromkeys(BUDGETS)
+        # A priced surface goes on to read the plans, which this artifact does not hold: the quality-only
+        # answer above is none before any plan is read, not for want of plans.
+        with pytest.raises(ValueError, match="plan_config"):
+            recommend_subscription(conn, "unlimited", "coding")
+    finally:
+        conn.close()

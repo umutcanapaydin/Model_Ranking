@@ -147,3 +147,18 @@ def test_the_registered_ingest_stores_each_row() -> None:
     report = declared.ingest(conn, FakeRawSource(name="simplebench", url=DATA, payload=_raw()),
                              RunContext(observed_at="2026-10-22T00:00:00Z"))
     assert (report.stored, report.skipped) == (106, 2)
+
+
+def test_a_model_listed_twice_keeps_its_first_row_and_counts_the_second() -> None:
+    """covers REQ-SRC-013 (#379): the release Tester's fault SB2 (`model in seen` dropped) stayed green. A model the
+    board lists twice is one row, the first as listed, and the repeat is skipped and counted, so a second score for
+    the same model can neither replace the first nor rank it twice."""
+    first = '{ rank: "1st",  model: "Claude Opus 5.5",            score: "88.4%",'
+    repeat = ('  { rank: "2nd", model: "Claude Opus 5.5", score: "12.0%", organization: "Anthropic",'
+              ' dateAdded: "2026-10-01" },\n')
+    raw = _raw()
+    assert raw.count(first) == 1, "the fixture's first row is where this test plants the repeat"
+    end = raw.index("\n", raw.index(first)) + 1
+    rows, skipped = _parse(raw[:end] + repeat + raw[end:])
+    assert (len(rows), skipped) == (106, 3)
+    assert [row.score for row in rows if row.raw_name == "Claude Opus 5.5"] == [88.4]
