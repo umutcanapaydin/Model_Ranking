@@ -105,6 +105,19 @@ def test_a_call_from_another_tree_than_the_scripts_own_checkout_is_refused(tmp_p
     assert not (repo / "build").exists() and not (where / "build").exists()
 
 
+def test_gits_place_variables_do_not_carry_a_call_from_another_tree_past_the_refusal(tmp_path: Path) -> None:
+    """The queue-1021 integration review's M5: with `GIT_DIR` and `GIT_WORK_TREE` naming the script's checkout,
+    `git rev-parse --show-toplevel` answered that checkout from a second clone, so M4's check passed and the other
+    checkout shipped. The script reads none of git's place variables: the call is refused, and nothing is built."""
+    repo, _served, calls, env = _scratch(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    _git("clone", "-q", str(tmp_path / "origin.git"), str(elsewhere))
+    done = _deploy(env | {"GIT_DIR": str(repo / ".git"), "GIT_WORK_TREE": str(repo)}, cwd=elsewhere)
+    assert done.returncode != 0 and "its own checkout" in done.stderr, done.stdout + done.stderr
+    assert not calls.exists()
+    assert not (repo / "build").exists() and not (elsewhere / "build").exists()
+
+
 def test_a_call_from_a_folder_inside_its_own_checkout_runs(tmp_path: Path) -> None:
     """The queue-1021 integration review's M4: the refusal compares trees, not folders."""
     repo, _served, calls, env = _scratch(tmp_path)

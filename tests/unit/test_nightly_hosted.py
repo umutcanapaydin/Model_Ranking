@@ -72,6 +72,20 @@ def test_the_refresh_runs_the_cycle_on_the_kept_state_stamped_with_this_release(
     assert "outcome=published" in output.read_text(encoding="utf-8").splitlines()
 
 
+def test_the_refresh_stamps_its_own_checkout_whatever_gits_place_variables_name(tmp_path: Path) -> None:
+    """The queue-1021 integration review's M5: `GIT_DIR` and `GIT_WORK_TREE` naming another repository made the
+    refresh's `git rev-parse` stamp that repository's commit. The night reads none of git's place variables."""
+    other = tmp_path / "other"
+    _git("init", "-q", "-b", "main", str(other))
+    _git("-C", str(other), "commit", "-q", "--allow-empty", "-m", "another repository")
+    env, calls, _output = _refresh_env(tmp_path, 0)
+    env |= {"GIT_DIR": str(other / ".git"), "GIT_WORK_TREE": str(other)}
+    done = _run(env, "refresh", str(tmp_path / "state"))
+    assert done.returncode == 0, done.stdout + done.stderr
+    sha = _git("-C", str(REPO), "rev-parse", "--short=7", "HEAD")
+    assert f"APP_BUILD=release-{sha} " in calls.read_text(encoding="utf-8")
+
+
 @pytest.mark.parametrize(("code", "outcome", "passes"), [(1, "unchanged", True), (2, "failed", False),
                                                          (3, "refused", False), (4, "busy", False)])
 def test_only_a_night_that_kept_its_data_passes_so_only_it_is_kept(tmp_path: Path, code: int, outcome: str,
