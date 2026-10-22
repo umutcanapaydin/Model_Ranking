@@ -216,6 +216,31 @@ def test_a_workbook_that_breaks_the_reader_fails_the_source_and_nothing_else(dat
         _ow().workbook_rows(data)
 
 
+_PLAIN_ROWS = ('<row r="1"><c r="A1" t="inlineStr"><is><t>Model</t></is></c></row>'
+               '<row r="2"><c r="A2" t="inlineStr"><is><t>{value}</t></is></c></row>')
+
+
+def test_the_plain_sheet_the_refusal_cases_build_on_parses() -> None:
+    """The control for the case below: without a document type, the same namespaced sheet reads as one row."""
+    data = _zip({"xl/worksheets/sheet1.xml": _sheet(_PLAIN_ROWS.format(value="o3"))})
+    assert _ow().workbook_rows(data) == [{"Model": "o3"}]
+
+
+@pytest.mark.parametrize("prolog,value", [
+    ("<!DOCTYPE worksheet>", "o3"),
+    ('<!DOCTYPE worksheet [<!ENTITY a "Injected">]>', "&a;"),
+], ids=["a-document-type-alone", "an-entity-declaration"])
+def test_a_sheet_that_declares_a_document_type_or_an_entity_is_refused(prolog: str, value: str) -> None:
+    """covers REQ-SRC-013 (the queue-1021 integration review's M3): a namespaced sheet that would otherwise parse
+    is refused, in the refusal's own words, the moment it declares a document type or an entity. Without the
+    handlers, the entity case read as `[{'Model': 'Injected'}]`."""
+    from app.clients.protocols import SourceError
+
+    body = b"<?xml version='1.0'?>" + prolog.encode() + _sheet(_PLAIN_ROWS.format(value=value))
+    with pytest.raises(SourceError, match="declares a document type or an entity, which a workbook never needs"):
+        _ow().workbook_rows(_zip({"xl/worksheets/sheet1.xml": body}))
+
+
 def test_a_sheet_larger_than_the_cap_fails_the_source(monkeypatch: pytest.MonkeyPatch) -> None:
     """covers REQ-SRC-013: a member that unpacks past the cap is refused before it is read (a zip bomb)."""
     from app.clients.protocols import SourceError
