@@ -212,3 +212,13 @@ def test_a_malformed_cuts_file_fails_the_night_and_leaves_the_live_artifact(
     record = json.loads(refresh.status_path(live).read_text(encoding="utf-8"))
     assert record["exit_code"] == refresh.EXIT_FAILED, record
     assert "AcceptedCutError" in record["reason"], record
+
+
+def test_an_unparseable_or_unreadable_file_is_the_cuts_error(tmp_path: Path) -> None:
+    """Both fail-closed branches raise the one error the refresh records: broken YAML, and a path that
+    cannot be read (here a directory where the file should be)."""
+    with pytest.raises(refresh.AcceptedCutError, match="unparseable YAML"):
+        refresh.parse_accepted_cuts("cuts: [unclosed\n")
+    (tmp_path / "accepted-cuts.yaml").mkdir()
+    with pytest.raises(refresh.AcceptedCutError, match="cannot be read"):
+        refresh.load_accepted_cuts(tmp_path / "accepted-cuts.yaml")
