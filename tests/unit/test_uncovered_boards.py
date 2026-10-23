@@ -13,7 +13,13 @@ import pytest
 from app.clients.arena_slices import ARENA_SLICES
 from app.workflows import boards
 from app.workflows.categories import CATEGORIES
-from app.workflows.refresh import ServingSummary, degradations, serving_summary, upward_anomalies
+from app.workflows.refresh import (
+    ServingSummary,
+    UnlinkedRow,
+    degradations,
+    serving_summary,
+    upward_anomalies,
+)
 from app.workflows.schema import connect
 from app.workflows.sources import EPOCH_BOARDS
 
@@ -73,7 +79,7 @@ def test_a_change_on_an_uncovered_epoch_board_moves_the_fingerprint() -> None:
         _store(conn, "epoch_chess", "Chess puzzles", ["m0", "m1"])
         after = serving_summary(conn)
         assert after.digest != before
-        assert after.boards["epoch_chess"] == frozenset({"m0", "m1"})
+        assert after.boards["epoch_chess"] == frozenset({UnlinkedRow("m0", 0), UnlinkedRow("m1", 0)})
     finally:
         conn.close()
 

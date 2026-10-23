@@ -3126,6 +3126,9 @@ a route whose own checks make this one redundant.
 **Amended by D-179 (2026-10-06)**: clause 2's limits compare a board's rows by the model each links to,
 and by raw name only where a row links to none; a re-spelling is recorded with the night (#100).
 
+**Amended by D-220 (2026-10-23)**: a row that links to no model is compared by its spelling key, not its raw
+name, and a cut the owner accepted in `data/accepted-cuts.yaml` is not counted as rows lost (#415).
+
 ## D-165 — A downloaded file a native library parses is read in a process of its own, under a memory ceiling
 
 **Status:** accepted -- **ruled by the owner 2026-09-24** (asked in Turkish whether to read the Arena
@@ -3994,6 +3997,9 @@ rows a board already had, which the refresh must publish, then read as every row
 
 **Revisit when:** `/v1/boards` serves a row's raw name or harness, or a board's floor stops counting
 every row.
+
+**Amended by D-220 (2026-10-23)**: "by raw name only where a row links to none" now reads "by its spelling key"
+(letters, digits and `+`, in lower case), numbered as `copy` numbers a model's rows (#415).
 
 ## D-180 — The phone's privacy sinks hold by what the compiler resolves, not by how the source spells it
 
@@ -5912,3 +5918,59 @@ night's report.
 **Revisit when:** a skipped board's terms or data change (HLE's publishers post a file, Vending-Bench 2 publishes its
 whole board, GDPval's leaderboard returns, OSWorld 2.0 ranks 15 models); LiveBench publishes a new release; METR publishes a new time-horizon
 version; the app takes payment (D-215's revisit).
+
+## D-220 — A board row's spelling is read past case and punctuation, and a cut the owner accepted is not a loss
+
+**Status:** proposed
+**Owner ruling:** 2026-10-23, in chat, on #415 (*"the aim is to get the maximum number of models and updated data"*, translated)
+**Amends** D-164 clause 2, D-179, and INV-54 · from #415.
+
+**Context.** Every nightly refresh from 2026-10-14 to 2026-10-23 was refused, and the served data aged nine days.
+Two upstream events caused it, and neither was a read error (#415's diagnosis):
+- LMArena re-spelled every model on 2026-10-13, from slugs (`claude-3-5-sonnet-20240620`) to display names
+  (`Claude 3.5 Sonnet (20240620)`), and removed none. Its 2026-10-22 file holds 418 `overall` rows, which
+  `parse_arena_slices` reads in full.
+  - A row the aliases do not resolve was compared by its raw name, so 171 of the 202 rows `arena` "lost" were the
+    same rows under a new spelling.
+  - The text grammar refused a name with a parenthesis, so 31 rows that had resolved arrived unlinked, and their
+    models would have left the boards.
+- Epoch re-ran its chess board in 2026-10. It now holds 154 models, and 94 of the 245 served names are gone.
+  73 of those were runs from 2026-08, mostly open-weight models.
+
+**Decision.**
+1. **The spelling key.** A board row that links to no model is compared by its spelling key: its letters, digits and
+   `+`, in lower case. `+` is kept because `Command R+` and `Command R` are two models. Two rows with one key are two
+   rows, numbered as `LinkedRow.copy` numbers a model's rows (`UnlinkedRow`). So a board flooded with re-spellings
+   of the names it had still reads as new rows. The 25% limits do not change.
+2. **A bracketed name is read as its slug.** When the text grammar or the curated rules cannot read a name with a
+   parenthesis that is not a run's effort (#38), they read it again with each parenthesis as a dash token:
+   `Claude 3.5 Sonnet (20241022)` is read as `Claude 3.5 Sonnet-20241022`, which is `claude3.5-sonnet20241022`, the
+   id its slug derived. A name that resolved before resolves as before. A moving alias still derives nothing
+   (D-166).
+3. **A cut the owner accepted is not a loss.** `data/accepted-cuts.yaml` names a declared board, this ADR, a reason
+   and exactly the raw names the board may lose. The D-164 guard stops counting only those rows as lost: any other
+   row is judged as before, and a cut named for one board excuses nothing on another. A file that is not the schema
+   fails the refresh, and never excuses everything. Its one entry is Epoch's 2026-10 chess re-run: 94 names, accepted
+   once. Old scores are not kept beside the board, which stays as Epoch publishes it. The entry has no effect once a
+   refresh has published: the served board then no longer holds those rows.
+4. **INV-54** reads "by its spelling key where it links to none (D-220)". It keeps
+   `test_an_unlinked_row_is_still_compared_by_its_name`, now asserting that a renamed row (a changed letter or
+   digit) is still a name lost, and it adds the two tests of clause 1.
+
+**Rationale.** Against the served artifact, the guards read the 2026-10-23 candidate as follows:
+- **Today:** 32 degradations and 31 anomalies.
+- **With the spelling key:** one degradation, `epoch_chess`. The worst LMArena slice then loses 16%, and `arena`
+  links 231 rows.
+- **With the bracket reading as well:** the worst LMArena slice loses 11%, and `arena` links 249 rows, against 242
+  served, so more models are served than before.
+
+A one-time exception for the rename would have unblocked one night, and LMArena's next rename would block again.
+Hand aliases for the 31 rows would fix none of the 18 rows that the grammar now links on its own.
+
+**Mitigation if violated:**
+- If the key merges two different models, each spelling still counts as a row of its own, so the flood guard
+  still fires.
+- If a listed cut hides a real loss: it names rows, not a share, so any row lost beyond them refuses as before.
+
+**Revisit when:** a board publishes two different models whose names differ only in case or punctuation, or
+`data/accepted-cuts.yaml` gains a second entry in one month.

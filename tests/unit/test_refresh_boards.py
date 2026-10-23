@@ -20,6 +20,7 @@ from app.workflows import build as build_mod
 from app.workflows.refresh import (
     EXIT_PUBLISHED,
     EXIT_REFUSED,
+    UnlinkedRow,
     refresh,
     serving_summary,
     status_path,
@@ -86,7 +87,7 @@ def test_the_fingerprint_moves_with_a_board_and_only_with_it() -> None:
             "'unspecified', ?, 'u', 'z')", (BOARD.benchmark, BOARD.source_name))
         added = serving_summary(conn)
         assert added.digest != before
-        assert added.boards[BOARD.source_name] == frozenset({"m0"})
+        assert added.boards[BOARD.source_name] == frozenset({UnlinkedRow("m0", 0)})  # D-220 clause 1
         conn.execute("UPDATE scores SET score = 1200.01, observed_at = 'y'")
         assert serving_summary(conn).digest == added.digest, (
             "a move below the output boundary's rounding (D-109), or a new timestamp, is not news")

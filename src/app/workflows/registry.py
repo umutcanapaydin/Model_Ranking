@@ -375,11 +375,31 @@ def canonicalize_with_reason(name: str) -> tuple[ModelRule | None, str | None]:
     # the curated rules, which match by search, refuse it here. Refused for its reason, not as drift.
     if name.strip().rsplit("/", 1)[-1].lower().startswith("ft:"):
         return (None, FINE_TUNE)
+    found = _lookup(name)
+    # #415 (D-220 clause 2): LMArena's display name of a curated alias (`Mistral Large (2411)`).
+    unbracketed = _unbracketed(name)
+    return _lookup(unbracketed) if found == (None, None) and unbracketed != name else found
+
+
+def _lookup(name: str) -> tuple[ModelRule | None, str | None]:
     for rule, rx in _COMPILED:
         if rx.search(name):
             token = modality_mismatch(name, rule)
             return (None, token) if token else (rule, None)
     return (None, None)
+
+
+#: #415 (D-220 clause 2): LMArena's display names (2026-10-13) bracket what its slugs dashed:
+#: `Claude 3.5 Sonnet (20240620)` was `claude-3-5-sonnet-20240620`.
+_TEXT_BRACKET = re.compile(r"\s*\(([^()]*)\)")
+
+
+def _unbracketed(name: str) -> str:
+    """``name`` with each parenthesis read as a dash token; ``name`` itself when it has none, or when its
+    one parenthesis is a run's effort (#38 reads that)."""
+    if "(" not in name or _PAREN_EFFORT.search(name):
+        return name
+    return _TEXT_BRACKET.sub(lambda m: "-" + m.group(1).strip().replace(" ", "-"), name).strip()
 
 
 def canonicalize(name: str) -> ModelRule | None:
@@ -645,7 +665,14 @@ def derive_identity(name: str, *, media: bool = False) -> DerivedIdentity | None
 
     ``media`` (#378, D-218 clause 1) reads a name from an image or video board: the modality guard
     does not apply, since the product IS the image or video model, and a bracketed variant is kept as
-    a name token. No price is ever linked through it (`reconcile_media`)."""
+    a name token. No price is ever linked through it (`reconcile_media`). A text name the grammar refuses
+    is read once more with its parentheses as dash tokens (#415, D-220 clause 2)."""
+    derived = _derive(name, media=media)
+    unbracketed = name if media else _unbracketed(name)
+    return _derive(unbracketed, media=False) if derived is None and unbracketed != name else derived
+
+
+def _derive(name: str, *, media: bool) -> DerivedIdentity | None:
     if not media and any(rx.search(name) for _, rx in _MODALITY_RX):
         return None
     text = name.strip()

@@ -1225,3 +1225,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Filed: #410 (the deploy gate's DevFlow-file exemption trusts a local tag and `.gp/installed`; gate-definition, escalated), #411, #412, #413; evidence added to #406. The Tester's M1 (#351's bar) is a ruling row for the owner.
 - `docs/releases/v0.1.0.md` written from the template; the owner tags and publishes it after the deploy.
 - Lesson: a review seat's own probe found a gate exemption that reads two agent-writable inputs (a local tag and an untracked marker); an exemption from a gate is itself a gate input, and is graded like one.
+
+## 2026-10-23 · fix/issue-415-arena-respelling — LMArena's rename and Epoch's chess re-run stop blocking every refresh
+
+- #415: every nightly refresh had been refused for nine days. A copy of the served artifact compared with a scratch candidate showed two causes, and neither was a read error. LMArena re-spelled every model to display names (418 rows, none removed), and Epoch re-ran chess with 154 of the 245 models.
+- The owner's rulings, recorded as D-220: unlinked board rows are compared by a spelling key (letters, digits, `+`); a bracketed name is read as its slug; and the chess cut is accepted once, row by row, in `data/accepted-cuts.yaml`. INV-54 was amended with the owner's consent, and its cited test kept its name.
+- Red first (`520520c`, after the ADR in `9bdce37`), then the fix. The real guards on the 2026-10-23 candidate give 0 degradations and 0 anomalies; 20 surfaces answer instead of 12, and `arena` links 249 rows instead of 242.
+- The existing expiry test caught a defect in the first fix: as NamedTuples, `UnlinkedRow('zorblax0', 0)` equalled `LinkedRow('zorblax0', 0)`, so a row that lost its link read as kept.
+- Lesson: two NamedTuple row kinds in one set compare as plain tuples, so a type that names a different identity needs its own equality, not a different class name.
