@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from app.workflows import boards as declared_boards
+from app.workflows import refresh as refresh_module
 from app.workflows.refresh import (
     EXIT_PUBLISHED,
     degradations,
@@ -146,16 +147,56 @@ def test_a_relabelled_harness_or_effort_moves_no_board_guard(tmp_path: Path) -> 
     assert _reasons(tmp_path, relabel) == []
 
 
+def _unlinked(conn: sqlite3.Connection) -> None:
+    conn.execute("UPDATE scores SET model_id = NULL WHERE source = ?", (SLICE.source,))
+
+
+def test_an_unlinked_row_re_spelled_in_case_or_punctuation_only_moves_no_guard(tmp_path: Path) -> None:
+    """#415 (D-220 clause 1): a row the reconcile linked to no model is compared by its spelling key --
+    its letters, digits and `+`, in lower case. LMArena's 2026-10-13 rename (`claude-3-5-sonnet-20240620`
+    -> `Claude 3.5 Sonnet (20240620)`) kept every model and was refused as half of each board lost."""
+
+    def display_names(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scores SET raw_name = upper(replace(raw_name, ' ', ' (')) || ')'"
+                     " WHERE source = ?", (SLICE.source,))  # `Probe 00` -> `PROBE (00)`
+
+    assert _reasons(tmp_path, display_names, base=_unlinked) == []
+
+
 def test_an_unlinked_row_is_still_compared_by_its_name(tmp_path: Path) -> None:
-    """A row the reconcile linked to no model has nothing but its name, so re-spelling it is a name
-    lost and a name gained, as before."""
+    """A row the reconcile linked to no model has nothing but its name. Its spelling key forgives case
+    and punctuation (#415, D-220 clause 1), never a letter or a digit: a new name is a name lost and a
+    name gained, as before."""
 
-    def unlinked(conn: sqlite3.Connection) -> None:
-        conn.execute("UPDATE scores SET model_id = NULL WHERE source = ?", (SLICE.source,))
+    def re_named(conn: sqlite3.Connection) -> None:
+        conn.execute("UPDATE scores SET raw_name = 'Sample' || substr(raw_name, 6) WHERE source = ?",
+                     (SLICE.source,))
 
-    reasons = _reasons(tmp_path, _re_spell, base=unlinked)
+    reasons = _reasons(tmp_path, re_named, base=_unlinked)
     assert any(reason.startswith(f"board {SLICE.source}") for reason in reasons), reasons
     assert not any(reason.startswith("coding's board") for reason in reasons), reasons
+
+
+def test_unlinked_re_spellings_beside_their_old_names_are_new_rows(tmp_path: Path) -> None:
+    """Two spellings with one key are two rows (the key is numbered as `LinkedRow.copy` is), so a board
+    flooded with re-spellings of the names it had still reads as new rows."""
+
+    def doubled(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+            " source_url, observed_at) SELECT model_id, lower(replace(raw_name, ' ', '-')), source,"
+            " benchmark, metric, score, harness, effort, source_url, observed_at FROM scores"
+            " WHERE source = ?", (SLICE.source,))
+
+    reasons = _reasons(tmp_path, doubled, base=_unlinked)
+    assert any(reason.startswith(f"board {SLICE.source}") for reason in reasons), reasons
+
+
+def test_a_plus_sign_is_part_of_the_key() -> None:
+    """`Command R+ (08-2024)` and `Command R (08-2024)` are two models on LMArena's 2026-10-22 file."""
+    spelling_key = refresh_module.spelling_key
+    assert spelling_key("Command R+ (08-2024)") != spelling_key("Command R (08-2024)")
+    assert spelling_key("Claude 3.5 Sonnet (20240620)") == spelling_key("claude-3-5-sonnet-20240620")
 
 
 @pytest.mark.parametrize("direction", ["gains", "loses"])
