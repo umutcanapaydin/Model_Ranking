@@ -3,341 +3,318 @@ record_type: review
 id: release-tester
 status: draft
 seat: independent
-process_version: v7.1.2
-date: 2026-10-17
+process_version: v7.2
+date: 2026-10-23
 ---
 # Release Tester Review
 
-**Reviewer:** Tester subagent (`.claude/agents/Tester.md`). I had fresh eyes and wrote none of the range's
-product code or tests. The only tests I wrote are the ones this review lists under "Tests added".
+This verdict replaces the one of 2026-10-17 (reviewed head `9217c6c`, run golden-night), which stays in git history.
+It is the light-mode Tester for release v0.1.0, dispatched by `/going-live`.
+
+**Reviewer:** Tester subagent (`.claude/agents/Tester.md`, read from `main`). I had fresh eyes and wrote none of the
+range's product code or tests. The only tests I wrote are the ones this review lists under "Tests added".
 **Independent:** yes
-**Date:** 2026-10-17
-**Commit range:** `81af5ba..9217c6cf6b110c4e04c4ce48edd3dfd545b0e059`. `81af5ba` is the head of the
-last release review (`docs/reviews/release-security.md`). No light-mode Tester verdict existed before
-this one. The range is 586 commits up to `ea04b05` (`integration/run-golden-night`), plus my one test
-commit, `9217c6c`.
-**Reviewed head:** 9217c6cf6b110c4e04c4ce48edd3dfd545b0e059
-**Risk tier:** HIGH. The range carries the hosted engine's serving path, the app's engine address, a
-cache of engine answers on the phone, and the DevFlow v7.1 and v7.1.2 guard and gate upgrades.
-**Seat:** my own worktree on `review/release-tester`, cut from `ea04b05`, with its own `.venv`
-(`make install`, `make hooks`), and a copy of `advisor.db` as the owner allowed. Scratch files were kept
-in `$TMPDIR`. Cross-model routing: the authoring family and the reviewer family are the same (Claude). No
-second family was available in this seat. Fresh context: this seat read the code and the tests, not the
-implementers' sessions.
+**Date:** 2026-10-23
+**Commit range:** `9217c6cf6b110c4e04c4ce48edd3dfd545b0e059..044a3091e25486e6f651339a17d26e9b8fde2999` (309 commits,
+main's tip after #409), plus this review's two test commits `3e227ae` and `471bd73`.
+**Reviewed head:** 471bd736a0995715dc62838f13e4b0fcbf4d4f1a
+**Risk tier:** HIGH. The range touches the deploy gate (`scripts/deploy_gate.py`), the hosted deploy scripts
+(`scripts/deploy_hosted_engine.sh`, `scripts/nightly_hosted.sh`), the Bash guard (two owner bundles), CI installs, the
+compiled client gate, and five new ingestion parsers.
+**Seat:** my own worktree on `review/release-tester-v0.1.0`, cut from `044a309`, with its own `.venv` (`make install`,
+`make hooks`) and a copy of the main clone's `advisor.db`; a second detached worktree at `9217c6c` measured the base
+coverage. No launchd service, Fly, or owner data directory was touched; every probe ran in-process or on scratch
+repositories the tests build. Scratch files stayed outside the repository.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: this seat read the code, the tests and the issues, not the implementers' sessions.
 
 ## Verdict
-PASS WITH FINDINGS
-
-Every acceptance criterion in scope now has a passing test that cites it. Two gaps were found and closed
-by this review: #294 had no citing test, and three faults stayed green. One gate defect is filed (#325).
-Nothing is BLOCKING.
+MINOR -- nothing BLOCKING is open. Every acceptance criterion in the range has a passing citing test or, where the
+criterion is a measurement or an owner action, its record. Two faults stayed green and four touched modules lost
+coverage; this review closed all six with tests. Three MINOR findings remain (M1-M3), one of them a criteria-meaning
+question for the owner (M1).
 
 ## Scope
 
-Earlier milestones in the range had their own heavy-mode Testers. I read those verdicts and did not
-redo them: `docs/reviews/m19-wave-{1..5}-tester.md`, `m20-wave-{1..5}-tester.md`,
-`m21-wave-{1..4}-tester.md`, `issue-260-credits-tester*.md`, `issue-265-licensed-sources-tester.md`, and
-`backlog-{data,gates,hardening,reading}-tester.md`.
-
-What this review covers:
-
-**(a) Work merged with no milestone Tester:**
-- Light mode since D-201:
-  - run product-night: #296 (#288), #302 (#289), #298 (#273), #299 (#218), #300 (#66 / D-203),
-    #303 (#301);
-  - run golden-night: #310 (#294), #311 (#279), #312 (#304), #313 (#255), #316 (#293), #315 (#297),
-    #324 (#292).
-- The DevFlow upgrades: #281 (v7.1, D-200) and #306 (v7.1.2, D-205), outside `.claude/`.
-- Two older merges that had a Code-Reviewer but no Tester: #259 (#258, the startup catch-up) and #207
-  (the M20 hosted-boards hotfix, D-186 and D-187).
-
-**(b) The product paths:** `src/app/` and the serving API, and `ios/ModelRanking/`.
+Everything merged since `9217c6c`: run bug-night (#335, #383), the DevFlow v7.2 upgrade (#327), #349, #350 (docs),
+run night-351 (#357: #352, #358, #360), #365, #366, #368, run night-1021 (#370, #385: #372, #380-#384), #386,
+run queue-1021 (#394: #388, #395, #397-#399, #402, #407) and its owner bundle (#409). The issues they close, with the
+criteria in each issue body (and the ADRs they name: D-207 to D-219), are the acceptance criteria below.
 
 ## Suite result
 
 | Run | Head | Result |
 |---|---|---|
-| `make check` | `ea04b05` | All legs green except conformance. `test-documented-paths` was red on 5 dangling references, all in my own scratch notes under the gitignored `build/`. They went green once the notes moved to `$TMPDIR`. This is filed as #325 (below). |
-| `make gate` | `ea04b05` | `gate PASS: check conformance falsify secrets deps slopsquat` in 5:31. pytest: 3244 passed, 27 skipped. Every skip is an environment skip: live upstreams, the owner's Epoch bundle. swift-test: 691 tests, each named in the manifest. SlowTierTests on a one-thread pool: 7 of 7. client-decls: 22 files in 4 configurations. |
-| commit-msg `make check-fast` | `9217c6c` | PASS in 158 s. All 6 legs green. |
-| `make gate` | `9217c6c` | `gate PASS: check conformance falsify secrets deps slopsquat` in 6:04. pytest: 3245 passed, 27 skipped. swift-test: 694 tests, each named in the manifest. SlowTierTests: 7 of 7. client-decls: 22 files in 4 configurations. |
-| Device and simulator build | `ea04b05` | `xcodebuild -scheme ModelRanking -configuration Debug -destination 'generic/platform=iOS'` and `... 'generic/platform=iOS Simulator'`, unsigned: both `** BUILD SUCCEEDED **`. The device product's Info.plist carries `EngineOnDevice = YES` and `EngineURL = http://127.0.0.1:8080`, so `EngineClient.address` gives the hosted engine there (D-202 clause 4). I did not launch the app: on loopback it would reach the owner's launchd engine (D-174). |
+| `make check` | `044a309` | exit 0. pytest 4464 passed, 37 skipped; coverage-floor PASS; check_records PASS; conformance PASS (33); swift-test PASS: 727 tests, each in the manifest; SlowTierTests 7 of 7; client-decls PASS, 22 files in 4 configurations |
+| commit-msg `make check-fast` | `3e227ae`, `471bd73` | PASS, 6 of 6 legs, each time |
+| `make check` | `471bd73` | exit 0. pytest 4475 passed, 37 skipped; coverage-floor PASS; check_records PASS; conformance PASS (33); swift-test PASS: 727 tests; SlowTierTests 7 of 7; client-decls PASS, 22 files in 4 configurations |
+| CI `ci.yml` on main | `044a309` | `test (py3.14)`, `install-and-governance`, `secret-scan`, `dep-audit` success; `test (py3.12)` cancelled at its 15-minute limit with no failing test (M2). The same tree (`git diff 9a50c08 044a309` is empty) passed every job on PR #409's run 39782357385 |
+| CI `contract-tests.yml` on main | `044a309` | success: the live contract tests of every new source ran against the real upstreams |
 
-Golden report (`build/golden-report.txt`): 40 of 41 asserted questions pass. The one known miss is #295,
-which the run stopped for the owner. 8 questions are disputed, out of 49.
+Every pytest skip is an environment skip: `RUN_CONTRACT_TESTS` (the live contracts, run by CI's contract job, green
+above) or `EPOCH_DATA_DIR` (the owner's Epoch bundle). No skip, `xfail` or `XCTSkip` was added in the range.
 
-**Coverage on touched code.** `src/` modules changed in the range: base `81af5ba` measured in a detached
-worktree, head from the gate run. Total: 91.8 % to 92.2 %.
+**Coverage on touched code** (`src/` modules changed in the range; base measured at `9217c6c`, head from the runs
+above). Total 92.2 % to 92.6 at `044a309` and 92.8 at `471bd73`.
 
-| Module | Before | After |
-|---|---|---|
-| `adapter/main.py` | 98.0 | 98.3 |
-| `adapter/nightly.py` | 99.6 | 99.7 |
-| `clients/aider.py` | 89.6 | 90.1 |
-| `clients/arena.py` | 92.4 | 92.5 |
-| `workflows/ingest.py` | 97.6 | 97.8 |
-| `workflows/public.py` | 85.5 | 86.7 |
-| `workflows/rank.py` | 97.6 | 99.0 |
-| `workflows/refresh.py` | 95.5 | 95.7 |
-| `workflows/registry.py` | 98.8 | 99.5 |
+| Module | Base | `044a309` | `471bd73` |
+|---|---|---|---|
+| `adapter/main.py` | 98.3 | 98.3 | 98.3 |
+| `clients/arena.py` | 92.5 | 94.3 | 94.3 |
+| `clients/datacurve.py` | new | 98.7 | 98.7 |
+| `clients/deepswe.py` | 76.8 | 78.0 | 78.0 |
+| `clients/litellm.py` | 98.0 | 98.2 | 98.2 |
+| `clients/livebench.py` | new | 94.7 | 94.7 |
+| `clients/metr.py` | new | 95.5 | 95.5 |
+| `clients/osworld.py` | new | 95.0 | 95.0 |
+| `clients/protocols.py` | 100.0 | 100.0 | 100.0 |
+| `clients/simplebench.py` | new | 100.0 | 100.0 |
+| `clients/terminalbench.py` | 90.3 | 90.3 | 90.3 |
+| `workflows/board_tables.py` | 100.0 | 100.0 | 100.0 |
+| `workflows/build.py` | 95.3 | 95.3 | 95.3 |
+| `workflows/categories.py` | 100.0 | 100.0 | 100.0 |
+| `workflows/coverage.py` | 94.3 | 94.4 | 94.4 |
+| `workflows/families.py` | 100.0 | 100.0 | 100.0 |
+| `workflows/ingest.py` | 97.8 | 98.3 | 98.3 |
+| `workflows/public.py` | 86.7 | 87.0 | 87.0 |
+| `workflows/rank.py` | 99.0 | 99.0 | 99.0 |
+| `workflows/recommend.py` | 95.5 | 94.7 | 96.5 |
+| `workflows/refresh.py` | 95.7 | 95.7 | 95.7 |
+| `workflows/registry.py` | 99.5 | 98.8 | 99.5 |
+| `workflows/sources.py` | 100.0 | 100.0 | 100.0 |
+| `workflows/standings.py` | 100.0 | 100.0 | 100.0 |
+| `workflows/subscribe.py` | 96.3 | 95.6 | 96.4 |
+| `workflows/yaml_guard.py` | 100.0 | 95.5 | 100.0 |
 
-- New modules: `arc_prize.py` 92.9, `models_dev.py` 94.0, `terminalbench.py` 90.3, `families.py` 100.
-- Unchanged at 100: `access_served`, `board_tables`, `boards`, `categories`, `sources`, `standings`.
-- `coverage.py` stays at 94.3.
-- `clients/epoch_board.py` reads 91.8 to 91.1. No proof was lost there: the same 9 statements are missed
-  before and after. M21-W1 removed 11 covered statements, which shrinks the denominator.
-- The per-module floor gate is green.
+At `044a309` four touched modules were below their base, each on lines the range added and no test reached:
+`recommend.py:293-294` and `:539-540` (D-218 clause 1's two refusals), `registry.py:1027-1028` (a curated rule with a
+media modality, #378), `subscribe.py:435` (the quality-only plan answer, #378) and `yaml_guard.py:137, 147-148` (the
+recursion catches of the queue-1021 integration review's M2). A coverage drop on a touched module is BLOCKING
+(`permission-matrix.md` section 11), so this review wrote the tests; each is red with its guard removed (faults SU1,
+Y1, Y2, R1, R2, RG1 below). The other touched modules are at or above their base; new modules: `datacurve.py` 98.7,
+`livebench.py` 94.7, `metr.py` 95.5, `osworld.py` 95.0, `simplebench.py` 100.
 
 ## Acceptance-criterion coverage
 
-Each line names the citing test as `file:line` and what it asserts. Every test listed is GREEN at
-`9217c6c`.
+Each line names the citing test as `file:line` and what it asserts. All GREEN at `471bd73`.
 
-**#288: the phone reaches the hosted engine, and the last answer stands in (D-202 clauses 4 and 5)**
-- **Device, no override, gives the hosted engine.** `ios/EngineTests/EngineClientTests.swift:810`, and
-  `:820` for an unusable address. The app's client uses the chosen address: `:852`.
-- **An override gives the override.** `ios/EngineTests/EngineClientTests.swift:829`.
-- **The simulator gives loopback, or what its build was given.**
-  `ios/EngineTests/EngineClientTests.swift:836`. The plist key a phone build sets:
-  `tests/unit/test_engine_address.py:79`.
-- **Stored on success.** `ios/EngineTests/KeptAnswerTests.swift:100` checks the store's own clock and the
-  surface the engine echoed. `tests/unit/test_engine_address.py:122` pins that `ContentView.load()` keeps
-  a fresh answer and a fresh surfaces' list. ContentView is not executed by `swift test`, so this pin is
-  the only hold on it.
-- **Shown with its date when offline.** `ios/EngineTests/KeptAnswerTests.swift:351`, plus `:312`: only
-  an unreachable engine is stood in for. The dated line on the home screen:
-  `tests/unit/test_engine_address.py:122`.
-- **Never shown for another surface.** `ios/EngineTests/KeptAnswerTests.swift:155`, `:165`.
-- **An empty kept surfaces' list is nothing kept.** `ios/EngineTests/KeptAnswerTests.swift:223`, written
-  by this review (fault G02).
-- **Builds for a device and runs in the simulator.** Shown by the xcodebuild runs above, not by a test.
-  client-decls type-checks the device configurations on every `make check`.
+**Run bug-night**
+- **#295 (D-208)** a Turkish verb clause before "yapay zeka" names the task:
+  `ios/EngineTests/TaskBeforeGeneralWordsTests.swift:7`, `:15`, `:23` (the rule's helpers); end to end, the golden
+  question's `known_miss` mark is gone and `ios/EngineTests/GoldenQuestionTests.swift` asserts it (fault SW2b red).
+- **#326** an encoded `..` in the raw path is refused: `tests/unit/test_terminalbench_4.py:158` (T1 red).
+- **#331** ci-diff reads `gp_version` under the marker's comment lines: `conformance/test-ci-diff.py:53`.
+- **#332** `.mcp.json` stays removed (absent at head) and the two record corrections: documents only, held by
+  `make check-records`. No code criterion.
+- **#325** ignored, untracked documents are not graded; tracked ones still are:
+  `tests/unit/test_documents_skip_ignored.py:47`, `:54` (LR1, LR2 red).
+- **#330** a far-off id is a name, not the next place: `conformance/test-next-adr.py:31` (NA1 red).
+- **#328** a timed-out hook call is reported by its case, and fixture git starts no maintenance:
+  `tests/unit/test_bash_guard_conformance_timeout.py:28`, `tests/unit/test_guard_fixture_maintenance.py:28`.
+- **#341** a committed conflict marker fails; a heading underline and a fenced example do not:
+  `tests/unit/test_conflict_markers.py:39`, `:46`, `:51` (CM1 red).
+- **#314 (D-209 clause 6)** a file over the ceiling is refused before it is read, and a test plants one:
+  `ios/EngineTests/KeptAnswerTests.swift:95`, `:279`; the read order: `tests/unit/test_answers_size_before_read.py:30`,
+  `:37` (a source pin; see Test integrity).
+- **#322** aliases, enum payloads, the existential and the unseen allowed sides:
+  `tests/unit/test_kept_answer_provenance.py:197`, `:207`, `:218`, `:236`.
+- **#319 (D-209 clause 5)** review-need derives its policy scripts:
+  `tests/unit/test_review_need_derived_policy.py:24`, `:34`, `:48`, `:64`, `:77`, `:102`, `:111` (RN1 red).
+- **#309 (D-209 clause 8)** a request in a tearDown that skips `super` fails its own test:
+  `ios/EngineTests/WholeTestObserverTests.swift:7`.
+- **Owner bundle #383 (D-209): #256, #287, #305, #317, #318, #320, #344** --
+  `tests/unit/test_bash_guard_bounds.py:814` (#256), `:887` (#287), `:929` (#305), `:956` (#317), `:1057` (#318),
+  `:1007` (#320), `:1176` (#344); G3 red. **#81**: the workflow edits are the owner's; the required checks are held
+  to `ci.yml`'s jobs by `conformance/test-ci-yaml.py:338`, and `governance-contract` is gone from both.
 
-**#289: a golden question set routed and ranked from a pinned snapshot (D-202 clause 2)**
-- **In `make check`.** `ios/EngineTests/GoldenQuestionTests.swift:142` is in
-  `ios/EngineTests/test-manifest.txt` and runs in the swift-test leg. It fails rather than skips when the
-  embedding assets are missing.
-- **30 to 50 questions, both languages, each disputed one says why.**
-  `ios/EngineTests/GoldenQuestionTests.swift:114`.
-- **The top 3 is derived, never hand-written.** `tests/unit/test_golden_questions.py:112`, and the
-  derivation's own tests from `:38`. The Swift family list agrees with the script:
-  `ios/EngineTests/GoldenQuestionTests.swift:132`.
-- **One reviewable file.** `ios/EngineTests/Golden/golden-questions.json`.
-- **Every miss fixed or filed.** `known_miss` carries its issue number. A known miss that starts passing
-  fails the test: `ios/EngineTests/GoldenQuestionTests.swift:177`.
-- **Apart from the held-out sets.** `tests/unit/test_golden_questions.py:161`.
-- **Bundled in the test target only (REQ-APP-001).** `tests/unit/test_golden_questions.py:180`.
+**DevFlow v7.2 (#327, D-207)** -- the project's rules kept where v7.2 meets them are held by the suites above
+(`make check` green). One test changed its assertion with the policy: see Test integrity.
 
-**#273: a language the recogniser is unsure of is not read as English**
-- `ios/EngineTests/UnsureLanguageTests.swift:38`: not read as English.
-- `:48`: answered "not measured".
-- `:66`: a short English line of names and versions stays on the English path.
+**Run night-351 and its follow-ups**
+- **#351** -- the measurement harness: `tests/unit/test_model_tier_score.py:30`, `:39`, `:46`; a text that names an
+  AI is a search unless it instructs the app: `ios/EngineTests/ReadingTests.swift:1006`, `:1024`; the glow:
+  `ios/EngineTests/GlowStyleTests.swift:9`, `:17`; greedy decoding: `ios/EngineTests/RefinementBoundaryTests.swift:109`.
+  The bar is a measurement on m25: see M1.
+- **#348 (D-212 clause 1)** "no eligible model" says what the evidence held: `tests/unit/test_recommend.py:750`.
+- **#354** focus prewarms once, only where the model is ready, and a send without focus still routes:
+  `ios/EngineTests/PrewarmTests.swift:9`, `:15`, `:24` (SW4b, SW5b red).
+- **#355** m25 written, sealed and judged once: `docs/research/reading-heldout-m25-result.md`. A measurement, not a
+  test: see M1.
+- **#361** an instruction only the model reads is not made a search by the AI it names:
+  `ios/EngineTests/ReadingTests.swift:1035`, `:1051` (SW3b red).
+- **#362** the S1 pin reads macOS 26's and macOS 27's schema, and a free string is never a choice:
+  `ios/EngineTests/RefinementBoundaryTests.swift:119`, `:183`, `:191`, `:199`.
+- **#363** a declaration printed with its header is read by every rule that reads its name:
+  `tests/unit/test_client_decl_gate.py:506`; the manifest's sort: `tests/unit/test_swift_test_manifest.py:135`.
+- **#367** the locks pin `certifi==2026.10.19` and `uv==0.13.4` (every lock under `requirements/`, checked here);
+  the advisory is the `deps` leg's to hold, which this seat did not run.
 
-**#218: a short Turkish question that names a model is read as Turkish**
-- `ios/EngineTests/UnsureLanguageTests.swift:91`: read as Turkish.
-- `:107`: answered from everyday.
-- `:126`: an English question with a Turkish-looking word is not read as Turkish.
+**Run night-1021 and the merge of 2026-10-21**
+- **#242 (D-214 clause 1)** nothing refused before is lost, and the twins are refused:
+  `tests/unit/test_client_decl_gate.py:1060`, `:1073`, `:1097`.
+- **#373** `tests/unit/test_client_decl_gate.py:1394` (C1, C2 red). **#374** `:1413` (C4 red).
+  **#375** `:1430`, `:1450` (C5 red). **#371 (D-218 clause 4)** `:1485`, `:1517`, `:1535` (C3 red).
+- **#376 (D-215)** Epoch's WebDev copy and the OpenRouter copies are gone; MMLU/HELM and SWE-bench stay credited:
+  `tests/unit/test_webdev_board.py:39`, `:52`; `tests/unit/test_public_artifact.py:40`, `:61`, `:142`;
+  `tests/unit/test_credits.py:66` (LL1, PB1 red). D-101's amendment passes `make check-records`.
+- **#265 (D-216)** agentic-coding reads Datacurve's own leaderboard: `tests/unit/test_datacurve.py:45`, `:64`, `:72`;
+  `tests/unit/test_datacurve_move.py:33`, `:46`, `:92`; contract: `tests/integration/test_scores_contract.py:39`
+  (DC1, DC2 red).
 
-**#66 and D-203: small talk, text with no meaning, a dictated answer**
-- `ios/EngineTests/ReadingTests.swift:924`: greetings and feelings.
-- `:933`: placeholder text and one word repeated.
-- `:941`: a dictated answer.
-- `:956`: a search that shares their words stays a search.
+**Run queue-1021 and its owner bundle**
+- **#387 (D-217)** the night refreshes on the kept state, keeps only a good night, deploys only past the gate, and
+  runs only on main: `tests/unit/test_nightly_hosted.py:63`, `:91`, `:273`, `:336`, `:373`, `:418` (N3 red). "Fresh
+  with the Mac off" is the owner's to show once the workflow is installed (`docs/owner-actions.md`, the rows of
+  2026-10-21); `.github/workflows/` does not hold it yet.
+- **#389** the step that opens the database holds no token, and the token's step ships only the stamped copy:
+  `tests/unit/test_nightly_hosted.py:200`, `:208`, `:244` (N1, N2, H4 red).
+- **#391** the deploy ships its own checkout: `tests/unit/test_deploy_hosted.py:77`, `:90`, `:108` (H1, H2, H3 red).
+- **#378 (D-218 clause 1)** five media surfaces on quality only:
+  `tests/unit/test_media_surfaces.py:71`, `:123`, `:161`, and `:219` (added here); routing:
+  `ios/EngineTests/MediaRoutingTests.swift:36`, `:57`; contract: `tests/integration/test_arena_openrouter_contract.py:43`
+  (SW6b, SU1 red).
+- **#379 (D-219)** four boards served, six skipped with their reasons in D-219's table:
+  `tests/unit/test_osworld.py:46`, `:152`, `:257`, `:268`; `tests/unit/test_metr.py:40`, `:62`;
+  `tests/unit/test_livebench.py:52`, `:72`; `tests/unit/test_simplebench.py:40`, `:152` (added here);
+  `ios/EngineTests/LongTasksRoutingTests.swift:24`; contracts: `tests/integration/test_scores_contract.py:51`, `:63`
+  (O1-O3, MT1, LB1, SB1, SB2 red).
+- **#405** a quality-only surface is no plan-coverage gap; a priced one at zero still is:
+  `tests/unit/test_coverage.py:449` (CV1 red).
+- **#390** every `gh` spelling that starts a deploy workflow is a deploy:
+  `tests/unit/test_deploy_gate_dispatch.py:196`, `:203`, `:207`, `:247`, `:291`, and through the guard `:334`
+  (D1, D2, D4 red).
+- **#392** no workflow restores a cache, and every install is hash-checked:
+  `tests/unit/test_ci_installs.py:254`, `:298`, `:304`, `:319`, `:359` (CI1 red).
+- **#400** `env -S` read anywhere in a cluster, an unreadable option refused:
+  `tests/unit/test_bash_guard_env_split.py:95`, `:105`, `:121`, `:151`, `:167`, `:172` (G1, G2, G4 red).
 
-**#301: quantum physics reads as expert**
-- `ios/EngineTests/KeywordRoutingTests.swift:79`, English and Turkish. It cited only #289 until this
-  review added #301 to its comment.
+## Red to green on reported symptoms
 
-**#293: example sentences give a plain request a better place than maths**
-- `ios/EngineTests/TurkishEmbeddingTests.swift:201`: an English request for sources.
-- `:208`: Turkish polite sentences.
-- `:220`: maths stays maths.
-- Both golden questions are now asserted in `GoldenQuestionTests.swift:142`. Their `known_miss` marks
-  are gone.
-
-**#292: an agent with its own coding verb reads as agentic coding**
-- `ios/EngineTests/KeywordRoutingTests.swift:172`: the positive cases.
-- `:186`: the negatives, including code written for an agent and an agent in another sentence.
-- `:206`: zip and promo codes. Written by this review (fault G06).
-- `:216`: a user agent or travel agent. Written by this review (fault G06b).
-
-**#294: the 10-percent-brain question is disputed (D-206 clause 3)**
-- `tests/unit/test_golden_questions.py:209`, written by this review. Before it, no test cited #294.
-- The test checks that the question is disputed, that its reason names both `factuality` and `expert`,
-  and that it is no known miss.
-- Red on the set as it stood before #310 (`9dd9a77^1`): all four problems are reported. Green at head.
-
-**#297: `keep` only in the load path, and INV-73 reworded (D-206 clause 4)**
-- `tests/unit/test_kept_answer_provenance.py:39`: a planted `keep` elsewhere is refused.
-- `:151`: the same on a compiled client.
-- INV-73's wording: `tests/unit/test_engine_address.py:171`.
-
-**#279: an XCTestObservation fails a test that reached for the network (D-206 clause 7)**
-- `ios/EngineTests/OfflineTestCase.swift:201`: a planted subclass whose `tearDown` skips `super` is
-  still failed.
-- `tests/unit/test_swift_tests_offline.py:97`: the observer's registration.
-- The `tearDown` check stays as it was: `tests/unit/test_swift_tests_offline.py:82`.
-
-**#304: L1 skips what git ignores and does not track (D-206 clause 5)**
-- `tests/unit/test_language_rule_gitignored.py:47`: an untracked ignored file is not read.
-- `:52`: a tracked file under an ignored path is still read.
-- `:94`: the `ios/.build/` entry has left `.language-allow`.
-
-**#255: `make closing-keywords` (D-206 clause 6)**
-- `tests/unit/test_closing_keywords.py:85`: the `fix: #N` colon form, which is the incident.
-- `:160`: a merge commit's own message is read.
-- `:174`: an empty range is an error, never a pass.
-- `:221`: the target is advisory, not a leg of `check`.
-- Run on `origin/main..ea04b05`: `closing-keywords: none`.
-
-**#258 (#259): new release data is caught up at startup**
-- `tests/unit/test_nightly_refresh.py:168`, four cases.
-- `:184`: the build comes from `APP_BUILD`.
-
-**#207 (D-186 and D-187)**
-- `tests/unit/test_public_artifact.py:35`: no source is left out on TestFlight.
-- The routing half: `KeywordRoutingTests` and `FrontDoorTests`, each citing D-187.
-
-**The DevFlow upgrades, #281 and #306 (D-200, D-205)**
-- D-200 clause 2: `tests/unit/test_wave_check_m21_rules.py:317`.
-- `make secrets` fails closed on an empty set: `tests/unit/test_secrets_scan.py:72`.
-- D-205 clause 3, the project's guard rules ported: `tests/unit/test_bash_guard_bounds.py`, and
-  `conformance/test-bash-guard.py` (543 calls, 0 wrong verdicts).
-- Six tests left `test_wave_check_m21_rules.py` in #281. They were replaced in the same change by their
-  v7.1 forms, as D-200 clause 1 rules. They were not deleted to get to green.
-
-**Red to green on reported symptoms.** Each light-mode fix in the range landed as a red test commit
-before its fix (for example `9cad8f5` for #292, then `ab82d5c`). My fault injections below each re-create
-the defect, and each one now turns its test red.
+Each fix in the range landed after a red test commit (`git log 9217c6c..044a309`: "reproduce #N (red)" for #295,
+#326, #331, #325, #330, #328, #341, #314, #322, #319, #309, #348, #354, #361, #362, #363, #373, #374, #375, #376,
+#387, #389, #391, #371, #378, #379, #390, #405; the owner bundles' agent halves `f716219` and `22a7596`). The fault
+injections below re-create each defect, and each turns its test red at `471bd73`.
 
 ## Fault-injection table
 
-Protocol:
-1. Take the md5 of the file.
-2. Break it with an exact string, found once.
-3. Run the named tests.
-4. Revert in place by string replacement at the injected offset.
-5. Check the md5 again.
+Protocol, one atomic sequence per row, logged by a scratch runner outside the repository: md5 the file; replace one
+exact string that occurs once; run the named tests; revert in place by string replacement at the injected offset; md5
+again. Every file came back byte-identical, and `git status` was clean after each batch apart from this review's own
+test edits. `git checkout` and `git restore` were never used.
 
-Each row is one atomic sequence, logged by the runner (`$TMPDIR/rt-scratch/faults.py`, not committed).
-Every file was restored byte-identical. `git status` was clean after each batch, apart from this review's
-own test edits.
-
-| # | Behaviour broken | File | Tests run | Result |
+| # | Behaviour broken | File | Tests | Result |
 |---|---|---|---|---|
-| F01 | a phone with loopback keeps loopback | `Engine/EngineClient.swift` | DeviceAddressTests | RED (3 tests) |
-| F02 | a kept answer for another surface is shown | `Engine/KeptAnswers.swift` | KeptAnswerTests | RED |
-| F02b | the engine's echo is not checked | `Engine/KeptAnswers.swift` | KeptAnswerTests | RED |
-| F03 | an engine refusal is stood in for | `Engine/KeptAnswers.swift` | KeptAnswerTests | RED |
-| G01 | a kept answer dated ahead is shown | `Engine/KeptAnswers.swift` | KeptAnswerTests | RED |
-| G02 | an empty kept surfaces' list stands in | `Engine/KeptAnswers.swift` | KeptAnswerTests | **GREEN**, then RED with the new test |
-| G03 | eviction drops the newest | `Engine/StandingsStore.swift` | KeptAnswerTests | RED |
-| F04 | `keep` allowed anywhere (#297) | `scripts/client_decl_gate.py` | test_kept_answer_provenance | RED |
-| G10 | a kept answer's type decoded anywhere | `scripts/client_decl_gate.py` | test_kept_answer_provenance | RED |
-| F21 | the typed question is sent as `q` (REQ-RTR-004) | `Engine/EngineClient.swift` | BudgetIsSentTests | RED (2 tests) |
-| F05 | an unsure language reads as English (#273) | `Engine/Router.swift` | UnsureLanguageTests | RED |
-| G07 | word floor 3 to 1 (#273) | `Engine/Router.swift` | UnsureLanguageTests | RED |
-| F06 | Turkish beside model names off (#218) | `Engine/Router.swift` | UnsureLanguageTests | RED |
-| G08 | threshold 0.9 to 0.5 (#218) | `Engine/Router.swift` | UnsureLanguageTests | RED |
-| F07 | no-meaning rule off (D-203) | `Engine/Reading.swift` | GuidingNoteTests | RED |
-| F07b | dictated-answer phrases removed (D-203) | `Engine/Reading.swift` | GuidingNoteTests | RED |
-| F08 | quantum stems removed (#301) | `Engine/Router.swift` | KeywordRoutingTests | RED |
-| F09 | family coverage rounds down (#289) | `Engine/Combine.swift` | GoldenQuestionTests | RED (both golden tests) |
-| F09b | the script's coverage rounds down (#289) | `scripts/golden_questions.py` | test_golden_questions | RED |
-| F10 | agent-with-coding-verb rule off (#292) | `Engine/Router.swift` | KeywordRoutingTests | RED |
-| F10b | the sentence split is off (#292) | `Engine/Router.swift` | KeywordRoutingTests | RED |
-| G05 | a verb before the agent counts (#292) | `Engine/Router.swift` | KeywordRoutingTests | RED |
-| G06 | zip or promo code counts as code (#292) | `Engine/Router.swift` | KeywordRoutingTests | **GREEN**, then RED with the new test |
-| G06b | a user or travel agent counts (#292) | `Engine/Router.swift` | KeywordRoutingTests | **GREEN**, then RED with the new test |
-| F11 | #293's English search examples removed | `Engine/Router.swift` | PlainRequestReadingTests, GoldenQuestionTests | RED (both) |
-| F12 | the observer's block asserts nothing (#279) | `EngineTests/OfflineTestCase.swift` | OfflineGuardTests | RED |
-| F13 | L1 reads ignored files (#304) | `scripts/check_records.py` | test_language_rule_gitignored | RED |
-| F13b | the ignored set loses `--others` (#304) | `scripts/check_records.py` | test_language_rule_gitignored | RED |
-| F14 | the `fix: #N` colon form is missed (#255) | `scripts/closing_keywords.py` | test_closing_keywords | RED |
-| F14b | an empty range passes (#255) | `scripts/closing_keywords.py` | test_closing_keywords | RED |
-| F15 | no startup catch-up for a new release (#258) | `src/app/adapter/nightly.py` | test_nightly_refresh | RED; revert note below |
-| G09 | an `unknown` build catches up (#258) | `src/app/adapter/nightly.py` | test_nightly_refresh | RED |
-| F16 | a source left out of the public artifact (D-186) | `src/app/workflows/public.py` | test_public_artifact | RED |
-| F17 | the budget cap becomes exclusive (REQ-REC-002) | `src/app/workflows/recommend.py` | tests/ | RED (`test_budgets_endpoint.py:55`) |
-| F18 | the rate limiter fails closed (#187) | `src/app/adapter/main.py` | tests/unit | RED (`test_rate_limit.py:67`) |
-| G13 | `/health` is rate-limited | `src/app/adapter/main.py` | tests/unit | RED |
-| F22 | a mutating method on `/v1/budgets` (INV-30) | `src/app/adapter/main.py` | test_api_v1, test_api_config | RED (`test_api_v1.py:517`) |
-| F19 | the deploy gate ignores code changed after the reviewed head (#306) | `scripts/deploy_gate.py` | pytest `-k deploy`: GREEN; `conformance/test-bash-guard.py`: RED | RED in `make check` |
-| G12 | `scripts/*.md` counted as a record (#306) | `scripts/deploy_gate.py` | pytest and conformance | RED |
-| F20 | `make secrets` passes an empty set (#281) | `scripts/secrets_scan.py` | test_secrets_scan | RED |
+| D1 | `gh run rerun` is no deploy (#390) | `scripts/deploy_gate.py` | test_deploy_gate_dispatch | RED |
+| D2 | the dispatches API is no deploy (#390) | `scripts/deploy_gate.py` | test_deploy_gate_dispatch | RED |
+| D4 | a base workflow git cannot show reads as complete | `scripts/deploy_gate.py` | test_deploy_gate_dispatch | RED |
+| H1 | `MODEL_RANKING_REPO` read again (#391) | `scripts/deploy_hosted_engine.sh` | test_deploy_hosted | RED |
+| H2 | a call from another tree not refused (#391) | `scripts/deploy_hosted_engine.sh` | test_deploy_hosted | RED |
+| H3 | git's place variables honoured | `scripts/deploy_hosted_engine.sh` | test_deploy_hosted | RED |
+| H4 | `--ship` ships a copy its stamp does not name (#389) | `scripts/deploy_hosted_engine.sh` | test_nightly_hosted | RED |
+| N1 | the refresh runs beside `FLY_API_TOKEN` (#389) | `scripts/nightly_hosted.sh` | test_nightly_hosted | RED |
+| N2 | the token's step derives from the database (#389) | `scripts/nightly_hosted.sh` | test_nightly_hosted | RED |
+| N3 | a stale gate still deploys the night (#387) | `scripts/nightly_hosted.sh` | test_nightly_hosted | RED |
+| CI1 | an unhashed `pip install` in the night (#392) | `scripts/ci/nightly-hosted.yml` | test_ci_installs | RED |
+| G1 | an unreadable `env` cluster passes (#400) | the guard, a scratch copy | env_split + bounds | RED (3) |
+| G2 | `-S` read only at a word's start (#400's defect) | the guard, a scratch copy | env_split + bounds | RED (15) |
+| G3 | a command substitution read as safe (#344) | the guard, a scratch copy | env_split + bounds | RED (5) |
+| G4 | `env -S` escapes read with the shell's rules (#400) | the guard, a scratch copy | env_split + bounds | RED (26) |
+| T1 | `%` in the raw path passes (#326) | `src/app/clients/terminalbench.py` | test_terminalbench_4 | RED |
+| O1 | OSWorld member size cap off (#379) | `src/app/clients/osworld.py` | test_osworld | RED |
+| O2 | OSWorld resolved-cells cap off (#379) | `src/app/clients/osworld.py` | test_osworld | RED |
+| O3 | OSWorld doctype and entity refusal off (#379) | `src/app/clients/osworld.py` | test_osworld | RED |
+| MT1 | a negative METR horizon kept (#379) | `src/app/clients/metr.py` | test_metr | RED |
+| LB1 | a LiveBench score past 100 kept (#379) | `src/app/clients/livebench.py` | test_livebench | RED |
+| SB1 | an unranked SimpleBench row kept (#379) | `src/app/clients/simplebench.py` | test_simplebench | RED |
+| SB2 | a SimpleBench model listed twice kept twice (#379) | `src/app/clients/simplebench.py` | test_simplebench | **GREEN**, then RED with the new test |
+| DC1 | a Datacurve score outside 0..1 kept (#265) | `src/app/clients/datacurve.py` | test_datacurve | RED |
+| DC2 | the lower of two Datacurve runs kept (#265) | `src/app/clients/datacurve.py` | test_datacurve | RED |
+| CV1 | plan coverage counts unpriced surfaces (#405) | `src/app/workflows/coverage.py` | test_coverage | RED |
+| LL1 | the ingest keeps `openrouter/` copies (#376) | `src/app/clients/litellm.py` | test_public_artifact | RED |
+| PB1 | the public artifact keeps them (#376) | `src/app/workflows/public.py` | test_public_artifact | RED |
+| SU1 | the quality-only plan answer removed (#378) | `src/app/workflows/subscribe.py` | test_media_surfaces | **GREEN** (no test reached it), then RED with the new test |
+| Y1, Y2 | RecursionError let out at the count, the construct | `src/app/workflows/yaml_guard.py` | test_yaml_guard | **GREEN**, then RED with the new test |
+| R1, R2 | a priced row with no price; a priced surface with no window | `src/app/workflows/recommend.py` | test_media_surfaces | **GREEN**, then RED with the new tests |
+| RG1 | a media-modality curated rule ignored (#378) | `src/app/workflows/registry.py` | test_media_surfaces | **GREEN**, then RED with the new test |
+| RN1 | policy tokens are the module names only (#319) | `scripts/review_need.py` | test_review_need_derived_policy | RED |
+| LR1 | `documents()` grades ignored scratch (#325) | `conformance/lib_record.py` | test_documents_skip_ignored | RED |
+| LR2 | a tracked file under an ignored path skipped (#325) | `conformance/lib_record.py` | test_documents_skip_ignored | RED |
+| NA1 | a far-off id is the last place (#330) | `scripts/next_adr.py` | conformance/test-next-adr.py | RED |
+| CM1 | the lone separator is no marker (#341) | `scripts/conflict_markers.py` | test_conflict_markers | RED |
+| C1 | a curried call on the type not read (#373) | `scripts/client_decl_gate.py` | test_client_decl_gate | RED (the compiled self-test) |
+| C2 | a key path from a served struct not read (#373) | `scripts/client_decl_gate.py` | test_client_decl_gate | RED (the compiled self-test) |
+| C3 | the numeric generic rule off (#371) | `scripts/client_decl_gate.py` | test_client_decl_gate | RED |
+| C4 | a store URL through a subscript not read (#374) | `scripts/client_decl_gate.py` | test_client_decl_gate | RED (the compiled self-test) |
+| C5 | an edited pin reads as intact (#375) | `scripts/client_decl_gate.py` | test_client_decl_gate | RED |
+| SW1 | the size not read before the bytes (#314) | `Engine/StandingsStore.swift` | test_answers_size_before_read; KeptAnswerTests | RED (the pin); KeptAnswerTests GREEN, 21 executed |
+| SW2b | the verb-clause rule off (#295) | `Engine/Router.swift` | GoldenQuestionTests | RED |
+| SW3b | the model's instruction attempt not carried (#361) | `Engine/Router.swift` | GuidingNoteTests | RED |
+| SW4b | kept focus prewarms again (#354) | `Engine/FrontDoor.swift` | PrewarmTests | RED |
+| SW5b | prewarm where the model is not ready (#354) | `Engine/FrontDoor.swift` | PrewarmTests | RED |
+| SW6b | "draw a conclusion" makes a picture (#378) | `Engine/Router.swift` | MediaRoutingTests | RED |
 
-Notes on the table:
-- **F19.** No pytest test holds the deploy gate's head comparison. `conformance/test-bash-guard.py` does,
-  through the deploy-gate cases, and it runs in `make check`. No test was needed.
-- **F15's first revert.** The runner first reverted by replacing the first occurrence of the injected
-  text. A twin line at `nightly.py:361` matched first, so the md5 differed. I repaired it in place by
-  string replacement: the md5 is back to `78ed5840839c0d94b2bfb014c79a14c8`, as before the injection.
-  `git checkout` was never used. The runner then changed to revert at the injected offset. The red result
-  was not affected: the injection hit the right line.
-- **F01, F07 and F07b, first run.** They first ran under a filter that matched no test, or the wrong
-  class, so they showed green with 0 or unrelated tests. I re-ran them under the right class, and all
-  three went red. That was the runner's error, not a hole in the suite.
-- **Not injected:** `.claude/hooks/bash_guard.py`. It is the owner's file, and this seat may not write
-  into `.claude/`. The v7.1.2 upgrade's four security rounds fault-tested it
-  (`docs/reviews/devflow-v7.1.2-upgrade-security.md`), and conformance runs 543 cases against it.
+Notes:
+- **The guard (G1-G4).** `.claude/hooks/bash_guard.py` is the owner's, and this seat writes nothing under `.claude/`.
+  The guard was copied byte for byte (same md5) under the worktree's gitignored `build/`, and
+  `test_bash_guard_env_split.py` and `test_bash_guard_bounds.py` were copied beside it with only their `GUARD_DIR`
+  line pointed at the copy; the unmodified copy passed 782 of 782 first. The copies were deleted afterwards.
+- **The first Swift runs.** SW2 and SW3 first ran under a filter that named a helper class (`TaskBeforeGeneralWordsTests`)
+  and the file's name rather than its class (`ReadingTests`), and stayed green. Re-run under the classes that hold the
+  behaviour (`GoldenQuestionTests`, `GuidingNoteTests`), both went red. That was the runner's filter, not a hole.
+- **SW1.** Removing the size check leaves behaviour unchanged when the file is read and then refused by its length,
+  so only the source pin catches it. The pin is red; see Test integrity.
 
-**Mutation kill-rate (advisory).** No mutation runner is wired for this stack. Of the 40 hand-made
-faults, 37 were killed by the suite as it stood at `ea04b05`. All 40 are killed at `9217c6c`.
+**Mutation kill-rate (advisory).** No mutation runner is wired for this stack. Of the 50 hand-made faults, 43 were
+killed by the suite at `044a309` (SW1 by its source pin); all 50 are killed at `471bd73`. Y1, Y2, R1, R2 and RG1 were
+aimed at lines the coverage read showed no test reached, so they were green by construction.
 
-## Test-integrity checks
-- **Mirror-implementation tests.** Two pins read the code rather than run it:
-  `tests/unit/test_engine_address.py:122` (ContentView, which `swift test` cannot run) and
-  `tests/unit/test_swift_tests_offline.py:97`. Both say so. The behaviour behind the second is also
-  proven by an executed test (`OfflineTestCase.swift:201`, F12 red).
-- **Golden test against a mirror.** The golden top 3 is derived by a Python script and computed by Swift
-  `combineFamily`, two separate implementations held equal at `GoldenQuestionTests.swift:132`. F09 and
-  F09b each turn red alone.
-- **Weakened or deleted to green.** I checked from `e588910` (run product-night's base) to `ea04b05`: no
-  test deleted, no manifest line removed, no skip or xfail added. Across the whole range the six removals
-  in #281 are D-200 replacements (above). The manifest's 6 removed lines sit inside heavy-mode waves
-  that had their own Testers.
-- **Security-invariant tests.** None was weakened. INV-73's test was reworded with its invariant (#297,
-  D-206 clause 4, owner-approved).
+## Test integrity
 
-## Mocks / contract tests
-- **No new external integration in (a).** The phone reaches the hosted engine through the same
-  `EngineClient`, with the same URLProtocol stubs (`OfflineTestCase`, `DecliningStub`).
-- **Live contract tests.** The engine's upstream clients added in the range (`arc_prize`,
-  `models_dev`, `terminalbench`) have live contract tests in `tests/integration/test_scores_contract.py`.
-  They are skipped without `RUN_CONTRACT_TESTS=1` and run in CI's contract job (`docs/skip-budget.txt`).
-  Those heavy-mode waves' Testers covered them.
+- **Weakened or deleted to green.** Across the range no skip, `xfail` or `XCTSkip` was added. Removed test functions,
+  each checked: three Swift image-routing tests (`74d6b6a`, #378 changed the behaviour by D-218 clause 1, and the
+  replacements are in `MediaRoutingTests`); `test_local_client_*` (`9bfa886`, the dataset fallback left with #265);
+  the OpenRouter and WebDev tests (`01814d2`, replaced by the #376 tests above). One assertion changed with a policy:
+  `tests/unit/test_review_need_sensitive_paths.py` now expects `none` for a sensitive name with no HIGH path
+  (`ad7c2ad`), as D-207 clause 1 states, and still fails the `hit = []` mutant. `conformance/test-agents-2a.py` and
+  `conformance/test-schema-sync.py` left with the v7.2 apply (`7c45a5b`); see M3. No security-invariant test was
+  weakened.
+- **Mirror tests.** `tests/unit/test_answers_size_before_read.py:30` reads the source for the order of the size
+  check and the read; it says so, and no executed test can see the order. `test_bash_guard_bounds.py`'s settings pin
+  and `test_nightly_hosted.py`'s workflow-shape tests read files by design.
+- **Canonical mocks.** The new sources are faked through `app.clients.fakes.FakeRawSource` and `respx`, as every
+  source is; no bespoke stub appeared. Each new source has a live contract test (above), green in CI at `044a309`.
 
 ## BLOCKING
-- none
+- none open. Found and closed in this review: the coverage drops on `recommend.py`, `registry.py`, `subscribe.py`
+  and `yaml_guard.py`, and the green faults SB2 and SU1 (tests in "Tests added").
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
-- **M1** `conformance/lib_record.py:187` (`documents()`), read by `conformance/test-documented-paths.py`.
-  - What is wrong: the gate grades untracked, gitignored Markdown under `build/`, the directory the rules
-    name for a seat's scratch. Its PASS line says "files seen via git".
-  - What happened here: `make check` went red on this seat's scratch notes.
-  - Filed as **#325**: `bug`, `severity:low`, `Triage verdict: work-issue`. It is a gate change, so it
-    is the owner's to approve.
+- **M1** `docs/research/reading-heldout-m25-result.md` and D-214 clause 2 -- #351's bar as the owner first set it
+  (#351's comment, "as proposed", and #355's body) was at least 85% of searches right and beats the wording tier on
+  both; D-214 clause 2 restates it as 80% and 80%, citing D-212 clause 3, which names no number. m25 read 82.7% of
+  searches, and the wording tier's m25 score is not recorded. #351 and #355 closed on the 80% bar. A criteria-meaning
+  question, so it is the owner's: confirm that D-214's bar is the bar, or record the wording tier on m25 and reopen.
+- **M2** `.github/workflows/ci.yml` (`timeout-minutes: 15` for the test job) -- `test (py3.12)` was cancelled at its
+  limit on the last three pushes to main (`3c7f797`, `a57445b`, `044a309`), each with no failing test; #406 recorded
+  one such cancel. The release head's py3.12 proof is PR #409's run on the identical tree. Owner-only (workflow
+  change): add this evidence to #406.
+- **M3** `conformance/test-schema-sync.py` (removed in `7c45a5b`) -- the check that `schemas/record.schema.json` says
+  what `scripts/check_records.py` enforces left with the v7.2 apply, while D-207 clause 4 keeps the schema. Run from
+  `9217c6c` against `471bd73` it still passes, so nothing has drifted yet, but nothing now notices drift. Restore it as
+  a project test, or file it.
+
+## Known open gaps carried into the release (filed before this review)
+#401 (deploy spellings the gate does not see), #403 (a media name that resolves to a priced text model), #404 (two
+OSWorld fixes with no test), #396 (four #371 rebuild shapes), #406 and #408 (py3.12 CI timing and a memory-ceiling
+flake). None is a criterion of an issue this range closed.
 
 ## Tests added this review
-
-- `tests/unit/test_golden_questions.py:209`
-  - Proves: #294 (D-206 clause 3).
-  - Red to green: red on the set as it stood before #310, green at head.
-- `ios/EngineTests/KeptAnswerTests.swift:223`
-  - Proves: #288, that an empty kept surfaces' list is nothing kept.
-  - Red to green: red on G02, green at head.
-- `ios/EngineTests/KeywordRoutingTests.swift:206`
-  - Proves: #292, that a zip, promo or postal code is no coding object.
-  - Red to green: red on G06, green at head.
-- `ios/EngineTests/KeywordRoutingTests.swift:216`
-  - Proves: #292, that a user agent or travel agent is no coding agent.
-  - Red to green: red on G06b, green at head.
-- `ios/EngineTests/KeywordRoutingTests.swift:76`
-  - Proves: #301, now cited by its existing test (comment only).
-- `ios/EngineTests/test-manifest.txt`
-  - The three new Swift tests, regenerated with `swift test --list-tests | sort`.
-  - The diff is exactly those three lines.
-
-## Issues filed
-- **#325**: test-documented-paths grades gitignored documents under `build/`, so a scratch note turns
-  `make check` red. Labels `bug`, `severity:low`. `Triage verdict: work-issue`.
+- `tests/unit/test_simplebench.py:152` -- #379 (REQ-SRC-013): a model listed twice is one row, the first. Red on SB2.
+- `tests/unit/test_media_surfaces.py:219` -- #378 (D-218 clause 1, #405): a quality-only surface gives no plan
+  answer under any budget. Red on SU1.
+- `tests/unit/test_media_surfaces.py:236` -- D-218 clause 1: a priced row with no price is refused. Red on R1.
+- `tests/unit/test_media_surfaces.py:254` -- D-218 clause 1: a priced surface with no value window is refused. Red on R2.
+- `tests/unit/test_media_surfaces.py:272` -- #378: a curated rule that declares a media modality names the media model.
+  Red on RG1.
+- `tests/unit/test_yaml_guard.py:372` -- the queue-1021 integration review's M2: RecursionError at the count and the
+  construct steps is the guard's error. Red on Y1 and Y2.

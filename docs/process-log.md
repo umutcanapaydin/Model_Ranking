@@ -1217,3 +1217,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `plan_surfaces()` reads `CategorySpec.priced`, so plan coverage and plan evidence health cover the priced surfaces only. The JSON lists the rest under `unpriced_surfaces`, and a priced surface left at zero still exits 1.
 - Red, then green: `test_a_surface_ranked_on_quality_only_is_no_plan_coverage_gap`, committed alone first.
 - Lesson: a new kind of surface must be replayed against every report that loops over the surfaces, because the local gate never runs the network-only contract job, and that job was the one that went red.
+
+## 2026-10-23 · release/v0.1.0 — the release verdicts for 958458d..660af4b, and the first tagged release's record
+
+- `/going-live`: `make deploy-check` failed on both verdicts (206 code files since their heads). The Tester ran first, in its own worktree, over `9217c6c..044a309`: MINOR, with 50 faults injected; 7 stayed green and got tests (`3e227ae`, `471bd73`). Then the Security-Reviewer at the Tester's head, over `958458d..660af4b`: PASS WITH FINDINGS, MINOR 3.
+- `make deploy-check` is PASS on this branch. Nothing deployed: the deploy is the owner's (`docs/owner-actions.md`, 2026-10-23 rows).
+- Filed: #410 (the deploy gate's DevFlow-file exemption trusts a local tag and `.gp/installed`; gate-definition, escalated), #411, #412, #413; evidence added to #406. The Tester's M1 (#351's bar) is a ruling row for the owner.
+- `docs/releases/v0.1.0.md` written from the template; the owner tags and publishes it after the deploy.
+- Lesson: a review seat's own probe found a gate exemption that reads two agent-writable inputs (a local tag and an untracked marker); an exemption from a gate is itself a gate input, and is graded like one.
