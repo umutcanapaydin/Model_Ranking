@@ -9,6 +9,7 @@ as the schema says fails the refresh (closed), never excuses everything.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -98,3 +99,116 @@ def test_a_file_that_is_not_the_schema_fails_closed(raw: str) -> None:
 
 def test_a_file_with_no_cuts_excuses_nothing() -> None:
     assert refresh.parse_accepted_cuts("cuts: []\n") == {}
+
+
+# --- The release Tester's fault injections on #416 (2026-10-23): each test below went red on a fault
+# the tests above stayed green on.
+
+@pytest.mark.parametrize("raw", [
+    "cuts: {}\n",                                           # `cuts` is not a list
+    "cuts: epoch_chess\n",
+    "cuts:\n  - board: epoch_chess\n    decision: D-220\n    reason: r\n    rows: [a]\n    expires: never\n",
+    "cuts:\n  - board: epoch_chess\n    decision: D-220\n    reason: r\n    rows: [a]\n"
+    "  - board: epoch_chess\n    decision: D-220\n    reason: r\n    rows: [b]\n",   # one board named twice
+    "cuts:\n  - board: epoch_chess\n    decision: D-22\n    reason: r\n    rows: [a]\n",
+    "cuts:\n  - board: epoch_chess\n    decision: 220\n    reason: r\n    rows: [a]\n",
+    "cuts:\n  - board: epoch_chess\n    decision: see D-220\n    reason: r\n    rows: [a]\n",
+    "cuts:\n  - board: epoch_chess\n    decision: D-220\n    reason: '  '\n    rows: [a]\n",
+    "cuts:\n  - board: epoch_chess\n    decision: D-220\n    reason: 1\n    rows: [a]\n",
+], ids=["cuts-a-map", "cuts-a-string", "an-extra-key", "a-board-twice", "a-short-adr-id", "an-adr-number",
+        "an-adr-in-prose", "a-blank-reason", "a-number-for-a-reason"])
+def test_a_cut_that_bends_the_schema_fails_closed(raw: str) -> None:
+    """D-220 clause 3: each cut has exactly its four keys, one board once, an ADR id and a reason."""
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_cuts(raw)
+
+
+def test_an_unreadable_file_on_disk_raises_and_a_missing_one_excuses_nothing(tmp_path: Path) -> None:
+    bad = tmp_path / "accepted-cuts.yaml"
+    bad.write_text("cuts: {}\n", encoding="utf-8")
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.load_accepted_cuts(bad)
+    assert refresh.load_accepted_cuts(tmp_path / "absent.yaml") == {}
+
+
+def _second_spelling(*indexes: int, linked: bool) -> object:
+    """A second row for each named probe, `Probe 00` beside `probe-00` (one spelling key) unlinked, or
+    `Probe 00 alt` linked to the same model: a board of sixteen rows."""
+    def change(conn: sqlite3.Connection) -> None:
+        if not linked:
+            conn.execute("UPDATE scores SET model_id = NULL WHERE source = ?", (SLICE.source,))
+        for i in indexes:
+            conn.execute(
+                "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+                " source_url, observed_at) SELECT model_id, ?, source, benchmark, metric, score, harness,"
+                " effort, source_url, observed_at FROM scores WHERE source = ? AND raw_name = ?",
+                (f"Probe {i:02d} alt" if linked else f"probe-{i:02d}", SLICE.source, f"Probe {i:02d}"))
+    return change
+
+
+@pytest.mark.parametrize("linked", [False, True], ids=["unlinked", "linked"])
+def test_a_named_row_excuses_one_row_not_every_row_of_its_model_or_key(tmp_path: Path, linked: bool) -> None:
+    """D-220 clause 3 names rows, not models or keys. Sixteen rows; both rows of four probes go, and the
+    cut names one spelling of each: four rows excused, four lost, a quarter, refused."""
+    def both_spellings_gone(conn: sqlite3.Connection) -> None:
+        for i in range(4):
+            conn.execute("DELETE FROM scores WHERE source = ? AND raw_name IN (?, ?)",
+                         (SLICE.source, f"Probe {i:02d}", f"Probe {i:02d} alt" if linked else f"probe-{i:02d}"))
+
+    base = _second_spelling(0, 1, 2, 3, linked=linked)
+    reasons = _judged(tmp_path, both_spellings_gone, cuts={SLICE.source: _names(0, 1, 2, 3)}, base=base)
+    assert any(reason.startswith(f"{BOARD} would lose 4 of 16") for reason in reasons), reasons
+
+
+def _cuts_on_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str | None) -> None:
+    """Point the refresh at a cuts file of the test's own (`load_accepted_cuts` binds its path as a
+    default, so the default is what is patched)."""
+    path = tmp_path / "cuts" / "accepted-cuts.yaml"
+    if text is not None:
+        path.parent.mkdir()
+        path.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(refresh.load_accepted_cuts, "__defaults__", (path,))
+
+
+def _night_dropping_three(tmp_path: Path) -> tuple[Path, tuple[refresh.RefreshOutcome, int]]:
+    live = _boards(tmp_path / "advisor.db")
+
+    def build(argv: list[str]) -> int:
+        _boards(Path(argv[argv.index("--db") + 1]), _drop(0, 1, 2))  # type: ignore[arg-type]
+        return 0
+
+    return live, refresh.refresh(live, builder=build)
+
+
+CUT_OF_THREE = (f"cuts:\n  - board: {SLICE.source}\n    decision: D-220\n    reason: a probe\n"
+                "    rows: ['Probe 00', 'Probe 01', 'Probe 02']\n")
+
+
+@pytest.mark.parametrize("on_disk", [True, False], ids=["the-cut-on-disk", "no-file"])
+def test_the_refresh_reads_the_cuts_file_through_its_real_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, on_disk: bool
+) -> None:
+    """Through `refresh()`: the file on disk, not a `cuts=` argument, is what the nightly guard applies."""
+    _cuts_on_disk(tmp_path, monkeypatch, CUT_OF_THREE if on_disk else None)
+    _, (outcome, code) = _night_dropping_three(tmp_path)
+    assert code == (refresh.EXIT_PUBLISHED if on_disk else refresh.EXIT_REFUSED), outcome.reason
+
+
+def test_a_malformed_cuts_file_fails_the_night_and_leaves_the_live_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fails closed through `refresh()`: the cycle stops, is recorded as failed, publishes nothing."""
+    _cuts_on_disk(tmp_path, monkeypatch, CUT_OF_THREE.replace("D-220", "D-22"))
+    live = _boards(tmp_path / "advisor.db")
+    before = live.read_bytes()
+
+    def build(argv: list[str]) -> int:
+        _boards(Path(argv[argv.index("--db") + 1]), _drop(0, 1, 2))  # type: ignore[arg-type]
+        return 0
+
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.refresh(live, builder=build)
+    assert live.read_bytes() == before
+    record = json.loads(refresh.status_path(live).read_text(encoding="utf-8"))
+    assert record["exit_code"] == refresh.EXIT_FAILED, record
+    assert "AcceptedCutError" in record["reason"], record
