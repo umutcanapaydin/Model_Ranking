@@ -1233,3 +1233,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red first (`520520c`, after the ADR in `9bdce37`), then the fix. The real guards on the 2026-10-23 candidate give 0 degradations and 0 anomalies; 20 surfaces answer instead of 12, and `arena` links 249 rows instead of 242.
 - The existing expiry test caught a defect in the first fix: as NamedTuples, `UnlinkedRow('zorblax0', 0)` equalled `LinkedRow('zorblax0', 0)`, so a row that lost its link read as kept.
 - Lesson: two NamedTuple row kinds in one set compare as plain tuples, so a type that names a different identity needs its own equality, not a different class name.
+
+## 2026-10-23 · release/v0.1.0 (delta) — the release verdicts brought past #416 before the hosted deploy
+
+- #416 changed code after both release verdicts' heads, so `make deploy-check` failed on both. The owner had already installed it on the Mac, which published at `release-55cf42e` with no carried source.
+- The Tester's delta over `471bd73..55cf42e` is MINOR. It injected 29 faults. Its tests `91eff48` and `9d3cf0e` turn 12 of the faults that stayed green red; 3 stay green with no effect on the recorded names.
+- The Security-Reviewer's delta over `660af4b..9208fd8` is PASS WITH FINDINGS, MINOR 4.
+- Filed and triaged: #417 (the bracket reading is quadratic), #418 (the accepted-cuts control: excused by model, never retired, routed to no security review), #419 (`GPT-4o (image)` escapes the modality guard).
+- `make deploy-check` is PASS. The release record and the owner's hosted-deploy row are updated.
+- Lesson: an accepted exception needs its retirement written in the same change, because "once" in an ADR is not a control unless something expires it.
