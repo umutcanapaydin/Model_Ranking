@@ -27,6 +27,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import signal
 import sqlite3
@@ -36,10 +37,13 @@ import sys
 import tempfile
 import threading
 import time
+from collections import Counter
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import NamedTuple, TypeVar
+
+import yaml
 
 from app.clients import epoch_bundle
 from app.clients.protocols import cycle_budget
@@ -54,6 +58,7 @@ from app.workflows.recommend import BUDGETS, eligible_for, round_optional_score,
 from app.workflows.registry import MODEL_RULES
 from app.workflows.schema import open_readonly
 from app.workflows.serving_bounds import bounds_from_env, egress_problems
+from app.workflows.yaml_guard import safe_load_bounded
 
 # NOTHING IS IMPORTED FROM `app.adapter`, and that is REQ-REF-007 rather than tidiness. D-116 keeps
 # ingestion off the serving host; a refresh that imports the adapter to borrow a helper has reached
@@ -229,9 +234,24 @@ class LinkedRow(NamedTuple):
     copy: int
 
 
-#: A board row as the guards compare it: linked, or, where the reconcile linked no model, its raw
-#: name, as every row was compared before #100.
-BoardRow = str | LinkedRow
+@dataclass(frozen=True)
+class UnlinkedRow:
+    """A board row the reconcile linked to no model, as the board guards compare it (#415, D-220).
+
+    By its spelling key, not its raw name: LMArena re-spelled every model on 2026-10-13
+    (`claude-3-5-sonnet-20240620` -> `Claude 3.5 Sonnet (20240620)`), and a raw name read each such row
+    as lost and new. `copy` numbers the rows of one key, as `LinkedRow.copy` numbers a model's. A
+    dataclass, not a NamedTuple: as tuples, the unlinked key `zorblax0` and the model `zorblax0` were
+    one row, and a row that lost its link read as kept.
+    """
+
+    key: str
+    copy: int
+
+
+#: A board row as the guards compare it: linked, or, where the reconcile linked no model, by its
+#: spelling key (D-220 clause 1).
+BoardRow = UnlinkedRow | LinkedRow
 
 #: model id -> the raw names its rows on one board arrived under: what a re-spelling changes.
 Spellings = dict[str, frozenset[str]]
@@ -242,15 +262,79 @@ _Item = TypeVar("_Item")
 def board_identities(rows: Iterable[tuple[str, str | None]]) -> tuple[frozenset[BoardRow], Spellings]:
     """A board's rows, (raw name, model id), as the guards compare them, and each linked model's
     spellings for the night's record (#100)."""
-    unlinked: set[str] = set()
+    unlinked: Counter[str] = Counter()
     spellings: dict[str, list[str]] = {}
     for raw_name, model_id in rows:
         if model_id is None:
-            unlinked.add(raw_name)
+            unlinked[spelling_key(raw_name)] += 1
         else:
             spellings.setdefault(model_id, []).append(raw_name)
     linked = {LinkedRow(model, copy) for model, names in spellings.items() for copy in range(len(names))}
-    return frozenset(unlinked | linked), {model: frozenset(names) for model, names in spellings.items()}
+    keyed = {UnlinkedRow(key, copy) for key, count in unlinked.items() for copy in range(count)}
+    return frozenset(keyed | linked), {model: frozenset(names) for model, names in spellings.items()}
+
+
+def spelling_key(raw_name: str) -> str:
+    """A name's letters, digits and `+`, in lower case (D-220 clause 1). The `+` stays: `Command R+` and
+    `Command R` are two models."""
+    return re.sub(r"[^a-z0-9+]", "", raw_name.lower())
+
+
+#: D-220 clause 3: the cuts the owner accepted, board by board, each named row by row.
+ACCEPTED_CUTS_PATH = Path(__file__).resolve().parents[3] / "data" / "accepted-cuts.yaml"
+_CUT_KEYS = {"board", "decision", "reason", "rows"}
+
+
+class AcceptedCutError(ValueError):
+    """`data/accepted-cuts.yaml` is not its schema: the refresh fails, it never excuses everything."""
+
+
+def parse_accepted_cuts(raw: str) -> dict[str, frozenset[str]]:
+    """Each declared board's accepted cut: the raw names it may lose. Anything else in the file raises."""
+    try:
+        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
+    except yaml.YAMLError as exc:
+        raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
+    if not isinstance(doc, dict) or set(doc) != {"cuts"} or not isinstance(doc["cuts"], list):
+        raise AcceptedCutError("accepted cuts: the file is one key, `cuts`, a list")
+    known = {board.source for board in declared_boards.uncovered()}
+    cuts: dict[str, frozenset[str]] = {}
+    for entry in doc["cuts"]:
+        if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
+            raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
+        board, decision, reason, rows = (entry[key] for key in ("board", "decision", "reason", "rows"))
+        if board not in known or board in cuts:
+            raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board, or is named twice")
+        if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3}", decision):
+            raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
+        if not isinstance(reason, str) or not reason.strip():
+            raise AcceptedCutError(f"accepted cuts: {board} gives no reason")
+        if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and r for r in rows):
+            raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names")
+        cuts[board] = frozenset(rows)
+    return cuts
+
+
+def load_accepted_cuts(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozenset[str]]:
+    """The committed cuts. A missing file excuses nothing; an unreadable one raises."""
+    if not path.exists():
+        return {}
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise AcceptedCutError(f"accepted cuts: {path} cannot be read: {exc}") from exc
+    return parse_accepted_cuts(raw)
+
+
+def _excused(lost: frozenset[BoardRow], spellings: Spellings, names: frozenset[str]) -> int:
+    """How many of a board's lost rows an accepted cut names (D-220 clause 3): a model's lost rows up
+    to its spellings the cut names, an unlinked row's by its key."""
+    keys = Counter(spelling_key(name) for name in names)
+    lost_by_key = Counter(row.key for row in lost if isinstance(row, UnlinkedRow))
+    lost_by_model = Counter(row.model for row in lost if isinstance(row, LinkedRow))
+    return (sum(min(count, keys[key]) for key, count in lost_by_key.items())
+            + sum(min(count, len(spellings.get(model, frozenset()) & names))
+                  for model, count in lost_by_model.items()))
 
 
 def _mostly_new(
@@ -280,12 +364,14 @@ def _mostly_new(
 
 def _mostly_lost(
     live: Mapping[str, frozenset[BoardRow]], candidate: Mapping[str, frozenset[BoardRow]],
-    subject: str, why: str,
+    subject: str, why: str, excused: Callable[[str, frozenset[BoardRow]], int] | None = None,
 ) -> list[str]:
-    """D-128's limit on a board's rows: every board that would lose a quarter or more of them."""
+    """D-128's limit on a board's rows: every board that would lose a quarter or more of them, less
+    the rows an accepted cut names (`excused`, D-220 clause 3)."""
     reasons: list[str] = []
     for name, was in sorted(live.items()):
-        lost = len(was - candidate.get(name, frozenset()))
+        gone = was - candidate.get(name, frozenset())
+        lost = len(gone) - (excused(name, gone) if excused is not None else 0)
         if was and lost >= len(was) * MAX_SURFACE_LOSS:
             reasons.append(
                 f"{subject.format(name=name)} would lose {lost} of {len(was)} rows "
@@ -418,7 +504,9 @@ def board_respellings(live: ServingSummary, candidate: ServingSummary) -> list[s
     ]
 
 
-def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
+def degradations(
+    live: ServingSummary, candidate: ServingSummary, cuts: Mapping[str, frozenset[str]] | None = None
+) -> list[str]:
     """Every way the candidate would be WORSE than what is being served. Empty means it is safe.
 
     Reasons are returned rather than a boolean, because the operator's first question on a refusal
@@ -450,8 +538,16 @@ def degradations(live: ServingSummary, candidate: ServingSummary) -> list[str]:
 
     # D-164 clause 2: every declared board, by the same limit. An expired board's rows are already
     # gone from `live` on an expiry night (`_served_without`), so its drop is excused exactly.
+    # D-220 clause 3: a cut the owner accepted in `data/accepted-cuts.yaml`, named row by row.
+    accepted = load_accepted_cuts() if cuts is None else cuts
+
+    def excused(name: str, gone: frozenset[BoardRow]) -> int:
+        names = accepted.get(name)
+        spellings = live.spellings.get(DECLARED_BOARD.format(name=name), {})
+        return _excused(gone, spellings, names) if names else 0
+
     reasons += _mostly_lost(live.boards, candidate.boards, DECLARED_BOARD,
-                            "a board is published content and is guarded as one (D-164)")
+                            "a board is published content and is guarded as one (D-164)", excused)
 
     # #42 (D-173 clause 3): the phone filters on accessibility, so a truncated model_metadata.csv
     # empties the filter on a night that still publishes. A quarter lost refuses, as D-128's boards.
