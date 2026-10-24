@@ -330,20 +330,40 @@ def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str)
     board, decision, reason, until, rows = (entry[key] for key in ("board", "decision", "reason", "until", "rows"))
     if board not in known:
         raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board")
-    if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3}", decision):
+    if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3,}", decision):
         raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
-    if not re.search(rf"^## {re.escape(decision)} \u2014", decisions, re.M):
-        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} is not in docs/decisions.md")
+    _check_cut_adr(board, decision, decisions)
     if not isinstance(reason, str) or not reason.strip():
         raise AcceptedCutError(f"accepted cuts: {board} gives no reason")
     expiry = _cut_expiry(until)
-    if expiry is None or expiry < today:
-        raise AcceptedCutError(f"accepted cuts: {board}'s cut has no `until:` date, or it has passed ({until})")
+    if expiry is None or not today <= expiry <= today + dt.timedelta(days=MAX_CUT_DAYS):
+        raise AcceptedCutError(f"accepted cuts: {board}'s cut has no `until:` date, or it is past, or more than "
+                               f"{MAX_CUT_DAYS} days out ({until}; D-223 clause 2)")
     # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
     # excuse a lost unlinked row of any such name.
     if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and spelling_key(r) for r in rows):
         raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names, each with a letter or digit")
     return board, frozenset(rows)
+
+
+#: D-223 clause 2 (#429): a cut is a short exception; renewing it past this takes a new ADR.
+MAX_CUT_DAYS = 30
+_FENCED = re.compile(r"^```.*?^```[^\n]*$", re.M | re.S)
+
+
+def _check_cut_adr(board: str, decision: str, decisions: str) -> None:
+    """D-223 clause 3 (#429): the ADR is a header of the log outside any code block, is not superseded, and names
+    the cut's board."""
+    log = _FENCED.sub("", decisions)
+    header = re.search(rf"^## {re.escape(decision)} \u2014", log, re.M)
+    if header is None:
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} is not in docs/decisions.md")
+    following = re.search(r"^## ", log[header.end():], re.M)
+    section = log[header.start(): header.end() + following.start()] if following else log[header.start():]
+    if re.search(r"\*\*Superseded by|\*\*Status:\*\* superseded", section):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} is superseded")
+    if not re.search(rf"(?<![\w-]){re.escape(board)}(?![\w-])", section):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} does not name {board}")
 
 
 def _cut_expiry(until: object) -> dt.date | None:

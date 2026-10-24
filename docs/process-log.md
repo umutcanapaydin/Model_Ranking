@@ -1325,3 +1325,14 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The v7.2 apply removed the conformance schema-sync test, while D-207 clause 4 kept `schemas/record.schema.json`. Nothing noticed drift. `tests/unit/test_record_schema_sync.py` restores the check as a project test: the record-type and status enums and the required fields equal `check_records.py`'s constants, failing closed on an empty set.
 - Proven both ways: a planted drift in the real file fails it, and the file was restored byte-identical (md5).
 - Lesson: when an upgrade removes a check whose subject the project kept, the check moves into the project in the same change, not later.
+
+## 2026-10-24 · fix/issue-429-cut-edges — an accepted cut expires within 30 days, under an ADR that names its board (run v020)
+
+- D-223 clauses 2 and 3 (the #418 security review's M1, M2 and R2):
+  - a cut's `until:` is at most 30 days out;
+  - its ADR must be a header outside any code block, not superseded, and naming the cut's board;
+  - ids past D-999 are read;
+  - an unreadable log has a test that it fails closed.
+- R1 takes no route (D-223 clause 4).
+- Red first. The fixtures that relied on the looser rules now carry a near expiry and a log that names the probe's board.
+- Lesson: an exception's expiry needs an upper bound as well as a lower one, or a date far in the future is a permanent exception written as a temporary one.
