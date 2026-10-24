@@ -1285,3 +1285,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `\n\s*\];` let `\s*` cross newlines, so a page with no closing `];` was quadratic: 200k newlines took about a minute. `[ \t]*` cannot cross a newline, so the same page now fails at once.
 - Red first: a time-bounded test, under 1 s for 200k newlines.
 - Lesson: in a lazy match ended by a whitespace run, use a whitespace class that cannot hold the separator the lazy part steps over.
+
+## 2026-10-24 · fix/issue-417-bracket-regex — the bracket reading is linear (run v020)
+
+- `\s*\(` in `_TEXT_BRACKET` and `_PAREN_EFFORT` was retried at every position of a whitespace run, so a 20k-space name took about a second. `(?<!\s)` starts a match only where a run begins, so the run is scanned once. The matches are the same as before.
+- Red first: a test bounded to 0.25 s. The test of names that resolved before now pins each id and effort (the #416 delta Tester's M2).
+- Lesson: a leading `\s*` in a searched pattern is quadratic on whitespace unless something anchors where it may start.
