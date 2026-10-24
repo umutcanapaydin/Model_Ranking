@@ -132,3 +132,27 @@ def test_an_upgrade_the_owner_merged_owes_no_delta(tmp_path: Path) -> None:
     repo.git("checkout", "-q", "-b", "after-upgrade")
     code, out = repo.check()
     assert code == 0, out
+
+
+def test_a_replace_ref_does_not_forge_the_pinned_bytes(tmp_path: Path) -> None:
+    """#410 round 1's B1: `git replace <pinned> <forged>` made `cat-file` read the forged commit's bytes."""
+    repo = _installed(tmp_path)
+    pinned = repo.git("show", "main:docs/devflow-pin.txt").split()[1]
+    repo.write("scripts/tool.py", "VERSION = 1  # the agent's change\n")
+    forged = repo.commit("a change")
+    repo.git("replace", pinned, forged)
+    code, out = repo.check()
+    assert code != 0, out
+
+
+def test_a_replace_ref_does_not_forge_the_protected_base(tmp_path: Path) -> None:
+    """B1's second form: replace main's commit with one whose pin names the agent's commit."""
+    repo = _installed(tmp_path)
+    repo.write("scripts/tool.py", "VERSION = 1  # the agent's change\n")
+    forged = repo.commit("a change")
+    repo.write("docs/devflow-pin.txt", f"v9.9 {forged}\n")
+    fake_base = repo.commit("a pin of my own")
+    base = repo.git("merge-base", "main", "HEAD")
+    repo.git("replace", base, fake_base)
+    code, out = repo.check()
+    assert code != 0, out
