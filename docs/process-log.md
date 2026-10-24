@@ -1242,3 +1242,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Filed and triaged: #417 (the bracket reading is quadratic), #418 (the accepted-cuts control: excused by model, never retired, routed to no security review), #419 (`GPT-4o (image)` escapes the modality guard).
 - `make deploy-check` is PASS. The release record and the owner's hosted-deploy row are updated.
 - Lesson: an accepted exception needs its retirement written in the same change, because "once" in an ADR is not a control unless something expires it.
+
+## 2026-10-24 · fix/issue-421-carry-clock — a test's fixed clock stopped every commit and CI run
+
+- #421: `test_a_live_artifact_from_before_the_access_table_still_carries` failed on every tree from 2026-10-23T22:00Z. The test fixes `NOW = 2026-09-23`, but `_live()` built its rows on the wall clock. With no arrival record, the carry reads the rows' age, and a stamp more than 30 days "ahead" of `NOW` expires. The product code was right; the fixture was not.
+- Red first (`3cd571d`): a test that the live fixture's stamps fall inside the carry window of `NOW`. The fix stamps `_live()`'s carried tables at `NOW` minus one day.
+- `test_build_slices.py`'s fixed clock was checked too: it passes ages through `last_ok` and reads no row stamps, so it does not age.
+- Lesson: a fixed test clock beside a fixture built on the wall clock is a dated failure; give both the same clock, and test that they agree.
