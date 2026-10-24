@@ -558,7 +558,7 @@ def test_the_cli_prints_exactly_one_json_document(
         _artifact(Path(argv[argv.index("--db") + 1]))
         return 0
 
-    monkeypatch.setattr(refresh_mod, "build_main", noisy)
+    monkeypatch.setattr(refresh_mod, "build_in_child", noisy)
     code = refresh_mod.main(["--db", str(tmp_path / "advisor.db")])
 
     captured = capsys.readouterr()
@@ -585,7 +585,7 @@ def test_the_cli_passes_its_build_flags_through(
         _artifact(Path(argv[argv.index("--db") + 1]))
         return 0
 
-    monkeypatch.setattr(refresh_mod, "build_main", watching)
+    monkeypatch.setattr(refresh_mod, "build_in_child", watching)
     refresh_mod.main(
         ["--db", str(tmp_path / "advisor.db"), "--epoch-dir", "/bundles/epoch", "--plans", "p.yaml"]
     )
@@ -609,13 +609,13 @@ def test_the_cli_exit_codes_distinguish_published_unchanged_and_failed(
 
     live = tmp_path / "advisor.db"
 
-    monkeypatch.setattr(refresh_mod, "build_main", _builder(top_score=74.5))
+    monkeypatch.setattr(refresh_mod, "build_in_child", _builder(top_score=74.5))
     assert refresh_mod.main(["--db", str(live)]) == EXIT_PUBLISHED
 
-    monkeypatch.setattr(refresh_mod, "build_main", _builder(top_score=74.5))
+    monkeypatch.setattr(refresh_mod, "build_in_child", _builder(top_score=74.5))
     assert refresh_mod.main(["--db", str(live)]) == EXIT_UNCHANGED
 
-    monkeypatch.setattr(refresh_mod, "build_main", lambda argv: 2)
+    monkeypatch.setattr(refresh_mod, "build_in_child", lambda argv: 2)
     assert refresh_mod.main(["--db", str(live)]) == EXIT_FAILED
 
 

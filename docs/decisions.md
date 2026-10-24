@@ -3524,6 +3524,7 @@ installer's safety properties need more than the substring tests the M17 closure
 
 **Amended by D-171 (2026-09-29)**: clause 1's bind is loopback by default and the home network by opt-in, with every Host checked. **Amended by D-177 (2026-10-04)**: a release's venv takes `requirements/ingest.lock` and `requirements/build.lock`, hash-checked, so the cost's "without a lock (#35)" no longer holds.
 
+**Superseded by D-222 (2026-10-24)**: the Mac runs no engine once the hosted nightly has published; the hosted engine on Fly.io is the only engine (#427).
 
 ## D-171 — The engine can serve the owner's phone on his home network, by opt-in, checking every Host
 
@@ -3599,6 +3600,7 @@ and note 3's pointer to the firewall.
     holds the name it was installed with, and refuses the new one (`unknown_host`, whose address the
     failure screen now shows).
 
+**Superseded by D-222 (2026-10-24)**: with no engine on the Mac there is nothing to serve on the home network; the phone reads the hosted engine (#427).
 
 ## D-172 — The security review runs once per milestone, at its closure; a wave closes on its Code-Reviewer and Tester
 
@@ -5621,6 +5623,8 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Revisit when:** m25 has judged, or the next review plants a twin that the allowlists pass.
 
+**Amended by D-223 (2026-10-24)**: clause 2's bar, 80% / 80%, is confirmed by the owner for run v020 (#351).
+
 ---
 
 ## D-215 — The owner's licence rule: attributed public numbers, for a free and non-commercial app
@@ -5974,3 +5978,110 @@ Hand aliases for the 31 rows would fix none of the 18 rows that the grammar now 
 
 **Revisit when:** a board publishes two different models whose names differ only in case or punctuation, or
 `data/accepted-cuts.yaml` gains a second entry in one month.
+
+**Amended by D-221 (2026-10-24)**: clause 3's cut excuses a row by its own raw name, never by model; every cut names
+an `until:` date and goes to a security review; the epoch_chess entry is retired (#418).
+
+## D-221 — An accepted cut excuses rows by name, carries an expiry, goes to a security review, and the first one is retired
+
+**Status:** proposed
+**Owner ruling:** 2026-10-24, in chat, on #418
+**Amends** D-220 clause 3 · from #418.
+
+**Context.** D-220 clause 3 let `data/accepted-cuts.yaml` excuse the rows a declared board may lose. Its one entry is
+Epoch's 2026-10 chess re-run, 94 names. Two reviews of #416 found four weaknesses (#418):
+- **Excused by model.** For a linked model, `_excused` excused the lost rows by model, not by name, so a cut naming a
+  model's kept spelling let its other rows go.
+- **Never retired.** Nothing retired a cut. Re-published names dropped again would be excused again, up to 94 rows,
+  past the board's 25% limit.
+- **No security route.** `make review-need` did not send the file to a security review.
+- **Unchecked fields.** The `decision` field was checked for shape only, and the pin test counted rows but not names.
+
+The Mac published the chess board on 2026-10-23 (`release-55cf42e`), and the hosted engine serves it since the
+v0.1.0 deploy of 2026-10-24 (`release-2a68ca4`). Neither artifact still holds the 94 rows.
+
+**Decision.**
+1. **Retired.** The epoch_chess entry is removed. It did its one job: both served artifacts now hold Epoch's
+   published board.
+2. **By name.** A cut excuses a lost row only when that row's own raw name is listed. A linked row is excused when
+   the raw name it arrived under is a cut name; an unlinked row, by its spelling key. Never by model.
+3. **An expiry on every cut.** A cut names `until: <YYYY-MM-DD>`. A cut past its date, or one without it, fails the
+   refresh: it is never ignored and never applied.
+4. **A security review.** `make review-need` routes any change to `data/accepted-cuts.yaml` to the
+   Security-Reviewer, in either mode. A cut's `decision` must name an ADR that `docs/decisions.md` holds.
+
+**Rationale.** A cut is an exception to a safety guard. An exception that never expires and excuses more than it
+names is a standing relaxation, and a standing relaxation is not what D-220 accepted. The owner's ruling turns
+"once" into a property the code checks.
+
+**Mitigation if violated:**
+- A cut that outlives its date stops the refresh loudly; it never widens silently.
+- A row excused by a name the cut does not hold refuses the night as before.
+
+**Revisit when:** a second cut is accepted in one month, or a cut's expiry stops a night that should have published.
+
+## D-222 — The hosted engine is the only engine: the Mac runs nothing once the hosted nightly has published
+
+**Status:** proposed
+**Owner ruling:** 2026-10-24, in chat (*"nothing should run on the Mac any more; we took the engine, that is it"*, translated)
+**Supersedes** D-170 and D-171 · **completes** D-217 · from #427.
+
+**Context.** Since v0.1.0 (2026-10-24, `release-2a68ca4`) the hosted engine on Fly.io serves the app. The Mac still
+runs a launchd engine (D-170) whose nightly refresh builds the data the hosted deploy ships (`deploy_hosted_engine.sh`
+derives its artifact from it). D-217 moved the refresh and the deploy to a GitHub Actions workflow, but that workflow
+is not installed: `fly-production` and its `FLY_API_TOKEN` do not exist yet (`docs/owner-actions.md`, 2026-10-21
+rows). On 2026-10-23 the Mac's own night was killed at 30 minutes (#426).
+
+**Decision.**
+1. The hosted engine is the only engine. The Mac runs no engine, no refresh and no ingestion.
+2. **Order, so the data never stops:**
+   - the owner creates `fly-production` with its token;
+   - the owner installs `nightly-hosted.yml`;
+   - one night runs and publishes, and `/health`'s `build` names main's tip;
+   - only then the owner takes the Mac's service off (`scripts/remove_engine_service.sh`).
+3. Until step 2 completes, the Mac's service keeps running as it is. Nothing is changed there in the meantime.
+4. The code and the documents that assume a Mac engine are retired in their own change (#427): the installer, the
+   home-network option, a deploy that reads the Mac's artifact, and the app's debug default.
+
+**Rationale.** One engine is one thing to keep alive, one place a refresh can fail, and one answer to "which data
+is live". The hosted engine already serves the app, and D-217 already moved the refresh off the Mac. Only the
+workflow's install is left.
+
+**Mitigation if violated:**
+- If the Mac is taken off before a hosted night publishes, the served data stops refreshing and ages. Nothing breaks:
+  carry-forward and the D-156 limits apply.
+- The hosted night's own failure is visible in its workflow run, and `/health` stops naming main's tip.
+
+**Revisit when:** the hosted nightly fails three nights running, or a source can only be read from a home network.
+
+**Amended by D-223 (2026-10-24)**: the Mac-engine code is retired in run v020 itself; the order of clause 2 now governs the integration PR's merge, which waits for a published hosted night (#427).
+
+## D-223 — Run v020's rulings: how the queue's open decisions are settled
+
+**Status:** proposed
+**Owner ruling:** 2026-10-24, in chat, for run v020
+**Amends** D-214 clause 2 (confirms it) and D-222 clauses 2-4 · from run v020 (`docs/plans/run-v020.md`).
+
+**Context.** Run v020 works every open issue and ends with release v0.2.0's verdicts. Eleven decisions were open across the queue. The owner answered all of them in one message; each answer is a clause here.
+
+**Decision.**
+1. **#426.** The refresh runs its build in a child process that the cycle's own alarm (27 minutes) kills. Each source's start and finish is written to the night's record, so a killed night names the source it hung on.
+2. **#429 M1.** A cut's `until:` is at most 30 days after the day the refresh reads it.
+3. **#429 M2.** A cut's ADR check is strict:
+   - a header inside a fenced code block does not count;
+   - a superseded ADR is refused;
+   - the ADR must name the cut's board.
+4. **#429 R1.** The code that applies a cut is not routed to a per-change security review. The INV-54 tests and the release's security review cover it.
+5. **#410.** The deploy gate's "DevFlow file, unchanged" exemption reads DevFlow's commit from a tracked record and accepts a tag only when it resolves to that commit. The product's deploy scripts join the safety surface. The guard's refusal of a `refs/tags/v*` write is the owner's change, an owner-actions row.
+6. **#401.** The four deploy spellings the guard does not judge (an HTTP client, an extension or alias, an action-based deploy, a rerequest) are refused in `docs/refusals.md` with the reason. `fly-production` admits only `main`, and the night's own deploy step runs `deploy_gate.py --check`. The guard is not changed.
+7. **#408.** The memory-ceiling test measures the interpreter's own baseline and judges the ordinary file above it. A changed file is still stopped.
+8. **#396.** G-2's shapes (b), (c) and (d) are closed. Shape (a), the counting loop, stays as D-218 clause 4 ruled.
+9. **#351.** The bar is D-214 clause 2's, 80% / 80%, confirmed. m25 read searches at 82.7%.
+10. **#427.** The Mac-engine code is retired in this run, not after the owner's hosted-night steps. The integration PR is merged only once a hosted night has published, so the data never stops refreshing.
+11. **The release is v0.2.0.**
+
+**Rationale.** Each clause is the default the agent proposed, except clause 10: there the owner chose to retire the code now and to time the merge instead.
+
+**Mitigation if violated:** a clause the run cannot carry out stops its wave (`docs/plans/run-v020.md`, Stops). It is never assumed around.
+
+**Revisit when:** the owner reopens one of the issues above.
