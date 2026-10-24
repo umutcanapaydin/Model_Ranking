@@ -41,10 +41,10 @@ Rulings: D-223
 | issue-404 | fix/issue-404-osworld-tests | #439 | none | stacked |
 | issue-413 | fix/issue-413-schema-sync | #440 | none | stacked |
 | issue-429 | fix/issue-429-cut-edges | #441 | none | stacked |
-| issue-410 | fix/issue-410-gate-exemption | none | none | running |
+| issue-410 | fix/issue-410-gate-exemption | #445 | none | stacked |
 | issue-401 | fix/issue-401-dispatch-spellings | #442 | none | stacked |
-| issue-408 | fix/issue-408-ceiling-flake | none | none | running |
-| issue-396 | fix/issue-396-g2-rebuilds | none | none | queued |
+| issue-408 | fix/issue-408-ceiling-flake | #443 | none | stacked |
+| issue-396 | fix/issue-396-g2-rebuilds | none | none | running |
 
 ## Stops
 

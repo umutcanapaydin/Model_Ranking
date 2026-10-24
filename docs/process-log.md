@@ -1347,3 +1347,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #408 (D-223 clause 7): both ceiling tests used a fixed 100 MiB, and a py3.12 runner whose reader started heavier stopped the ordinary file. They now set the ceiling at the reader's own peak after its imports (measured with the reader's `_peak_rss`, 38 MiB here) plus 40 MiB. `ceiling.parquet`'s 96 MiB still passes it, so the stop is kept.
 - Both polarities were shown by changing the margin: at 0 the ordinary file fails, at 400 MiB the ceiling file is not stopped. The file was restored byte-identical.
 - Lesson: a test bound to a process's memory must measure that process's baseline on the runner it runs on, or the runner's interpreter decides the result.
+
+## 2026-10-24 · fix/issue-410-gate-exemption — the deploy gate's DevFlow exemption reads its pin at the protected base (run v020)
+
+- #410 (D-223 clause 5): the exemption compared a file with `refs/tags/<version>` named by the untracked `.gp/installed`, both writable by the change under evaluation. It now compares with the commit `docs/devflow-pin.txt` names at the protected base (the merge-base with the default branch), which an agent's branch can neither move nor forge. An upgrade the owner merges moves the pin, so it still owes no delta. `scripts/deploy_hosted_engine.sh`, `scripts/nightly_hosted.sh` and `scripts/ci/` join the safety surface.
+- Red first: a forged tag with the marker, a moved tag, a pin rewritten on the branch, and a deploy script byte-identical to its upstream commit; the quiet upgrade case passes. DevFlow's conformance test moved to the pin model (seven cases). The guard's refusal of tag writes is an owner-actions row.
+- Lesson: an exemption from a gate must read its proof from where the gate reads its policy (the protected base), never from the tree it judges.
