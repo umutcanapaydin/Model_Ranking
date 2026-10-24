@@ -151,9 +151,12 @@ def test_a_replace_ref_does_not_forge_the_protected_base(tmp_path: Path) -> None
     repo.write("scripts/tool.py", "VERSION = 1  # the agent's change\n")
     forged = repo.commit("a change")
     repo.write("docs/devflow-pin.txt", f"v9.9 {forged}\n")
-    fake_base = repo.commit("a pin of my own")
-    base = repo.git("merge-base", "main", "HEAD")
-    repo.git("replace", base, fake_base)
+    repo.commit("a pin of my own")
+    # Round 2's M4: a stand-in for main's tip that holds the branch's tree and descends from the branch's head, so
+    # with replace refs honoured the merge-base becomes the branch's own commit and its pin is read.
+    main_tip = repo.git("rev-parse", "main")
+    stand_in = repo.git("commit-tree", "-p", "HEAD", "-m", "a forged base", "HEAD^{tree}")
+    repo.git("replace", main_tip, stand_in)
     code, out = repo.check()
     assert code != 0, out
 
