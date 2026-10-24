@@ -653,6 +653,23 @@ def _progress(event: str, name: str) -> None:
             stream.write(f"{event}\t{name}\t{time.time():.1f}\n")
 
 
+def media_price_collisions(conn: sqlite3.Connection) -> list[str]:
+    """#403: each model a quality-only (media) board ranks that also carries a per-token price median. Its
+    standing would show that price on an image or video board, where a per-token price means nothing. As drift
+    lines, `<source>: <reason>`."""
+    from app.workflows.categories import CATEGORIES
+
+    lines: list[str] = []
+    for spec in sorted((s for s in CATEGORIES.values() if not s.priced), key=lambda s: s.primary_source):
+        for (model_id,) in conn.execute(
+                "SELECT DISTINCT s.model_id FROM scores s JOIN px_median p ON p.model_id = s.model_id "
+                "WHERE s.benchmark = ? AND s.metric = ? ORDER BY s.model_id",
+                (spec.primary_benchmark, spec.metric)):
+            lines.append(f"{spec.primary_source}: {model_id} ranks on a media board and carries a per-token "
+                         "price; a board name resolved to a priced text model (#403)")
+    return lines
+
+
 def _ingest_sources(
     conn: sqlite3.Connection, sources: Sequence[RemoteSource], run: RunContext,
     carry: Carry | None = None,
@@ -815,6 +832,7 @@ def build(
     # The stage whose absence M6 could not see: without it px_median is empty and every query
     # answers 200 with zero picks.
     report.price_models = build_price_medians(conn)
+    report.drift += media_price_collisions(conn)  # #403: named, never refused; the night records it
     if report.price_models <= 0:
         msg = "price medians built 0 models; the artifact would answer every query with no picks"
         raise BuildError(msg)

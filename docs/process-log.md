@@ -1304,3 +1304,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The modality guard read a token only between `-_/. `, so `GPT-4o (image)` and `(audio)` linked to the text model's rule. A parenthesis now bounds a token too.
 - Red first. The quiet case, `GPT-4o (2024-08-06)`, still resolves to the text model. Of the 424 bracketed names in the 2026-10-23 candidate, the guard refuses the same two as before.
 - Lesson: when a source changes its naming style, every token boundary in the name rules has to be re-read against the new style.
+
+## 2026-10-24 · fix/issue-403-media-price — a media board model with a text price is named in the build's drift (run v020)
+
+- Measured first, on the 2026-10-23 candidate: no media board model carries a per-token price, so the risk is latent. Ranking is price-free on a quality-only surface by construction (D-218 clause 1). `/v1/standings`, however, prices a model and not a surface, so a collision would show a per-token price on an image or video board.
+- The build now names any such model in its drift. The night records it and `/health` lists it. It is never refused.
+- Red first, including a wiring test that the check's lines reach the build's drift.
+- Lesson: a price keyed by model leaks onto every surface the model appears on; a surface that must not show it needs a check where the two keys meet.
