@@ -258,7 +258,7 @@ def parse_osworld(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreRow
     """
     try:
         workbook: Any = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (ValueError, RecursionError) as exc:  # #411: a 4,300-digit integer, deep nesting
         msg = f"{source}: the workbook's rows are not valid JSON: {exc}"
         raise SourceError(msg) from exc
     if not isinstance(workbook, list):
