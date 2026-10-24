@@ -173,6 +173,10 @@ def _cuts_on_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str | N
         path.parent.mkdir()
         path.write_text(text, encoding="utf-8")
     monkeypatch.setattr(refresh.load_accepted_cuts, "__defaults__", (path,))
+    # D-223 clause 3: the ADR a cut names must name its board, so the probe's cut gets a log of its own.
+    log = tmp_path / "decisions.md"
+    log.write_text(f"## D-220 — a probe's cut\n\nAccepted for {SLICE.source}.\n", encoding="utf-8")
+    monkeypatch.setattr(refresh, "DECISIONS_PATH", log)
 
 
 def _night_dropping_three(tmp_path: Path) -> tuple[Path, tuple[refresh.RefreshOutcome, int]]:
@@ -186,7 +190,7 @@ def _night_dropping_three(tmp_path: Path) -> tuple[Path, tuple[refresh.RefreshOu
 
 
 CUT_OF_THREE = (f"cuts:\n  - board: {SLICE.source}\n    decision: D-220\n    reason: a probe\n"
-                "    until: 2099-01-01\n    rows: ['Probe 00', 'Probe 01', 'Probe 02']\n")
+                f"    until: {dt.date.today() + dt.timedelta(days=10)}\n    rows: ['Probe 00', 'Probe 01', 'Probe 02']\n")
 
 
 @pytest.mark.parametrize("on_disk", [True, False], ids=["the-cut-on-disk", "no-file"])
@@ -233,10 +237,10 @@ def test_an_unparseable_or_unreadable_file_is_the_cuts_error(tmp_path: Path) -> 
 # and is routed to a security review.
 
 TODAY = dt.date(2026, 10, 24)
-LOG = "## D-220 — the cut that accepted it\n"
+LOG = f"## D-220 — the cut that accepted it\n\nAccepted for {SLICE.source}.\n"
 
 
-def _cut(until: str | None = "2099-01-01", decision: str = "D-220") -> str:
+def _cut(until: str | None = "2026-11-10", decision: str = "D-220") -> str:
     line = f"    until: {until}\n" if until is not None else ""
     return (f"cuts:\n  - board: {SLICE.source}\n    decision: {decision}\n    reason: a probe\n{line}"
             "    rows: ['Probe 00']\n")
@@ -314,3 +318,31 @@ def test_a_cut_name_with_an_empty_spelling_key_fails_closed(name: str) -> None:
     raw = _cut().replace("['Probe 00']", f"['{name}']")
     with pytest.raises(refresh.AcceptedCutError):
         refresh.parse_accepted_cuts(raw, today=TODAY, decisions=LOG)
+
+
+# --- #429 (D-223 clauses 2 and 3): an expiry no more than 30 days out, and a strict ADR check.
+
+@pytest.mark.parametrize(("raw", "log"), [
+    (_cut(until="2026-11-24"), LOG),                                            # 31 days out
+    (_cut(until="9999-12-31"), LOG),                                            # the review's M1
+    (_cut(), "```\n" + LOG + "```\n"),                                          # only in a code block
+    (_cut(), LOG + "\n**Superseded by D-221 (2026-10-24)**: replaced.\n"),       # superseded
+    (_cut(), "## D-220 — the cut that accepted it\n\nAccepted for another board.\n"),  # not this board
+], ids=["31-days-out", "year-9999", "in-a-code-block", "superseded", "names-another-board"])
+def test_a_cut_past_the_cap_or_under_a_weak_adr_fails_closed(raw: str, log: str) -> None:
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_cuts(raw, today=TODAY, decisions=log)
+
+
+def test_an_expiry_thirty_days_out_and_a_four_digit_adr_parse() -> None:
+    """The cap's edge applies, and an ADR id past D-999 (the review's R2) is read."""
+    log = f"## D-1000 — a later cut\n\nAccepted for {SLICE.source}.\n"
+    raw = _cut(until="2026-11-23", decision="D-1000")
+    assert refresh.parse_accepted_cuts(raw, today=TODAY, decisions=log) == {SLICE.source: frozenset({"Probe 00"})}
+
+
+def test_an_unreadable_decision_log_is_the_cuts_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The review's R2: the branch that reads the log fails closed when the log cannot be read."""
+    monkeypatch.setattr(refresh, "DECISIONS_PATH", tmp_path / "absent.md")
+    with pytest.raises(refresh.AcceptedCutError, match="cannot be read"):
+        refresh.parse_accepted_cuts(_cut(), today=TODAY)
