@@ -9,6 +9,8 @@ as the schema says fails the refresh (closed), never excuses everything.
 
 from __future__ import annotations
 
+import datetime as dt
+import importlib.util
 import json
 import sqlite3
 from pathlib import Path
@@ -20,6 +22,9 @@ from app.workflows import refresh
 from app.workflows.refresh import degradations, fingerprint_of
 
 from .test_refresh_board_ids import SLICE, _boards
+from .test_review_need_base_policy import Repo, _brief
+
+ACCEPTED_CUTS_FILE = Path(__file__).resolve().parents[2] / "data" / "accepted-cuts.yaml"
 
 BOARD = f"board {SLICE.source}"
 
@@ -77,11 +82,11 @@ def test_a_cut_excuses_an_unlinked_row_by_its_spelling(tmp_path: Path) -> None:
     assert _judged(tmp_path, _drop(0, 1, 2), cuts={SLICE.source: _names(0, 1, 2)}, base=unlinked) == []
 
 
-def test_the_committed_file_accepts_epochs_chess_re_run_and_nothing_else() -> None:
-    cuts = refresh.load_accepted_cuts()
-    assert set(cuts) == {"epoch_chess"}
-    assert len(cuts["epoch_chess"]) == 94
-    assert "QwQ-32B" in cuts["epoch_chess"]
+def test_the_committed_file_holds_no_cut_once_epochs_chess_cut_is_retired() -> None:
+    """D-221 clause 1 (#418): the epoch_chess cut is retired once both served artifacts hold Epoch's
+    published board (the Mac at `release-55cf42e`, the hosted engine at `release-2a68ca4`)."""
+    assert refresh.load_accepted_cuts() == {}
+    assert ACCEPTED_CUTS_FILE.read_text(encoding="utf-8").rstrip().endswith("cuts: []")
 
 
 @pytest.mark.parametrize("raw", [
@@ -222,3 +227,82 @@ def test_an_unparseable_or_unreadable_file_is_the_cuts_error(tmp_path: Path) -> 
     (tmp_path / "accepted-cuts.yaml").mkdir()
     with pytest.raises(refresh.AcceptedCutError, match="cannot be read"):
         refresh.load_accepted_cuts(tmp_path / "accepted-cuts.yaml")
+
+
+# --- #418 (D-221): a cut excuses rows by their own name, carries an expiry, names an ADR the log holds,
+# and is routed to a security review.
+
+TODAY = dt.date(2026, 10, 24)
+LOG = "## D-220 — the cut that accepted it\n"
+
+
+def _cut(until: str | None = "2099-01-01", decision: str = "D-220") -> str:
+    line = f"    until: {until}\n" if until is not None else ""
+    return (f"cuts:\n  - board: {SLICE.source}\n    decision: {decision}\n    reason: a probe\n{line}"
+            "    rows: ['Probe 00']\n")
+
+
+def test_a_cut_with_its_expiry_and_a_known_adr_parses() -> None:
+    assert refresh.parse_accepted_cuts(_cut(), today=TODAY, decisions=LOG) == {SLICE.source: frozenset({"Probe 00"})}
+
+
+@pytest.mark.parametrize(("raw", "why"), [
+    (_cut(until=None), "no until"),
+    (_cut(until="2026-10-23"), "expired"),
+    (_cut(until="soon"), "not a date"),
+    (_cut(decision="D-999"), "an ADR the log does not hold"),
+], ids=["no-until", "expired", "until-not-a-date", "unknown-adr"])
+def test_a_cut_without_a_live_expiry_or_a_known_adr_fails_closed(raw: str, why: str) -> None:
+    """D-221 clauses 3 and 4: never ignored, never applied -- the refresh stops."""
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_cuts(raw, today=TODAY, decisions=LOG)
+
+
+def test_a_cut_expiring_today_still_applies() -> None:
+    assert refresh.parse_accepted_cuts(_cut(until="2026-10-24"), today=TODAY, decisions=LOG)
+
+
+def _alt_spellings(conn: sqlite3.Connection) -> None:
+    """A second, linked spelling for six probes: `Probe 00 alt` beside `Probe 00`, eighteen rows."""
+    conn.executemany(
+        "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, source_url, observed_at)"
+        " VALUES (?, ?, ?, ?, 'elo', ?, 'arena-crowd', 'fixture://x', 't')",
+        [(f"probe-{i:02d}", f"Probe {i:02d} alt", SLICE.source, SLICE.benchmark, 1300.0 + i) for i in range(6)])
+
+
+def _drop_alts(conn: sqlite3.Connection) -> None:
+    conn.execute("DELETE FROM scores WHERE source = ? AND raw_name LIKE '% alt'", (SLICE.source,))
+
+
+def test_a_cut_naming_a_models_kept_spelling_excuses_none_of_its_lost_rows(tmp_path: Path) -> None:
+    """D-221 clause 2 (the #416 security delta's M2): six `alt` rows go, a third of eighteen; the cut names
+    the six spellings that STAY. By model it excused all six; by name it excuses none."""
+    reasons = _judged(tmp_path, _drop_alts, cuts={SLICE.source: _names(0, 1, 2, 3, 4, 5)}, base=_alt_spellings)
+    assert any(reason.startswith(f"{BOARD} would lose 6 of 18") for reason in reasons), reasons
+
+
+def test_a_cut_naming_the_lost_spellings_excuses_them(tmp_path: Path) -> None:
+    lost = frozenset(f"Probe {i:02d} alt" for i in range(6))
+    assert _judged(tmp_path, _drop_alts, cuts={SLICE.source: lost}, base=_alt_spellings) == []
+
+
+def test_review_need_reads_the_file_the_refresh_reads() -> None:
+    """D-221 clause 4, derived, not typed twice: the path review-need routes is the refresh's own."""
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location("review_need_418", root / "scripts" / "review_need.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert (str(refresh.ACCEPTED_CUTS_PATH.relative_to(root)),) == module.EXCEPTION_FILES
+
+
+@pytest.mark.parametrize(("mode", "want"), [("light", "review-need: security"),
+                                            ("heavy", "review-need: code-reviewer+security")])
+def test_a_change_to_the_cuts_file_goes_to_a_security_review(tmp_path: Path, mode: str, want: str) -> None:
+    """D-221 clause 4: in either mode, whatever else the range holds."""
+    repo = Repo(tmp_path / mode, _brief(mode))
+    repo.write("data/accepted-cuts.yaml", "cuts: []\n")
+    repo.commit("data: a cut")
+    _, last, out = repo.need()
+    assert last == want, out
+    assert "policy edit: data/accepted-cuts.yaml" in out, out
