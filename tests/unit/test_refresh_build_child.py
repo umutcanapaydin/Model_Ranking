@@ -91,8 +91,17 @@ def test_the_build_writes_each_sources_start_and_finish(tmp_path: Path, monkeypa
                       ["start", "simplebench"], ["done", "simplebench"]]
 
 
-def test_the_cycle_builds_in_a_child_by_default() -> None:
-    """The production path: `refresh()` with no builder runs `build_in_child`, never the build in-process."""
-    import inspect
+def test_the_nightly_entry_builds_in_a_child(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """The production path, `python -m app.workflows.refresh` (`main`), hands `refresh` the child builder; a
+    caller of `refresh()` itself keeps the in-process build its tests patch."""
+    seen: dict[str, object] = {}
 
-    assert "build_in_child if builder is None" in inspect.getsource(refresh)
+    def fake_refresh(target: Path, **kwargs):  # type: ignore[no-untyped-def]
+        seen.update(kwargs)
+        return refresh_module.RefreshOutcome(published=False, reason="t", live_fingerprint=None,
+                                             candidate_fingerprint="", surfaces=0), refresh_module.EXIT_UNCHANGED
+
+    monkeypatch.setattr(refresh_module, "refresh", fake_refresh)
+    monkeypatch.setattr(refresh_module, "_Limits", lambda *a: type("L", (), {"close": lambda self: None})())
+    refresh_module.main(["--db", str(tmp_path / "advisor.db")])
+    assert seen["builder"] is refresh_module.build_in_child
