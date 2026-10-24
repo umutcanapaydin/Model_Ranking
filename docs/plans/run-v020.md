@@ -33,8 +33,8 @@ Rulings: D-223
 | issue-418 | fix/issue-418-accepted-cuts | #430 | none | stacked |
 | issue-427 | enhancement/retire-mac-engine | #428 | none | stopped |
 | issue-411 | fix/issue-411-json-errors | #433 | none | stacked |
-| issue-412 | fix/issue-412-simplebench-regex | none | none | queued |
-| issue-417 | fix/issue-417-bracket-regex | none | none | queued |
+| issue-412 | fix/issue-412-simplebench-regex | #434 | none | stacked |
+| issue-417 | fix/issue-417-bracket-regex | none | none | running |
 | issue-426 | fix/issue-426-refresh-alarm | none | none | queued |
 | issue-419 | fix/issue-419-image-modality | none | none | queued |
 | issue-403 | fix/issue-403-media-price | none | none | queued |
