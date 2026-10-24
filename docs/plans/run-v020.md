@@ -38,8 +38,8 @@ Rulings: D-223
 | issue-426 | fix/issue-426-refresh-alarm | #436 | none | stacked |
 | issue-419 | fix/issue-419-image-modality | #437 | none | stacked |
 | issue-403 | fix/issue-403-media-price | #438 | none | stacked |
-| issue-404 | fix/issue-404-osworld-tests | none | none | running |
-| issue-413 | fix/issue-413-schema-sync | none | none | queued |
+| issue-404 | fix/issue-404-osworld-tests | #439 | none | stacked |
+| issue-413 | fix/issue-413-schema-sync | none | none | running |
 | issue-429 | fix/issue-429-cut-edges | none | none | queued |
 | issue-410 | fix/issue-410-gate-exemption | none | none | queued |
 | issue-401 | fix/issue-401-dispatch-spellings | none | none | queued |
