@@ -1256,3 +1256,58 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's delta over `9d3cf0e..0bdf2eb` is PASS: three faults were injected and all went red. The Security-Reviewer's delta over `9208fd8..471dd79` is PASS with no finding: `ci.yml` changes only its timeout. `make deploy-check` is PASS.
 - Post-merge for #409, #414, #416, #420 and #422: their branches were deleted, #415 and #421 got closing comments, and #406 was closed with run 40093188395 as evidence.
 - Lesson: a change the deploy gate counts as code, even a test or a workflow limit, re-opens both verdicts. Merging such a fix just before a release costs a delta round.
+
+## 2026-10-24 · fix/issue-418-accepted-cuts — an accepted cut is named row by row, expires, and goes to a security review
+
+- #418, carrying out the owner's rulings in D-221 (`c9390f3`):
+  - `_excused` now counts a linked model's lost spellings, not its model, so a cut naming the spelling a model keeps excuses none of its lost rows.
+  - Every cut needs an `until:` date and an ADR the log holds; an expired cut, or one without either, raises `AcceptedCutError` and the night fails closed.
+  - `scripts/review_need.py` routes any change to `data/accepted-cuts.yaml` to security in either mode (`EXCEPTION_FILES`, held equal to the refresh's path by a test).
+- The epoch_chess cut is retired (`cuts: []`): both served artifacts hold Epoch's published board since `release-55cf42e` and `release-2a68ca4`.
+- Red first (`1b926e7`, 11 tests), then the fix. INV-54 cites three more tests.
+- Lesson: an exception to a guard is policy, and a policy file that no review route names is one the reviews never see.
+
+## 2026-10-24 · enhancement/retire-mac-engine — the Mac is retired as an engine, and light mode's repeated deltas go back to DevFlow
+
+- The owner's ruling, recorded as D-222: the hosted engine is the only engine, and the Mac runs nothing. D-170 and D-171 are superseded. The order keeps the data refreshing: first `fly-production` and its token, then the nightly workflow, then one hosted night; only after that is the Mac's service taken off (owner-actions row). Retiring the code is #427.
+- GPF-009 records that light mode re-opened both release verdicts for a test-and-CI-only change, so v0.1.0 took three review rounds. The owner's ask is one security delta per release. Until DevFlow answers, fixes are batched between releases.
+- Owner-actions: the Mac deploy (#265), the hosted deploy and the v0.1.0 tag rows are done.
+- Lesson: an owner who says "we already moved" means the old path is a cost, not a fallback; write the retirement with its order, or the old path keeps getting named as the plan.
+
+## 2026-10-24 · fix/issue-411-json-errors — a source's bad JSON fails that source, never the night (run v020)
+
+- Thirteen client `json.loads` calls caught only `JSONDecodeError`, so `RecursionError` and the 4,300-digit `ValueError` escaped `_ingest_sources` and aborted every source's night. Every handler now catches `(ValueError, RecursionError)`.
+- Red first (`1225d48`): an AST scan requires every `json.loads` in `src/app/clients` to sit in a `try` that catches both. The one exemption is parquet_reader's own argv, named with its reason. A through-the-build test for Datacurve's two shapes goes with it.
+- Lesson: a rule that one exception class covers a library's failures needs the library's whole failure list, so derive the check from the call sites rather than from one example.
+
+## 2026-10-24 · fix/issue-412-simplebench-regex — SimpleBench's board regex is linear (run v020)
+
+- `\n\s*\];` let `\s*` cross newlines, so a page with no closing `];` was quadratic: 200k newlines took about a minute. `[ \t]*` cannot cross a newline, so the same page now fails at once.
+- Red first: a time-bounded test, under 1 s for 200k newlines.
+- Lesson: in a lazy match ended by a whitespace run, use a whitespace class that cannot hold the separator the lazy part steps over.
+
+## 2026-10-24 · fix/issue-417-bracket-regex — the bracket reading is linear (run v020)
+
+- `\s*\(` in `_TEXT_BRACKET` and `_PAREN_EFFORT` was retried at every position of a whitespace run, so a 20k-space name took about a second. `(?<!\s)` starts a match only where a run begins, so the run is scanned once. The matches are the same as before.
+- Red first: a test bounded to 0.25 s. The test of names that resolved before now pins each id and effort (the #416 delta Tester's M2).
+- Lesson: a leading `\s*` in a searched pattern is quadratic on whitespace unless something anchors where it may start.
+
+## 2026-10-24 · fix/issue-426-refresh-alarm — a night that never finishes says where it stopped (run v020)
+
+- #426 (D-223 clause 1): the nightly entry (`refresh.main`) builds in a child of the cycle, in its process group, and kills it at `BUILD_LIMIT_SECONDS` (25 minutes) on its own clock. A killed night's record names each source it started and never finished, and every record carries `source_seconds`. `refresh()` itself keeps the in-process build that the tests patch.
+- The build writes `start` and `done` per source to `--progress-out`, in a `finally`, so a failing source still closes its line.
+- Red first. Three CLI tests patch `build_in_child`, the builder `main` now uses, in place of `build_main`; what they assert is unchanged.
+- Lesson: a production-path change behind a test seam needs the seam moved to the entry point, or every test that patched the old default silently starts running the real thing.
+
+## 2026-10-24 · fix/issue-419-image-modality — a bracketed modality is a different product (run v020)
+
+- The modality guard read a token only between `-_/. `, so `GPT-4o (image)` and `(audio)` linked to the text model's rule. A parenthesis now bounds a token too.
+- Red first. The quiet case, `GPT-4o (2024-08-06)`, still resolves to the text model. Of the 424 bracketed names in the 2026-10-23 candidate, the guard refuses the same two as before.
+- Lesson: when a source changes its naming style, every token boundary in the name rules has to be re-read against the new style.
+
+## 2026-10-24 · fix/issue-403-media-price — a media board model with a text price is named in the build's drift (run v020)
+
+- Measured first, on the 2026-10-23 candidate: no media board model carries a per-token price, so the risk is latent. Ranking is price-free on a quality-only surface by construction (D-218 clause 1). `/v1/standings`, however, prices a model and not a surface, so a collision would show a per-token price on an image or video board.
+- The build now names any such model in its drift. The night records it and `/health` lists it. It is never refused.
+- Red first, including a wiring test that the check's lines reach the build's drift.
+- Lesson: a price keyed by model leaks onto every surface the model appears on; a surface that must not show it needs a check where the two keys meet.

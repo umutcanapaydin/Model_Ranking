@@ -26,7 +26,8 @@ HARNESS = "SimpleBench (AVG@5)"
 SITE_URL = "https://simple-bench.com/"
 DATA_URL = "https://simple-bench.com/static/js/leaderboard-data.js"
 _TIMEOUT_S = 60.0
-_BOARD = re.compile(r"\bconst\s+leaderboardData\s*=\s*\[(?P<body>.*?)\n\s*\];", re.DOTALL)
+#: #412: `[ \t]*`, not `\s*`: whitespace that could cross newlines made a page with no closing `];` quadratic.
+_BOARD = re.compile(r"\bconst\s+leaderboardData\s*=\s*\[(?P<body>.*?)\n[ \t]*\];", re.DOTALL)
 _OBJECT = re.compile(r"\{[^{}]*\}")
 _ROW = re.compile(
     r'\{\s*rank:\s*"(?P<rank>[^"]*)",\s*model:\s*"(?P<model>[^"]*)",\s*score:\s*"(?P<score>[^"]*)",'

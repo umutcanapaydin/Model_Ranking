@@ -228,7 +228,7 @@ def _answered_rows(answer: bytes) -> list[dict[str, Any]]:
     # are held once rather than again as a decoded copy (security re-look 3, S-R3-1).
     try:
         lines = [json.loads(line.decode("utf-8")) for line in answer.split(b"\n") if line]
-    except ValueError as exc:
+    except (ValueError, RecursionError) as exc:  # #411
         msg = "arena slices: the reader answered something that is not its protocol"
         raise SourceError(msg) from exc
     if len(lines) == 1 and isinstance(lines[0], dict) and isinstance(lines[0].get("error"), str):
