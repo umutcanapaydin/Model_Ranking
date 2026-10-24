@@ -156,3 +156,16 @@ def test_a_replace_ref_does_not_forge_the_protected_base(tmp_path: Path) -> None
     repo.git("replace", base, fake_base)
     code, out = repo.check()
     assert code != 0, out
+
+
+def test_a_product_file_byte_identical_to_the_pinned_commit_is_still_code(tmp_path: Path) -> None:
+    """Round 1's B2: only DevFlow's tooling can be exempt; a product file the pinned commit happens to hold is not."""
+    repo = _installed(tmp_path)
+    repo.git("checkout", "-q", "main")
+    repo.write("src/app.py", "x = 2\n")
+    shipped = repo.commit("a commit that holds a product change")
+    repo.write("docs/devflow-pin.txt", f"v9.10 {shipped}\n")
+    repo.commit("pin it")
+    repo.git("checkout", "-q", "-b", "after")
+    code, out = repo.check()
+    assert code != 0, out

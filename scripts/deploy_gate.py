@@ -93,6 +93,11 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from brief_fields import listing, mode, protected_base, root_at  # noqa: E402
 
+#: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
+#: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
+#: `brief_fields`, ignores them.
+os.environ["GIT_NO_REPLACE_OBJECTS"] = "1"
+
 #: The Bash guard calls `--judge` only in a gate that carries this line, at the start of a line, exactly:
 #: a gate written before `--judge` existed reads the flag as the command, finds no deploy and exits 0, so
 #: under a newer guard every declared deploy passed (a v7.0 gate under the v7.1 guard passed `fly deploy`).

@@ -93,20 +93,22 @@ def main() -> int:
         write("docs/devflow-pin.txt", pin)
         git("add", "-A")
         git("commit", "-q", "-m", "pin back")
+        # #410 round 1's B2: each case below moves the pin to the commit that holds the change, so the only thing
+        # that can refuse it is the rule the case names (the safety surface; tooling only), not a missing match.
         write(".claude/settings.json", '{"x": 1}\n')
         git("commit", "-q", "-am", "settings via an upgrade")
-        git("tag", "-f", "v9.10")
-        case("the safety surface changed, even byte-identical to the tag: refused", check(), False)
-        git("checkout", "-q", "HEAD~1", "--", ".claude/settings.json")
+        write("docs/devflow-pin.txt", f"v9.10 {git('rev-parse', 'HEAD')}\n")
+        git("commit", "-q", "-am", "pin the settings upgrade")
+        case("the safety surface changed, even byte-identical to the pinned commit: refused", check(), False)
+        write(".claude/settings.json", "{}\n")
         git("commit", "-q", "-am", "settings back")
         write("src/app.py", "x = 2\n")
         case("a product change: refused", check(), False)
-        # The package ships a product scaffold too: byte-identical to the tag, it is still the product.
+        # The package ships a product scaffold too: byte-identical to the pinned commit, it is still the product.
         git("commit", "-q", "-am", "scaffold as DevFlow v9.11 ships it")
-        git("tag", "v9.11")
-        write(".gp/installed", "gp_version: v9.11\n")
-        git("commit", "-q", "-am", "upgrade to v9.11")
-        case("a product scaffold file byte-identical to the tag: still code, refused", check(), False)
+        write("docs/devflow-pin.txt", f"v9.11 {git('rev-parse', 'HEAD')}\n")
+        git("commit", "-q", "-am", "pin v9.11")
+        case("a product scaffold file byte-identical to the pinned commit: still code, refused", check(), False)
 
     if bad:
         print("test-deploy-shipped FAIL (scripts/deploy_gate.py in a throwaway repository):")

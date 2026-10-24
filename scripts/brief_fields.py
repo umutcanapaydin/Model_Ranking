@@ -83,7 +83,8 @@ def _git(repo: Path | str, *args: str) -> subprocess.CompletedProcess[str]:
     """git's answer; no git, or one that hangs, is a failed answer (exit 127), never a crash: the deploy gate
     asks this on every Bash call the guard judges, and a crash there would refuse `ls`."""
     try:
-        return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,  # noqa: S603, S607
+        # #410 round 1's B1: a `refs/replace/` ref would answer for the base this reads; never honour one.
+        return subprocess.run(["git", "--no-replace-objects", "-C", str(repo), *args], capture_output=True,  # noqa: S603, S607
                               encoding="utf-8", errors="replace", check=False, timeout=60)
     except (OSError, subprocess.SubprocessError) as error:
         return subprocess.CompletedProcess(["git", *args], 127, "", str(error))
