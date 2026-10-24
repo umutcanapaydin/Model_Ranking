@@ -84,6 +84,10 @@ GATE_CODE = re.compile("^(" + "|".join(re.escape(r) + ("" if r.endswith("/") els
 #: also a token below, so a script that names one is a policy reader too (#319).
 POLICY_MODULES = ("review_need", "deploy_gate", "brief_fields")
 POLICY_SCRIPTS = tuple(f"scripts/{name}.py" for name in POLICY_MODULES)
+#: D-221 clause 4 (#418): an exception to a product safety guard is policy too. `data/accepted-cuts.yaml` lets the
+#: refresh excuse rows a board loses, so any change to it is a security review in either mode.
+#: `tests/unit/test_accepted_cuts.py` holds this equal to the path `app.workflows.refresh` reads.
+EXCEPTION_FILES = ("data/accepted-cuts.yaml",)
 #: #319 (D-209 clause 5): what names a policy reader -- a policy module, its make target, a plan's
 #: `security-globs:` line or a policy field's label. A script under POLICY_READER_DIRS that names one, at either end
 #: of the range, is a policy script; in LINE_POLICY_PATHS (the Makefile, the plans) only a changed line naming one
@@ -187,7 +191,8 @@ def policy_edits(base_root: Path, end_root: Path, changed: list[str], rng: str =
     readers = policy_readers(revs) if revs else set(POLICY_SCRIPTS)
     scripts = sorted(path for path in changed if path in readers)
     lines = [path for path in policy_lines(rng) if path not in scripts] if rng else []
-    return edits + scripts + lines
+    exceptions = sorted(path for path in changed if path in EXCEPTION_FILES)
+    return edits + scripts + lines + exceptions
 
 
 def declared_globs(root: Path | str, at: str | None = None, plan: str | None = None) -> list[str]:
