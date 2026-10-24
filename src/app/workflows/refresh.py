@@ -33,6 +33,7 @@ import signal
 import sqlite3
 import stat
 import statistics
+import subprocess
 import sys
 import tempfile
 import threading
@@ -106,6 +107,12 @@ FETCH_BUDGET_SECONDS = 20 * 60.0
 #: publish is one rename; the lock goes with the process; the reader it may have started ends on its
 #: own watchdog (D-165).
 CYCLE_LIMIT_SECONDS = 27 * 60.0
+#: #426 (D-223 clause 1): the build runs in a child of the cycle, in its process group, and the cycle kills it
+#: here with its own clock, two minutes before its own limit, so a killed night still writes why. On
+#: 2026-10-23 a night outlived the 27-minute alarm and the engine's kill left no record of where it was.
+BUILD_LIMIT_SECONDS = CYCLE_LIMIT_SECONDS - 2 * 60.0
+#: What `build_in_child` returns for a build it killed; the build's own codes are 0-3.
+EXIT_BUILD_KILLED = 124
 #: How often the cycle checks that the engine that started it is still there. The engine starts it
 #: in a session of its own, so its kill takes the cycle's whole group (W-130), and launchd's cleanup
 #: of a dead engine's group no longer reaches it. A cycle whose engine is gone ends itself, the same
@@ -170,6 +177,8 @@ class RefreshOutcome:
     renamed: tuple[str, ...] = ()
     #: #230: the board that changed most against the live artifact, as `largest_board_change` reads it.
     largest_board_change: dict[str, object] | None = None
+    #: #426: each source's seconds in the build, `None` for one it started and never finished.
+    source_seconds: dict[str, float | None] = dataclasses.field(default_factory=dict)
 
     def as_json(self) -> str:
         return json.dumps(
@@ -280,17 +289,22 @@ def spelling_key(raw_name: str) -> str:
     return re.sub(r"[^a-z0-9+]", "", raw_name.lower())
 
 
-#: D-220 clause 3: the cuts the owner accepted, board by board, each named row by row.
+#: D-220 clause 3: the cuts the owner accepted, board by board, each named row by row; D-221: each with an
+#: expiry and an ADR the decision log holds.
 ACCEPTED_CUTS_PATH = Path(__file__).resolve().parents[3] / "data" / "accepted-cuts.yaml"
-_CUT_KEYS = {"board", "decision", "reason", "rows"}
+DECISIONS_PATH = Path(__file__).resolve().parents[3] / "docs" / "decisions.md"
+_CUT_KEYS = {"board", "decision", "reason", "until", "rows"}
 
 
 class AcceptedCutError(ValueError):
     """`data/accepted-cuts.yaml` is not its schema: the refresh fails, it never excuses everything."""
 
 
-def parse_accepted_cuts(raw: str) -> dict[str, frozenset[str]]:
-    """Each declared board's accepted cut: the raw names it may lose. Anything else in the file raises."""
+def parse_accepted_cuts(
+    raw: str, *, today: dt.date | None = None, decisions: str | None = None
+) -> dict[str, frozenset[str]]:
+    """Each declared board's accepted cut: the raw names it may lose. Anything else in the file raises,
+    a cut past its `until:` date included (D-221 clause 3), and one whose ADR the log does not hold."""
     try:
         doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
     except yaml.YAMLError as exc:
@@ -300,19 +314,73 @@ def parse_accepted_cuts(raw: str) -> dict[str, frozenset[str]]:
     known = {board.source for board in declared_boards.uncovered()}
     cuts: dict[str, frozenset[str]] = {}
     for entry in doc["cuts"]:
-        if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
-            raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
-        board, decision, reason, rows = (entry[key] for key in ("board", "decision", "reason", "rows"))
-        if board not in known or board in cuts:
-            raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board, or is named twice")
-        if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3}", decision):
-            raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
-        if not isinstance(reason, str) or not reason.strip():
-            raise AcceptedCutError(f"accepted cuts: {board} gives no reason")
-        if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and r for r in rows):
-            raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names")
-        cuts[board] = frozenset(rows)
+        if decisions is None:
+            decisions = _decision_log()
+        board, rows = _checked_cut(entry, known, today or dt.datetime.now(tz=dt.UTC).date(), decisions)
+        if board in cuts:
+            raise AcceptedCutError(f"accepted cuts: {board!r} is named twice")
+        cuts[board] = rows
     return cuts
+
+
+def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str) -> tuple[str, frozenset[str]]:
+    """One cut, its every field checked; the board and the names it may lose."""
+    if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
+        raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
+    board, decision, reason, until, rows = (entry[key] for key in ("board", "decision", "reason", "until", "rows"))
+    if board not in known:
+        raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board")
+    if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3,}", decision):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
+    _check_cut_adr(board, decision, decisions)
+    if not isinstance(reason, str) or not reason.strip():
+        raise AcceptedCutError(f"accepted cuts: {board} gives no reason")
+    expiry = _cut_expiry(until)
+    if expiry is None or not today <= expiry <= today + dt.timedelta(days=MAX_CUT_DAYS):
+        raise AcceptedCutError(f"accepted cuts: {board}'s cut has no `until:` date, or it is past, or more than "
+                               f"{MAX_CUT_DAYS} days out ({until}; D-223 clause 2)")
+    # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
+    # excuse a lost unlinked row of any such name.
+    if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and spelling_key(r) for r in rows):
+        raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names, each with a letter or digit")
+    return board, frozenset(rows)
+
+
+#: D-223 clause 2 (#429): a cut is a short exception; renewing it past this takes a new ADR.
+MAX_CUT_DAYS = 30
+_FENCED = re.compile(r"^```.*?^```[^\n]*$", re.M | re.S)
+
+
+def _check_cut_adr(board: str, decision: str, decisions: str) -> None:
+    """D-223 clause 3 (#429): the ADR is a header of the log outside any code block, is not superseded, and names
+    the cut's board."""
+    log = _FENCED.sub("", decisions)
+    header = re.search(rf"^## {re.escape(decision)} \u2014", log, re.M)
+    if header is None:
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} is not in docs/decisions.md")
+    following = re.search(r"^## ", log[header.end():], re.M)
+    section = log[header.start(): header.end() + following.start()] if following else log[header.start():]
+    if re.search(r"\*\*Superseded by|\*\*Status:\*\* superseded", section):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} is superseded")
+    if not re.search(rf"(?<![\w-]){re.escape(board)}(?![\w-])", section):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} does not name {board}")
+
+
+def _cut_expiry(until: object) -> dt.date | None:
+    """A cut's `until:` as a date: YAML reads `2026-11-30` as one; an ISO string is read too."""
+    if isinstance(until, dt.date) and not isinstance(until, dt.datetime):
+        return until
+    if isinstance(until, str):
+        with contextlib.suppress(ValueError):
+            return dt.date.fromisoformat(until)
+    return None
+
+
+def _decision_log() -> str:
+    try:
+        return DECISIONS_PATH.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise AcceptedCutError(f"accepted cuts: {DECISIONS_PATH} cannot be read: {exc}") from exc
 
 
 def load_accepted_cuts(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozenset[str]]:
@@ -326,14 +394,15 @@ def load_accepted_cuts(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozenset[s
     return parse_accepted_cuts(raw)
 
 
-def _excused(lost: frozenset[BoardRow], spellings: Spellings, names: frozenset[str]) -> int:
-    """How many of a board's lost rows an accepted cut names (D-220 clause 3): a model's lost rows up
-    to its spellings the cut names, an unlinked row's by its key."""
+def _excused(lost: frozenset[BoardRow], before: Spellings, after: Spellings, names: frozenset[str]) -> int:
+    """How many of a board's lost rows an accepted cut names, by each row's own name (D-221 clause 2): a
+    model's lost rows up to its lost spellings the cut names, an unlinked row's by its key. Never by
+    model: a cut naming the spelling a model keeps excuses none of the rows it loses."""
     keys = Counter(spelling_key(name) for name in names)
     lost_by_key = Counter(row.key for row in lost if isinstance(row, UnlinkedRow))
     lost_by_model = Counter(row.model for row in lost if isinstance(row, LinkedRow))
     return (sum(min(count, keys[key]) for key, count in lost_by_key.items())
-            + sum(min(count, len(spellings.get(model, frozenset()) & names))
+            + sum(min(count, len((before.get(model, frozenset()) - after.get(model, frozenset())) & names))
                   for model, count in lost_by_model.items()))
 
 
@@ -543,8 +612,9 @@ def degradations(
 
     def excused(name: str, gone: frozenset[BoardRow]) -> int:
         names = accepted.get(name)
-        spellings = live.spellings.get(DECLARED_BOARD.format(name=name), {})
-        return _excused(gone, spellings, names) if names else 0
+        board = DECLARED_BOARD.format(name=name)
+        return (_excused(gone, live.spellings.get(board, {}), candidate.spellings.get(board, {}), names)
+                if names else 0)
 
     reasons += _mostly_lost(live.boards, candidate.boards, DECLARED_BOARD,
                             "a board is published content and is guarded as one (D-164)", excused)
@@ -1047,6 +1117,8 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: #198: the build that ran this cycle, and the build that made the artifact served now.
         "built_by": built_by,
         "served_built_by": served_built_by,
+        #: #426: THIS cycle's seconds a source, `null` for one it started and never finished (a killed build).
+        "source_seconds": dict(outcome.source_seconds),
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -1369,6 +1441,97 @@ def _discard(scratch: Path | None) -> None:
         shutil.rmtree(scratch, ignore_errors=True)
 
 
+def build_in_child(argv: list[str], *, limit: float = BUILD_LIMIT_SECONDS,
+                   command: Sequence[str] | None = None) -> int:
+    """Run the build as a child of this cycle and return its exit code, or `EXIT_BUILD_KILLED` once it passes
+    `limit` (#426). The child stays in the cycle's process group, so the engine's kill of the group takes it
+    too; its stdout goes to this process's stderr, since this cycle's stdout carries only its outcome."""
+    argv_full = [*(command or [sys.executable, "-B", "-m", "app.workflows.build"]), *argv]
+    out = sys.stderr.fileno() if _has_fileno(sys.stderr) else None
+    proc = subprocess.Popen(argv_full, stdout=out)  # noqa: S603 -- our own interpreter and module, no shell
+    try:
+        return proc.wait(timeout=limit)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        return EXIT_BUILD_KILLED
+
+
+def _has_fileno(stream: object) -> bool:
+    try:
+        stream.fileno()  # type: ignore[attr-defined]
+    except (AttributeError, OSError, ValueError):
+        return False
+    return True
+
+
+def _read_progress(path: Path) -> dict[str, float | None]:
+    """Each source's seconds from the build's progress lines, `None` for one started and not finished."""
+    started: dict[str, float] = {}
+    seconds: dict[str, float | None] = {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        event, name, stamp = parts
+        try:
+            at = float(stamp)
+        except ValueError:
+            continue
+        if event == "start":
+            started[name] = at
+            seconds[name] = None
+        elif event == "done" and name in started:
+            seconds[name] = round(at - started[name], 1)
+    return seconds
+
+
+def _unbuilt(
+    code: int, timings: dict[str, float | None], live: ServingSummary | None, expired: dict[str, str | None],
+    drift: tuple[str, ...], derived: tuple[str, ...], unmatched: tuple[str, ...],
+) -> RefreshOutcome:
+    """A night whose build did not finish: killed at its limit (#426), or failed with its own code."""
+    if code == EXIT_BUILD_KILLED:
+        return _killed_build(timings, live)
+    return RefreshOutcome(
+        published=False,
+        reason=f"the candidate could not be built (build exit {code}); the live artifact is untouched",
+        live_fingerprint=live.digest if live else None,
+        candidate_fingerprint="",
+        surfaces=0,
+        expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
+        drift=drift,
+        derived=derived,
+        unmatched=unmatched,
+    )
+
+
+def _killed_build(timings: dict[str, float | None], live: ServingSummary | None) -> RefreshOutcome:
+    """A night whose build passed `BUILD_LIMIT_SECONDS`: the sources it started and never finished (#426)."""
+    open_sources = [name for name, seconds in timings.items() if seconds is None]
+    where = f" while reading {', '.join(open_sources)}" if open_sources else ""
+    return RefreshOutcome(
+        published=False,
+        reason=f"the build passed its limit of {BUILD_LIMIT_SECONDS / 60:.0f} minutes and was "
+        f"killed{where}; the live artifact is untouched (#426)",
+        live_fingerprint=live.digest if live else None,
+        candidate_fingerprint="",
+        surfaces=0,
+    )
+
+
+def _with_timings(
+    record: Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]], timings: dict[str, float | None]
+) -> Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]]:
+    def recorded(outcome: RefreshOutcome, code: int) -> tuple[RefreshOutcome, int]:
+        return record(dataclasses.replace(outcome, source_seconds=timings), code)
+    return recorded
+
+
 def _cycle(
     target: Path,
     build_args: Sequence[str],
@@ -1411,7 +1574,10 @@ def _cycle(
                                           dir=target.parent)
     os.close(handle)
     report_file = Path(raw_report)
-    carry_args = ["--report-out", str(report_file)]
+    handle, raw_progress = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".progress", dir=target.parent)
+    os.close(handle)
+    progress_file = Path(raw_progress)
+    carry_args = ["--report-out", str(report_file), "--progress-out", str(progress_file)]
     if target.is_file():
         handle, raw_record = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".last-ok",
                                               dir=target.parent)
@@ -1432,24 +1598,14 @@ def _cycle(
         # RESULT and belongs on stdout alone. Redirecting rather than discarding keeps both.
         with contextlib.redirect_stdout(sys.stderr):
             code = builder(["--db", str(candidate), *build_args, *epoch_args, *carry_args])
+        timings = _read_progress(progress_file)
+        record = _with_timings(record, timings)
         arrived, carried, expired = _read_build_sources(report_file)
         drift = _read_build_list(report_file, "drift")
         derived = _read_build_list(report_file, "derived")
         unmatched = _read_build_list(report_file, "unmatched")
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
-            outcome = RefreshOutcome(
-                published=False,
-                reason=f"the candidate could not be built (build exit {code}); "
-                "the live artifact is untouched",
-                live_fingerprint=live.digest if live else None,
-                candidate_fingerprint="",
-                surfaces=0,
-                expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
-                drift=drift,
-                derived=derived,
-                unmatched=unmatched,
-            )
-            return record(outcome, EXIT_FAILED)
+            return record(_unbuilt(code, timings, live, expired, drift, derived, unmatched), EXIT_FAILED)
 
         try:
             fresh = fingerprint_of(candidate)
@@ -1553,6 +1709,7 @@ def _cycle(
         # cycle cannot tell from a live sibling's work.
         candidate.unlink(missing_ok=True)
         report_file.unlink(missing_ok=True)
+        progress_file.unlink(missing_ok=True)
         if record_file is not None:
             record_file.unlink(missing_ok=True)
         _discard(epoch_dir)
@@ -1586,8 +1743,9 @@ def main(argv: list[str] | None = None) -> int:
     limits = _Limits(CYCLE_LIMIT_SECONDS, PARENT_POLL_SECONDS)
     try:
         with cycle_budget(FETCH_BUDGET_SECONDS):
+            # #426: the production night builds in a child it can kill on its own clock (`build_in_child`).
             outcome, code = refresh(
-                Path(args.db), build_args=passthrough,
+                Path(args.db), build_args=passthrough, builder=build_in_child,
                 fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
             )
     except BaseException as exc:
