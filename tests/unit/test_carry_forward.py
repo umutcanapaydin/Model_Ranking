@@ -407,3 +407,17 @@ def test_a_carried_date_is_validated_not_cut_and_no_infinity_is_carried(tmp_path
     assert carry.restore(conn, "aider") == "carried"
     assert {d for (d,) in conn.execute("SELECT DISTINCT run_date FROM scores WHERE source = 'aider'")} == {None}
     assert carry.restore(conn, "swebench") == "absent"
+
+
+def test_the_live_fixture_is_stamped_on_the_tests_clock(tmp_path: Path) -> None:
+    """#421: `_live` built its rows on the wall clock while every age here is read from `NOW`, so on
+    2026-10-23 its rows went more than `CARRY_MAX_AGE` ahead of `NOW` and the carry tests expired.
+    The fixture's newest stamp is within the carry window of `NOW`, whatever today's date is."""
+    live = _live(tmp_path)
+    with sqlite3.connect(live) as conn:
+        stamps = [stamp for table in ("scores", "pricing", "access")
+                  for (stamp,) in conn.execute(f"SELECT DISTINCT observed_at FROM {table}")]
+    assert stamps, "the fixture holds no rows, so it proves nothing"
+    for stamp in stamps:
+        age = NOW - dt.datetime.fromisoformat(stamp)
+        assert dt.timedelta(0) <= age < CARRY_MAX_AGE, (stamp, NOW)
