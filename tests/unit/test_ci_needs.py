@@ -19,14 +19,15 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 #: The test step before #122's patch: pytest on the runner's own network.
 TEST_STEP = "      - name: Test (pytest + coverage)\n        run: pytest\n"
-#: #122's patch for the owner, as posted on the issue and applied: pytest in a network namespace, as the user.
+#: #122's patch for the owner, as posted on the issue and applied: pytest in a network namespace, as the user,
+#: across every core since #424, as `make test` runs it.
 OFFLINE_STEP = (
     "      - name: Test (pytest + coverage), offline (#122)\n"
     "        # A network namespace with only loopback up: every child the suite starts is offline too.\n"
     "        # The run says it must be, so a namespace that did not take stops it before any test.\n"
     "        run: |\n"
     "          sudo unshare --net -- sh -c 'ip link set lo up && exec sudo --preserve-env -u \"$1\" env"
-    " \"PATH=$2\" MODEL_RANKING_REQUIRE_OFFLINE=1 pytest' sh \"$USER\" \"$PATH\"\n"
+    " \"PATH=$2\" MODEL_RANKING_REQUIRE_OFFLINE=1 pytest -n auto' sh \"$USER\" \"$PATH\"\n"
 )
 #: The test job's own checkout, with the whole history since #278, and the step after it that only that job has.
 CHECKOUT = "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4\n"

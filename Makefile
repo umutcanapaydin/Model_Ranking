@@ -109,8 +109,8 @@ test: install  ## pytest in parallel, with the served artifact required, offline
 	@# `-n auto`: one worker per core (8 on the owner's Mac). Measured before adopting it: three
 	@# parallel runs, 908 passed each time, and coverage.json identical to a serial run (3188
 	@# lines, 89%) -- the coverage floor below reads that file, so a parallel run that lost
-	@# coverage data would have turned the floor into a false alarm. CI stays serial: `.github/`
-	@# is a DevOps-owned surface (AGENTS.md section 5). A single test by hand: plain `pytest path`.
+	@# coverage data would have turned the floor into a false alarm. CI runs `pytest -n auto` too
+	@# since #424 (py3.12 took 16 minutes serially). A single test by hand: plain `pytest path`.
 	@# #122 (option B): on macOS the run is offline at the OS level, children included
 	@# (`scripts/offline.sb`), and says it must be: the suite refuses to start if a child could still
 	@# reach the network. No sandbox-exec on a Mac is a failure here, never an unguarded run.
