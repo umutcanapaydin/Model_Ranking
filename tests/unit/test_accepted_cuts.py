@@ -186,7 +186,7 @@ def _night_dropping_three(tmp_path: Path) -> tuple[Path, tuple[refresh.RefreshOu
 
 
 CUT_OF_THREE = (f"cuts:\n  - board: {SLICE.source}\n    decision: D-220\n    reason: a probe\n"
-                "    rows: ['Probe 00', 'Probe 01', 'Probe 02']\n")
+                "    until: 2099-01-01\n    rows: ['Probe 00', 'Probe 01', 'Probe 02']\n")
 
 
 @pytest.mark.parametrize("on_disk", [True, False], ids=["the-cut-on-disk", "no-file"])

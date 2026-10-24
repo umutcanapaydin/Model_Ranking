@@ -280,17 +280,22 @@ def spelling_key(raw_name: str) -> str:
     return re.sub(r"[^a-z0-9+]", "", raw_name.lower())
 
 
-#: D-220 clause 3: the cuts the owner accepted, board by board, each named row by row.
+#: D-220 clause 3: the cuts the owner accepted, board by board, each named row by row; D-221: each with an
+#: expiry and an ADR the decision log holds.
 ACCEPTED_CUTS_PATH = Path(__file__).resolve().parents[3] / "data" / "accepted-cuts.yaml"
-_CUT_KEYS = {"board", "decision", "reason", "rows"}
+DECISIONS_PATH = Path(__file__).resolve().parents[3] / "docs" / "decisions.md"
+_CUT_KEYS = {"board", "decision", "reason", "until", "rows"}
 
 
 class AcceptedCutError(ValueError):
     """`data/accepted-cuts.yaml` is not its schema: the refresh fails, it never excuses everything."""
 
 
-def parse_accepted_cuts(raw: str) -> dict[str, frozenset[str]]:
-    """Each declared board's accepted cut: the raw names it may lose. Anything else in the file raises."""
+def parse_accepted_cuts(
+    raw: str, *, today: dt.date | None = None, decisions: str | None = None
+) -> dict[str, frozenset[str]]:
+    """Each declared board's accepted cut: the raw names it may lose. Anything else in the file raises,
+    a cut past its `until:` date included (D-221 clause 3), and one whose ADR the log does not hold."""
     try:
         doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
     except yaml.YAMLError as exc:
@@ -300,19 +305,51 @@ def parse_accepted_cuts(raw: str) -> dict[str, frozenset[str]]:
     known = {board.source for board in declared_boards.uncovered()}
     cuts: dict[str, frozenset[str]] = {}
     for entry in doc["cuts"]:
-        if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
-            raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
-        board, decision, reason, rows = (entry[key] for key in ("board", "decision", "reason", "rows"))
-        if board not in known or board in cuts:
-            raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board, or is named twice")
-        if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3}", decision):
-            raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
-        if not isinstance(reason, str) or not reason.strip():
-            raise AcceptedCutError(f"accepted cuts: {board} gives no reason")
-        if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and r for r in rows):
-            raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names")
-        cuts[board] = frozenset(rows)
+        if decisions is None:
+            decisions = _decision_log()
+        board, rows = _checked_cut(entry, known, today or dt.datetime.now(tz=dt.UTC).date(), decisions)
+        if board in cuts:
+            raise AcceptedCutError(f"accepted cuts: {board!r} is named twice")
+        cuts[board] = rows
     return cuts
+
+
+def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str) -> tuple[str, frozenset[str]]:
+    """One cut, its every field checked; the board and the names it may lose."""
+    if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
+        raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
+    board, decision, reason, until, rows = (entry[key] for key in ("board", "decision", "reason", "until", "rows"))
+    if board not in known:
+        raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board")
+    if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3}", decision):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
+    if not re.search(rf"^## {re.escape(decision)} \u2014", decisions, re.M):
+        raise AcceptedCutError(f"accepted cuts: {board}'s decision {decision} is not in docs/decisions.md")
+    if not isinstance(reason, str) or not reason.strip():
+        raise AcceptedCutError(f"accepted cuts: {board} gives no reason")
+    expiry = _cut_expiry(until)
+    if expiry is None or expiry < today:
+        raise AcceptedCutError(f"accepted cuts: {board}'s cut has no `until:` date, or it has passed ({until})")
+    if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and r for r in rows):
+        raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names")
+    return board, frozenset(rows)
+
+
+def _cut_expiry(until: object) -> dt.date | None:
+    """A cut's `until:` as a date: YAML reads `2026-11-30` as one; an ISO string is read too."""
+    if isinstance(until, dt.date) and not isinstance(until, dt.datetime):
+        return until
+    if isinstance(until, str):
+        with contextlib.suppress(ValueError):
+            return dt.date.fromisoformat(until)
+    return None
+
+
+def _decision_log() -> str:
+    try:
+        return DECISIONS_PATH.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise AcceptedCutError(f"accepted cuts: {DECISIONS_PATH} cannot be read: {exc}") from exc
 
 
 def load_accepted_cuts(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozenset[str]]:
@@ -326,14 +363,15 @@ def load_accepted_cuts(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozenset[s
     return parse_accepted_cuts(raw)
 
 
-def _excused(lost: frozenset[BoardRow], spellings: Spellings, names: frozenset[str]) -> int:
-    """How many of a board's lost rows an accepted cut names (D-220 clause 3): a model's lost rows up
-    to its spellings the cut names, an unlinked row's by its key."""
+def _excused(lost: frozenset[BoardRow], before: Spellings, after: Spellings, names: frozenset[str]) -> int:
+    """How many of a board's lost rows an accepted cut names, by each row's own name (D-221 clause 2): a
+    model's lost rows up to its lost spellings the cut names, an unlinked row's by its key. Never by
+    model: a cut naming the spelling a model keeps excuses none of the rows it loses."""
     keys = Counter(spelling_key(name) for name in names)
     lost_by_key = Counter(row.key for row in lost if isinstance(row, UnlinkedRow))
     lost_by_model = Counter(row.model for row in lost if isinstance(row, LinkedRow))
     return (sum(min(count, keys[key]) for key, count in lost_by_key.items())
-            + sum(min(count, len(spellings.get(model, frozenset()) & names))
+            + sum(min(count, len((before.get(model, frozenset()) - after.get(model, frozenset())) & names))
                   for model, count in lost_by_model.items()))
 
 
@@ -543,8 +581,9 @@ def degradations(
 
     def excused(name: str, gone: frozenset[BoardRow]) -> int:
         names = accepted.get(name)
-        spellings = live.spellings.get(DECLARED_BOARD.format(name=name), {})
-        return _excused(gone, spellings, names) if names else 0
+        board = DECLARED_BOARD.format(name=name)
+        return (_excused(gone, live.spellings.get(board, {}), candidate.spellings.get(board, {}), names)
+                if names else 0)
 
     reasons += _mostly_lost(live.boards, candidate.boards, DECLARED_BOARD,
                             "a board is published content and is guarded as one (D-164)", excused)
