@@ -1249,3 +1249,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red first (`3cd571d`): a test that the live fixture's stamps fall inside the carry window of `NOW`. The fix stamps `_live()`'s carried tables at `NOW` minus one day.
 - `test_build_slices.py`'s fixed clock was checked too: it passes ages through `last_ok` and reads no row stamps, so it does not age.
 - Lesson: a fixed test clock beside a fixture built on the wall clock is a dated failure; give both the same clock, and test that they agree.
+
+## 2026-10-24 · release/v0.1.0 (second delta) — the verdicts brought past #422 and #406
+
+- #422 (#421's fixture clock) and the owner's #406 limit changed three files the deploy gate counts (`ci.yml`, two tests) after both verdicts' heads, so `make deploy-check` failed again after #420 merged.
+- The Tester's delta over `9d3cf0e..0bdf2eb` is PASS: three faults were injected and all went red. The Security-Reviewer's delta over `9208fd8..471dd79` is PASS with no finding: `ci.yml` changes only its timeout. `make deploy-check` is PASS.
+- Post-merge for #409, #414, #416, #420 and #422: their branches were deleted, #415 and #421 got closing comments, and #406 was closed with run 40093188395 as evidence.
+- Lesson: a change the deploy gate counts as code, even a test or a workflow limit, re-opens both verdicts. Merging such a fix just before a release costs a delta round.
