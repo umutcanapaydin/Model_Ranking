@@ -64,7 +64,7 @@ def parse_pricing(
         # the payload was a dict and reported the guard below as unreachable code. A type
         # annotation over `json.loads` is a wish, not a validation.
         data: Any = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (ValueError, RecursionError) as exc:  # #411: a 4,300-digit integer, deep nesting
         msg = f"litellm payload is not valid JSON: {exc}"
         raise SourceError(msg) from exc
     # M7-W1 security review, BLOCKING-2: this parser was the only one of the five without an

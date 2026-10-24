@@ -56,7 +56,7 @@ def parse_arc_agi_2(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
     """Parse the derivation into one row a model setting; returns (rows, skipped)."""
     try:
         record: Any = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (ValueError, RecursionError) as exc:  # #411: a 4,300-digit integer, deep nesting
         msg = f"{source}: the derivation is not valid JSON: {exc}"
         raise SourceError(msg) from exc
     if not isinstance(record, dict):
