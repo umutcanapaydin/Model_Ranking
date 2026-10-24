@@ -36,8 +36,8 @@ Rulings: D-223
 | issue-412 | fix/issue-412-simplebench-regex | #434 | none | stacked |
 | issue-417 | fix/issue-417-bracket-regex | #435 | none | stacked |
 | issue-426 | fix/issue-426-refresh-alarm | #436 | none | stacked |
-| issue-419 | fix/issue-419-image-modality | none | none | running |
-| issue-403 | fix/issue-403-media-price | none | none | queued |
+| issue-419 | fix/issue-419-image-modality | #437 | none | stacked |
+| issue-403 | fix/issue-403-media-price | none | none | running |
 | issue-404 | fix/issue-404-osworld-tests | none | none | queued |
 | issue-413 | fix/issue-413-schema-sync | none | none | queued |
 | issue-429 | fix/issue-429-cut-edges | none | none | queued |
