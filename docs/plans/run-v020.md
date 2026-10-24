@@ -40,8 +40,8 @@ Rulings: D-223
 | issue-403 | fix/issue-403-media-price | #438 | none | stacked |
 | issue-404 | fix/issue-404-osworld-tests | #439 | none | stacked |
 | issue-413 | fix/issue-413-schema-sync | #440 | none | stacked |
-| issue-429 | fix/issue-429-cut-edges | none | none | running |
-| issue-410 | fix/issue-410-gate-exemption | none | none | queued |
+| issue-429 | fix/issue-429-cut-edges | #441 | none | stacked |
+| issue-410 | fix/issue-410-gate-exemption | none | none | running |
 | issue-401 | fix/issue-401-dispatch-spellings | none | none | queued |
 | issue-408 | fix/issue-408-ceiling-flake | none | none | queued |
 | issue-396 | fix/issue-396-g2-rebuilds | none | none | queued |
