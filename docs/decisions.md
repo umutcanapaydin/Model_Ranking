@@ -5621,6 +5621,8 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Revisit when:** m25 has judged, or the next review plants a twin that the allowlists pass.
 
+**Amended by D-223 (2026-10-24)**: clause 2's bar, 80% / 80%, is confirmed by the owner for run v020 (#351).
+
 ---
 
 ## D-215 — The owner's licence rule: attributed public numbers, for a free and non-commercial app
@@ -5974,3 +5976,33 @@ Hand aliases for the 31 rows would fix none of the 18 rows that the grammar now 
 
 **Revisit when:** a board publishes two different models whose names differ only in case or punctuation, or
 `data/accepted-cuts.yaml` gains a second entry in one month.
+
+## D-223 — Run v020's rulings: how the queue's open decisions are settled
+
+**Status:** proposed
+**Owner ruling:** 2026-10-24, in chat, for run v020
+**Amends** D-214 clause 2 (confirms it) · from run v020 (`docs/plans/run-v020.md`).
+
+**Context.** Run v020 works every open issue and ends with release v0.2.0's verdicts. Eleven decisions were open across the queue. The owner answered all of them in one message; each answer is a clause here.
+
+**Decision.**
+1. **#426.** The refresh runs its build in a child process that the cycle's own alarm (27 minutes) kills. Each source's start and finish is written to the night's record, so a killed night names the source it hung on.
+2. **#429 M1.** A cut's `until:` is at most 30 days after the day the refresh reads it.
+3. **#429 M2.** A cut's ADR check is strict:
+   - a header inside a fenced code block does not count;
+   - a superseded ADR is refused;
+   - the ADR must name the cut's board.
+4. **#429 R1.** The code that applies a cut is not routed to a per-change security review. The INV-54 tests and the release's security review cover it.
+5. **#410.** The deploy gate's "DevFlow file, unchanged" exemption reads DevFlow's commit from a tracked record and accepts a tag only when it resolves to that commit. The product's deploy scripts join the safety surface. The guard's refusal of a `refs/tags/v*` write is the owner's change, an owner-actions row.
+6. **#401.** The four deploy spellings the guard does not judge (an HTTP client, an extension or alias, an action-based deploy, a rerequest) are refused in `docs/refusals.md` with the reason. `fly-production` admits only `main`, and the night's own deploy step runs `deploy_gate.py --check`. The guard is not changed.
+7. **#408.** The memory-ceiling test measures the interpreter's own baseline and judges the ordinary file above it. A changed file is still stopped.
+8. **#396.** G-2's shapes (b), (c) and (d) are closed. Shape (a), the counting loop, stays as D-218 clause 4 ruled.
+9. **#351.** The bar is D-214 clause 2's, 80% / 80%, confirmed. m25 read searches at 82.7%.
+10. **#427.** The Mac-engine code is retired in this run, not after the owner's hosted-night steps. The integration PR is merged only once a hosted night has published, so the data never stops refreshing.
+11. **The release is v0.2.0.**
+
+**Rationale.** Each clause is the default the agent proposed, except clause 10: there the owner chose to retire the code now and to time the merge instead.
+
+**Mitigation if violated:** a clause the run cannot carry out stops its wave (`docs/plans/run-v020.md`, Stops). It is never assumed around.
+
+**Revisit when:** the owner reopens one of the issues above.
