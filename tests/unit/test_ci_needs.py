@@ -53,8 +53,8 @@ def test_every_need_ci_marks_is_what_the_workflow_gives_its_test_job() -> None:
 @pytest.mark.parametrize(
     ("old", "new", "flipped"),
     [
-        ("    runs-on: ubuntu-latest\n    timeout-minutes: 15\n",
-         "    runs-on: macos-latest\n    timeout-minutes: 15\n", {"xcode", "macos"}),
+        ("    runs-on: ubuntu-latest\n    timeout-minutes: 30\n",
+         "    runs-on: macos-latest\n    timeout-minutes: 30\n", {"xcode", "macos"}),
         (OFFLINE_STEP, OFFLINE_STEP + '        env:\n          RUN_CONTRACT_TESTS: "1"\n', {"contract"}),
         (OFFLINE_STEP, OFFLINE_STEP + "        env:\n          EPOCH_DATA_DIR: /data/epoch\n", {"epoch"}),
         # #122: the step as it was before the owner's patch, on the runner's own network.
@@ -79,7 +79,7 @@ def test_a_planted_change_to_the_test_job_flips_its_need_and_only_that(old: str,
 
 
 def test_a_runner_the_workflow_does_not_name_is_not_guessed() -> None:
-    planted = _planted("    runs-on: ubuntu-latest\n    timeout-minutes: 15\n",
-                       "    runs-on: ${{ matrix.os }}\n    timeout-minutes: 15\n")
+    planted = _planted("    runs-on: ubuntu-latest\n    timeout-minutes: 30\n",
+                       "    runs-on: ${{ matrix.os }}\n    timeout-minutes: 30\n")
     with pytest.raises(ValueError, match="runner"):
         ci_job_facts(planted)
