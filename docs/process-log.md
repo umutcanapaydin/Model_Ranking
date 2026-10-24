@@ -1279,3 +1279,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Thirteen client `json.loads` calls caught only `JSONDecodeError`, so `RecursionError` and the 4,300-digit `ValueError` escaped `_ingest_sources` and aborted every source's night. Every handler now catches `(ValueError, RecursionError)`.
 - Red first (`1225d48`): an AST scan requires every `json.loads` in `src/app/clients` to sit in a `try` that catches both. The one exemption is parquet_reader's own argv, named with its reason. A through-the-build test for Datacurve's two shapes goes with it.
 - Lesson: a rule that one exception class covers a library's failures needs the library's whole failure list, so derive the check from the call sites rather than from one example.
+
+## 2026-10-24 · fix/issue-412-simplebench-regex — SimpleBench's board regex is linear (run v020)
+
+- `\n\s*\];` let `\s*` cross newlines, so a page with no closing `];` was quadratic: 200k newlines took about a minute. `[ \t]*` cannot cross a newline, so the same page now fails at once.
+- Red first: a time-bounded test, under 1 s for 200k newlines.
+- Lesson: in a lazy match ended by a whitespace run, use a whitespace class that cannot hold the separator the lazy part steps over.
