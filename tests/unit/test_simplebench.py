@@ -162,3 +162,19 @@ def test_a_model_listed_twice_keeps_its_first_row_and_counts_the_second() -> Non
     rows, skipped = _parse(raw[:end] + repeat + raw[end:])
     assert (len(rows), skipped) == (106, 3)
     assert [row.score for row in rows if row.raw_name == "Claude Opus 5.5"] == [88.4]
+
+
+def test_a_board_with_no_closing_bracket_fails_in_linear_time() -> None:
+    """#412 (the v0.1.0 release security review's M3): `\\n\\s*\\];` let `\\s*` re-scan every later newline at each
+    candidate end, so 100k newlines took 12.6 s and a 32 MB file days, past the cycle's alarm. The board now ends at a
+    newline followed by horizontal whitespace only, so a page that never closes it fails at once."""
+    import time
+
+    from app.clients.protocols import SourceError
+    from app.clients.simplebench import parse_simplebench
+
+    raw = "const leaderboardData = [ {" + "\n" * 200_000 + "x"
+    started = time.perf_counter()
+    with pytest.raises(SourceError):
+        parse_simplebench(raw)
+    assert time.perf_counter() - started < 1.0

@@ -334,7 +334,7 @@ def parse_arena(
     try:
         payload: dict[str, Any] = json.loads(raw)
         wrapped = payload["rows"]
-    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+    except (ValueError, RecursionError, KeyError, TypeError) as exc:  # #411
         msg = f"arena payload malformed: {exc!r}"
         raise SourceError(msg) from exc
     if not isinstance(wrapped, list):

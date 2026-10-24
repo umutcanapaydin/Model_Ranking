@@ -1,107 +1,12 @@
-# Cuts the owner accepted (D-220 clause 3): rows a declared board may lose without the D-164 guard
-# counting them as lost. Each cut names its board, the ADR that accepted it, why, and exactly the raw
-# names it may lose; any other row lost is judged as before. A cut has no effect once a refresh has
-# published, since the served board then no longer holds those rows. The refresh refuses a file that
-# is not this schema (`app.workflows.refresh.parse_accepted_cuts`).
-cuts:
-  - board: epoch_chess
-    decision: D-220
-    reason: >-
-      Epoch re-ran its chess puzzles board in 2026-10 and publishes 154 models; these 94 of the 245
-      the served artifact held (2026-10-13) were not re-run, most of them open-weight runs from
-      2026-08. Accepted once by the owner on 2026-10-23 (#415); old scores are not kept beside it.
-    rows:
-      - "DeepSeek-R1-Distill-Qwen-1.5B"
-      - "DeepSeek-R1-Distill-Qwen-14B"
-      - "DeepSeek-R1-Distill-Qwen-32B"
-      - "Llama-2-13b-chat"
-      - "Llama-3.1-8B-Instruct"
-      - "Llama-3.2-1B-Instruct"
-      - "Meta-Llama-3-8B-Instruct"
-      - "Mistral-7B-Instruct-v0.3"
-      - "Phi-3-mini-4k-instruct"
-      - "QwQ-32B"
-      - "Qwen3-235B-A22B-Thinking-2507"
-      - "Qwen3-30B-A3B"
-      - "Qwen3-30B-A3B_none"
-      - "Qwen3-32B"
-      - "Qwen3-32B_none"
-      - "claude-opus-4-1-20250805"
-      - "claude-opus-4-6_120K"
-      - "claude-opus-4-6_32K"
-      - "claude-opus-4-6_64K"
-      - "claude-opus-5"
-      - "claude-sonnet-4-6_32K"
-      - "deepseek-chat"
-      - "deepseek-llm-67b-chat"
-      - "deepseek-r1-0528-qwen3-8b"
-      - "deepseek-reasoner"
-      - "fireworks/kimi-k2p5"
-      - "gemini-2.5-pro"
-      - "gemini-3-flash-preview"
-      - "gemini-3-pro-preview"
-      - "gemini-3.1-flash-lite_high"
-      - "gemini-3.1-flash-lite_low"
-      - "gemini-3.1-flash-lite_minimal"
-      - "gemini-3.1-pro-preview"
-      - "gemma-3-12b-it"
-      - "gemma-3-1b-it"
-      - "gemma-3-27b-it"
-      - "gemma-3-4b-it"
-      - "gemma-4-26b-a4b-it_minimal"
-      - "gemma-4-31b-it_minimal"
-      - "glm-4.7-flash"
-      - "glm-4.7-flash_none"
-      - "glm-5"
-      - "gpt-3.5-turbo-0125"
-      - "gpt-4-0613"
-      - "gpt-4-turbo-2024-04-09"
-      - "gpt-5.5-instant"
-      - "gpt-5.5-pre-release_xhigh"
-      - "gpt-5.5-pro-pre-release_xhigh"
-      - "gpt-oss-20b_high"
-      - "gpt-oss-20b_low"
-      - "gpt-oss-20b_medium"
-      - "granite-4.0-1b"
-      - "granite-4.0-350m"
-      - "granite-4.0-micro"
-      - "grok-4-0709"
-      - "inkling-small_xhigh"
-      - "kimi-k2-thinking-turbo"
-      - "llama-2-7b-chat"
-      - "magistral-small-2509"
-      - "mistral-small-3-2501"
-      - "mistral-small-3.1-2503"
-      - "mistral-small-3.2-2506"
-      - "nemotron-3-ultra"
-      - "openai/gpt-oss-120b_high"
-      - "phi-4"
-      - "qwen2.5-32b-instruct"
-      - "qwen2.5-7b-instruct"
-      - "qwen3-1.7b_none"
-      - "qwen3-14b"
-      - "qwen3-14b_none"
-      - "qwen3-30b-a3b-instruct-2507"
-      - "qwen3-30b-a3b-thinking-2507"
-      - "qwen3-4b-instruct-2507"
-      - "qwen3-4b_none"
-      - "qwen3-8b"
-      - "qwen3-8b_none"
-      - "qwen3-max-2025-09-23"
-      - "qwen3.5-2b_none"
-      - "qwen3.5-35b-a3b"
-      - "qwen3.5-35b-a3b_none"
-      - "qwen3.5-397b-a17b"
-      - "qwen3.5-397b-a17b_none"
-      - "qwen3.5-9B"
-      - "qwen3.5-9B_none"
-      - "qwen3.6-27b"
-      - "qwen3.6-27b_none"
-      - "qwen3.6-35b-a3b"
-      - "qwen3.6-35b-a3b_none"
-      - "qwen3.6-max-preview"
-      - "qwen3.7-flash"
-      - "qwen3.7-flash_none"
-      - "qwen3.7-plus"
-      - "qwen3.7-plus_none"
-      - "seed-oss-36b-instruct"
+# Cuts the owner accepted (D-220 clause 3, D-221): rows a declared board may lose without the D-164 guard
+# counting them as lost. Each cut names its board, the ADR that accepted it (one `docs/decisions.md` holds),
+# why, an `until:` date, and exactly the raw names it may lose. A lost row is excused only by its own name,
+# never by its model's; any other row lost is judged as before. A cut past its `until:` date, or without
+# one, fails the refresh. The refresh refuses a file that is not this schema
+# (`app.workflows.refresh.parse_accepted_cuts`), and any change here goes to a security review
+# (`scripts/review_need.py`, EXCEPTION_FILES).
+#
+# Retired (D-221 clause 1, #418): epoch_chess, Epoch's 2026-10 chess re-run, 94 names (D-220, #415). The Mac's
+# artifact published that board on 2026-10-23 (`release-55cf42e`) and the hosted engine serves it since the
+# v0.1.0 deploy (`release-2a68ca4`); the entry is in git at `bf278b0`.
+cuts: []
