@@ -48,7 +48,7 @@ def parse_verified(
     try:
         data: dict[str, Any] = json.loads(raw)
         boards = data["leaderboards"]
-    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+    except (ValueError, RecursionError, KeyError, TypeError) as exc:  # #411
         msg = f"swebench payload malformed: {exc!r}"
         raise SourceError(msg) from exc
     if not isinstance(boards, list):

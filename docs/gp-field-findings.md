@@ -382,3 +382,26 @@ FIRES `L1`; the identical text inside backticks passes. The first attempt to pro
 "passed" against a file the rule never reads, which is the shape this project has now recorded a
 dozen times and caught here only by checking why the answer was zero.
 
+
+---
+
+## GPF-009 — Light mode re-opens both release verdicts for every test or CI line, so one release took three review rounds
+
+**Where:** `scripts/deploy_gate.py` and `make deploy-check` (GP-owned), with `/going-live`'s "a delta review first". **Severity:** MED. It does not weaken a control; it makes the owner pay for one over and over, and an owner who pays too often stops trusting the process.
+
+**What happened (2026-10-23/24, release v0.1.0).**
+- The release verdicts were written.
+- A data fix (#416) re-opened both verdicts, so the Tester and the Security-Reviewer ran a delta.
+- A test whose fixed clock aged out (#421) and the owner's 15-to-30-minute CI limit (#406) re-opened them again. The changed files were three: `ci.yml` and two tests, no product code.
+- So the Tester and the Security-Reviewer ran a second delta. Each round was about an hour of agents and a draft PR, and the second found nothing.
+
+The owner's words *(translated)*: *"this is annoying; let the security delta run once, small changes don't need it again."*
+
+**Why the gate does this.** In light mode, `deploy_gate.py` counts any changed non-record file after a verdict's `**Reviewed head:**` as code, including tests and workflow lines, and refuses until both verdicts move past it. That is right for product code. For a change that only touches tests or CI limits, a second Security-Reviewer and Tester pass buys nothing the gate and the PR's own CI did not already give.
+
+**Suggested remedy, offered upstream:**
+- **Once per release.** In light mode, the release security delta runs once per release.
+- **Tests and CI limits stay within the verdict.** Between that verdict and the deploy, a change touching only tests, `.github/workflows/**` timeouts, or records stays covered by the verdict when its own CI is green. It is recorded in the release record, not re-reviewed.
+- **Still re-opens:** product source, a declared HIGH path, a policy script (`review_need.py`, `deploy_gate.py`, `brief_fields.py`), or a dependency lock.
+
+**Handed back to the project in the meantime:** batch fixes between releases instead of shipping each one through a delta (process-log, 2026-10-24).
