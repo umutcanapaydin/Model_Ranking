@@ -1311,3 +1311,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The build now names any such model in its drift. The night records it and `/health` lists it. It is never refused.
 - Red first, including a wiring test that the check's lines reach the build's drift.
 - Lesson: a price keyed by model leaks onto every surface the model appears on; a surface that must not show it needs a check where the two keys meet.
+
+## 2026-10-24 · fix/issue-404-osworld-tests — the OSWorld reader's two fixes are held by tests (run v020)
+
+- `ensure_ascii=False` in `fetch_raw` and the joined text pieces in `_parse_xml` had no test, so reverting either left the suite green.
+- There are now two tests, each proven by fault injection. The file was reverted in place and restored byte-identical (md5).
+  - With `ensure_ascii` reverted, the non-ASCII board fails.
+  - With `+=` restored, 1.6M character references take 15 s against 0.2 s and fail the 5 s bound. 400k references were too few: CPython's in-place `+=` kept the quadratic path under a second.
+- Lesson: a timing test is only a test after it has been shown to fail on the slow path; size the input by measuring that path, not by guessing.

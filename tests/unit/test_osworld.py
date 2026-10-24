@@ -357,3 +357,29 @@ def test_the_registered_ingest_stores_each_row() -> None:
     assert (report.stored, report.skipped) == (20, 1)
     stored = conn.execute("SELECT COUNT(*) FROM scores WHERE source = 'osworld_verified'").fetchone()[0]
     assert stored == 20
+
+
+def test_a_non_ascii_board_serialises_within_twice_its_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#404 (the queue-1021 integration review's N2, held by a test): `fetch_raw` writes JSON with `ensure_ascii=False`,
+    so a board of astral characters serialises to about its own length; escaped, each would take twelve."""
+    text = "\U0001f600" * 20_000
+    data = _zip({"xl/sharedStrings.xml": _shared("Model", text),
+                 "xl/worksheets/sheet1.xml": _sheet('<row r="1"><c r="A1" t="s"><v>0</v></c></row>'
+                                                    '<row r="2"><c r="A2" t="s"><v>1</v></c></row>')})
+    monkeypatch.setattr(_ow(), "fetch_bounded_bytes", lambda *a, **k: data)
+    raw = _ow().OSWorldClient().fetch_raw()
+    assert text in raw
+    assert len(raw) < 2 * len(text)
+
+
+def test_a_sheet_of_character_references_reads_in_linear_time() -> None:
+    """#404 (the queue-1021 integration review's N1, held by a test): expat hands each character reference to the text
+    handler as a piece of its own; the reader joins an element's pieces once, where `+=` on each was quadratic. 1.6M
+    references in one cell take about 0.2 s joined and about 15 s concatenated."""
+    import time
+
+    body = _sheet('<row r="1"><c r="A1" t="inlineStr"><is><t>' + "&#65;" * 1_600_000 + "</t></is></c></row>")
+    started = time.perf_counter()
+    root = _ow()._parse_xml(body, "xl/worksheets/sheet1.xml")
+    assert time.perf_counter() - started < 5.0
+    assert any(len(node.text) == 1_600_000 for node in root.iter(f"{SPREADSHEET_NS} t"))
