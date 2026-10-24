@@ -65,7 +65,7 @@ jobs:
         # A network namespace with only loopback up: every child the suite starts is offline too.
         # The run says it must be, so a namespace that did not take stops it before any test.
         run: |
-          sudo unshare --net -- sh -c 'ip link set lo up && exec sudo --preserve-env -u "$1" env "PATH=$2" MODEL_RANKING_REQUIRE_OFFLINE=1 pytest' sh "$USER" "$PATH"
+          sudo unshare --net -- sh -c 'ip link set lo up && exec sudo --preserve-env -u "$1" env "PATH=$2" MODEL_RANKING_REQUIRE_OFFLINE=1 pytest -n auto' sh "$USER" "$PATH"
       # v5.2 (17-3 / 15-6). A green job is not a run that verified anything. In the field, 214
       # contract tests skipped on every PR because the job had no `services:` block, and the board
       # stayed green -- in the same commit whose practices.md said "a skip is not a pass".
