@@ -642,6 +642,34 @@ def _ingest_bundles(
     return results, missing
 
 
+#: #426 (D-223 clause 1): when set (`--progress-out`), each source's start and finish is appended here, so a
+#: night the cycle kills says which source it was reading. One line an event: `start|done<TAB>name<TAB>epoch`.
+PROGRESS_FILE: Path | None = None
+
+
+def _progress(event: str, name: str) -> None:
+    if PROGRESS_FILE is not None:
+        with PROGRESS_FILE.open("a", encoding="utf-8") as stream:
+            stream.write(f"{event}\t{name}\t{time.time():.1f}\n")
+
+
+def media_price_collisions(conn: sqlite3.Connection) -> list[str]:
+    """#403: each model a quality-only (media) board ranks that also carries a per-token price median. Its
+    standing would show that price on an image or video board, where a per-token price means nothing. As drift
+    lines, `<source>: <reason>`."""
+    from app.workflows.categories import CATEGORIES
+
+    lines: list[str] = []
+    for spec in sorted((s for s in CATEGORIES.values() if not s.priced), key=lambda s: s.primary_source):
+        for (model_id,) in conn.execute(
+                "SELECT DISTINCT s.model_id FROM scores s JOIN px_median p ON p.model_id = s.model_id "
+                "WHERE s.benchmark = ? AND s.metric = ? ORDER BY s.model_id",
+                (spec.primary_benchmark, spec.metric)):
+            lines.append(f"{spec.primary_source}: {model_id} ranks on a media board and carries a per-token "
+                         "price; a board name resolved to a priced text model (#403)")
+    return lines
+
+
 def _ingest_sources(
     conn: sqlite3.Connection, sources: Sequence[RemoteSource], run: RunContext,
     carry: Carry | None = None,
@@ -658,48 +686,52 @@ def _ingest_sources(
     results: list[SourceReport] = []
     missing: list[str] = []
     for source in sources:
+        _progress("start", source.name)
         try:
-            result = source.ingest(conn, source.client(), run)
-            if result.stored < source.minimum_rows:
-                msg = (
-                    f"{source.name}: stored {result.stored} rows, below its floor of "
-                    f"{source.minimum_rows} — the feed answered but its shape has changed"
-                )
-                raise BuildError(msg)
-        except (SourceError, BuildError) as exc:
-            # A source we REJECT must leave nothing behind. `ingest` has already written by the
-            # time the floor is evaluated, and for an optional source the error is swallowed — so
-            # without this the partial rows were committed anyway. The artifact would hold, say,
-            # three arena rows while the build reported arena as unavailable, and at serving time
-            # the "no evidence source is present" branch would NOT fire, because the source IS
-            # present: the surface would answer confidently from truncated evidence, defeating the
-            # exact disclosure D-121 stakes itself on. (Security review MINOR-1.)
-            #
-            # A SAVEPOINT cannot do this job: every `ingest_*` commits internally via `with conn:`,
-            # which ends the transaction and discards outstanding savepoints. `reset_source` is
-            # the mechanism this project already uses to replace a source's working set, so the
-            # rollback is expressed in the same terms as the write.
-            for table in ("pricing", "scores"):
-                reset_source(conn, table, source.name)
-            # D-156: every source carries forward its last good data for up to CARRY_MAX_AGE, the
-            # required ones included (ruled 2026-09-23). Only when there is nothing young enough to
-            # carry does the old rule apply: a required source fails the build.
-            fallback = _fall_back(conn, carry, source.name)
-            if fallback == "carried":
+            try:
+                result = source.ingest(conn, source.client(), run)
+                if result.stored < source.minimum_rows:
+                    msg = (
+                        f"{source.name}: stored {result.stored} rows, below its floor of "
+                        f"{source.minimum_rows} — the feed answered but its shape has changed"
+                    )
+                    raise BuildError(msg)
+            except (SourceError, BuildError) as exc:
+                # A source we REJECT must leave nothing behind. `ingest` has already written by the
+                # time the floor is evaluated, and for an optional source the error is swallowed — so
+                # without this the partial rows were committed anyway. The artifact would hold, say,
+                # three arena rows while the build reported arena as unavailable, and at serving time
+                # the "no evidence source is present" branch would NOT fire, because the source IS
+                # present: the surface would answer confidently from truncated evidence, defeating the
+                # exact disclosure D-121 stakes itself on. (Security review MINOR-1.)
+                #
+                # A SAVEPOINT cannot do this job: every `ingest_*` commits internally via `with conn:`,
+                # which ends the transaction and discards outstanding savepoints. `reset_source` is
+                # the mechanism this project already uses to replace a source's working set, so the
+                # rollback is expressed in the same terms as the write.
+                for table in ("pricing", "scores"):
+                    reset_source(conn, table, source.name)
+                # D-156: every source carries forward its last good data for up to CARRY_MAX_AGE, the
+                # required ones included (ruled 2026-09-23). Only when there is nothing young enough to
+                # carry does the old rule apply: a required source fails the build.
+                fallback = _fall_back(conn, carry, source.name)
+                if fallback == "carried":
+                    continue
+                if source.required:
+                    why = (f"its last good data is older than {CARRY_MAX_AGE.days} days (expired)"
+                           if fallback == "expired" else "")
+                    msg = f"{source.name}: dependency unusable: {exc}" + (f"; {why}" if why else "")
+                    raise BuildError(msg) from exc
+                # An OPTIONAL source that fails does not stop the build, and it does not disappear
+                # either. It is named here, surfaces as exit 3, and the categories it was the sole
+                # evidence for will disclose that they have none.
+                missing.append(f"{source.name}: {exc}" + (
+                    f" (last good data expired: older than {CARRY_MAX_AGE.days} days)"
+                    if fallback == "expired" else ""))
                 continue
-            if source.required:
-                why = (f"its last good data is older than {CARRY_MAX_AGE.days} days (expired)"
-                       if fallback == "expired" else "")
-                msg = f"{source.name}: dependency unusable: {exc}" + (f"; {why}" if why else "")
-                raise BuildError(msg) from exc
-            # An OPTIONAL source that fails does not stop the build, and it does not disappear
-            # either. It is named here, surfaces as exit 3, and the categories it was the sole
-            # evidence for will disclose that they have none.
-            missing.append(f"{source.name}: {exc}" + (
-                f" (last good data expired: older than {CARRY_MAX_AGE.days} days)"
-                if fallback == "expired" else ""))
-            continue
-        results.append(result)
+            results.append(result)
+        finally:
+            _progress("done", source.name)
     return results, missing
 
 
@@ -800,6 +832,7 @@ def build(
     # The stage whose absence M6 could not see: without it px_median is empty and every query
     # answers 200 with zero picks.
     report.price_models = build_price_medians(conn)
+    report.drift += media_price_collisions(conn)  # #403: named, never refused; the night records it
     if report.price_models <= 0:
         msg = "price medians built 0 models; the artifact would answer every query with no picks"
         raise BuildError(msg)
@@ -897,7 +930,13 @@ def main(argv: list[str] | None = None) -> int:
         "--report-out",
         help="write which sources arrived, were carried or expired here, on success and on failure",
     )
+    parser.add_argument(
+        "--progress-out",
+        help="append each source's start and finish here (#426), so a killed build says where it was",
+    )
     args = parser.parse_args(argv)
+    global PROGRESS_FILE  # one build per process: the child the cycle starts (#426)
+    PROGRESS_FILE = Path(args.progress_out) if args.progress_out else None
 
     target = Path(args.db)
     # MINOR-3: a directory target used to raise PermissionError and exit 1, a code the D-120
