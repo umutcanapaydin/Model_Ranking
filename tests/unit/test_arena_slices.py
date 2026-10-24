@@ -7,6 +7,7 @@ in issue #22 and `docs/research/m17-w2-slice-survey-2026-09-24.md`.
 
 from __future__ import annotations
 
+import functools
 import io
 import os
 import subprocess
@@ -446,6 +447,26 @@ def test_a_reader_that_hangs_is_stopped(monkeypatch: pytest.MonkeyPatch) -> None
         parse_arena_slices(_parquet([_row("a", 1390.0, "multi_turn")]), [MULTI], source_url="u")
 
 
+#: #408 (D-223 clause 7): the two ceiling tests set their ceiling this far above the reader's own size after its
+#: imports, measured on this interpreter and runner, instead of at a fixed 100 MiB: a py3.12 runner whose reader
+#: started heavier stopped the ordinary file (CI run 39743558853). `ceiling.parquet` decodes to 96 MiB, past it.
+CEILING_MARGIN = 40 * 2**20
+
+
+@functools.cache
+def _reader_baseline() -> int:
+    """The reader's peak RSS after importing what it reads with, measured the way the reader measures itself."""
+    import app.clients.arena_slices as module
+
+    done = subprocess.run(
+        [sys.executable, "-B", "-P", "-c",
+         "import pyarrow.parquet; from app.clients.parquet_reader import _peak_rss; print(_peak_rss())"],
+        env=module._reader_env(), capture_output=True, text=True, check=True, timeout=120)
+    baseline = int(done.stdout.strip())
+    assert baseline > 10 * 2**20, f"a reader of {baseline} bytes has measured nothing"
+    return baseline
+
+
 def test_a_file_that_would_exhaust_memory_is_stopped_at_the_ceiling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -458,7 +479,7 @@ def test_a_file_that_would_exhaust_memory_is_stopped_at_the_ceiling(
     import app.clients.arena_slices as module
 
     monkeypatch.setattr(module, "MAX_UNCOMPRESSED_BYTES", 2**40)
-    monkeypatch.setattr(module, "MAX_READER_RSS", 100 * 2**20)
+    monkeypatch.setattr(module, "MAX_READER_RSS", _reader_baseline() + CEILING_MARGIN)
     with pytest.raises(SourceError, match="memory ceiling"):
         parse_arena_slices(CEILING_FILE.read_bytes(), [MULTI], source_url="u")
 
@@ -469,7 +490,7 @@ def test_an_ordinary_file_reads_under_the_same_ceiling(monkeypatch: pytest.Monke
     not a reader that measures itself too high."""
     import app.clients.arena_slices as module
 
-    monkeypatch.setattr(module, "MAX_READER_RSS", 100 * 2**20)
+    monkeypatch.setattr(module, "MAX_READER_RSS", _reader_baseline() + CEILING_MARGIN)
     raw = _parquet([_row("a", 1390.0, "multi_turn"), _row("b", 1380.0, "multi_turn")])
     rows, _ = parse_arena_slices(raw, [MULTI], source_url="u")
     assert [r.raw_name for r in rows[MULTI.source_name]] == ["a", "b"]
