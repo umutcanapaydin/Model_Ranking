@@ -320,7 +320,8 @@ _MODALITY_TOKENS: tuple[str, ...] = (
 # fmt: on
 
 _MODALITY_RX: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
-    (token, re.compile(rf"(^|[-_/. ]){re.escape(token)}([-_/. ]|\d|$)", re.IGNORECASE))
+    # #419: a parenthesis bounds a token too -- LMArena's display names write `GPT-4o (image)`.
+    (token, re.compile(rf"(^|[-_/. (]){re.escape(token)}([-_/. )]|\d|$)", re.IGNORECASE))
     for token in _MODALITY_TOKENS
 )
 
