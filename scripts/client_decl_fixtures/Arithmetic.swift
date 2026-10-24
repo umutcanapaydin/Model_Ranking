@@ -223,3 +223,47 @@ func shapeComparedInIf(_ s: Standing) -> Int { if s.position > 3 { return 1 }; r
 func shapeComparedInMap(_ s: Standing) -> [Int] { [s].map { if $0.position > 3 { return 1 }; return 0 } } // allowed: compared-in-map
 func shapeComparedInSort(_ ranked: [Standing]) -> [Standing] { ranked.sorted { $0.position < $1.position } } // allowed: compared-in-sort
 func shapeComparedInMax(_ ranked: [Standing]) -> Standing? { ranked.max { $0.position < $1.position } } // allowed: compared-in-max
+
+// #396 (D-223 clause 8, G-2 (b)): a served number rebuilt inside a closure given to a method that splits, partitions,
+// removes or groups, to `compactMap`, or to `map` whose result a method that counts or searches then reads (the
+// integration review's R1). REFUSED, each, on the line marked.
+func shapeRebuiltSplit(_ s: Standing) -> Int { Array(1...100).split { $0 == s.position }.first?.count ?? 0 } // shape: rebuilt-split
+func shapeRebuiltPartition(_ s: Standing) -> Int { var a = Array(1...100); return a.partition { $0 > s.position } } // shape: rebuilt-partition
+func shapeRebuiltRemoveAll(_ s: Standing) -> Int { var a = Array(1...100); a.removeAll { $0 > s.position }; return a.count } // shape: rebuilt-remove-all
+func shapeRebuiltGrouping(_ s: Standing) -> Int { Dictionary(grouping: 1...100) { $0 <= s.position }[true]?.count ?? 0 } // shape: rebuilt-grouping
+func shapeRebuiltCompactMap(_ s: Standing) -> Int { (1...100).compactMap { $0 <= s.position ? $0 : nil }.count } // shape: rebuilt-compact-map
+func shapeRebuiltMapReduce(_ s: Standing) -> Int { (1...100).map { $0 <= s.position ? 1 : 0 }.reduce(0, +) } // shape: rebuilt-map-reduce
+func shapeRebuiltMapFilter(_ s: Standing) -> Int { (1...100).map { $0 <= s.position }.filter { $0 }.count } // shape: rebuilt-map-filter
+
+// #396 (D-223 clause 8, G-2 (c)): a closure given to a parameter of a function or a method of the app's own, which
+// hands it to a method that counts or searches, there, through another function of the app's own, or called inside
+// the closure it gives one. REFUSED, each, on the line marked.
+func shapeCountedBy(_ p: (Int) -> Bool) -> Int { (1...100).filter(p).count }
+func shapeCountedOnward(_ q: (Int) -> Bool) -> Int { shapeCountedBy(q) }
+func shapeCountedWrapped(_ p: (Int) -> Bool) -> Int { (1...100).filter { p($0) }.count }
+struct ShapeCounter { func tally(where p: (Int) -> Bool) -> Int { (1...100).count(where: p) } }
+func shapeRebuiltByParameter(_ s: Standing) -> Int { shapeCountedBy { $0 <= s.position } } // shape: rebuilt-by-parameter
+func shapeRebuiltOnward(_ s: Standing) -> Int { shapeCountedOnward { $0 <= s.position } } // shape: rebuilt-onward
+func shapeRebuiltByMethod(_ s: Standing) -> Int { ShapeCounter().tally { $0 <= s.position } } // shape: rebuilt-by-method
+func shapeRebuiltWrapped(_ s: Standing) -> Int { shapeCountedWrapped { $0 <= s.position } } // shape: rebuilt-wrapped
+func shapeRebuiltNamedToParameter(_ s: Standing) -> Int {
+    func below(_ x: Int) -> Bool { x <= s.position } // shape: rebuilt-named-to-parameter
+    return shapeCountedBy(below)
+}
+
+// #396 (D-223 clause 8, G-2 (d)): a served number erased to an existential of a protocol that is not numeric, and
+// cast back to a number, with arithmetic after, without, and in a function of the app's own it is handed to.
+// REFUSED, each, on the line marked.
+func shapeThroughExistential(_ s: Standing) -> Int { let h: any Hashable = s.position; return (h as? Int ?? 0) + 1 } // shape: through-existential
+func shapeCastBack(_ s: Standing) -> Int { let h: any Equatable = s.position; return h as? Int ?? 0 } // shape: cast-back
+func shapeUnboxed(_ h: any CustomStringConvertible) -> Int { h as! Int } // shape: cast-back-forced
+func shapeUnboxedUse(_ s: Standing) -> Int { shapeUnboxed(s.position) }
+
+// #396 (D-218 clause 4, D-223 clause 8): what stays ADMITTED, each line: a closure that counts or searches and reads
+// no served number, one handed to a parameter of the app's own, `map` totalled with no served number in it, a split by
+// none, and an existential cast back that never held one. A comparison in `if` stays admitted (`compared-in-if`).
+func shapeQuietFilter(_ s: Standing) -> Int { (1...100).filter { $0 % 2 == 0 }.count } // allowed: quiet-filter
+func shapeQuietParameter(_ s: Standing) -> Int { shapeCountedBy { $0 > 3 } } // allowed: quiet-parameter
+func shapeQuietMapReduce(_ s: Standing) -> Int { (1...100).map { $0 * 2 }.reduce(0, +) } // allowed: quiet-map-reduce
+func shapeQuietSplit(_ s: Standing) -> Int { Array(1...100).split { $0 % 10 == 0 }.count } // allowed: quiet-split
+func shapeQuietExistential(_ s: Standing) -> Int { let h: any Hashable = 3; return h as? Int ?? 0 } // allowed: quiet-existential
