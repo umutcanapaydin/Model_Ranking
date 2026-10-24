@@ -77,3 +77,16 @@ def test_a_moving_alias_in_brackets_still_derives_nothing() -> None:
     """D-166: an undated alias names no one release, however it is spelled."""
     assert derive_identity("o1-mini") is None
     assert derive_identity("Command R (latest)") is None
+
+
+@pytest.mark.parametrize("name", [
+    "Claude 3.5 Sonnet (20241022) (high)",
+    "GPT 5 (2025-08-07) (medium)",
+])
+def test_a_trailing_effort_never_becomes_part_of_a_bracket_read_id(name: str) -> None:
+    """D-220 clause 2 beside #38: a name whose last parenthesis is a run's effort is not read as dash
+    tokens, so the effort never lands in a model id (`gpt5-2025-08-07-medium`). Found by the release
+    Tester's fault injection: without the effort exemption, the suite stayed green."""
+    effort = name.rsplit("(", 1)[1].rstrip(")")
+    derived = derive_identity(name)
+    assert derived is None or (derived.effort == effort and effort not in derived.model_id), derived
