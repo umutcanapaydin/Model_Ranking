@@ -1273,3 +1273,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - GPF-009 records that light mode re-opened both release verdicts for a test-and-CI-only change, so v0.1.0 took three review rounds. The owner's ask is one security delta per release. Until DevFlow answers, fixes are batched between releases.
 - Owner-actions: the Mac deploy (#265), the hosted deploy and the v0.1.0 tag rows are done.
 - Lesson: an owner who says "we already moved" means the old path is a cost, not a fallback; write the retirement with its order, or the old path keeps getting named as the plan.
+
+## 2026-10-24 · fix/issue-411-json-errors — a source's bad JSON fails that source, never the night (run v020)
+
+- Thirteen client `json.loads` calls caught only `JSONDecodeError`, so `RecursionError` and the 4,300-digit `ValueError` escaped `_ingest_sources` and aborted every source's night. Every handler now catches `(ValueError, RecursionError)`.
+- Red first (`1225d48`): an AST scan requires every `json.loads` in `src/app/clients` to sit in a `try` that catches both. The one exemption is parquet_reader's own argv, named with its reason. A through-the-build test for Datacurve's two shapes goes with it.
+- Lesson: a rule that one exception class covers a library's failures needs the library's whole failure list, so derive the check from the call sites rather than from one example.
