@@ -1637,7 +1637,7 @@ def test_396_a_served_number_erased_to_an_existential_and_cast_back_to_a_number_
 
 @pytest.mark.parametrize("mark", ["compared-in-if", "quiet-filter", "quiet-parameter", "quiet-map-reduce", "quiet-split",
                                   "quiet-existential"])
-def test_396_what_reads_no_served_number_and_a_comparison_in_if_stay_admitted(mark: str) -> None:
+def test_396_a_comparison_in_if_and_closures_without_a_served_number_stay_admitted(mark: str) -> None:
     """#396 (D-218 clause 4, D-223 clause 8): a comparison with a served number in `if` stays admitted, the counting
     loop (G-2 (a)) with it; and a closure that counts, splits or is handed to a parameter of the app's own, `map`
     totalled, and an existential cast back are admitted when no served number is in them, so the rules are no wider
