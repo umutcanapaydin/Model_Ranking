@@ -1,4 +1,4 @@
-"""#415 (D-220 clause 2): a cut the owner accepted is not a loss.
+"""#415 (D-220 clause 3): a cut the owner accepted is not a loss.
 
 Epoch re-ran its chess board in 2026-10 and published 154 of the 245 models the served artifact held.
 The owner accepted that cut once: `data/accepted-cuts.yaml` names the board and exactly the rows it
@@ -306,3 +306,11 @@ def test_a_change_to_the_cuts_file_goes_to_a_security_review(tmp_path: Path, mod
     _, last, out = repo.need()
     assert last == want, out
     assert "policy edit: data/accepted-cuts.yaml" in out, out
+
+
+@pytest.mark.parametrize("name", ["!!!", "\u4e2d\u6587"], ids=["punctuation", "no-latin-letter"])
+def test_a_cut_name_with_an_empty_spelling_key_fails_closed(name: str) -> None:
+    """The #418 security review's M3: such a name keys to "", and would excuse any lost unlinked row that does."""
+    raw = _cut().replace("['Probe 00']", f"['{name}']")
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_cuts(raw, today=TODAY, decisions=LOG)

@@ -330,8 +330,10 @@ def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str)
     expiry = _cut_expiry(until)
     if expiry is None or expiry < today:
         raise AcceptedCutError(f"accepted cuts: {board}'s cut has no `until:` date, or it has passed ({until})")
-    if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and r for r in rows):
-        raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names")
+    # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
+    # excuse a lost unlinked row of any such name.
+    if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and spelling_key(r) for r in rows):
+        raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names, each with a letter or digit")
     return board, frozenset(rows)
 
 
