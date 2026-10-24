@@ -59,18 +59,33 @@ def test_a_curated_rule_matches_the_bracketed_spelling_of_its_alias() -> None:
     assert display.canonical_id == slug.canonical_id
 
 
-@pytest.mark.parametrize("name", [
-    "GPT 6 Astra (Max)",            # #38: a trailing effort parenthesis is still the run's effort
-    "gpt-5 (high)",
-    "gpt-6-astra_high",             # a name that resolved before is read exactly as before
-    "deepseek-v3.2-exp",
+@pytest.mark.parametrize(("name", "model_id", "effort"), [
+    ("GPT 6 Astra (Max)", "gpt6-astra", "max"),       # #38: a trailing effort parenthesis is still the run's effort
+    ("gpt-5 (high)", "gpt5", "high"),
+    ("gpt-6-astra_high", "gpt6-astra", "high"),        # a name that resolved before is read exactly as before
+    ("deepseek-v3.2-exp", "deepseek-v3.2-exp", None),
 ])
-def test_a_name_that_resolved_before_resolves_as_before(name: str) -> None:
-    """The bracket reading applies only to a name the grammar refused; nothing that resolved moves."""
+def test_a_name_that_resolved_before_resolves_as_before(name: str, model_id: str, effort: str | None) -> None:
+    """The bracket reading applies only to a name the grammar refused; nothing that resolved moves. Pinned to the
+    id and effort, not only "derives" (the #416 delta Tester's M2: three faults stayed green on the weaker form)."""
     derived = derive_identity(name)
     assert derived is not None
-    if name.endswith(("(Max)", "(high)", "_high")):
-        assert derived.effort in {"max", "high"}
+    assert (derived.model_id, derived.effort) == (model_id, effort)
+
+
+@pytest.mark.parametrize("name", ["x (" + " " * 20_000 + "y", "x" + " " * 20_000 + "(y)"],
+                         ids=["unclosed-after-a-run", "a-run-before-the-bracket"])
+def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(name: str) -> None:
+    """#417 (the #416 security delta's M1): `\\s*\\(` retried at every start in a whitespace run, so a 20k-space
+    name took a second in `canonicalize_with_reason`; an upstream file of such names could stall the night."""
+    import time
+
+    from app.workflows.registry import canonicalize_with_reason
+
+    started = time.perf_counter()
+    canonicalize_with_reason(name)
+    derive_identity(name)
+    assert time.perf_counter() - started < 0.25
 
 
 def test_a_moving_alias_in_brackets_still_derives_nothing() -> None:
