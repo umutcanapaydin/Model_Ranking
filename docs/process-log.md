@@ -1322,6 +1322,6 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 ## 2026-10-24 · fix/issue-413-schema-sync — the record schema is held to the validator again (run v020)
 
-- The v7.2 apply removed `conformance/test-schema-sync.py`, while D-207 clause 4 kept `schemas/record.schema.json`. Nothing noticed drift. `tests/unit/test_record_schema_sync.py` restores the check as a project test: the record-type and status enums and the required fields equal `check_records.py`'s constants, failing closed on an empty set.
+- The v7.2 apply removed the conformance schema-sync test, while D-207 clause 4 kept `schemas/record.schema.json`. Nothing noticed drift. `tests/unit/test_record_schema_sync.py` restores the check as a project test: the record-type and status enums and the required fields equal `check_records.py`'s constants, failing closed on an empty set.
 - Proven both ways: a planted drift in the real file fails it, and the file was restored byte-identical (md5).
 - Lesson: when an upgrade removes a check whose subject the project kept, the check moves into the project in the same change, not later.
