@@ -11,12 +11,27 @@ date: 2026-10-24
 **Reviewer:** Security-Reviewer subagent (light mode, inside run v020; `review-need` routed the branch to `security` for a policy edit: `scripts/deploy_gate.py`, `conformance/test-deploy-shipped.py`)
 **Independent:** yes. I wrote neither the red test nor the fix, and I have not reviewed this code before.
 **Date:** 2026-10-24
-**Release range:** `180644c..c912a80` (merge-base of `integration/run-v020` and `fix/issue-410-gate-exemption`; `ae02816` red test, `c912a80` the fix)
-**Reviewed head:** c912a802d64846bd7fcf09500c7dbfb8210bd235
+**Release range:** `180644c..c912a80` (merge-base of `integration/run-v020` and `fix/issue-410-gate-exemption`; `ae02816` red test, `c912a80` the fix); round 2: `a3bc7d8..831f072` (`6233e49` red test, `831f072` the fix)
+**Reviewed head:** 831f072eaadd1922d78953e9981da059c0e7a1fa
 **Risk tier:** MEDIUM. The change edits the deploy gate, a safety control whose failure direction is CLOSED (`docs/security-baseline.md`, "Control-class fail direction"). The brief declares no HIGH paths (`docs/project-brief.md:110`), and nothing here touches auth, PII, payment or a migration, so no senior-review line is owed.
 
 ## Verdict
-BLOCKING: BLOCKING 2 · MINOR 3 · risks queued 2.
+MINOR: BLOCKING 0 · MINOR 4 · risks queued 2 (round 2, at `831f072`; round 1 at `c912a80` was BLOCKING 2 · MINOR 3 · risks queued 2).
+
+### Round 2 (re-verification of B1 and B2, `a3bc7d8..831f072`)
+
+Range: `6233e49` (red test for B1) and `831f072` (the fix), fast-forwarded into this seat's worktree. Same seat, same method as round 1.
+
+- **B1: resolved.** `scripts/deploy_gate.py:96-99` sets `GIT_NO_REPLACE_OBJECTS=1` at import. The gate passes no `env=` to any `subprocess.run`, so every git it starts inherits it, including the calls through `brief_fields`. `scripts/brief_fields.py:87` also passes `--no-replace-objects` for its other importers. Evidence: my round-1 probe repositories, rerun on the fixed gate. The pinned-bytes forgery (`refs/replace/<pinned v9.9>` pointing at a parentless commit holding the change) went from rc=0 on the round-1 gate to **rc=1**. The base forgery (the `main` tip replaced by a commit whose parent is the branch head, with `merge-base main HEAD` returning HEAD) went from rc=0 to **rc=1**. `git --no-replace-objects merge-base` returns the real tip. `tests/unit/test_deploy_gate_pin.py::test_a_replace_ref_does_not_forge_the_pinned_bytes` fails on the round-1 gate and passes on the fix, so it is a real red-to-green test. The owner-actions row (`docs/owner-actions.md:30`) now asks the guard to refuse `git replace`, `update-ref refs/replace/*`, and a fetch or push into `refs/replace/`.
+- **B2: resolved.** `conformance/test-deploy-shipped.py:96-111` now moves the pin to the commit holding the change in the safety-surface case and in the scaffold case. Evidence (my two round-1 mutants, on the fix's tree):
+  - No safety-surface check: conformance FAIL (`the safety surface changed, even byte-identical to the pinned commit: refused: exit 0`), and the unit tests give 1 failed (`test_a_deploy_script_is_code_even_byte_identical_to_the_pinned_commit`).
+  - No `DEVFLOW_TOOLING` restriction: conformance FAIL (`a product scaffold file byte-identical to the pinned commit: still code, refused: exit 0`), and the unit tests give 1 failed (`test_a_product_file_byte_identical_to_the_pinned_commit_is_still_code`).
+  - Unmutated: conformance PASS with 7 cases, unit tests 9 passed.
+- **M4 (new, MINOR)** `tests/unit/test_deploy_gate_pin.py::test_a_replace_ref_does_not_forge_the_protected_base` cannot fail. It passes on the round-1 gate, which honours replace refs (run: the round-1 `scripts/` with the new test file gave 1 failed, 8 passed, and the only failure was the pinned-bytes test). It replaces the merge-base with a commit that descends from it. That makes the history a cycle rather than moving the base, so the forgery it names is never set up. Today the protection is covered because both fixes are in place and the pinned-bytes test catches the loss of the `os.environ` line. But a later change that kept `--no-replace-objects` only on `cat-file` would reopen the base forgery, and no test would fail. It is MINOR because the behaviour is correct at `831f072` (probe above). Remedy: build the fake base as the round-1 probe did. Use `git commit-tree -p <branch head> -m x <main tip>^{tree}`, then `git replace <main tip> <that commit>`. Assert that `git merge-base main HEAD` returns the branch head with replace refs honoured, so the test proves the forgery is real. Then confirm the test fails on `c912a80`'s `scripts/`.
+- Not a lost polarity, noted only: a gate mutant that reads the pin at `HEAD` still passes conformance, because every conformance case commits on `main`. `test_a_pin_edited_on_the_branch_is_not_read` catches it. A branch case in DevFlow's conformance test would make the shipped control carry this polarity itself (round 1's B2 remedy, last sentence).
+- M1, M2, M3, R1 and R2 stand as written in round 1. None is BLOCKING. File each as an issue. M4 is a one-test change worth taking on this branch.
+
+### Round 1 (at `c912a80`)
 
 The fix removes the tag and marker reads, and a pin rewritten on the branch is refused. But the pinned bytes and the protected base can still be forged with one ref write that the guard allows (B1, demonstrated end to end), so #410's finding stays open. The conformance test also lost two polarities it had at the base (B2, demonstrated by mutation).
 
