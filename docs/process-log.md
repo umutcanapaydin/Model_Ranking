@@ -1319,3 +1319,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   - With `ensure_ascii` reverted, the non-ASCII board fails.
   - With `+=` restored, 1.6M character references take 15 s against 0.2 s and fail the 5 s bound. 400k references were too few: CPython's in-place `+=` kept the quadratic path under a second.
 - Lesson: a timing test is only a test after it has been shown to fail on the slow path; size the input by measuring that path, not by guessing.
+
+## 2026-10-24 · fix/issue-413-schema-sync — the record schema is held to the validator again (run v020)
+
+- The v7.2 apply removed the conformance schema-sync test, while D-207 clause 4 kept `schemas/record.schema.json`. Nothing noticed drift. `tests/unit/test_record_schema_sync.py` restores the check as a project test: the record-type and status enums and the required fields equal `check_records.py`'s constants, failing closed on an empty set.
+- Proven both ways: a planted drift in the real file fails it, and the file was restored byte-identical (md5).
+- Lesson: when an upgrade removes a check whose subject the project kept, the check moves into the project in the same change, not later.
