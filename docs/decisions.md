@@ -3524,6 +3524,7 @@ installer's safety properties need more than the substring tests the M17 closure
 
 **Amended by D-171 (2026-09-29)**: clause 1's bind is loopback by default and the home network by opt-in, with every Host checked. **Amended by D-177 (2026-10-04)**: a release's venv takes `requirements/ingest.lock` and `requirements/build.lock`, hash-checked, so the cost's "without a lock (#35)" no longer holds.
 
+**Superseded by D-222 (2026-10-24)**: the Mac runs no engine once the hosted nightly has published; the hosted engine on Fly.io is the only engine (#427).
 
 ## D-171 — The engine can serve the owner's phone on his home network, by opt-in, checking every Host
 
@@ -3599,6 +3600,7 @@ and note 3's pointer to the firewall.
     holds the name it was installed with, and refuses the new one (`unknown_host`, whose address the
     failure screen now shows).
 
+**Superseded by D-222 (2026-10-24)**: with no engine on the Mac there is nothing to serve on the home network; the phone reads the hosted engine (#427).
 
 ## D-172 — The security review runs once per milestone, at its closure; a wave closes on its Code-Reviewer and Tester
 
@@ -6018,11 +6020,47 @@ names is a standing relaxation, and a standing relaxation is not what D-220 acce
 
 **Revisit when:** a second cut is accepted in one month, or a cut's expiry stops a night that should have published.
 
+## D-222 — The hosted engine is the only engine: the Mac runs nothing once the hosted nightly has published
+
+**Status:** proposed
+**Owner ruling:** 2026-10-24, in chat (*"nothing should run on the Mac any more; we took the engine, that is it"*, translated)
+**Supersedes** D-170 and D-171 · **completes** D-217 · from #427.
+
+**Context.** Since v0.1.0 (2026-10-24, `release-2a68ca4`) the hosted engine on Fly.io serves the app. The Mac still
+runs a launchd engine (D-170) whose nightly refresh builds the data the hosted deploy ships (`deploy_hosted_engine.sh`
+derives its artifact from it). D-217 moved the refresh and the deploy to a GitHub Actions workflow, but that workflow
+is not installed: `fly-production` and its `FLY_API_TOKEN` do not exist yet (`docs/owner-actions.md`, 2026-10-21
+rows). On 2026-10-23 the Mac's own night was killed at 30 minutes (#426).
+
+**Decision.**
+1. The hosted engine is the only engine. The Mac runs no engine, no refresh and no ingestion.
+2. **Order, so the data never stops:**
+   - the owner creates `fly-production` with its token;
+   - the owner installs `nightly-hosted.yml`;
+   - one night runs and publishes, and `/health`'s `build` names main's tip;
+   - only then the owner takes the Mac's service off (`scripts/remove_engine_service.sh`).
+3. Until step 2 completes, the Mac's service keeps running as it is. Nothing is changed there in the meantime.
+4. The code and the documents that assume a Mac engine are retired in their own change (#427): the installer, the
+   home-network option, a deploy that reads the Mac's artifact, and the app's debug default.
+
+**Rationale.** One engine is one thing to keep alive, one place a refresh can fail, and one answer to "which data
+is live". The hosted engine already serves the app, and D-217 already moved the refresh off the Mac. Only the
+workflow's install is left.
+
+**Mitigation if violated:**
+- If the Mac is taken off before a hosted night publishes, the served data stops refreshing and ages. Nothing breaks:
+  carry-forward and the D-156 limits apply.
+- The hosted night's own failure is visible in its workflow run, and `/health` stops naming main's tip.
+
+**Revisit when:** the hosted nightly fails three nights running, or a source can only be read from a home network.
+
+**Amended by D-223 (2026-10-24)**: the Mac-engine code is retired in run v020 itself; the order of clause 2 now governs the integration PR's merge, which waits for a published hosted night (#427).
+
 ## D-223 — Run v020's rulings: how the queue's open decisions are settled
 
 **Status:** proposed
 **Owner ruling:** 2026-10-24, in chat, for run v020
-**Amends** D-214 clause 2 (confirms it) · from run v020 (`docs/plans/run-v020.md`).
+**Amends** D-214 clause 2 (confirms it) and D-222 clauses 2-4 · from run v020 (`docs/plans/run-v020.md`).
 
 **Context.** Run v020 works every open issue and ends with release v0.2.0's verdicts. Eleven decisions were open across the queue. The owner answered all of them in one message; each answer is a clause here.
 

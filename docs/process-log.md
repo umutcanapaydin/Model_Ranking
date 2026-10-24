@@ -1266,3 +1266,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The epoch_chess cut is retired (`cuts: []`): both served artifacts hold Epoch's published board since `release-55cf42e` and `release-2a68ca4`.
 - Red first (`1b926e7`, 11 tests), then the fix. INV-54 cites three more tests.
 - Lesson: an exception to a guard is policy, and a policy file that no review route names is one the reviews never see.
+
+## 2026-10-24 · enhancement/retire-mac-engine — the Mac is retired as an engine, and light mode's repeated deltas go back to DevFlow
+
+- The owner's ruling, recorded as D-222: the hosted engine is the only engine, and the Mac runs nothing. D-170 and D-171 are superseded. The order keeps the data refreshing: first `fly-production` and its token, then the nightly workflow, then one hosted night; only after that is the Mac's service taken off (owner-actions row). Retiring the code is #427.
+- GPF-009 records that light mode re-opened both release verdicts for a test-and-CI-only change, so v0.1.0 took three review rounds. The owner's ask is one security delta per release. Until DevFlow answers, fixes are batched between releases.
+- Owner-actions: the Mac deploy (#265), the hosted deploy and the v0.1.0 tag rows are done.
+- Lesson: an owner who says "we already moved" means the old path is a cost, not a fallback; write the retirement with its order, or the old path keeps getting named as the plan.
