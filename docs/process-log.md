@@ -1336,3 +1336,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R1 takes no route (D-223 clause 4).
 - Red first. The fixtures that relied on the looser rules now carry a near expiry and a log that names the probe's board.
 - Lesson: an exception's expiry needs an upper bound as well as a lower one, or a date far in the future is a permanent exception written as a temporary one.
+
+## 2026-10-24 · fix/issue-401-dispatch-spellings — four deploy spellings the guard does not judge are refused on the record (run v020)
+
+- #401 (D-223 clause 6): `docs/refusals.md` R-4 refuses judging a dispatch through an HTTP client, an extension or alias, an action-based deploy, and a rerequest or deployment approval. `fly-production` admits only `main`, and the night's own deploy step runs `deploy_gate.py --check`, so none of them can ship unreviewed code. Its re-open triggers name what would change that.
+- Lesson: when every path to a deploy ends at one checked gate, a refusal that names the gate and its trigger is stronger than a guard that tries to enumerate every way to reach it.
