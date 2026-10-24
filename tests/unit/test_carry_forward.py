@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from app.workflows.build import CARRY_MAX_AGE, BuildError, build
+from app.workflows.build import CARRY_MAX_AGE, CARRY_TABLES, BuildError, build
 from app.workflows.schema import connect
 from app.workflows.sources import RemoteSource
 
@@ -37,6 +37,10 @@ def _live(tmp_path: Path) -> Path:
     conn = connect(str(path))
     build(conn, plans_yaml=PLANS_YAML, rosters_yaml=ROSTERS_YAML, sources=_sources(),
           minimum_models=2)
+    # #421: the build stamps the wall clock; every age here is read from `NOW`. Served a day before it.
+    for table in CARRY_TABLES:
+        conn.execute(f"UPDATE {table} SET observed_at = ?", (_iso(1),))
+    conn.commit()
     conn.close()
     return path
 
@@ -415,7 +419,7 @@ def test_the_live_fixture_is_stamped_on_the_tests_clock(tmp_path: Path) -> None:
     The fixture's newest stamp is within the carry window of `NOW`, whatever today's date is."""
     live = _live(tmp_path)
     with sqlite3.connect(live) as conn:
-        stamps = [stamp for table in ("scores", "pricing", "access")
+        stamps = [stamp for table in CARRY_TABLES
                   for (stamp,) in conn.execute(f"SELECT DISTINCT observed_at FROM {table}")]
     assert stamps, "the fixture holds no rows, so it proves nothing"
     for stamp in stamps:
