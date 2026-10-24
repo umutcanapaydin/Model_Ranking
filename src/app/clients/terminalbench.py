@@ -49,7 +49,7 @@ class TerminalBench4Client:
     def fetch_raw(self) -> str:
         try:
             listing: Any = json.loads(fetch_bounded(LISTING_URL, self.name, _TIMEOUT_S, hosts=self.hosts))
-        except json.JSONDecodeError as exc:
+        except (ValueError, RecursionError) as exc:  # #411: a 4,300-digit integer, deep nesting
             msg = f"{self.name}: the submissions listing is not JSON: {exc}"
             raise SourceError(msg) from exc
         if not isinstance(listing, list):
@@ -135,7 +135,7 @@ def parse_terminalbench_4(raw: str, *, source: str = SOURCE_NAME, source_url: st
     """
     try:
         entries: Any = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (ValueError, RecursionError) as exc:  # #411: a 4,300-digit integer, deep nesting
         msg = f"{source}: payload is not valid JSON: {exc}"
         raise SourceError(msg) from exc
     if not isinstance(entries, list):
@@ -147,7 +147,7 @@ def parse_terminalbench_4(raw: str, *, source: str = SOURCE_NAME, source_url: st
         body = entry.get("body") if isinstance(entry, dict) else None
         try:
             submission = json.loads(body) if isinstance(body, str) else None
-        except json.JSONDecodeError:
+        except (ValueError, RecursionError):  # #411
             submission = None
         row = _row(submission, source=source, source_url=source_url)
         if row is None:
