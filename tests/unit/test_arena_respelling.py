@@ -105,3 +105,23 @@ def test_a_trailing_effort_never_becomes_part_of_a_bracket_read_id(name: str) ->
     effort = name.rsplit("(", 1)[1].rstrip(")")
     derived = derive_identity(name)
     assert derived is None or (derived.effort == effort and effort not in derived.model_id), derived
+
+
+@pytest.mark.parametrize(("name", "token"), [
+    ("GPT-4o (image)", "image"),
+    ("Gemini 2.5 Flash (Image)", "image"),
+    ("GPT-4o (audio)", "audio"),
+])
+def test_a_bracketed_modality_is_a_different_product(name: str, token: str) -> None:
+    """#419 (the #416 security delta's R2): the modality guard read a token only between `-_/. `, so a
+    display name's `(image)` linked an image model to its text model's rule, score and price."""
+    from app.workflows.registry import canonicalize_with_reason
+
+    assert canonicalize_with_reason(name) == (None, token)
+    assert derive_identity(name) is None
+
+
+def test_a_bracketed_date_is_not_a_modality() -> None:
+    """The guard stays quiet where it should: `GPT-4o (2024-08-06)` is the text model."""
+    rule = canonicalize("GPT-4o (2024-08-06)")
+    assert rule is not None and rule.canonical_id == "gpt-4o"

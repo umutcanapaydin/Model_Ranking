@@ -1298,3 +1298,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The build writes `start` and `done` per source to `--progress-out`, in a `finally`, so a failing source still closes its line.
 - Red first. Three CLI tests patch `build_in_child`, the builder `main` now uses, in place of `build_main`; what they assert is unchanged.
 - Lesson: a production-path change behind a test seam needs the seam moved to the entry point, or every test that patched the old default silently starts running the real thing.
+
+## 2026-10-24 · fix/issue-419-image-modality — a bracketed modality is a different product (run v020)
+
+- The modality guard read a token only between `-_/. `, so `GPT-4o (image)` and `(audio)` linked to the text model's rule. A parenthesis now bounds a token too.
+- Red first. The quiet case, `GPT-4o (2024-08-06)`, still resolves to the text model. Of the 424 bracketed names in the 2026-10-23 candidate, the guard refuses the same two as before.
+- Lesson: when a source changes its naming style, every token boundary in the name rules has to be re-read against the new style.
