@@ -203,27 +203,52 @@ def changed_since(root: Path, head: str) -> list[str] | None:
 DEVFLOW_TOOLING = (".claude/", ".githooks/", "scripts/", "conformance/", ".agents/", ".github/")
 DEVFLOW_TOOLING_FILES = {"Makefile"}
 
-#: Always code, even byte-identical to DevFlow's tag: the guard, its settings and the gate are the safety
-#: surface the verdicts stand on.
+#: Always code, even byte-identical to DevFlow's commit: the guard, its settings and the gate are the safety surface
+#: the verdicts stand on, and the product's deploy scripts decide what ships where (#410, D-223 clause 5).
 SAFETY_SURFACE = {".claude/hooks/bash_guard.py", ".claude/settings.json", "scripts/deploy_gate.py",
-                  "scripts/brief_fields.py"}
+                  "scripts/brief_fields.py", "scripts/deploy_hosted_engine.sh", "scripts/nightly_hosted.sh"}
+SAFETY_SURFACE_DIRS = ("scripts/ci/",)
+#: #410 (D-223 clause 5): `<version> <commit>`, the DevFlow commit whose bytes the exemption compares with. Read
+#: at the protected base only: an agent's branch can neither move it nor forge it, and an upgrade the owner merges
+#: moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
+DEVFLOW_PIN = "docs/devflow-pin.txt"
+_PINS: dict[str, str | None] = {}
+
+
+def devflow_pin(root: Path) -> str | None:
+    """The DevFlow commit pinned at the protected base of `root`, or None (no base, no pin, or not a commit)."""
+    key = str(root)
+    if key not in _PINS:
+        base = protected_base(root)
+        text = git_show(root, base, DEVFLOW_PIN) if base else None
+        m = re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*", text or "")
+        _PINS[key] = m.group(1) if m else None
+    return _PINS[key]
+
+
+def git_show(root: Path, rev: str, rel: str) -> str | None:
+    try:
+        done = subprocess.run(["git", "-C", str(root), "show", f"{rev}:{rel}"], capture_output=True,
+                              encoding="utf-8", errors="replace", timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return done.stdout if done.returncode == 0 else None
 
 
 def shipped_unchanged(root: Path, rel: str) -> bool:
-    """Whether `rel` is a file DevFlow shipped, byte for byte as the installed tag (`.gp/installed`) has
-    it -- DevFlow's own tooling after an upgrade, which is not this product's code (v7.2, the owner's
-    ruling of 2026-10-17: every upgrade made both release verdicts stale). False without the tag in this
-    clone, for the safety surface, and for anything the project changed."""
-    if rel in SAFETY_SURFACE or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
+    """Whether `rel` is a file DevFlow shipped, byte for byte as the commit pinned at the protected base has it --
+    DevFlow's own tooling after an upgrade, which is not this product's code (v7.2, the owner's ruling of
+    2026-10-17: every upgrade made both release verdicts stale). False with no pin at the base, for the safety
+    surface, and for anything the project changed (#410: never from a local tag or the untracked marker)."""
+    if rel in SAFETY_SURFACE or rel.startswith(SAFETY_SURFACE_DIRS) \
+            or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
         return False
-    marker = root / ".gp" / "installed"
-    m = re.search(r"^gp_version:\s*(\S+)", marker.read_text(encoding="utf-8", errors="replace"), re.M) \
-        if marker.is_file() else None
+    pinned = devflow_pin(root)
     target = root / rel
-    if not m or not target.is_file():
+    if pinned is None or not target.is_file():
         return False
     try:
-        shipped = subprocess.run(["git", "-C", str(root), "cat-file", "-p", f"refs/tags/{m.group(1)}:{rel}"],
+        shipped = subprocess.run(["git", "-C", str(root), "cat-file", "-p", f"{pinned}:{rel}"],
                                  capture_output=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return False

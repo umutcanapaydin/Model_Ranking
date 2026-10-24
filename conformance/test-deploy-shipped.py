@@ -4,10 +4,12 @@
 WHY (v7.2, the owner's ruling of 2026-10-17, process audit B-I20/C-21/D-32). Every DevFlow upgrade
 changes `scripts/`, `.claude/` and `conformance/`, which the deploy gate counts as code, so each upgrade
 bought a security and a Tester delta over DevFlow's tooling, not the product. Now a file byte-identical to
-the installed tag (`.gp/installed`) is not code to the gate -- except the safety surface (the guard, its
-settings, the gate and its brief reader), which always is. Both polarities in a throwaway repository: an
-upgrade that only replaces shipped files passes; a project's edit to a shipped file, a change to the
-safety surface, a product change, and a missing tag each refuse.
+the DevFlow commit `docs/devflow-pin.txt` names at the protected base is not code to the gate -- except the
+safety surface (the guard, its settings, the gate, its brief reader and the deploy scripts), which always is.
+Since #410 (D-223 clause 5) neither a local tag nor `.gp/installed` is read: both are writable by the change
+under evaluation. Both polarities in a throwaway repository: an upgrade that only replaces shipped files, and
+moves the pin, passes; a project's edit to a shipped file, a change to the safety surface, a product change,
+and a missing pin each refuse.
 
 Exit: 0 every case behaves - 1 one does not - 2 git not installed.
 """
@@ -58,10 +60,13 @@ def main() -> int:
         write(".claude/settings.json", "{}\n")
         write("src/app.py", "x = 1\n")
         write(".gp/installed", "gp_version: v9.9\n")
-        git("init", "-q")
+        git("init", "-q", "-b", "main")
         git("add", "-A")
         git("commit", "-q", "-m", "install v9.9")
         git("tag", "v9.9")
+        write("docs/devflow-pin.txt", f"v9.9 {git('rev-parse', 'HEAD')}\n")
+        git("add", "-A")
+        git("commit", "-q", "-m", "pin v9.9")
         head = git("rev-parse", "HEAD")
         for name in ("release-security.md", "release-tester.md"):
             write(f"docs/reviews/{name}", f"# R\n\n**Independent:** yes\n**Reviewed head:** {head}\n\n## Verdict\nPASS\n")
@@ -75,14 +80,19 @@ def main() -> int:
         git("commit", "-q", "-am", "DevFlow v9.10")
         git("tag", "v9.10")
         write(".gp/installed", "gp_version: v9.10\n")
+        write("docs/devflow-pin.txt", f"v9.10 {git('rev-parse', 'v9.10')}\n")
         git("commit", "-q", "-am", "upgrade to v9.10")
         case("an upgrade that only replaced shipped files: PASS, no delta owed", check(), True)
         write("scripts/tool.py", "VERSION = 2  # the project's own change\n")
         case("the project changed a shipped file: refused", check(), False)
         git("checkout", "-q", "--", "scripts/tool.py")
-        git("tag", "-d", "v9.10")
-        case("the installed tag is not in this clone: refused (cannot show it is DevFlow's)", check(), False)
-        git("tag", "v9.10")
+        pin = (repo / "docs" / "devflow-pin.txt").read_text(encoding="utf-8")
+        git("rm", "-q", "docs/devflow-pin.txt")
+        git("commit", "-q", "-m", "no pin")
+        case("no pin at the protected base: refused (cannot show it is DevFlow's)", check(), False)
+        write("docs/devflow-pin.txt", pin)
+        git("add", "-A")
+        git("commit", "-q", "-m", "pin back")
         write(".claude/settings.json", '{"x": 1}\n')
         git("commit", "-q", "-am", "settings via an upgrade")
         git("tag", "-f", "v9.10")
@@ -103,7 +113,7 @@ def main() -> int:
         print("\n".join(bad))
         return 1
     print(f"test-deploy-shipped PASS: {count} cases -- DevFlow's own unchanged files leave the release verdicts "
-          "current; a project's edit, the safety surface, the product and a missing tag do not")
+          "current; a project's edit, the safety surface, the product and a missing pin do not")
     return 0
 
 

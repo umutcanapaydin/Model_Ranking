@@ -1336,3 +1336,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R1 takes no route (D-223 clause 4).
 - Red first. The fixtures that relied on the looser rules now carry a near expiry and a log that names the probe's board.
 - Lesson: an exception's expiry needs an upper bound as well as a lower one, or a date far in the future is a permanent exception written as a temporary one.
+
+## 2026-10-24 · fix/issue-410-gate-exemption — the deploy gate's DevFlow exemption reads its pin at the protected base (run v020)
+
+- #410 (D-223 clause 5): the exemption compared a file with `refs/tags/<version>` named by the untracked `.gp/installed`, both writable by the change under evaluation. It now compares with the commit `docs/devflow-pin.txt` names at the protected base (the merge-base with the default branch), which an agent's branch can neither move nor forge. An upgrade the owner merges moves the pin, so it still owes no delta. `scripts/deploy_hosted_engine.sh`, `scripts/nightly_hosted.sh` and `scripts/ci/` join the safety surface.
+- Red first: a forged tag with the marker, a moved tag, a pin rewritten on the branch, and a deploy script byte-identical to its upstream commit; the quiet upgrade case passes. DevFlow's conformance test moved to the pin model (seven cases). The guard's refusal of tag writes is an owner-actions row.
+- Lesson: an exemption from a gate must read its proof from where the gate reads its policy (the protected base), never from the tree it judges.
