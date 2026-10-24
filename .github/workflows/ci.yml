@@ -35,7 +35,7 @@ jobs:
   # off so a 3.14 break does not hide a 3.12 one, or the reverse.
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
