@@ -1291,3 +1291,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `\s*\(` in `_TEXT_BRACKET` and `_PAREN_EFFORT` was retried at every position of a whitespace run, so a 20k-space name took about a second. `(?<!\s)` starts a match only where a run begins, so the run is scanned once. The matches are the same as before.
 - Red first: a test bounded to 0.25 s. The test of names that resolved before now pins each id and effort (the #416 delta Tester's M2).
 - Lesson: a leading `\s*` in a searched pattern is quadratic on whitespace unless something anchors where it may start.
+
+## 2026-10-24 · fix/issue-426-refresh-alarm — a night that never finishes says where it stopped (run v020)
+
+- #426 (D-223 clause 1): the nightly entry (`refresh.main`) builds in a child of the cycle, in its process group, and kills it at `BUILD_LIMIT_SECONDS` (25 minutes) on its own clock. A killed night's record names each source it started and never finished, and every record carries `source_seconds`. `refresh()` itself keeps the in-process build that the tests patch.
+- The build writes `start` and `done` per source to `--progress-out`, in a `finally`, so a failing source still closes its line.
+- Red first. Three CLI tests patch `build_in_child`, the builder `main` now uses, in place of `build_main`; what they assert is unchanged.
+- Lesson: a production-path change behind a test seam needs the seam moved to the entry point, or every test that patched the old default silently starts running the real thing.

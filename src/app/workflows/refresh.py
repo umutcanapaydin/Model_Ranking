@@ -33,6 +33,7 @@ import signal
 import sqlite3
 import stat
 import statistics
+import subprocess
 import sys
 import tempfile
 import threading
@@ -106,6 +107,12 @@ FETCH_BUDGET_SECONDS = 20 * 60.0
 #: publish is one rename; the lock goes with the process; the reader it may have started ends on its
 #: own watchdog (D-165).
 CYCLE_LIMIT_SECONDS = 27 * 60.0
+#: #426 (D-223 clause 1): the build runs in a child of the cycle, in its process group, and the cycle kills it
+#: here with its own clock, two minutes before its own limit, so a killed night still writes why. On
+#: 2026-10-23 a night outlived the 27-minute alarm and the engine's kill left no record of where it was.
+BUILD_LIMIT_SECONDS = CYCLE_LIMIT_SECONDS - 2 * 60.0
+#: What `build_in_child` returns for a build it killed; the build's own codes are 0-3.
+EXIT_BUILD_KILLED = 124
 #: How often the cycle checks that the engine that started it is still there. The engine starts it
 #: in a session of its own, so its kill takes the cycle's whole group (W-130), and launchd's cleanup
 #: of a dead engine's group no longer reaches it. A cycle whose engine is gone ends itself, the same
@@ -170,6 +177,8 @@ class RefreshOutcome:
     renamed: tuple[str, ...] = ()
     #: #230: the board that changed most against the live artifact, as `largest_board_change` reads it.
     largest_board_change: dict[str, object] | None = None
+    #: #426: each source's seconds in the build, `None` for one it started and never finished.
+    source_seconds: dict[str, float | None] = dataclasses.field(default_factory=dict)
 
     def as_json(self) -> str:
         return json.dumps(
@@ -1088,6 +1097,8 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: #198: the build that ran this cycle, and the build that made the artifact served now.
         "built_by": built_by,
         "served_built_by": served_built_by,
+        #: #426: THIS cycle's seconds a source, `null` for one it started and never finished (a killed build).
+        "source_seconds": dict(outcome.source_seconds),
     }
     # UNIQUE scratch, not a shared name. The artifact's candidate has always used `mkstemp` and
     # this used a fixed `<name>.writing` — the same lesson applied once. An independent review
@@ -1410,6 +1421,97 @@ def _discard(scratch: Path | None) -> None:
         shutil.rmtree(scratch, ignore_errors=True)
 
 
+def build_in_child(argv: list[str], *, limit: float = BUILD_LIMIT_SECONDS,
+                   command: Sequence[str] | None = None) -> int:
+    """Run the build as a child of this cycle and return its exit code, or `EXIT_BUILD_KILLED` once it passes
+    `limit` (#426). The child stays in the cycle's process group, so the engine's kill of the group takes it
+    too; its stdout goes to this process's stderr, since this cycle's stdout carries only its outcome."""
+    argv_full = [*(command or [sys.executable, "-B", "-m", "app.workflows.build"]), *argv]
+    out = sys.stderr.fileno() if _has_fileno(sys.stderr) else None
+    proc = subprocess.Popen(argv_full, stdout=out)  # noqa: S603 -- our own interpreter and module, no shell
+    try:
+        return proc.wait(timeout=limit)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        return EXIT_BUILD_KILLED
+
+
+def _has_fileno(stream: object) -> bool:
+    try:
+        stream.fileno()  # type: ignore[attr-defined]
+    except (AttributeError, OSError, ValueError):
+        return False
+    return True
+
+
+def _read_progress(path: Path) -> dict[str, float | None]:
+    """Each source's seconds from the build's progress lines, `None` for one started and not finished."""
+    started: dict[str, float] = {}
+    seconds: dict[str, float | None] = {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        event, name, stamp = parts
+        try:
+            at = float(stamp)
+        except ValueError:
+            continue
+        if event == "start":
+            started[name] = at
+            seconds[name] = None
+        elif event == "done" and name in started:
+            seconds[name] = round(at - started[name], 1)
+    return seconds
+
+
+def _unbuilt(
+    code: int, timings: dict[str, float | None], live: ServingSummary | None, expired: dict[str, str | None],
+    drift: tuple[str, ...], derived: tuple[str, ...], unmatched: tuple[str, ...],
+) -> RefreshOutcome:
+    """A night whose build did not finish: killed at its limit (#426), or failed with its own code."""
+    if code == EXIT_BUILD_KILLED:
+        return _killed_build(timings, live)
+    return RefreshOutcome(
+        published=False,
+        reason=f"the candidate could not be built (build exit {code}); the live artifact is untouched",
+        live_fingerprint=live.digest if live else None,
+        candidate_fingerprint="",
+        surfaces=0,
+        expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
+        drift=drift,
+        derived=derived,
+        unmatched=unmatched,
+    )
+
+
+def _killed_build(timings: dict[str, float | None], live: ServingSummary | None) -> RefreshOutcome:
+    """A night whose build passed `BUILD_LIMIT_SECONDS`: the sources it started and never finished (#426)."""
+    open_sources = [name for name, seconds in timings.items() if seconds is None]
+    where = f" while reading {', '.join(open_sources)}" if open_sources else ""
+    return RefreshOutcome(
+        published=False,
+        reason=f"the build passed its limit of {BUILD_LIMIT_SECONDS / 60:.0f} minutes and was "
+        f"killed{where}; the live artifact is untouched (#426)",
+        live_fingerprint=live.digest if live else None,
+        candidate_fingerprint="",
+        surfaces=0,
+    )
+
+
+def _with_timings(
+    record: Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]], timings: dict[str, float | None]
+) -> Callable[[RefreshOutcome, int], tuple[RefreshOutcome, int]]:
+    def recorded(outcome: RefreshOutcome, code: int) -> tuple[RefreshOutcome, int]:
+        return record(dataclasses.replace(outcome, source_seconds=timings), code)
+    return recorded
+
+
 def _cycle(
     target: Path,
     build_args: Sequence[str],
@@ -1452,7 +1554,10 @@ def _cycle(
                                           dir=target.parent)
     os.close(handle)
     report_file = Path(raw_report)
-    carry_args = ["--report-out", str(report_file)]
+    handle, raw_progress = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".progress", dir=target.parent)
+    os.close(handle)
+    progress_file = Path(raw_progress)
+    carry_args = ["--report-out", str(report_file), "--progress-out", str(progress_file)]
     if target.is_file():
         handle, raw_record = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".last-ok",
                                               dir=target.parent)
@@ -1473,24 +1578,14 @@ def _cycle(
         # RESULT and belongs on stdout alone. Redirecting rather than discarding keeps both.
         with contextlib.redirect_stdout(sys.stderr):
             code = builder(["--db", str(candidate), *build_args, *epoch_args, *carry_args])
+        timings = _read_progress(progress_file)
+        record = _with_timings(record, timings)
         arrived, carried, expired = _read_build_sources(report_file)
         drift = _read_build_list(report_file, "drift")
         derived = _read_build_list(report_file, "derived")
         unmatched = _read_build_list(report_file, "unmatched")
         if code not in (0, 3):  # 3 = an optional source is blind and said so (D-121)
-            outcome = RefreshOutcome(
-                published=False,
-                reason=f"the candidate could not be built (build exit {code}); "
-                "the live artifact is untouched",
-                live_fingerprint=live.digest if live else None,
-                candidate_fingerprint="",
-                surfaces=0,
-                expired=expired,  # a REQUIRED source's expiry fails the build; still recorded
-                drift=drift,
-                derived=derived,
-                unmatched=unmatched,
-            )
-            return record(outcome, EXIT_FAILED)
+            return record(_unbuilt(code, timings, live, expired, drift, derived, unmatched), EXIT_FAILED)
 
         try:
             fresh = fingerprint_of(candidate)
@@ -1594,6 +1689,7 @@ def _cycle(
         # cycle cannot tell from a live sibling's work.
         candidate.unlink(missing_ok=True)
         report_file.unlink(missing_ok=True)
+        progress_file.unlink(missing_ok=True)
         if record_file is not None:
             record_file.unlink(missing_ok=True)
         _discard(epoch_dir)
@@ -1627,8 +1723,9 @@ def main(argv: list[str] | None = None) -> int:
     limits = _Limits(CYCLE_LIMIT_SECONDS, PARENT_POLL_SECONDS)
     try:
         with cycle_budget(FETCH_BUDGET_SECONDS):
+            # #426: the production night builds in a child it can kill on its own clock (`build_in_child`).
             outcome, code = refresh(
-                Path(args.db), build_args=passthrough,
+                Path(args.db), build_args=passthrough, builder=build_in_child,
                 fetch_epoch=epoch_bundle.fetch_bundle if args.fetch_epoch else None,
             )
     except BaseException as exc:
