@@ -391,7 +391,9 @@ def _lookup(name: str) -> tuple[ModelRule | None, str | None]:
 
 #: #415 (D-220 clause 2): LMArena's display names (2026-10-13) bracket what its slugs dashed:
 #: `Claude 3.5 Sonnet (20240620)` was `claude-3-5-sonnet-20240620`.
-_TEXT_BRACKET = re.compile(r"\s*\(([^()]*)\)")
+#: #417: `(?<!\s)` starts a match only where a whitespace run begins, so a long run is scanned once, not
+#: once per position in it.
+_TEXT_BRACKET = re.compile(r"(?<!\s)\s*\(([^()]*)\)")
 
 
 def _unbracketed(name: str) -> str:
@@ -417,7 +419,7 @@ _EFFORT_SUFFIX = re.compile(r"(?P<separator>[-_])(?P<effort>max|xhigh|high|mediu
 #: #38: the Agent Arena boards, Aider and SWE-bench write a run's effort in a TRAILING parenthesis
 #: (`GPT 6 Astra (Max)`, `gpt-5 (high)`), where Epoch writes `_max`. Only a schema effort level counts:
 #: `(no thinking)`, `(default)`, `(May 2024)` and a parenthesis before another one stay name text.
-_PAREN_EFFORT = re.compile(r"\s*\((?P<effort>max|xhigh|high|medium|low)\)\Z", re.I)
+_PAREN_EFFORT = re.compile(r"(?<!\s)\s*\((?P<effort>max|xhigh|high|medium|low)\)\Z", re.I)  # #417
 
 
 @dataclass(frozen=True)
