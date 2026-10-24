@@ -10,7 +10,7 @@
 Mode: light
 Started: 2026-10-24
 Ended: open
-Integration branch: none · PR: none
+Integration branch: `integration/run-v020` · PR: #432
 Plan PR: #431
 Rulings: D-223
 
@@ -24,14 +24,14 @@ Rulings: D-223
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | 8c30c9f | issues | running |
 
 ## Waves
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-418 | fix/issue-418-accepted-cuts | #430 | none | queued |
-| issue-427 | enhancement/retire-mac-engine | #428 | none | queued |
+| issue-418 | fix/issue-418-accepted-cuts | #430 | none | stacked |
+| issue-427 | enhancement/retire-mac-engine | #428 | none | running |
 | issue-411 | fix/issue-411-json-errors | none | none | queued |
 | issue-412 | fix/issue-412-simplebench-regex | none | none | queued |
 | issue-417 | fix/issue-417-bracket-regex | none | none | queued |

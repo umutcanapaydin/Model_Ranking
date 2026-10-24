@@ -5977,6 +5977,47 @@ Hand aliases for the 31 rows would fix none of the 18 rows that the grammar now 
 **Revisit when:** a board publishes two different models whose names differ only in case or punctuation, or
 `data/accepted-cuts.yaml` gains a second entry in one month.
 
+**Amended by D-221 (2026-10-24)**: clause 3's cut excuses a row by its own raw name, never by model; every cut names
+an `until:` date and goes to a security review; the epoch_chess entry is retired (#418).
+
+## D-221 — An accepted cut excuses rows by name, carries an expiry, goes to a security review, and the first one is retired
+
+**Status:** proposed
+**Owner ruling:** 2026-10-24, in chat, on #418
+**Amends** D-220 clause 3 · from #418.
+
+**Context.** D-220 clause 3 let `data/accepted-cuts.yaml` excuse the rows a declared board may lose. Its one entry is
+Epoch's 2026-10 chess re-run, 94 names. Two reviews of #416 found four weaknesses (#418):
+- **Excused by model.** For a linked model, `_excused` excused the lost rows by model, not by name, so a cut naming a
+  model's kept spelling let its other rows go.
+- **Never retired.** Nothing retired a cut. Re-published names dropped again would be excused again, up to 94 rows,
+  past the board's 25% limit.
+- **No security route.** `make review-need` did not send the file to a security review.
+- **Unchecked fields.** The `decision` field was checked for shape only, and the pin test counted rows but not names.
+
+The Mac published the chess board on 2026-10-23 (`release-55cf42e`), and the hosted engine serves it since the
+v0.1.0 deploy of 2026-10-24 (`release-2a68ca4`). Neither artifact still holds the 94 rows.
+
+**Decision.**
+1. **Retired.** The epoch_chess entry is removed. It did its one job: both served artifacts now hold Epoch's
+   published board.
+2. **By name.** A cut excuses a lost row only when that row's own raw name is listed. A linked row is excused when
+   the raw name it arrived under is a cut name; an unlinked row, by its spelling key. Never by model.
+3. **An expiry on every cut.** A cut names `until: <YYYY-MM-DD>`. A cut past its date, or one without it, fails the
+   refresh: it is never ignored and never applied.
+4. **A security review.** `make review-need` routes any change to `data/accepted-cuts.yaml` to the
+   Security-Reviewer, in either mode. A cut's `decision` must name an ADR that `docs/decisions.md` holds.
+
+**Rationale.** A cut is an exception to a safety guard. An exception that never expires and excuses more than it
+names is a standing relaxation, and a standing relaxation is not what D-220 accepted. The owner's ruling turns
+"once" into a property the code checks.
+
+**Mitigation if violated:**
+- A cut that outlives its date stops the refresh loudly; it never widens silently.
+- A row excused by a name the cut does not hold refuses the night as before.
+
+**Revisit when:** a second cut is accepted in one month, or a cut's expiry stops a night that should have published.
+
 ## D-223 — Run v020's rulings: how the queue's open decisions are settled
 
 **Status:** proposed

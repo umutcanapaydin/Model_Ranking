@@ -1256,3 +1256,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's delta over `9d3cf0e..0bdf2eb` is PASS: three faults were injected and all went red. The Security-Reviewer's delta over `9208fd8..471dd79` is PASS with no finding: `ci.yml` changes only its timeout. `make deploy-check` is PASS.
 - Post-merge for #409, #414, #416, #420 and #422: their branches were deleted, #415 and #421 got closing comments, and #406 was closed with run 40093188395 as evidence.
 - Lesson: a change the deploy gate counts as code, even a test or a workflow limit, re-opens both verdicts. Merging such a fix just before a release costs a delta round.
+
+## 2026-10-24 · fix/issue-418-accepted-cuts — an accepted cut is named row by row, expires, and goes to a security review
+
+- #418, carrying out the owner's rulings in D-221 (`c9390f3`):
+  - `_excused` now counts a linked model's lost spellings, not its model, so a cut naming the spelling a model keeps excuses none of its lost rows.
+  - Every cut needs an `until:` date and an ADR the log holds; an expired cut, or one without either, raises `AcceptedCutError` and the night fails closed.
+  - `scripts/review_need.py` routes any change to `data/accepted-cuts.yaml` to security in either mode (`EXCEPTION_FILES`, held equal to the refresh's path by a test).
+- The epoch_chess cut is retired (`cuts: []`): both served artifacts hold Epoch's published board since `release-55cf42e` and `release-2a68ca4`.
+- Red first (`1b926e7`, 11 tests), then the fix. INV-54 cites three more tests.
+- Lesson: an exception to a guard is policy, and a policy file that no review route names is one the reviews never see.
