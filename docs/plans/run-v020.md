@@ -11,8 +11,8 @@ Mode: light
 Started: 2026-10-24
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
-Rulings: none
+Plan PR: #431
+Rulings: D-223
 
 <!-- `Ended:` is `open` while the run runs. When it ends: `<YYYY-MM-DD> — <why>`, where why is one
      of `all milestones closed`, `owner stopped`, `stopped at <class>, nothing independent left`.
@@ -59,4 +59,5 @@ Security-Reviewer over everything since v0.1.0's heads, GPF-009) and its record 
 branch. The morning's order: the plan PR, then the integration PR (merge commit, never a squash),
 then the deploy (`docs/owner-actions.md`). Outside the run, and in parallel, the owner's steps for
 #427 (the Mac retired): `fly-production` and its token, the nightly workflow, one night by hand, then the Mac's
-service off. #427's code retirement waits for those.
+service off. **Merge the integration PR only after a hosted night has published** (D-223 clause 10:
+#427's code retirement is in this run, so the Mac stops being the data's source when it merges).
