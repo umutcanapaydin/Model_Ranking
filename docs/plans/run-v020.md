@@ -31,8 +31,8 @@ Rulings: D-223
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
 | issue-418 | fix/issue-418-accepted-cuts | #430 | none | stacked |
-| issue-427 | enhancement/retire-mac-engine | #428 | none | running |
-| issue-411 | fix/issue-411-json-errors | none | none | queued |
+| issue-427 | enhancement/retire-mac-engine | #428 | none | stopped |
+| issue-411 | fix/issue-411-json-errors | #433 | none | stacked |
 | issue-412 | fix/issue-412-simplebench-regex | none | none | queued |
 | issue-417 | fix/issue-417-bracket-regex | none | none | queued |
 | issue-426 | fix/issue-426-refresh-alarm | none | none | queued |
@@ -50,6 +50,7 @@ Rulings: D-223
 
 | When | Wave | Class | What the owner decides | Continued on |
 |---|---|---|---|---|
+| 2026-10-24 | issue-427 | security-test | Retiring the Mac launcher and installer (D-223 cl. 10) deletes `tests/unit/test_engine_service.py`, the tests INV-27, INV-28 and INV-29 cite: retire those three invariants with the scripts? | issue-411 and the rest of the queue |
 
 ## For the owner
 
