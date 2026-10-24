@@ -1256,3 +1256,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's delta over `9d3cf0e..0bdf2eb` is PASS: three faults were injected and all went red. The Security-Reviewer's delta over `9208fd8..471dd79` is PASS with no finding: `ci.yml` changes only its timeout. `make deploy-check` is PASS.
 - Post-merge for #409, #414, #416, #420 and #422: their branches were deleted, #415 and #421 got closing comments, and #406 was closed with run 40093188395 as evidence.
 - Lesson: a change the deploy gate counts as code, even a test or a workflow limit, re-opens both verdicts. Merging such a fix just before a release costs a delta round.
+
+## 2026-10-24 · enhancement/retire-mac-engine — the Mac is retired as an engine, and light mode's repeated deltas go back to DevFlow
+
+- The owner's ruling, recorded as D-222: the hosted engine is the only engine, and the Mac runs nothing. D-170 and D-171 are superseded. The order keeps the data refreshing: first `fly-production` and its token, then the nightly workflow, then one hosted night; only after that is the Mac's service taken off (owner-actions row). Retiring the code is #427.
+- GPF-009 records that light mode re-opened both release verdicts for a test-and-CI-only change, so v0.1.0 took three review rounds. The owner's ask is one security delta per release. Until DevFlow answers, fixes are batched between releases.
+- Owner-actions: the Mac deploy (#265), the hosted deploy and the v0.1.0 tag rows are done.
+- Lesson: an owner who says "we already moved" means the old path is a cost, not a fallback; write the retirement with its order, or the old path keeps getting named as the plan.
