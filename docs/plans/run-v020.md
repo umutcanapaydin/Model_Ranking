@@ -31,7 +31,7 @@ Rulings: D-223, D-224
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
 | issue-418 | fix/issue-418-accepted-cuts | #430 | none | stacked |
-| issue-427 | enhancement/issue-427-retire-mac-code | none | none | running |
+| issue-427 | enhancement/issue-427-retire-mac-code | #448 | none | stacked |
 | issue-411 | fix/issue-411-json-errors | #433 | none | stacked |
 | issue-412 | fix/issue-412-simplebench-regex | #434 | none | stacked |
 | issue-417 | fix/issue-417-bracket-regex | #435 | none | stacked |
