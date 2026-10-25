@@ -27,8 +27,8 @@ LOCK_DIR = ROOT / "requirements"
 
 #: Which extras each lock holds, and who installs it.
 #: - `serve`: the serving image (`Dockerfile`), which runs no refresh, so it has no pyarrow (#26);
-#: - `ingest`: the engine's release on the owner's Mac (`scripts/install_engine_service.sh`), which
-#:   serves and refreshes;
+#: - `ingest`: the hosted night's refresh (`scripts/ci/nightly-hosted.yml`, D-217), which builds the
+#:   artifact the hosted engine serves;
 #: - `dev`: a working tree (`make install`) and the suite;
 #: - `build`: not the project's dependencies but its build backend (`[build-system]`), which every
 #:   install above takes too, and then builds the project with `--no-build-isolation`.

@@ -1360,3 +1360,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red first: 15 shapes planted, each refused in all four configurations by its own phrase in `FIXTURE_REFUSALS`. Six admitted twins stay quiet, and the D-214 pin holds.
 - The first cast rule also refused the shipping client's reads of `[String: Any]` facts, so it was narrowed to `any` of a protocol, the shape the ruling names. An assumption row records the choice.
 - Lesson: run a new refusal against the shipping client before writing its scope down. The client showed the cast rule was wider than the ruling.
+
+## 2026-10-25 · enhancement/issue-427-retire-mac-code — the Mac engine's code and docs are retired; the hosted engine is the only one (run v020)
+
+- #427 (D-222, D-223 clause 10, D-224): the launcher and the installer are deleted with their tests, and INV-27 to INV-29 retire to the register's retired table and to `docs/watchlist.md` ("a Mac engine again"). The remover stays until the owner runs it.
+- `ios/app.sh` is a simulator-only helper that starts no engine; its loopback pin stays, because INV-73 cites its test. The deploy and `make cold-start` require `MODEL_RANKING_SERVED`; `ui-test` reads `MODEL_RANKING_DB` or the checkout's copy. The app asks for no local-network access; `NSAllowsLocalNetworking` stays for the simulator's loopback engine.
+- REQ-DEV-001 is superseded by D-222. The architecture, AGENTS.md, the brief's rollback, the release and iPhone guides describe the hosted engine alone. The engine's in-process nightly schedule stays as unused code: removing it touches INV-39 to INV-41's tests, which is not this change.
+- `test_prd_status` recognises only `D-1xx` ADRs, so a status naming D-222 alone is called bare; the row names D-170 and D-171 too.
+- Lesson: before deleting a script, list every invariant that cites a test reading it, not only the ones the ruling names: INV-73 held `ios/app.sh` too, so it was cut down rather than deleted.

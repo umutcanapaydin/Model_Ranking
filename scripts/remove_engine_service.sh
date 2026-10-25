@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Take off the service `scripts/install_engine_service.sh` put on (#32). The owner runs this; it
-# changes his machine. The engine stops, and nothing restarts it until `./ios/app.sh up` or the
-# installer. The deployed releases and the served artifact in
-# ~/Library/Application Support/model-ranking/engine are kept; delete that folder by hand if wanted.
+# Take off the launchd service the retired installer put on (#32). The owner runs this once, after a
+# hosted night has published (D-222 clause 2); it changes his machine. The engine stops, and nothing in
+# the tree restarts it: the hosted engine is the only engine. The deployed releases and the served
+# artifact in ~/Library/Application Support/model-ranking/engine are kept; delete that folder by hand
+# if wanted. This script goes once the owner has run it (D-224 clause 3).
 set -u
 [ -n "${HOME:-}" ] || { echo "FAIL: HOME is empty, so the paths below would be wrong"; exit 1; }
 LABEL="com.ilgar.modelranking.engine"

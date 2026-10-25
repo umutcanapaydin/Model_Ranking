@@ -126,7 +126,7 @@ def test_every_path_is_behind_the_host_check(db: Path, monkeypatch: pytest.Monke
 
 
 def test_an_unset_bind_is_loopback(db: Path) -> None:
-    """W1 second Tester N8: `make run` and `ios/app.sh`'s launcher set no MODEL_RANKING_BIND; unset is
+    """W1 second Tester N8: `make run` sets no MODEL_RANKING_BIND; unset is
     loopback, so the startup check has nothing to say about it."""
     assert not any(HOSTS in problem for problem in adapter.validate_startup_config("test"))
 

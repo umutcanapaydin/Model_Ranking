@@ -2,7 +2,7 @@
 # D-175: the iOS UI test target (ModelRankingUITests), on the simulator, against a local engine.
 #
 # Builds the app for 127.0.0.1:$UI_TEST_PORT, starts an engine there from a COPY of the artifact
-# (MODEL_RANKING_DB; else the one the engine service serves; else advisor.db in the repo, #139), and
+# (MODEL_RANKING_DB, else advisor.db in the repo; the Mac's served copy is retired with it, D-222), and
 # runs the target in two passes: every class but FailureScreenTests with the engine up, then
 # FailureScreenTests after the engine is stopped.
 # ScreenAuditTests (#63) captures and asserts nothing, so it runs only when named in UI_TEST_ONLY.
@@ -12,13 +12,9 @@ set -u
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${UI_TEST_PORT:-8090}"
-# #139: the service's artifact first. The checkout's copy can be weeks older (2026-09-24, before the
-# refinement boards), and the screen would then be tested on boards the phone no longer gets.
-SERVED="$HOME/Library/Application Support/model-ranking/engine/data/advisor.db"
-if [ -n "${MODEL_RANKING_DB:-}" ]; then DB="$MODEL_RANKING_DB"
-elif [ -f "$SERVED" ]; then DB="$SERVED"
-else DB="$REPO/advisor.db"
-fi
+# The artifact MODEL_RANKING_DB names, else the checkout's. The check below refuses one older than the
+# screen (#139).
+DB="${MODEL_RANKING_DB:-$REPO/advisor.db}"
 DEVICE="${UI_TEST_DEVICE:-iPhone 17 Pro}"
 OUT="${UI_TEST_OUT:-$REPO/build/ui-test}"
 ONLY="${UI_TEST_ONLY:-}"

@@ -3,8 +3,8 @@
 A lock is the list of exact versions, with their hashes, that an install gets. Without one a fresh
 venv took whatever was newest that day: a release built on 2026-09-25 differed from the tested venv
 in 11 packages (#35). These tests read the three locks under `requirements/` and the three places
-that install: `make install`, the engine's release (`scripts/install_engine_service.sh`) and the
-serving image (`Dockerfile`). The network is never needed: a lock records the hash of the
+that install: `make install`, the hosted night's refresh (`scripts/ci/nightly-hosted.yml`, D-217) and
+the serving image (`Dockerfile`). The network is never needed: a lock records the hash of the
 `pyproject.toml` tables it was resolved from (`scripts/lock_dependencies.py`).
 """
 
@@ -115,7 +115,7 @@ def test_only_the_refresh_locks_carry_pyarrow() -> None:
 UNLOCKED_UPGRADE = re.compile(r"-m\s+(?:venv|ensurepip)\b[^\n;&|]*--upgrade", re.IGNORECASE)
 
 
-@pytest.mark.parametrize("path", ["Makefile", "scripts/install_engine_service.sh", "Dockerfile"])
+@pytest.mark.parametrize("path", ["Makefile", "scripts/ci/nightly-hosted.yml", "Dockerfile"])
 def test_no_venv_upgrades_pip_before_the_locks(path: str) -> None:
     """The M18 closure security seat's S5: `venv --upgrade-deps` fetched the newest pip with no hash
     and ran it before the hash-checked install. The bundled pip installs the locks, pip among them."""
@@ -212,7 +212,7 @@ def install_problems(path: str, text: str, lock: str) -> list[str]:
 
 @pytest.mark.parametrize(("path", "lock"), [
     ("Makefile", "requirements/dev.lock"),
-    ("scripts/install_engine_service.sh", "requirements/ingest.lock"),
+    ("scripts/ci/nightly-hosted.yml", "requirements/ingest.lock"),
     ("Dockerfile", "requirements/serve.lock"),
 ])
 def test_every_install_reads_its_lock_and_resolves_nothing_else(path: str, lock: str) -> None:
@@ -258,12 +258,12 @@ def test_a_lock_resolved_from_another_pyproject_is_reported_and_fails_the_check(
 @pytest.mark.parametrize(("path", "planted"), [
     # The W6 Tester's T3: a project install that also names a package, and pip spelled in capitals.
     ("Dockerfile", "RUN pip install --no-cache-dir --prefix=/install --no-deps --no-build-isolation . requests"),
-    ("scripts/install_engine_service.sh", '"${PIP}" install requests'),
-    ("scripts/install_engine_service.sh", "$PIP install requests"),
+    ("scripts/ci/nightly-hosted.yml", '"${PIP}" install requests'),
+    ("scripts/ci/nightly-hosted.yml", "$PIP install requests"),
 ])
 def test_an_install_beside_the_project_or_a_capital_pip_is_read(path: str, planted: str) -> None:
     lock = {"Dockerfile": "requirements/serve.lock",
-            "scripts/install_engine_service.sh": "requirements/ingest.lock"}[path]
+            "scripts/ci/nightly-hosted.yml": "requirements/ingest.lock"}[path]
     text = (ROOT / path).read_text(encoding="utf-8") + f"\n{planted}\n"
     assert install_problems(path, text, lock), planted
 
@@ -293,7 +293,7 @@ def test_no_venv_upgrade_hides_on_a_continued_line_or_in_a_variable(tmp_path: Pa
     run = _make("-n", f"VENV={venv}", f"{venv}/pyvenv.cfg")
     assert run.returncode == 0 and "-m venv" in run.stdout, run.stdout + run.stderr
     assert not UNLOCKED_UPGRADE.search(run.stdout.replace("\\\n", " ")), run.stdout
-    for path in ("Makefile", "scripts/install_engine_service.sh", "Dockerfile"):
+    for path in ("Makefile", "scripts/ci/nightly-hosted.yml", "Dockerfile"):
         code = "\n".join(line for line in (ROOT / path).read_text(encoding="utf-8").splitlines()
                          if not line.lstrip().startswith("#"))
         assert not UNLOCKED_UPGRADE.search(code.replace("\\\n", " ")), f"{path} upgrades pip outside the locks"

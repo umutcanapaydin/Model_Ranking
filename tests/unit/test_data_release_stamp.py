@@ -1,8 +1,9 @@
 """#198 (REQ-REL-003, seed L.7 for the data): the hosted deploy names the release that built its data.
 
-The deploy derives the public artifact from the one the owner's Mac serves and stamps the code it
-deploys (`release-<sha>-data-<digest>`). W1-style fixes (names, ids) are applied when the data is
-built, so a Mac running an older release would ship that release's data under HEAD's stamp. The
+The deploy derives the public artifact from the one a refresh built (the owner's Mac until D-222, the
+hosted night since) and stamps the code it deploys (`release-<sha>-data-<digest>`). W1-style fixes
+(names, ids) are applied when the data is built, so a refresh run by an older release would ship that
+release's data under HEAD's stamp. The
 refresh now records which build made the served artifact, and the deploy's stamp names it.
 """
 
@@ -147,8 +148,8 @@ def test_the_owner_accepts_the_release_the_refusal_names_and_unknown_never_stand
 
 @pytest.mark.parametrize("length", [9, 40])
 def test_a_longer_spelling_of_heads_release_is_heads_data(tmp_path: Path, length: int) -> None:
-    """The Tester's T2 (#198): the Mac's engine is stamped `release-<RELEASE>` (`scripts/engine_service.sh`),
-    and RELEASE holds what `git rev-parse --short` printed at install (`scripts/install_engine_service.sh`),
+    """The Tester's T2 (#198): the Mac's engine was stamped `release-<RELEASE>` (its launcher, retired by D-222),
+    and RELEASE held what `git rev-parse --short` printed at install,
     which git lengthens past seven characters as a repository grows. Every record `_scratch` writes is seven
     characters long, so the deploy's cut to seven was held by no test: without it, a longer spelling of HEAD
     is refused as another release's data."""

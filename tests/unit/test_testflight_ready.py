@@ -81,12 +81,14 @@ def test_a_release_build_reaches_the_hosted_engine_over_https() -> None:
     assert _xcconfig("Engine.xcconfig")["ENGINE_URL"].replace("$()", "") == "http://127.0.0.1:8080"
 
 
-def test_the_iphone_guide_sets_the_home_address_for_debug_builds_only() -> None:
+def test_the_iphone_guide_sets_an_address_for_debug_builds_only_and_opens_no_mac() -> None:
     """The M19-W5 review's M6: the guide had the owner write `ENGINE_URL = http://<Mac>` in the local
-    config, which overrides the Release address too, so a TestFlight build would ask the owner's Mac."""
+    config, which overrides the Release address too, so a TestFlight build would ask the owner's Mac.
+    Since D-222 (#427) the phone asks the hosted engine and the guide opens no Mac engine to the network."""
     guide = (REPO / "docs" / "owner-iphone.md").read_text(encoding="utf-8")
-    assert "ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080" in guide
+    assert "ENGINE_URL[config=Debug]" in guide, "the guide no longer says an address is for Debug builds only"
     assert not re.search(r"^\s*ENGINE_URL\s*=", guide, re.MULTILINE), "an unconditional ENGINE_URL in the guide"
+    assert "--lan" not in guide and "install_engine_service" not in guide, "the guide still opens the Mac's engine"
 
 
 def test_a_release_build_reaches_the_hosted_engine_whatever_the_local_config_says() -> None:

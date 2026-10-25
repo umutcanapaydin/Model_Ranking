@@ -1,95 +1,37 @@
 #!/bin/bash
-# Run the app the way a person wants to: one command, repeatable, no Xcode window.
+# Run the app on the simulator: one command, repeatable, no Xcode window.
 #
-#   ./ios/app.sh up       engine + simulator + build + install + launch
-#   ./ios/app.sh down     stop the app and the engine (leaves the simulator open)
-#   ./ios/app.sh restart   rebuild and relaunch BOTH the engine and the app
-#   ./ios/app.sh logs      follow the engine's log
-#   ./ios/app.sh status    what is actually running right now
+#   ./ios/app.sh up        simulator + build + install + launch
+#   ./ios/app.sh restart   rebuild and relaunch the app
+#   ./ios/app.sh down      stop the app (leaves the simulator open)
+#   ./ios/app.sh status    what is running right now
+#
+# No engine is started here: the hosted engine is the only engine (D-222). A simulator build talks to
+# loopback, so for a local engine run `make run` in another terminal first; without one, the app shows
+# its failure screen. A phone build asks the hosted engine (#288).
 #
 # Why `open -a Simulator` is in here: `simctl boot` starts the device HEADLESS. It runs, the app
-# installs, screenshots work — and nothing appears on screen. That is almost certainly what
-# "the simulator wasn't working" was.
+# installs, screenshots work — and nothing appears on screen.
 
 set -u
 
-REPO="/Users/umutcanapaydin/Desktop/ILGAR/model_ranking"
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
 DEVICE="${MR_DEVICE:-iPhone 17 Pro}"
 BUNDLE="com.ilgar.modelranking"
-# D-158: the engine's nightly refresh fetches the Epoch bundle itself. An owner-supplied bundle is
-# passed only when MR_EPOCH_DIR names one; the hand-kept 2026-08-15 folder is retired.
-EPOCH_DIR="${MR_EPOCH_DIR:-}"
-if [ -n "$EPOCH_DIR" ]; then export MODEL_RANKING_EPOCH_DIR="$EPOCH_DIR"; else unset MODEL_RANKING_EPOCH_DIR; fi
 PORT=8080
 BUILD_DIR="$REPO/ios/.build"
-ENGINE_LOG="$BUILD_DIR/engine.log"
-# #32: the launchd service that keeps the engine up (scripts/install_engine_service.sh). When it is
-# installed, the engine is started and stopped THROUGH launchd: a `pkill` would only be undone by
-# its KeepAlive a minute later.
-SERVICE_LABEL="com.ilgar.modelranking.engine"
-SERVICE_PLIST="$HOME/Library/LaunchAgents/$SERVICE_LABEL.plist"
-SERVICE_LOG="$HOME/Library/Logs/model-ranking-engine.log"
-service_installed() { [ -f "$SERVICE_PLIST" ]; }
 
 cd "$REPO" || exit 1
 mkdir -p "$BUILD_DIR"
 
 engine_up() { curl -sf -m 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; }
 
-# Kills the engine and WAITS for it to actually be gone.
-#
-# The first version of this script reported "engine: stopped" and returned immediately, and a
-# following `up` then saw the dying process still answering /health and skipped starting a new one
-# -- so the app talked to an engine that was on its way out. A stop that reports success without
-# confirming it is the defect this whole project keeps finding, and it took about ninety seconds to
-# reproduce in the script written to avoid it.
-stop_engine() {
-  if service_installed; then
-    # Unloaded until the next `up` or login; the plist stays, so the service comes back then.
-    launchctl bootout "gui/$(id -u)/$SERVICE_LABEL" 2>/dev/null
-  else
-    pkill -f "uvicorn app.adapter.main:app" 2>/dev/null
-  fi
-  for _ in $(seq 1 20); do
-    engine_up || { echo "engine   : stopped"; return 0; }
-    sleep 0.25
-  done
-  echo "engine   : STILL ANSWERING on :$PORT after being asked to stop."
-  echo "           Something else is holding the port:"
-  lsof -nP -iTCP:$PORT -sTCP:LISTEN 2>/dev/null | tail -2
-  return 1
-}
-
-start_engine() {
+say_engine() {
   if engine_up; then
-    echo "engine   : already up  $(curl -s http://127.0.0.1:$PORT/health)"
-    return
-  fi
-  # The service serves its own artifact (#32 re-review N1); the checkout's matters only by hand.
-  if ! service_installed && [ ! -f "$REPO/advisor.db" ]; then
-    echo "engine   : FAILED — advisor.db is missing. Build it first:"
-    echo "           .venv/bin/python -m app.workflows.build --db advisor.db --epoch-dir <bundle>"
-    exit 1
-  fi
-  # One launcher (#32): scripts/engine_service.sh runs the W-042 preflight and starts the engine
-  # with the nightly refresh (D-151, D-154), exactly as the launchd service does.
-  if service_installed; then
-    echo "engine   : starting through the launchd service $SERVICE_LABEL (the deployed main)"
-    launchctl bootstrap "gui/$(id -u)" "$SERVICE_PLIST" 2>/dev/null \
-      || launchctl kickstart "gui/$(id -u)/$SERVICE_LABEL"
+    echo "engine   : up  $(curl -s "http://127.0.0.1:$PORT/health")"
   else
-    # By hand, from this checkout. Its nightly refresh child runs whatever is checked out here
-    # that night (review K1 of #32); the service, which runs a deployed release, does not.
-    echo "engine   : starting on :$PORT (refreshes itself nightly, 23:00-01:00; D-151, D-154)"
-    "$REPO/scripts/engine_service.sh" > "$ENGINE_LOG" 2>&1 &
+    echo "engine   : nothing answers on :$PORT -- run \`make run\` in another terminal"
   fi
-  for _ in $(seq 1 20); do
-    sleep 0.5
-    engine_up && { echo "engine   : up  $(curl -s http://127.0.0.1:$PORT/health)"; return; }
-  done
-  echo "engine   : FAILED to start. Last lines:"
-  if service_installed; then tail -5 "$SERVICE_LOG"; else tail -5 "$ENGINE_LOG"; fi
-  exit 1
 }
 
 start_simulator() {
@@ -128,8 +70,8 @@ build_and_launch() {
 }
 
 case "${1:-up}" in
-  up)
-    start_engine
+  up|restart)
+    say_engine
     start_simulator
     build_and_launch
     echo
@@ -137,55 +79,18 @@ case "${1:-up}" in
     echo "  ./ios/app.sh restart   after a code change"
     echo "  ./ios/app.sh down      when you are finished"
     ;;
-  restart)
-    # The ENGINE is cycled too, and it was not always. This command used to leave the engine
-    # running while `up` advertised it as the thing to run "after a code change" — true for Swift,
-    # silently false for Python and for a rebuilt advisor.db, because a running process keeps the
-    # old file's inode and `/health` goes on answering 200. That is L.7 exactly: restart is not
-    # rebuild, and the build stamp is the only thing that tells you which you got. It cost one
-    # debugging round here: nine categories in the artifact, three on the wire, everything green.
-    if service_installed && launchctl print "gui/$(id -u)/$SERVICE_LABEL" >/dev/null 2>&1; then
-      # The service runs the DEPLOYED main (#32): restarted in place with `kickstart -k` (an unload
-      # followed at once by a load races launchd, review M2). A code change reaches it only
-      # through scripts/install_engine_service.sh, which deploys the new origin/main.
-      launchctl kickstart -k "gui/$(id -u)/$SERVICE_LABEL"
-      for _ in $(seq 1 60); do engine_up && break; sleep 0.5; done
-    else
-      if engine_up; then stop_engine; fi
-      start_engine
-    fi
-    start_simulator
-    build_and_launch
-    echo "engine   : $(curl -sf -m 2 "http://127.0.0.1:$PORT/health" || echo unreachable)"
-    ;;
   down)
     xcrun simctl terminate "$DEVICE" "$BUNDLE" 2>/dev/null && echo "app      : stopped"
-    # With the service, unload it even when the engine is between restarts, or launchd brings it
-    # back (#32 re-review N2).
-    if engine_up || service_installed; then stop_engine; else echo "engine   : was not running"; fi
     echo "simulator: left open on purpose — 'xcrun simctl shutdown all' closes it"
     ;;
-  logs)
-    LOG="$ENGINE_LOG"; service_installed && LOG="$SERVICE_LOG"
-    echo "following $LOG (ctrl-C to stop)"
-    tail -f "$LOG"
-    ;;
   status)
-    engine_up && echo "engine   : UP    $(curl -s http://127.0.0.1:$PORT/health)" \
-               || echo "engine   : down"
-    if service_installed; then
-      launchctl print "gui/$(id -u)/$SERVICE_LABEL" >/dev/null 2>&1 \
-        && echo "service  : $SERVICE_LABEL installed and loaded" \
-        || echo "service  : $SERVICE_LABEL installed, not loaded (./ios/app.sh up loads it)"
-    else
-      echo "service  : not installed (scripts/install_engine_service.sh keeps the engine up)"
-    fi
+    say_engine
     xcrun simctl list devices | grep "$DEVICE (" | head -1 | sed 's/^ */simulator: /'
     xcrun simctl spawn "$DEVICE" launchctl list 2>/dev/null | grep -q "$BUNDLE" \
       && echo "app      : running" || echo "app      : not running"
     ;;
   *)
-    echo "usage: ./ios/app.sh [up|restart|down|logs|status]"
+    echo "usage: ./ios/app.sh [up|restart|down|status]"
     exit 2
     ;;
 esac
