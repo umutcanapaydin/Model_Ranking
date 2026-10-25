@@ -46,6 +46,7 @@ Rulings: D-223, D-224
 | issue-408 | fix/issue-408-ceiling-flake | #443 | none | stacked |
 | issue-396 | fix/issue-396-g2-rebuilds | #446 | none | stacked |
 | issue-447 | fix/issue-447-prd-adr-ids | #449 | none | stacked |
+| issue-450 | fix/issue-450-plans-reverified | #451 | none | stacked |
 
 ## Stops
 
