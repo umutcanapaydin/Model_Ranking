@@ -346,3 +346,34 @@ def test_an_unreadable_decision_log_is_the_cuts_error(tmp_path: Path, monkeypatc
     monkeypatch.setattr(refresh, "DECISIONS_PATH", tmp_path / "absent.md")
     with pytest.raises(refresh.AcceptedCutError, match="cannot be read"):
         refresh.parse_accepted_cuts(_cut(), today=TODAY)
+
+
+# --- The release v0.2.0 Tester: each schema check refuses on its own branch.
+#
+# D-221 made `until:` a required key, so every older malformed case above, written without it, is now refused by the
+# key-set check before it reaches the check it was written for. With the declared-board, named-twice, ADR-shape,
+# reason or rows check removed, the suite stayed green. Each case below is a valid cut but for one field, and the
+# message pins the check that refuses it.
+
+def _one_cut(board: str = SLICE.source, decision: object = "D-220", reason: object = "a probe",
+             rows: str = "['Probe 00']") -> str:
+    return (f"  - board: {board}\n    decision: {decision}\n    reason: {reason}\n    until: 2026-11-10\n"
+            f"    rows: {rows}\n")
+
+
+@pytest.mark.parametrize(("raw", "refusal"), [
+    ("cuts:\n" + _one_cut(board="not_a_board"), "is not a declared board"),
+    ("cuts:\n" + _one_cut() + _one_cut(rows="['Probe 01']"), "is named twice"),
+    ("cuts:\n" + _one_cut(decision="D-22"), "is not an ADR id"),
+    ("cuts:\n" + _one_cut(decision="220"), "is not an ADR id"),
+    ("cuts:\n" + _one_cut(decision="see D-220"), "is not an ADR id"),
+    ("cuts:\n" + _one_cut(reason="'  '"), "gives no reason"),
+    ("cuts:\n" + _one_cut(reason="1"), "gives no reason"),
+    ("cuts:\n" + _one_cut(rows="[]"), "rows are not a list of names"),
+    ("cuts:\n" + _one_cut(rows="[1]"), "rows are not a list of names"),
+], ids=["undeclared-board", "a-board-twice", "a-short-adr-id", "an-adr-number", "an-adr-in-prose", "a-blank-reason",
+        "a-number-for-a-reason", "no-rows", "a-number-for-a-row"])
+def test_each_schema_check_refuses_a_cut_that_is_valid_but_for_its_field(raw: str, refusal: str) -> None:
+    """# covers D-220 clause 3, D-221, INV-54: the cut fails closed, and by the check its field names."""
+    with pytest.raises(refresh.AcceptedCutError, match=refusal):
+        refresh.parse_accepted_cuts(raw, today=TODAY, decisions=LOG)
