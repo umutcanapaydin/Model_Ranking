@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 GATE = ROOT / "scripts" / "deploy_gate.py"
 
@@ -172,3 +174,27 @@ def test_a_product_file_byte_identical_to_the_pinned_commit_is_still_code(tmp_pa
     repo.git("checkout", "-q", "-b", "after")
     code, out = repo.check()
     assert code != 0, out
+
+
+#: D-223 clause 5 (#410): every deploy surface the issue's remedy named, written out here rather than read from
+#: `SAFETY_SURFACE`, so a surface dropped from the gate's set fails this test instead of shrinking it.
+DEPLOY_SURFACES = ["scripts/deploy_hosted_engine.sh", "scripts/nightly_hosted.sh", "scripts/ci/nightly-hosted.yml"]
+
+
+@pytest.mark.parametrize("rel", DEPLOY_SURFACES)
+def test_every_deploy_surface_is_code_even_byte_identical_to_the_pinned_commit(tmp_path: Path, rel: str) -> None:
+    """The release Tester for v0.2.0: with `scripts/nightly_hosted.sh` or `scripts/ci/` dropped from the safety
+    surface the suite stayed green, since only `deploy_hosted_engine.sh` was planted. Each surface, changed on main
+    and pinned there as an upgrade would pin it, still owes a review: the gate refuses. The same setup with a plain
+    tooling file passes (`test_an_upgrade_the_owner_merged_owes_no_delta`), so only the safety surface refuses here.
+    # covers D-223 clause 5, #410"""
+    repo = _installed(tmp_path)
+    repo.git("checkout", "-q", "main")
+    repo.write(rel, "echo deploy --somewhere-else\n")
+    shipped = repo.commit(f"DevFlow v9.10 ships {rel}")
+    repo.write("docs/devflow-pin.txt", f"v9.10 {shipped}\n")
+    repo.commit("pin v9.10")
+    repo.git("checkout", "-q", "-b", "after-upgrade")
+    code, out = repo.check()
+    assert code != 0, out
+    assert rel in out, out
