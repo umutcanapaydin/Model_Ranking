@@ -1,9 +1,10 @@
-"""M18-W1 (#87, D-171, REQ-DEV-001) -- the app's engine address is set per build, and the app may reach the home network.
+"""M18-W1 (#87, D-171, REQ-DEV-001) -- the app's engine address is set per build.
 
-The address comes from the build setting `ENGINE_URL` (loopback in `ios/Config/Engine.xcconfig`; the
-owner's Mac in a git-ignored `Engine.local.xcconfig`), through the Info plist key `EngineURL`, to
-`EngineClient.localDefault`. The partial plist adds only the local-networking exception and the text
-iOS shows when it asks for local-network access.
+The address comes from the build setting `ENGINE_URL` (loopback in `ios/Config/Engine.xcconfig`, where
+`make run` serves the simulator; an address of the developer's own in a git-ignored
+`Engine.local.xcconfig`), through the Info plist key `EngineURL`, to `EngineClient.localDefault`. The
+partial plist adds only the local-networking exception, which the simulator's loopback engine needs.
+Since D-222 (#427) no engine serves a home network, so the app asks for no local-network access.
 """
 
 from __future__ import annotations
@@ -37,7 +38,8 @@ def test_the_partial_plist_carries_the_address_and_only_the_local_network_except
     assert info["NSAppTransportSecurity"] == {"NSAllowsLocalNetworking": True}, (
         "only local networking; never arbitrary loads"
     )
-    assert info["NSLocalNetworkUsageDescription"].strip()
+    # D-222 (#427): the home-network engine is retired, so iOS is never asked for local-network access.
+    assert "NSLocalNetworkUsageDescription" not in info
 
 
 def test_the_app_target_reads_the_xcconfig_and_the_partial_plist_in_every_configuration() -> None:
@@ -152,18 +154,14 @@ def test_the_kept_answers_store_takes_only_what_the_engine_sent() -> None:
         "a kept answer is not keyed by the engine's own echo")
 
 
-def test_the_local_network_prompt_speaks_turkish_too() -> None:
-    """#95 (M18-W1 review K2): the one system prompt the app triggers was English only, under an app
-    that speaks Turkish and English (D-129). iOS picks the prompt's language from the device's, from
-    the app's localised Info plist strings."""
+def test_the_app_keeps_its_turkish_localisation_without_the_local_network_prompt() -> None:
+    """#95 gave the local-network prompt its Turkish text; D-222 (#427) retired the prompt with the home-network
+    engine. Its strings file stays, empty of keys, so the bundle still declares Turkish (D-129) and the
+    project still knows the region."""
     strings = IOS / "ModelRanking" / "tr.lproj" / "InfoPlist.strings"
-    assert strings.is_file(), "no Turkish Info plist strings"
-    text = strings.read_text(encoding="utf-8")
-    found = re.search(r'^"NSLocalNetworkUsageDescription"\s*=\s*"([^"]+)";\s*$', text, re.MULTILINE)
-    assert found, "the Turkish strings do not carry the local-network text"
-    english = plistlib.loads((IOS / "Config" / "Info.plist").read_bytes())["NSLocalNetworkUsageDescription"]
-    turkish_letter = "[\u00e7\u011f\u0131\u00f6\u015f\u00fc]"
-    assert found.group(1) != english and re.search(turkish_letter, found.group(1)), "not Turkish"
+    assert strings.is_file(), "no Turkish Info plist strings: the bundle would stop declaring Turkish"
+    text = strings.read_text(encoding="utf-8")  # raw: not Swift
+    assert "NSLocalNetworkUsageDescription" not in text, "the retired local-network prompt is still localised"
     regions = re.search(r"knownRegions = \(([^)]*)\);", PROJECT.read_text(encoding="utf-8"))  # raw: not Swift
     assert regions and re.search(r"\btr\b", regions.group(1)), "the project does not know the Turkish region"
 

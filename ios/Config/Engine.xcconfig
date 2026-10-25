@@ -1,8 +1,8 @@
 // M18-W1 (D-171): the engine the app talks to, read into the Info plist's `EngineURL`.
-// Loopback serves the Mac and its simulator; a phone asks the hosted engine (#288). To run your iPhone
-// against your Mac instead, create Engine.local.xcconfig beside this file (git-ignored) with your Mac's
-// name, and install the service with --lan:
-//   ENGINE_URL[config=Debug] = http:/$()/My-Mac.local:8080   (Debug only: Release stays hosted)
+// The hosted engine is the only engine (D-222). Loopback serves the simulator, against `make run` on the
+// developer's machine; a phone asks the hosted engine (#288). A git-ignored Engine.local.xcconfig beside
+// this file may set a Debug-only address of its own:
+//   ENGINE_URL[config=Debug] = http:/$()/127.0.0.1:8090   (Debug only: Release stays hosted)
 // (`/$()/` keeps `//` from starting a comment in an xcconfig.)
 ENGINE_URL = http:/$()/127.0.0.1:8080
 // #288 (D-202 clause 4): a build for a phone says so, and the app then asks the hosted engine instead of
