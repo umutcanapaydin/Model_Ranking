@@ -105,3 +105,43 @@ def test_the_nightly_entry_builds_in_a_child(tmp_path: Path, monkeypatch) -> Non
     monkeypatch.setattr(refresh_module, "_Limits", lambda *a: type("L", (), {"close": lambda self: None})())
     refresh_module.main(["--db", str(tmp_path / "advisor.db")])
     assert seen["builder"] is refresh_module.build_in_child
+
+
+# --- The release v0.2.0 Tester: the progress reader and the child's output, on what a killed or odd build leaves.
+#
+# `refresh.py` fell from 96.1% to 94.9% across the range (permission-matrix section 11): the branches below, which
+# decide what a killed night's record says, ran in no test.
+
+def test_the_progress_reader_keeps_only_well_formed_events(tmp_path: Path) -> None:
+    """A build killed mid-write leaves a torn last line; a stray line or a `done` with no `start` is not a source's
+    time. Only whole `start`/`done` pairs count, and a started source with no finish stays `None`. # covers #426"""
+    progress = tmp_path / "progress"
+    progress.write_text(
+        "start\taider\t10.0\n"
+        "a line with no tabs\n"
+        "start\tlitellm\tnot-a-time\n"
+        "done\tswebench\t12.0\n"
+        "done\taider\t12.5\n"
+        "start\tarena\t13.0\n"
+        "done\tarena",
+        encoding="utf-8")
+    assert refresh_module._read_progress(progress) == {"aider": 2.5, "arena": None}
+
+
+def test_a_progress_file_that_cannot_be_read_names_no_source(tmp_path: Path) -> None:
+    """No file (the build never started) or a directory in its place: no timings, never an exception that would lose
+    the night's record. # covers #426"""
+    assert refresh_module._read_progress(tmp_path / "absent") == {}
+    (tmp_path / "a-directory").mkdir()
+    assert refresh_module._read_progress(tmp_path / "a-directory") == {}
+
+
+def test_a_stream_with_no_file_descriptor_is_not_handed_to_the_child() -> None:
+    """Under a captured or replaced stderr (`io.StringIO`, an object with no `fileno`) the child inherits the cycle's
+    own output instead of failing to start. # covers #426"""
+    import io
+
+    assert refresh_module._has_fileno(io.StringIO()) is False
+    assert refresh_module._has_fileno(object()) is False
+    with Path(__file__).open(encoding="utf-8") as stream:
+        assert refresh_module._has_fileno(stream) is True
