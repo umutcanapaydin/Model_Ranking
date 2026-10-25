@@ -1382,3 +1382,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   - The owner confirmed the other seven in a browser, since those pages returned 403 or a localised page to the agent.
 - The two Perplexity rosters were also stale, and their table had changed (as of 2026-10-17). They are transcribed again from two direct reads. Pro has 7 models, Max 11, and Sonar 2, GPT-5.6 Terra and Nemotron 3 Ultra are gone.
 - Lesson: a verification window on hand-kept data turns every PR red on the same day; one verification pass is cheaper before the window closes than after.
+
+## 2026-10-25 · integration/run-v020 — run v020 closed: 17 issues and release v0.2.0's verdicts on one branch
+
+- The owner asked to finish everything open and merge once. 15 queued issues, plus #447 and #450 found during the run, were each worked red-first on a branch cut from the integration head and stacked with a merge commit.
+- One stop: retiring the Mac scripts deletes INV-27..29's tests. The owner answered it as D-224.
+- The PRs were red on `plan-staleness` (ten prices 32 days old) and on a transient HuggingFace 502. The prices were re-verified (#450), with the owner confirming in a browser the seven pages the agent could not read.
+- Release v0.2.0, once: the Tester is MINOR, with 37 faults injected and three BLOCKING closed with its own tests. The security review is MINOR. `make deploy-check` is PASS. The follow-ups #452 and #453 wait for the next release.
+- Lesson: one run that ends in one release review cost one Tester and one security pass for 17 issues; the same work shipped one by one cost a delta pair each (GPF-009).

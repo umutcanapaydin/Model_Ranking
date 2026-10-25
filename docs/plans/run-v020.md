@@ -9,7 +9,7 @@
 
 Mode: light
 Started: 2026-10-24
-Ended: open
+Ended: 2026-10-25 — all milestones closed
 Integration branch: `integration/run-v020` · PR: #432
 Plan PR: #431
 Rulings: D-223, D-224
@@ -24,7 +24,7 @@ Rulings: D-223, D-224
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | 8c30c9f | issues | running |
+| 1 | queue | 8c30c9f | issues | closed |
 
 ## Waves
 
@@ -56,11 +56,20 @@ Rulings: D-223, D-224
 
 ## For the owner
 
-The owner's purpose for this run (2026-10-24, translated): finish everything open, and merge once,
-when the release is ready. So the run ends with release v0.2.0's verdicts (one Tester, one
-Security-Reviewer over everything since v0.1.0's heads, GPF-009) and its record on the integration
-branch. The morning's order: the plan PR, then the integration PR (merge commit, never a squash),
-then the deploy (`docs/owner-actions.md`). Outside the run, and in parallel, the owner's steps for
-#427 (the Mac retired): `fly-production` and its token, the nightly workflow, one night by hand, then the Mac's
-service off. **Merge the integration PR only after a hosted night has published** (D-223 clause 10:
-#427's code retirement is in this run, so the Mac stops being the data's source when it merges).
+Run v020 is done: 17 issues stacked on `integration/run-v020` (#432), and release v0.2.0's verdicts are on it.
+The release Tester's verdict is MINOR, with three BLOCKING closed with its own tests. The release security
+verdict is MINOR. `make deploy-check` is PASS. The one stop (#427, the retired invariants) was answered by D-224.
+
+The order:
+1. **The hosted night first**, from the 2026-10-21 owner-actions rows: `fly-production` and its token, the
+   nightly workflow, then one night run by hand. #432 retires the Mac's engine code, so the data must already
+   come from the hosted night.
+2. **Merge the plan PR #431**, which accepts D-223.
+3. **Merge #432 as a merge commit, never a squash.** It carries #430, #428, #433-#446, #448, #449 and #451, in
+   the wave table's order. The merge marks each stacked draft merged and closes its issue. It also accepts
+   D-221, D-222 and D-224.
+4. **Deploy v0.2.0 and tag it.** Each is an owner-actions row.
+5. **Take the Mac's service off** (`scripts/remove_engine_service.sh`), then the guard rows: tags and replace
+   refs, and the retired installer rule.
+
+Queued for the next release, deliberately not shipped on their own (GPF-009): #444, #452 and #453.
