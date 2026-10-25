@@ -1374,3 +1374,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #447: `test_prd_status.py` matched only `D-1\d\d`, so a requirement superseded by D-222 alone was called bare (found while retiring the Mac engine, #427). The pattern is now named `SUCCESSOR` and reads `D-\d{3,}`.
 - Red first, with the quiet case: a status naming nothing is still refused.
 - Lesson: an id pattern written when ids had three digits and one leading digit ages out silently; match the id's shape, not its current range.
+
+## 2026-10-25 · fix/issue-450-plans-reverified — the plan table and Perplexity's rosters re-verified (run v020)
+
+- #450: all ten plan rows passed their 30-day window, so `plan-staleness` was red on every PR. The prices are unchanged.
+  - The agent read Claude's pricing and Perplexity Max's help article directly.
+  - The owner confirmed the other seven in a browser, since those pages returned 403 or a localised page to the agent.
+- The two Perplexity rosters were also stale, and their table had changed (as of 2026-10-17). They are transcribed again from two direct reads. Pro has 7 models, Max 11, and Sonar 2, GPT-5.6 Terra and Nemotron 3 Ultra are gone.
+- Lesson: a verification window on hand-kept data turns every PR red on the same day; one verification pass is cheaper before the window closes than after.
