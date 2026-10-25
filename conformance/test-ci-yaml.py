@@ -85,6 +85,11 @@ def _minimal_parse(text: str) -> dict:
             line = line[2:].strip()
             if not line:
                 continue
+        elif step is not None and ind > step_ind + 2:
+            # A key nested under one of the step's own keys -- `with:`'s `name: hosted-state` for
+            # upload-artifact -- belongs to that key, not to the step. Reading it as the step's
+            # `name` renamed three steps of nightly-hosted.yml, and PyYAML disagreed.
+            continue
         if ind <= 4 and not line.startswith("- ") and ":" in line and step is not None:
             k = line.split(":", 1)[0].strip()
             if k not in ("name", "run", "uses", "if"):
