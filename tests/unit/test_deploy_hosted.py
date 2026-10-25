@@ -350,3 +350,21 @@ def test_the_build_context_holds_what_the_image_copies_and_no_secret(path: str, 
     last matching rule wins. The wave's tests check that each pattern is present after `!src`, so a
     later `!` rule bringing a secret back (the Tester's K6; the second review's I3) passed every test."""
     assert _dockerignore_keeps(path) is kept, path
+
+
+def test_a_deploy_with_no_artifact_named_is_refused_and_reads_no_mac_copy(tmp_path: Path) -> None:
+    """D-222 (#427): the deploy read the Mac engine's served copy when MODEL_RANKING_SERVED was unset. The Mac
+    runs no engine, so the variable is required: a copy left in the retired service's folder is not shipped."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    home = tmp_path / "home"
+    mac_copy = home / "Library" / "Application Support" / "model-ranking" / "engine" / "data" / "advisor.db"
+    mac_copy.parent.mkdir(parents=True)
+    shutil.copy(served, mac_copy)
+    shutil.copy(tmp_path / "served.db.refresh.json", mac_copy.parent / "advisor.db.refresh.json")
+    env = {**env, "HOME": str(home)}
+    env.pop("MODEL_RANKING_SERVED")
+    for flags in ((), ("--dry-run",)):
+        done = _deploy(env, *flags)
+        assert done.returncode != 0, done.stdout + done.stderr
+        assert "MODEL_RANKING_SERVED is not set" in done.stderr, done.stderr
+    assert not calls.exists(), calls.read_text(encoding="utf-8")

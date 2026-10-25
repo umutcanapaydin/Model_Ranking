@@ -17,25 +17,22 @@ UPSTREAM SOURCES (untrusted input)
            the Epoch AI bundle (a zip from epoch.ai; also each model's accessibility)
       |  bounded HTTP fetches, made only by the refresh's child process
       v
-OWNER'S MAC: launchd service com.ilgar.modelranking.engine, a deployed release of main (D-170)
-  engine process (FastAPI + uvicorn, :8080)
-    nightly task --spawns--> refresh child: fetch, build a candidate, guard it, rename it into place
-                                 ^ curated data/plans.yaml, data/rosters.yaml
-                                 v
-                             advisor.db  (one SQLite file: the artifact)
-    routes read it read-only: /health  /v1/categories  /v1/recommendations  /v1/budgets  /v1/boards
-      |  HTTP GET, Host-checked; loopback by default, the home network by opt-in (D-171)
-      |
-      |  the owner's deploy: app.workflows.public derives a public copy, without the sources
-      |  whose terms do not permit it (D-185), and the image carries it
+GITHUB ACTIONS, each night (D-217): job `refresh`, holding no secret, on the last good night's state
+  refresh child: fetch, build a candidate, guard it, rename it into place
+                    ^ curated data/plans.yaml, data/rosters.yaml
+                    v
+                advisor.db  (one SQLite file: the artifact), kept as the `hosted-state` artifact
+      |  app.workflows.public derives a public copy, without the sources whose terms do not
+      |  permit it (D-185); job `deploy` ships it once the deploy gate is green (#387)
       v
-FLY.IO, serving TestFlight since 2026-10-07: one machine, the `hosted` image, Host model-ranking.fly.dev
-    the same five routes over HTTPS; no refresh on it (D-116); a scheduled GitHub Actions run refreshes
-    on a runner each night and deploys what is new, once the deploy gate is green (D-217, #387);
-    one client limited to 120 requests a minute, a /v1/boards answer counting thirty (#187, INV-88)
+FLY.IO, the only engine (D-222): one machine, the `hosted` image, Host model-ranking.fly.dev
+  engine process (FastAPI + uvicorn, :8080) reading the image's artifact read-only
+    routes: /health  /v1/categories  /v1/recommendations  /v1/budgets  /v1/boards, over HTTPS, Host-checked
+    no refresh on it (D-116); one client limited to 120 requests a minute, a /v1/boards answer
+    counting thirty (#187, INV-88)
       |
       v
-IPHONE APP (SwiftUI): a Debug build asks the Mac, a Release build (TestFlight) asks Fly.io
+IPHONE APP (SwiftUI): a phone build asks Fly.io; a simulator build asks loopback, where `make run` serves
   question -> router (on-device model, then sentence similarity, then manual) -> surface + refinements
            -> reading (signals in code + the model's verdict): a search, a note, or a one-tap question back
   EngineClient: GET /v1/categories, /v1/recommendations?task=SURFACE&budget=unlimited, /v1/boards
@@ -59,8 +56,8 @@ deterministic, tested code (D-104).
 | `ios/ModelRanking/Engine/` | Routing, reading the question, the engine client, the standings store, the combination, the notices, every rule a screen applies; run by `swift test` through `ios/Package.swift` | Ranking a model; any number the engine did not send, except the two named arithmetic files |
 | `ios/ModelRanking/ContentView.swift` | Rendering the screens | Decisions |
 | `ios/UITests/` | The UI test target, run locally by `make ui-test` (D-175) | Judging the on-device model's reading (the router probe measures it) |
-| `scripts/install_engine_service.sh`, `scripts/engine_service.sh`, `scripts/remove_engine_service.sh` | Deploying, starting and removing the engine service on the Mac | — |
-| `Dockerfile`, `fly.toml`, `scripts/deploy_hosted_engine.sh`, `src/app/workflows/public.py` | The hosted engine: its image, its one machine and Host, the one way to deploy it, and the public artifact it carries (D-185) | Refreshing: the hosted engine serves what the owner's Mac derived |
+| `scripts/remove_engine_service.sh` | Taking the retired launchd service off the owner's Mac, once (D-222, D-224); it goes after the owner runs it | Starting an engine: nothing in the tree starts one on the Mac |
+| `Dockerfile`, `fly.toml`, `scripts/deploy_hosted_engine.sh`, `scripts/nightly_hosted.sh`, `src/app/workflows/public.py` | The hosted engine, the only engine (D-222): its image, its one machine and Host, the night that refreshes and deploys it (D-217), and the public artifact it carries (D-185) | Refreshing on the serving host: the hosted engine serves what the night derived |
 | `requirements/*.lock` | The exact versions, with hashes, that every install takes, written by `make lock` (D-177) | Choosing versions: `pyproject.toml` declares the ranges |
 | `src/app/workers/` | Nothing (an empty package) | — |
 
@@ -116,8 +113,8 @@ so, and a required source fails the build.
 
 ### 2.2 The artifact
 
-- One SQLite file: `advisor.db` in development, and
-  `~/Library/Application Support/model-ranking/engine/data/advisor.db` under the service (D-170).
+- One SQLite file: `advisor.db` in development, the night's kept state (the `hosted-state` Actions
+  artifact, D-217), and its public copy at `/srv/advisor.db` in the hosted image.
   It holds the model registry, scores, prices, price medians, accessibility and the curated plans.
 - Each surface's floor is not stored. It is derived where it is read, from the served rows, by
   `src/app/workflows/floors.py`: the top third of the surface's own board (D-148, D-159).
@@ -180,16 +177,18 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 
 ### 2.4 The nightly refresh
 
-The engine runs its own refresh (D-149, D-151, D-154). The schedule is an asyncio task in the
+The engine can run its own refresh (D-149, D-151, D-154). The schedule is an asyncio task in the
 engine's lifespan (`src/app/adapter/nightly.py`). It is on only with
-`MODEL_RANKING_REFRESH=nightly`, which `scripts/engine_service.sh` sets, and only in a relaxed
-environment.
+`MODEL_RANKING_REFRESH=nightly`, and only in a relaxed environment. Since D-222 nothing in the tree
+sets it: the Mac's launcher, which did, is retired (#427), and the hosted engine, a production one,
+refuses it; the night on a runner refreshes instead (§3, §5). What follows is the schedule's code as
+it stands.
 
 - **When:** once a night, at a random minute between 23:00 and 01:00 local time.
   - At startup, after 60 seconds, it runs once if the last good cycle is more than a day old, or
     if the served data was built by a release other than the engine's own `APP_BUILD` (#258: a
     deploy refuses such data, #198, so a newly installed release would otherwise wait a night).
-  - A run that falls due after its window closed (a Mac asleep) runs only if the data is a day old.
+  - A run that falls due after its window closed (a machine asleep) runs only if the data is a day old.
   - A nightly run is skipped when a good cycle ran in the last 4 hours.
 - **How:** a child process, `python -m app.workflows.refresh --db ... --fetch-epoch`. It takes
   `--epoch-dir` instead when the owner sets `MODEL_RANKING_EPOCH_DIR`.
@@ -375,12 +374,10 @@ ships (`ios/Package.swift`). `ContentView.swift` only renders.
 
 ## 3. Data flows
 
-**Nightly, on the Mac.** Upstream sources, then the refresh child, then a candidate, then the
-guards, then an atomic rename onto the artifact. The engine reads the new file on its next request.
-Nothing in this flow involves the phone.
-
-**Nightly, for the hosted engine** (D-217). The same cycle on a GitHub Actions runner, on the last good
-night's state, then the deploy gate, then a deploy to Fly.io when the build is new.
+**Nightly** (D-217). On a GitHub Actions runner, from the last good night's state: upstream sources,
+then the refresh child, then a candidate, then the guards, then an atomic rename onto the artifact;
+then the deploy gate, then a deploy to Fly.io when the build is new. The Mac runs no part of it
+(D-222). Nothing in this flow involves the phone.
 
 **A question, on the phone.**
 
@@ -403,8 +400,8 @@ was asked, so the request says nothing about the question (D-167 clause 1).
 - `task` is a surface id the engine itself served, chosen by the router or tapped by the reader;
 - `budget` is always `unlimited` in this app.
 
-These requests cross the home network in cleartext when the opt-in is on (D-171 note 4). A
-TestFlight build sends them to the hosted engine over HTTPS.
+A phone build sends them to the hosted engine over HTTPS. Only a simulator build, against `make run`
+on loopback, sends them in cleartext; the home-network option is retired (D-222).
 
 **What never crosses** (D-126; D-160 as amended by D-168 note 9; held in part by the compiled gate
 and the text pins: see INV-64, INV-66, INV-67 and INV-89 in `docs/security-invariants.md`):
@@ -449,9 +446,8 @@ no per-reader state.
   never limited, and a limiter that breaks serves the request (fails open).
 - With no list, a request that arrived on a network address rather than loopback is refused,
   whatever the bind.
-- The service always sets the list: `127.0.0.1` and `localhost`, plus the Mac's `.local` name and
-  its LAN address under `--lan`. The hosted engine's list is `model-ranking.fly.dev` alone
-  (`fly.toml`), and Fly's health check sends that Host (INV-86).
+- The hosted engine's list is `model-ranking.fly.dev` alone (`fly.toml`), and Fly's health check
+  sends that Host (INV-86). `make run` sets none and binds loopback.
 - The check stops a browser page that rebinds a name to the engine. It does not stop a person on
   the network, who can send an allowed Host by hand.
 - Anything that forwards to loopback (a proxy, `ssh -L`, a tunnel) in front of an engine with no
@@ -477,52 +473,19 @@ becomes a served surface id, a declared refinement, a yes/no reading, or nothing
 
 ## 5. Deployment topology
 
-```
-owner's Mac
-  launchd agent com.ilgar.modelranking.engine   (RunAtLoad, KeepAlive, ThrottleInterval 60)
-    -> ~/Library/Application Support/model-ranking/engine_service.sh        (the wrapper)
-    -> engine/current/scripts/engine_service.sh --service                   (the release's launcher)
-    -> uvicorn app.adapter.main:app --host MODEL_RANKING_BIND --port 8080
-  engine/releases/SHA      origin/main exported with git archive, its own venv from the locks, a RELEASE stamp
-  engine/current           -> the live release (three kept; the previous one is never removed)
-  engine/data/advisor.db   the artifact and its refresh record, kept across redeploys
-  ~/Library/Logs/model-ranking-engine.log   the engine log, refresh output included
-```
+Nothing runs on the owner's Mac (D-222): its launchd service (D-170) and the home-network option
+(D-171) are retired with their scripts (#427), and `scripts/remove_engine_service.sh` takes the
+service off once, after a hosted night has published (D-222 clause 2, D-224 clause 3).
 
-- **The service** (D-170). `scripts/install_engine_service.sh` deploys `origin/main`, writes the
-  wrapper and the plist, and starts or restarts the service.
-  - It waits up to 60 seconds for `/health` to report `release-<sha>`. If that does not happen, it
-    rolls back to the previous release, or on a first install removes the service.
-  - The owner runs it after each merge, or the agent does on his standing instruction. A merge is
-    not live until it runs.
-  - The release's venv takes `requirements/ingest.lock` and `requirements/build.lock`, hash-checked,
-    then the project with `--no-deps --no-build-isolation` (D-177). Nothing else is resolved or
-    fetched.
-  - `scripts/remove_engine_service.sh` takes the service off and keeps the releases and the data.
-- **The launcher** (`scripts/engine_service.sh`).
-  - With `--service` it refuses to start a tree with no RELEASE stamp.
-  - It sets `APP_ENV=test`, `MODEL_RANKING_DB` and `APP_BUILD`, and runs the startup checks.
-  - It turns the nightly refresh on and starts uvicorn on `MODEL_RANKING_BIND`, which defaults to
-    127.0.0.1.
-  - Its preflight is judged by its exit status: a check that dies without a word stops the start
-    (#145).
-  - `ios/app.sh` starts the same launcher from the development checkout when the service is not
-    installed.
-- **The home network, by opt-in** (D-171).
-  - `scripts/install_engine_service.sh --lan` binds 0.0.0.0 and adds the Mac's `.local` name and
-    LAN address to the Host list. `--no-lan` closes it.
-  - A plain reinstall keeps the mode it finds.
-  - `--lan` binds every interface on every network the Mac joins. The macOS firewall is not a
-    control for this; `--no-lan` is the only one (D-171 note 7).
-  - A renamed Mac needs the installer run again.
 - **The app.** The engine's address is set per build: `ENGINE_URL` in `ios/Config/Engine.xcconfig`.
   A git-ignored `Engine.local.xcconfig` overrides it for Debug builds only; a Release build always
-  asks the hosted engine. `ios/app.sh` builds the simulator app pinned to loopback. Running on the
+  asks the hosted engine, and so does a phone build given loopback (#288). `ios/app.sh` builds the
+  simulator app pinned to loopback, where `make run` serves; it starts no engine. Running on the
   owner's iPhone is `docs/owner-iphone.md`; TestFlight is `docs/release-testflight.md` (an icon, a
   privacy manifest, the encryption answer, a scheme that archives in Release).
 
 ```
-Fly.io (D-116, D-185, D-217): deployed by the owner, or by the owner's nightly workflow
+Fly.io (D-116, D-185, D-217, D-222): the only engine, deployed by the owner's nightly workflow or the owner
   .github/workflows/nightly-hosted.yml   the owner applies scripts/ci/nightly-hosted.yml (D-217):
                                     job `refresh` (no secret) runs scripts/nightly_hosted.sh refresh on the
                                     last good night's state (the `hosted-state` Actions artifact, 90 days)
@@ -544,15 +507,14 @@ Fly.io (D-116, D-185, D-217): deployed by the owner, or by the owner's nightly w
 ```
 
 - **The public artifact** (`python -m app.workflows.public`, D-185 as amended by D-186, INV-87).
-  Derived offline from the artifact the Mac serves. While the app is on TestFlight it leaves out no
+  Derived offline from the artifact the night built. While the app is on TestFlight it leaves out no
   source (D-186): only the vendor plans go. A source put in `LEFT_OUT` loses every score, price and
   accessibility row and its copies under another source, the price medians are rebuilt, and the file
   is vacuumed so no byte of it is left.
 - **No refresh on Fly.** A production environment refuses the nightly switch (D-154). The hosted
   engine's refresh runs on a GitHub Actions runner each night, in a job that holds no secret, and a
   second job deploys the result when the deploy gate is green and `/health` does not already answer
-  its build (D-217). A failed night keeps the last good state and deploys nothing. The Mac refreshes
-  its own engine as before.
+  its build (D-217). A failed night keeps the last good state and deploys nothing.
 
 ## 6. Cross-cutting concerns
 
@@ -593,8 +555,8 @@ Fly.io (D-116, D-185, D-217): deployed by the owner, or by the owner's nightly w
 | 1 | API surface | PRD §8 (M1): no API serving | Five read-only GET routes | Resolved: D-115, D-124, D-125, D-134, D-167 |
 | 2 | Persistence | PRD §7: a disposable SQLite file | One SQLite artifact, built and shipped, read-only to the engine; no managed database | Resolved: D-116 |
 | 3 | Source freshness | REQ-ING-003 flags staleness; no scheduler at M1 | The engine refreshes nightly in a child process | Resolved: D-151, D-154 |
-| 4 | Deploy target | D-116: Fly.io (`fly.toml`, `Dockerfile`) | The engine runs on the owner's Mac; the hosted image, its artifact and its deploy script are ready, not deployed | Ready: D-185; the Stage 5.1 review passed on its re-read; the owner deploys |
-| 5 | Ingestion on a serving host | D-116 clause 2: never | The Mac's engine serves the phone (opt-in) and refreshes in a child process | Accepted: D-154 clause 2 allows the switch only in a relaxed environment; the service runs `APP_ENV=test`; a production engine refuses it |
+| 4 | Deploy target | D-116: Fly.io (`fly.toml`, `Dockerfile`) | The engine runs on Fly.io only; the night refreshes and deploys it | Resolved: D-185, D-217, D-222 |
+| 5 | Ingestion on a serving host | D-116 clause 2: never | The hosted engine never refreshes; the night refreshes on a runner and ships the result | Resolved: D-217, D-222; a production engine refuses the switch (D-154 clause 2) |
 | 6 | Runtime config | AGENTS.md §5: never build-baked | The app's engine address is baked into each build | Accepted exception: D-171 note 5 (a phone app has no process environment) |
 | 7 | What leaves the phone | D-160 clause 1, first wording: nothing derived from the question | The routed surface id is sent as `task` | Resolved: D-160 amendment, D-168 note 9 |
 | 8 | Ingestion code in the server | D-154 clause 1, first wording | The server loads no client, parser, `httpx` or `pyarrow` | Resolved: W-125, fixed in M18-W6 (`docs/warnings.ledger.md`) |

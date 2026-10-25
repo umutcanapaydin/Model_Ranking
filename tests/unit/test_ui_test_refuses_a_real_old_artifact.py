@@ -1,4 +1,4 @@
-"""Tester round 2, #139: the refusal seen on an old artifact of the real schema, and the owner's Mac.
+"""Tester round 2, #139: the refusal seen on an old artifact of the real schema, and a current one named.
 
 The committed refusal test plants a `scores` table with no `source` column, so the script's check
 fails on its query and prints nothing: the refusal it sees is the error path, and a check that says
@@ -15,7 +15,7 @@ import pytest
 
 from app.workflows.schema import connect
 
-from .test_ui_test_script import _chosen, _layout
+from .test_ui_test_script import _artifact, _chosen, _layout
 
 NEEDS = pytest.mark.needs("bash_curl")
 
@@ -59,12 +59,15 @@ def test_the_refusal_names_the_command_that_builds_a_current_artifact(tmp_path: 
 
 
 @NEEDS
-def test_a_current_served_artifact_is_taken_over_an_old_checkout_copy(tmp_path: Path) -> None:
-    """#139's own case, the owner's Mac: the service serves a current artifact and the checkout holds
-    the 2026-09-24 copy. The script starts from the served one and refuses nothing."""
-    env = _layout(tmp_path, served=True)
+def test_a_current_named_artifact_is_taken_over_an_old_checkout_copy(tmp_path: Path) -> None:
+    """#139's own case: a current artifact elsewhere, the 2026-09-24 copy in the checkout. Since D-222 the
+    Mac serves nothing, so the current one is named by MODEL_RANKING_DB; the script starts from it and
+    refuses nothing."""
+    named = tmp_path / "current.db"
+    _artifact(named, "the named artifact")
+    env = {**_layout(tmp_path, served=False), "MODEL_RANKING_DB": str(named)}
     _old(tmp_path / "repo" / "advisor.db")
-    assert _chosen(tmp_path, env) == "the served artifact"
+    assert _chosen(tmp_path, env) == "the named artifact"
 
 
 @NEEDS

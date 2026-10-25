@@ -7,14 +7,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-.venv/bin/python}"
-SERVED="${MODEL_RANKING_SERVED:-$HOME/Library/Application Support/model-ranking/engine/data/advisor.db}"
+SERVED="${MODEL_RANKING_SERVED:-}"  # required: the Mac's served copy is retired (D-222)
 PORT="${COLD_START_PORT:-18080}"
 WAIT_S="${COLD_START_WAIT_S:-60}"
 IMAGE="model-ranking:cold-start"
 NAME="model-ranking-cold-start"
 
-if [ ! -f "$SERVED" ]; then
-  echo "[cold-start] no served artifact at $SERVED (set MODEL_RANKING_SERVED)" >&2
+if [ -z "$SERVED" ] || [ ! -f "$SERVED" ]; then
+  echo "[cold-start] no served artifact at '$SERVED' (set MODEL_RANKING_SERVED to a refresh's artifact)" >&2
   exit 1
 fi
 mkdir -p build/hosted
