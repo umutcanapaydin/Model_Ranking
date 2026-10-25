@@ -48,7 +48,18 @@ def test_every_requirement_opens_its_status_with_one_of_four_words() -> None:
     assert not off, "statuses outside MET / PARTIAL / OPEN / SUPERSEDED:\n" + "\n".join(off)
 
 
+#: What a superseded status must name: the ADR, requirement or plan that replaced it.
+SUCCESSOR = r"\bD-1\d\d\b|REQ-[A-Z]+-\d+|m\d+-plan"
+
+
 def test_a_superseded_requirement_names_what_replaced_it() -> None:
     bare = [f"{req} (line {n})" for req, n, text in _statuses()
-            if text.startswith("**SUPERSEDED") and not re.search(r"\bD-1\d\d\b|REQ-[A-Z]+-\d+|m\d+-plan", text)]
+            if text.startswith("**SUPERSEDED") and not re.search(SUCCESSOR, text)]
     assert not bare, f"superseded with no ADR, plan or requirement named: {bare}"
+
+
+def test_a_status_that_names_only_a_later_adr_names_its_successor() -> None:
+    """#447: the pattern read only `D-1xx`, so a requirement superseded by D-222 alone was called bare."""
+    assert re.search(SUCCESSOR, "**SUPERSEDED** by D-222 (the hosted engine is the only engine)")
+    assert re.search(SUCCESSOR, "**SUPERSEDED** by D-1000")
+    assert not re.search(SUCCESSOR, "**SUPERSEDED** -- see the plan")
