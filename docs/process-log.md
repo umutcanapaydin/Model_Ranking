@@ -1368,3 +1368,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - REQ-DEV-001 is superseded by D-222. The architecture, AGENTS.md, the brief's rollback, the release and iPhone guides describe the hosted engine alone. The engine's in-process nightly schedule stays as unused code: removing it touches INV-39 to INV-41's tests, which is not this change.
 - `test_prd_status` recognises only `D-1xx` ADRs, so a status naming D-222 alone is called bare; the row names D-170 and D-171 too.
 - Lesson: before deleting a script, list every invariant that cites a test reading it, not only the ones the ruling names: INV-73 held `ios/app.sh` too, so it was cut down rather than deleted.
+
+## 2026-10-25 · fix/issue-447-prd-adr-ids — the PRD status gate reads every project ADR id (run v020)
+
+- #447: `test_prd_status.py` matched only `D-1\d\d`, so a requirement superseded by D-222 alone was called bare (found while retiring the Mac engine, #427). The pattern is now named `SUCCESSOR` and reads `D-\d{3,}`.
+- Red first, with the quiet case: a status naming nothing is still refused.
+- Lesson: an id pattern written when ids had three digits and one leading digit ages out silently; match the id's shape, not its current range.

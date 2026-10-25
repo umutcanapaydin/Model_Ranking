@@ -49,7 +49,7 @@ def test_every_requirement_opens_its_status_with_one_of_four_words() -> None:
 
 
 #: What a superseded status must name: the ADR, requirement or plan that replaced it.
-SUCCESSOR = r"\bD-1\d\d\b|REQ-[A-Z]+-\d+|m\d+-plan"
+SUCCESSOR = r"\bD-\d{3,}\b|REQ-[A-Z]+-\d+|m\d+-plan"
 
 
 def test_a_superseded_requirement_names_what_replaced_it() -> None:
