@@ -1569,3 +1569,78 @@ def test_371_a_meeting_inside_a_count_or_a_search_is_admitted_only_where_listed_
     unseen = gate.unseen_permissions({})
     for file, where, method, _, declared in shipping:
         assert [entry for entry in unseen if entry.startswith(f"{file}: `{declared}` inside `{method}` in `{where}`")], where
+
+
+# --- #396 (D-223 clause 8, G-2 (b), (c) and (d)) -----------------------------------------------------------------------
+
+#: #396: a served number rebuilt inside a closure given to a method that splits, partitions, removes or groups, to
+#: `compactMap`, or to `map` whose result a method that counts or searches reads (G-2 (b), the integration review's R1);
+#: and a closure handed to a parameter of the app's own that reaches one (G-2 (c)). Each shape marked in
+#: `Arithmetic.swift`, the method its refusal names, the declaration met and the function it is met in.
+REBUILT_396_TWINS = [
+    ("rebuilt-split", "split(maxSplits:omittingEmptySubsequences:whereSeparator:)", "Swift.Int.==", "shapeRebuiltSplit"),
+    ("rebuilt-partition", "partition(by:)", "Swift.Int.>", "shapeRebuiltPartition"),
+    ("rebuilt-remove-all", "removeAll(where:)", "Swift.Int.>", "shapeRebuiltRemoveAll"),
+    ("rebuilt-grouping", "init(grouping:by:)", "Swift.Int.<=", "shapeRebuiltGrouping"),
+    ("rebuilt-compact-map", "compactMap", "Swift.Int.<=", "shapeRebuiltCompactMap"),
+    ("rebuilt-map-reduce", "map` before `reduce", "Swift.Int.<=", "shapeRebuiltMapReduce"),
+    ("rebuilt-map-filter", "map` before `filter", "Swift.Int.<=", "shapeRebuiltMapFilter"),
+    ("rebuilt-by-parameter", "filter` through `shapeCountedBy", "Swift.Int.<=", "shapeRebuiltByParameter"),
+    ("rebuilt-onward", "filter` through `shapeCountedOnward", "Swift.Int.<=", "shapeRebuiltOnward"),
+    ("rebuilt-by-method", "count(where:)` through `tally", "Swift.Int.<=", "shapeRebuiltByMethod"),
+    ("rebuilt-wrapped", "filter` through `shapeCountedWrapped", "Swift.Int.<=", "shapeRebuiltWrapped"),
+    ("rebuilt-named-to-parameter", "filter` through `shapeCountedBy", "Swift.Int.<=", "shapeRebuiltNamedToParameter"),
+]
+
+
+@pytest.mark.parametrize(("shape", "method", "declared", "function"), REBUILT_396_TWINS)
+def test_396_a_served_number_met_inside_a_split_a_group_a_mapped_count_or_a_parameter_that_counts_is_refused(
+        shape: str, method: str, declared: str, function: str) -> None:
+    """#396 (D-223 clause 8, G-2 (b) and (c), INV-76): `Array(1...100).split { $0 == s.position }.first?.count`,
+    `partition(by:)`, `removeAll(where:)`, `Dictionary(grouping:by:)`, `compactMap { ... }.count` and `map { ... }
+    .reduce(0, +)` passed in all four configurations, since #371's rule named eleven methods and not these; and so did
+    `f { $0 <= s.position }` where `func f(_ p: (Int) -> Bool) -> Int { (1...100).filter(p).count }`, the closure going
+    to a function of the app's own. Each is refused on its own line, as #371's twins are, and the self-test asks the
+    same of all four configurations, shape by shape. # covers D-223, D-218, D-181"""
+    line = _marked(f"// shape: {shape}")
+    where = f"inside the closure given to `{method}` in `{function}`"
+    phrase = f"`{declared}` meets a served position {where}"
+    refused = [found for found in gate.problems(gate.references(FLOW_AST))
+               if found.startswith(f"Arithmetic.swift:{line}:") and phrase in found]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as {phrase}"
+    assert ("Arithmetic.swift", where) in gate.FIXTURE_REFUSALS, "the self-test does not hold it"
+
+
+#: #396: a served number erased to an existential of a protocol that is not numeric and cast back to a number (G-2 (d)),
+#: each shape marked in `Arithmetic.swift`, the existential, and the function the cast is in.
+CAST_BACK_TWINS = [
+    ("through-existential", "any Hashable", "shapeThroughExistential"), ("cast-back", "any Equatable", "shapeCastBack"),
+    ("cast-back-forced", "any CustomStringConvertible", "shapeUnboxed"),
+]
+
+
+@pytest.mark.parametrize(("shape", "existential", "function"), CAST_BACK_TWINS)
+def test_396_a_served_number_erased_to_an_existential_and_cast_back_to_a_number_is_refused(
+        shape: str, existential: str, function: str) -> None:
+    """#396 (D-223 clause 8, G-2 (d), INV-76): `let h: any Hashable = s.position; return (h as? Int ?? 0) + 1` passed in
+    all four configurations: the flow did not follow a served number into an existential of a protocol that is not
+    numeric. It now does, into a constant and into a parameter of the app's own, and a cast of one back to a number
+    (`as?`, `as!`) is refused on its line, arithmetic after it or not. The self-test asks the same of all four
+    configurations, shape by shape. # covers D-223, D-181"""
+    line = _marked(f"// shape: {shape}")
+    where = f"held as `{existential}` is cast back to a number"
+    refused = [found for found in gate.problems(gate.references(FLOW_AST))
+               if found.startswith(f"Arithmetic.swift:{line}:") and where in found and f"in `{function}`" in found]
+    assert refused, f"{shape} (Arithmetic.swift:{line}) is not refused as a served position {where}"
+    assert ("Arithmetic.swift", f"{where} (`Int`) in `{function}`") in gate.FIXTURE_REFUSALS, "the self-test does not hold it"
+
+
+@pytest.mark.parametrize("mark", ["compared-in-if", "quiet-filter", "quiet-parameter", "quiet-map-reduce", "quiet-split",
+                                  "quiet-existential"])
+def test_396_a_comparison_in_if_and_closures_without_a_served_number_stay_admitted(mark: str) -> None:
+    """#396 (D-218 clause 4, D-223 clause 8): a comparison with a served number in `if` stays admitted, the counting
+    loop (G-2 (a)) with it; and a closure that counts, splits or is handed to a parameter of the app's own, `map`
+    totalled, and an existential cast back are admitted when no served number is in them, so the rules are no wider
+    than the ruling. # covers D-223, D-218"""
+    line = _marked(f"// allowed: {mark}")
+    assert not [found for found in gate.problems(gate.references(FLOW_AST)) if found.startswith(f"Arithmetic.swift:{line}:")]

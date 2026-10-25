@@ -20,7 +20,7 @@ Since M18-W6 (W-125) the same test also refuses the source parsers, every `app.c
 import no client.
 
 **Off unless asked for, and never in production.** `MODEL_RANKING_REFRESH=nightly` turns it on;
-`ios/app.sh up` sets it on the owner's Mac. `validate_startup_config` refuses it outside the relaxed
+since D-222 nothing in the tree sets it (the Mac's launcher is retired, #427). `validate_startup_config` refuses it outside the relaxed
 environments, because D-116 keeps ingestion off a serving host and a deployed engine that refreshed
 itself would put it there.
 

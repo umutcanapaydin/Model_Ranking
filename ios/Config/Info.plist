@@ -13,7 +13,5 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Model Ranking reads the model rankings from the engine on your Mac, over your home network. Nothing you type is sent.</string>
 </dict>
 </plist>

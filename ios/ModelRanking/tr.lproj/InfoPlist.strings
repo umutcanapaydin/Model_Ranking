@@ -1,2 +1,3 @@
-/* #95: the text iOS shows when it asks for local-network access, in Turkish. The English is in Config/Info.plist. */
-"NSLocalNetworkUsageDescription" = "Model Ranking, model sıralamalarını ev ağın üzerinden Mac’indeki motordan okur. Yazdığın hiçbir şey gönderilmez.";
+/* The app's Turkish localisation of its Info plist (D-129). It holds no string since D-222 (#427): the
+   local-network prompt went with the home-network engine. The folder stays, so the bundle still declares
+   Turkish and the system's own text and formats follow a Turkish device. */

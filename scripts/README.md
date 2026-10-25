@@ -43,15 +43,15 @@ declares deploy commands with no `deploy_gate.py` beside it refuses every call; 
 the check. Everything under `.claude/`, `.githooks/`, `scripts/`, `conformance/`, `.github/` and the
 `Makefile` is code to the gate whatever its extension; `docs/` and other Markdown are records.
 
-**This project's own** (the engine service, D-170 and D-171). Each changes the owner's machine, so
-the owner runs it, or the agent on his standing instruction:
+**This project's own.** The hosted engine on Fly.io is the only engine (D-222); the Mac runs none.
+The launchd service's installer and launcher are retired (#427); its remover stays until the owner has
+run it once (D-224 clause 3):
 
 | Script | Run by | Purpose |
 |---|---|---|
-| `install_engine_service.sh` | the owner, after each merge | deploys `origin/main` as a release and (re)starts the launchd service `com.ilgar.modelranking.engine`; `--lan` opens it to the home network, `--no-lan` closes it, and a reinstall keeps the mode it finds |
-| `remove_engine_service.sh` | the owner | takes the service off, so it does not start again at login |
-| `engine_service.sh` | launchd, through the installed wrapper; `ios/app.sh` | the launcher: refuses a development checkout as a service, checks the artifact and the startup config, then runs uvicorn on its one `--host`. The engine's nightly refresh (D-154) runs inside it |
-| `simulator_session.sh` | by hand | REQ-RUN-001's first one-command session: engine, build, simulator, until Ctrl-C. Nothing calls it; `ios/app.sh` is the path the owner's steps use |
+| `remove_engine_service.sh` | the owner, once, after a hosted night has published (D-222 clause 2) | takes the retired launchd service off the Mac, so it does not start again at login |
+| `deploy_hosted_engine.sh` | the night (`nightly_hosted.sh`, D-217); the owner by hand | derives the public artifact from the one `MODEL_RANKING_SERVED` names (required), deploys it to Fly.io and checks `/health` |
+| `simulator_session.sh` | by hand | REQ-RUN-001's first one-command session: a development engine, build, simulator, until Ctrl-C. Nothing calls it; `ios/app.sh` (the simulator only, against `make run`) is the path the owner's steps use |
 
-The nightly refresh runs inside the engine service (D-154, D-170); this repository installs no other
+The refresh runs in the hosted night (`nightly_hosted.sh`, D-217); this repository installs no other
 refresher (D-173 clause 7).

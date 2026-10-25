@@ -792,6 +792,25 @@ FIXTURE_REFUSALS = {
     # #371 (D-218 clause 4): a served number handed to a generic over a numeric protocol, and met inside a closure that
     # counts or searches.
     ("Arithmetic.swift", "over the numeric protocol"), ("Arithmetic.swift", "which counts or searches"),
+    # #396 (D-223 clause 8, G-2 (b), (c) and (d)): each shape by its own refusal, so every configuration makes each one.
+    ("Arithmetic.swift", "inside the closure given to `split(maxSplits:omittingEmptySubsequences:whereSeparator:)` in "
+                         "`shapeRebuiltSplit`"),
+    ("Arithmetic.swift", "inside the closure given to `partition(by:)` in `shapeRebuiltPartition`"),
+    ("Arithmetic.swift", "inside the closure given to `removeAll(where:)` in `shapeRebuiltRemoveAll`"),
+    ("Arithmetic.swift", "inside the closure given to `init(grouping:by:)` in `shapeRebuiltGrouping`"),
+    ("Arithmetic.swift", "inside the closure given to `compactMap` in `shapeRebuiltCompactMap`"),
+    ("Arithmetic.swift", "inside the closure given to `map` before `reduce` in `shapeRebuiltMapReduce`"),
+    ("Arithmetic.swift", "inside the closure given to `map` before `filter` in `shapeRebuiltMapFilter`"),
+    ("Arithmetic.swift", "inside the closure given to `filter` through `shapeCountedBy` in `shapeRebuiltByParameter`"),
+    ("Arithmetic.swift", "inside the closure given to `filter` through `shapeCountedOnward` in `shapeRebuiltOnward`"),
+    ("Arithmetic.swift", "inside the closure given to `count(where:)` through `tally` in `shapeRebuiltByMethod`"),
+    ("Arithmetic.swift", "inside the closure given to `filter` through `shapeCountedWrapped` in `shapeRebuiltWrapped`"),
+    ("Arithmetic.swift", "inside the closure given to `filter` through `shapeCountedBy` in `shapeRebuiltNamedToParameter`"),
+    ("Arithmetic.swift", "held as `any Hashable` is cast back to a number (`Int`) in `shapeThroughExistential`"),
+    ("Arithmetic.swift", "held as `any Equatable` is cast back to a number (`Int`) in `shapeCastBack`"),
+    ("Arithmetic.swift", "held as `any CustomStringConvertible` is cast back to a number (`Int`) in `shapeUnboxed`"),
+    # #396: and inside #371's `shapeGenericAny`, whose `any Numeric` parameter the flow now follows a served number into.
+    ("Arithmetic.swift", "held as `any Numeric` is cast back to a number (`Int`) in `shapeGenericAny`"),
 }
 #: #175 R3: the rules the fixture holds, each by a phrase a refusal of it carries; these names are what
 #: the register's rows cite. Each has at least one
@@ -863,6 +882,8 @@ FIXTURE_RULES: dict[str, str] = {
     # #371 (D-218 clause 4).
     "a served number into a numeric generic": "over the numeric protocol",
     "a served number inside a count or a search": "which counts or searches",
+    # #396 (D-223 clause 8).
+    "a served number cast back to a number": "is cast back to a number",
 }
 #: The M21-W3 review's M4: what the fixture must produce in the Release configurations only.
 FIXTURE_RELEASE_REFUSALS = {("ContentView.swift", "Debug-only UI test hook")}
@@ -1680,9 +1701,10 @@ def _numeric(node: _Node, attribute: str) -> bool:
 
 
 #: #171: text, and a value of `Any`, can carry a served number too: written into text and parsed back,
-#: or put in a container of `Any` and cast back out.
+#: or put in a container of `Any` and cast back out. #396 (D-223 clause 8, G-2 (d)): and an existential of any
+#: protocol (`any Hashable`), which a cast hands back as a number (`_cast_back`).
 TEXTY_TYPE = re.compile(r"^(?:@lvalue )?(?:inout )?(?:String|Substring|DefaultStringInterpolation|NSString|NSMutableString|"
-                        r"Data|AnyHashable|AnyObject|NSNumber|NSValue)\??$|\bAny\b")
+                        r"Data|AnyHashable|AnyObject|NSNumber|NSValue)\??$|\bAny\b|\bany [A-Za-z_]")
 #: Text and bytes: the walk enters them only where a number is parsed back out (the M21-W3 review's
 #: B3); see INV-76 (G-2).
 TEXT_NODE = re.compile(r'\btype="(?:@lvalue )?(?:String|Substring|DefaultStringInterpolation|NSString|NSMutableString|'
@@ -2096,6 +2118,7 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
     sorts: dict[tuple[str, str, str], int] = {}
     protocols = _numeric_protocols(flow.roots)
     bodies = _predicate_bodies(flow.roots)
+    reaching = _parameters_that_count(flow, bodies)
     counted: dict[tuple[str, str, str, str, str], set[tuple[int, int]]] = {}
     for root in flow.roots:
         file = _file_of(root)
@@ -2110,7 +2133,8 @@ def flow_facts(ast: str) -> dict[str, set[str]]:
             # #371 (D-218 clause 4): beside both rules, and whatever they admit.
             where = place or function or "-"
             facts.setdefault(file, set()).update(_numeric_generic(node, flow, protocols, where))
-            for method, met, declared, kind in _counts_or_searches(node, flow, bodies):
+            facts.setdefault(file, set()).update(_cast_back(node, flow, where))
+            for method, met, declared, kind in _counts_or_searches(node, flow, bodies, reaching):
                 counted.setdefault((file, where, method, kind, declared), set()).add((_line(met), _column(met)))
     for (file, method, receiver), count in sorts.items():
         facts.setdefault(file, set()).add(f"main.<sorts>.{method}.{receiver}={count}")
@@ -2401,9 +2425,19 @@ PROTOCOL_REFINES = re.compile(r'^ *\(protocol [^"]*"(\w+)"[^\n]*?\b(?:requiremen
 SUBSTITUTED = re.compile(r"\[with \(substitution_map generic_signature=([^\]]*)\)\]")
 #: #371 (D-218 clause 4): the closures that count or search, by the standard library's or Foundation's method they are
 #: given to, as the ruling names them. What such a closure returns decides a count, an index, an element or a total, so
-#: whatever a served number meets inside one can come back as a new number.
+#: whatever a served number meets inside one can come back as a new number. #396 (D-223 clause 8, G-2 (b)): and those
+#: that split, partition, remove, keep or group (`split`, `partition(by:)`, `removeAll(where:)`, `compactMap`,
+#: `Dictionary(grouping:by:)`), whose closure decides where a list is cut, how many it keeps or which group grows.
 COUNTS_OR_SEARCHES = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+(?: extension)?\.(filter|first|firstIndex|'
-                                r'lastIndex|last|count|contains|allSatisfy|drop|prefix|reduce)' + _CALLED)
+                                r'lastIndex|last|count|contains|allSatisfy|drop|prefix|reduce|split|partition|removeAll|'
+                                r'compactMap|init(?=\(grouping:by:\)))' + _CALLED)
+#: #396 (D-223 clause 8, the integration review's R1): a `map` or a `flatMap` whose result a method that counts or
+#: searches reads (`map { $0 <= s.position ? 1 : 0 }.reduce(0, +)`): its closure decides that count or total too.
+MAPS_BEFORE = re.compile(r'decl="(?:Swift|Foundation)\.\(file\)\.\w+(?: extension)?\.(map|flatMap)' + _CALLED)
+#: #396 (D-223 clause 8, G-2 (d)): the type a cast names (`h as? Int`, `h as! Int`), and an existential of a protocol
+#: (`any Hashable`), as the compiler prints one.
+CAST_TO = re.compile(r'\bwritten_type="([^"]+)"')
+EXISTENTIAL = re.compile(r"\bany [A-Za-z_]")
 #: #371 (D-218 clause 4): `(file, place, method, kind, declaration met) -> (how many such meetings, the reason)` inside a
 #: closure that counts or searches, each in the shipping client (measured, the four configurations, 2026-10-21). Counted
 #: per place, so a second meeting there is refused; an entry not seen is reported (`unseen_permissions`). Every other
@@ -2501,24 +2535,124 @@ def _predicate(argument: _Node, flow: _Flow, bodies: dict[tuple[object, ...], _N
     return bodies.get((file, name, at)) if at is not None else None
 
 
-def _counts_or_searches(node: _Node, flow: _Flow,
-                        bodies: dict[tuple[object, ...], _Node]) -> list[tuple[str, _Node, str, str]]:
+def _function_arguments(listed: _Node) -> list[_Node]:
+    """#396: the arguments of a call whose type is a function."""
+    found: list[_Node] = []
+    for argument in (kid for kid in listed.kids if kid.kind == "argument" and kid.kids):
+        typed = TYPE_OF["type"].search(_top(argument.kids[0]).line)
+        if typed is not None and "->" in typed.group(1):
+            found.append(argument.kids[0])
+    return found
+
+
+def _counting_closures(node: _Node) -> list[tuple[str, _Node]]:
+    """#371, #396 (G-2 (b)): `(method, argument)` for each function-typed argument of a call to a method that counts or
+    searches (`COUNTS_OR_SEARCHES`, an initialiser among them), and of the `map` or `flatMap` whose result that method
+    reads (`MAPS_BEFORE`), named `map` before `reduce`."""
+    if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+        return []
+    callee = _top(node.kids[0])
+    if callee.kind not in ("dot_syntax_call_expr", "constructor_ref_call_expr") or not callee.kids or (
+            method := COUNTS_OR_SEARCHES.search(callee.kids[0].line)) is None:
+        return []
+    called = method.group(1) + (f"({method.group(2)})" if method.group(2) else "")
+    found = [(called, argument) for argument in _function_arguments(node.kids[1])]
+    listed = next((kid for kid in callee.kids[1:] if kid.kind == "argument_list"), None) \
+        if callee.kind == "dot_syntax_call_expr" else None
+    for receiver in (_top(operand) for operand in _operands(listed)):
+        if receiver.kind != "call_expr" or len(receiver.kids) < 2 or receiver.kids[1].kind != "argument_list":
+            continue
+        inner = _top(receiver.kids[0])
+        if inner.kind == "dot_syntax_call_expr" and inner.kids and (mapped := MAPS_BEFORE.search(inner.kids[0].line)):
+            found += [(f"{mapped.group(1)}` before `{called}", argument)
+                      for argument in _function_arguments(receiver.kids[1])]
+    return found
+
+
+def _app_call(node: _Node, flow: _Flow) -> tuple[str, str, int, list[_Node]] | None:
+    """#396: `(file, name, line, arguments)` for a call to a function, a method or an initialiser of the app's own, as
+    `_Flow.call` reads one: where it is declared, and its arguments in order (a default one is in the dump too)."""
+    if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
+        return None
+    callee = next((m for item in node.kids[0].walk() if (m := CALLEE.search(item.line))), None)
+    if callee is None:
+        return None
+    name, target = callee.group(2), pathlib.Path(callee.group(3)).name
+    if (at := flow.declared(target, name, int(callee.group(4)))) is None:
+        return None
+    return target, name, at, [kid.kids[0] for kid in node.kids[1].kids if kid.kind == "argument" and kid.kids]
+
+
+def _parameter_key(argument: _Node, flow: _Flow) -> tuple[object, ...] | None:
+    """#396: the parameter of a function of the app's own an expression names, keyed as `_Flow` keys one; None for
+    anything else."""
+    top = _top(argument)
+    if top.kind != "declref_expr" or (ref := FLOW_REF.search(top.line)) is None:
+        return None
+    parts, file, line = ref.group(1).split("."), pathlib.Path(ref.group(2)).name, int(ref.group(3))
+    if len(parts) < 2 or "(" not in parts[-2] or "(" in parts[-1] or (at := flow.declared(file, parts[-2], line)) is None:
+        return None
+    return ("parameter", file, at, _base(parts[-2]), parts[-1])
+
+
+def _handed_on(argument: _Node, flow: _Flow, bodies: dict[tuple[object, ...], _Node]) -> list[tuple[object, ...]]:
+    """#396: the parameters of the app's own a function-typed argument hands on: the one it names, and each one called
+    inside the closure or the function it is (`filter { p($0) }`)."""
+    reached = [argument]
+    if (body := _predicate(argument, flow, bodies)) is not None:
+        reached += [item.kids[0] for item in body.walk() if item.kind == "call_expr" and item.kids]
+    return [key for each in reached if (key := _parameter_key(each, flow)) is not None]
+
+
+def _parameter_closures(node: _Node, flow: _Flow,
+                        reaching: dict[tuple[object, ...], str]) -> list[tuple[str, str, _Node]]:
+    """#396 (G-2 (c)): `(method, function, argument)` for each argument of a call to a function of the app's own whose
+    parameter reaches a method that counts or searches (`_parameters_that_count`)."""
+    if (called := _app_call(node, flow)) is None:
+        return []
+    file, name, at, arguments = called
+    found: list[tuple[str, str, _Node]] = []
+    for (parameter, _, _), argument in zip(flow.parameters.get((file, name, at), []), arguments, strict=False):
+        if (method := reaching.get(("parameter", file, at, name, parameter))) is not None:
+            found.append((method, name, argument))
+    return found
+
+
+def _parameters_that_count(flow: _Flow, bodies: dict[tuple[object, ...], _Node]) -> dict[tuple[object, ...], str]:
+    """#396 (D-223 clause 8, G-2 (c)): each parameter of a function of the app's own that hands what it is given to a
+    method that counts or searches, by name or called inside the closure it gives one, there or through a parameter of
+    another such function, followed to a fixed point; with the method it reaches. A closure given to one is judged as
+    if it were given to that method (`f { $0 <= s.position }` where `f` runs `(1...100).filter(p).count`)."""
+    calls = [node for root in flow.roots for node in root.walk() if node.kind == "call_expr"]
+    reaching: dict[tuple[object, ...], str] = {}
+    for node in calls:
+        for method, argument in _counting_closures(node):
+            for key in _handed_on(argument, flow, bodies):
+                reaching.setdefault(key, method)
+    changed = True
+    while changed:
+        changed = False
+        for node in calls:
+            for method, _, argument in _parameter_closures(node, flow, reaching):
+                for key in _handed_on(argument, flow, bodies):
+                    if key not in reaching:
+                        reaching[key], changed = method, True
+    return reaching
+
+
+def _counts_or_searches(node: _Node, flow: _Flow, bodies: dict[tuple[object, ...], _Node],
+                        reaching: dict[tuple[object, ...], str]) -> list[tuple[str, _Node, str, str]]:
     """#371 (D-218 clause 4, G-2): `(method, meeting, declaration, kind)` for each declaration a served number meets,
     as its receiver or an argument, inside the closure given to a method that counts or searches (`COUNTS_OR_SEARCHES`),
     written in place or handed by name: a comparison, which the rules admit elsewhere, and anything else, a function
     of the app's own among them. A served number rebuilt that way (`(1...100).filter { $0 <= s.position }.count`) is a
-    number no board published."""
-    if node.kind != "call_expr" or len(node.kids) < 2 or node.kids[1].kind != "argument_list":
-        return []
-    callee = _top(node.kids[0])
-    if callee.kind != "dot_syntax_call_expr" or not callee.kids or (
-            method := COUNTS_OR_SEARCHES.search(callee.kids[0].line)) is None:
-        return []
-    called = method.group(1) + (f"({method.group(2)})" if method.group(2) else "")
+    number no board published. #396 (D-223 clause 8): and inside one given to the `map` whose result such a method
+    reads (G-2 (b)), or to a parameter of the app's own that reaches one (G-2 (c), `_parameters_that_count`)."""
+    routes = _counting_closures(node) + [(f"{method}` through `{name}", argument)
+                                         for method, name, argument in _parameter_closures(node, flow, reaching)]
     found: list[tuple[str, _Node, str, str]] = []
-    for argument in (kid for kid in node.kids[1].kids if kid.kind == "argument" and kid.kids):
-        typed = TYPE_OF["type"].search(_top(argument.kids[0]).line)
-        if typed is None or "->" not in typed.group(1) or (body := _predicate(argument.kids[0], flow, bodies)) is None:
+    for called, argument in routes:
+        if (body := _predicate(argument, flow, bodies)) is None:
             continue
         for item in body.walk():
             if (applied := _application(item)) is None or (named := DECL.search(applied[0].line)) is None:
@@ -2526,6 +2660,21 @@ def _counts_or_searches(node: _Node, flow: _Flow,
             kinds = set().union(set(), *(_served_operand(flow, operand) for operand in (*applied[1], *applied[2])))
             found += [(called, item, f"{named.group(1)}.{_symbol(named.group(2))}", kind) for kind in sorted(kinds)]
     return found
+
+
+def _cast_back(node: _Node, flow: _Flow, where: str) -> list[str]:
+    """#396 (D-223 clause 8, G-2 (d)): a served number held as an existential of a protocol (`any Hashable`, which the
+    flow follows since #396) and cast back to a number, `h as? Int` or `h as! Int`: what comes out is a number the
+    rules no longer read as served. Refused where it is cast, whatever follows. A cast out of `Any` is not judged here:
+    the client reads the engine's facts (`[String: Any]`) so, and arithmetic after one is refused as before (#171)."""
+    if node.kind not in ("conditional_checked_cast_expr", "forced_checked_cast_expr") or not node.kids:
+        return []
+    written, typed = CAST_TO.search(node.line), TYPE_OF["type"].search(node.kids[0].line)
+    if written is None or typed is None or not NUMERIC_TYPE.search(written.group(1)) \
+            or not EXISTENTIAL.search(typed.group(1)):
+        return []
+    return [f"main.<cast back>.{kind}@{_line(node)} {written.group(1)}|{typed.group(1)} in {where}"
+            for kind in sorted(flow.carried(node.kids[0], closures=False))]
 
 
 REQUEST_CALL = re.compile(r'decl="main\.\(file\)\.(EngineClient\.\w+\([^)"]*\))@')
@@ -2882,6 +3031,30 @@ def _request_problem(name: str, symbol: str) -> str | None:
     return None
 
 
+def _ruled_problem(name: str, fact: str, subject: str) -> str:
+    """#371 (D-218 clause 4) and #396 (D-223 clause 8): a served number handed to a numeric generic, cast back to a
+    number out of an existential, or met inside a closure that counts or searches."""
+    kind, _, where = subject.partition("@")
+    line, _, rest = where.partition(" ")
+    meeting, _, function = rest.rpartition(" in ")
+    what = "number" if kind == "number" else kind
+    if fact == "<numeric generic":
+        protocol, _, shown = meeting.partition("|")
+        return (f"{name}:{line}: a served {what} is handed to {shown} in `{function}`, over the numeric protocol "
+                f"`{protocol}`, whose arithmetic on it no rule can follow; no served number goes to one (D-218 clause 4, "
+                "REQ-APP-005, #371)")
+    if fact == "<cast back":
+        written, _, held = meeting.partition("|")
+        return (f"{name}:{line}: a served {what} held as `{held}` is cast back to a number (`{written}`) in "
+                f"`{function}`, a number the rules no longer read as served; no served number is cast back out of "
+                "another type (D-223 clause 8, REQ-APP-005, #396)")
+    declared, method, allowed = meeting.split("|")
+    listed = f"; {allowed} such meeting(s) are permitted there" if allowed != "0" else ""
+    return (f"{name}:{line}: `{declared}` meets a served {what} inside the closure given to `{method}` in "
+            f"`{function}`, which counts or searches, so its result can be a new number (D-218 clause 4, "
+            f"D-223 clause 8, REQ-APP-005, #371, #396){listed}")
+
+
 def _flow_problem(name: str, symbol: str) -> str | None:
     """#60 (G-2): arithmetic on a served number outside its ruling's place, or a sort past its count."""
     fact, _, subject = symbol.partition(">.")
@@ -2903,25 +3076,8 @@ def _flow_problem(name: str, symbol: str) -> str | None:
         return (f"{name}:{line}: `{declared}` on a served {what} (its {role}) in `{function}`, which is not on the list "
                 "of what a served number may meet (`SERVED_MAY_MEET`: a comparison, its display, what passes it along "
                 "unchanged, and the places named there); a new one is a reviewed edit (REQ-APP-005, D-181, #242)")
-    if fact == "<numeric generic":
-        kind, _, where = subject.partition("@")
-        line, _, rest = where.partition(" ")
-        meeting, _, function = rest.rpartition(" in ")
-        protocol, _, shown = meeting.partition("|")
-        what = "number" if kind == "number" else kind
-        return (f"{name}:{line}: a served {what} is handed to {shown} in `{function}`, over the numeric protocol "
-                f"`{protocol}`, whose arithmetic on it no rule can follow; no served number goes to one (D-218 clause 4, "
-                "REQ-APP-005, #371)")
-    if fact == "<counts":
-        kind, _, where = subject.partition("@")
-        line, _, rest = where.partition(" ")
-        meeting, _, function = rest.rpartition(" in ")
-        declared, method, allowed = meeting.split("|")
-        what = "number" if kind == "number" else kind
-        listed = f"; {allowed} such meeting(s) are permitted there" if allowed != "0" else ""
-        return (f"{name}:{line}: `{declared}` meets a served {what} inside the closure given to `{method}` in "
-                f"`{function}`, which counts or searches, so its result can be a new number (D-218 clause 4, "
-                f"REQ-APP-005, #371){listed}")
+    if fact in ("<numeric generic", "<cast back", "<counts"):
+        return _ruled_problem(name, fact, subject)
     if fact == "<declares operator":
         operator, _, line = subject.partition("@")
         return (f"{name}:{line}: declares the operator `{operator}`, arithmetic no rule can follow; the client "

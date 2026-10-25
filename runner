@@ -155,7 +155,7 @@ if curl -sf -m 2 "http://127.0.0.1:$PORT/health" > /dev/null 2>&1; then
     else
       echo "stamp : STALE — serving dev-$SERVING while HEAD is $HEADSHA."
       echo "        Restart is not rebuild (L.7): a running process keeps the replaced file's inode"
-      echo "        and answers /health with 200 the whole time. Run ./ios/app.sh restart."
+      echo "        and answers /health with 200 the whole time. Restart `make run`."
     fi
     echo ""
     echo "categories advertised: $(curl -s http://127.0.0.1:$PORT/v1/categories | $PY -B -c 'import json,sys; print(len(json.load(sys.stdin)["categories"]))')"
@@ -180,7 +180,7 @@ sys.exit(1 if bad else 0)
 PYEOF
   record "engine" "$?"
 else
-  skip "engine" "nothing is listening on :$PORT -- start it with ./ios/app.sh up"
+  skip "engine" "nothing is listening on :$PORT -- start it with make run"
 fi
 
 # --- 5b. the refresh's own record ------------------------------------------------------------------

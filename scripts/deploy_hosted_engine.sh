@@ -11,8 +11,8 @@
 #  1. The tree must be committed, untracked files included, and its commit on origin/main: the image
 #     is stamped with this commit (APP_BUILD, L.7) and built from this tree, and a release is what
 #     `main` holds.
-#  2. The public artifact (#88, `app.workflows.public`) is derived from the one this Mac's engine
-#     serves (MODEL_RANKING_SERVED; the night's kept state, D-217) into build/hosted/advisor.db, the file
+#  2. The public artifact (#88, `app.workflows.public`) is derived from the one the refresh built
+#     (MODEL_RANKING_SERVED, required; the night's kept state, D-217) into build/hosted/advisor.db, the file
 #     the image's `hosted` stage copies. The served artifact is only read; the refresh never runs on the
 #     serving host (D-116).
 #  3. `fly deploy` builds that stage on Fly's builder, on one machine (`--ha=false`; Fly places two by
@@ -38,7 +38,9 @@ unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY
 # The checkout this script lives in, and no other: the deploy gate judges the tree the call runs in, so
 # MODEL_RANKING_REPO, which pointed it at another clone, is not read (#391).
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-SERVED="${MODEL_RANKING_SERVED:-$HOME/Library/Application Support/model-ranking/engine/data/advisor.db}"
+# The refresh's artifact, named by the caller (the night: its kept state). No default: the Mac's served copy
+# is retired with its engine (D-222), and a deploy never guesses which data it ships.
+SERVED="${MODEL_RANKING_SERVED:-}"
 PYTHON="${PYTHON:-$REPO/.venv/bin/python}"
 TRIES="${DEPLOY_HEALTH_TRIES:-12}"
 # No argument, or exactly --dry-run or --ship: anything else is refused, never read as a deploy (the
@@ -104,13 +106,17 @@ if [ "$SHIP" = 1 ]; then
     exit 1
   fi
 else
+if [ -z "$SERVED" ]; then
+  echo "[deploy] refused: MODEL_RANKING_SERVED is not set; name the artifact a refresh built (the night sets it)" >&2
+  exit 1
+fi
 if [ ! -f "$SERVED" ]; then
   echo "[deploy] refused: no served artifact at $SERVED (set MODEL_RANKING_SERVED)" >&2
   exit 1
 fi
 
 # #198: the release that built the served data, from the refresh's record beside it. Names and ids are
-# applied when the data is built, so a Mac that runs an older release ships that release's data.
+# applied when the data is built, so a refresh run by an older release ships that release's data.
 # `unknown` is a record that names no builder (one written before #198); a copy with no record beside it,
 # or a record nobody can read, is `missing` or `unreadable`, which no acceptance covers (the second
 # M21-W1 review's R1).
@@ -134,14 +140,14 @@ echo "[deploy] the data was built by $DATA_BY; the code is release-$HEAD_SHORT"
 # names that very release in DEPLOY_ACCEPT_DATA_FROM (`unknown` for a record from before #198).
 if [ "$DATA_BY" = "missing" ] || [ "$DATA_BY" = "unreadable" ]; then
   echo "[deploy] refused: the served data's refresh record is $DATA_BY ($SERVED.refresh.json), so nothing" >&2
-  echo "         says which release built it, and no DEPLOY_ACCEPT_DATA_FROM accepts that; let the Mac's" >&2
-  echo "         engine publish a refresh with this release (docs/release-testflight.md, the v2 section)" >&2
+  echo "         says which release built it, and no DEPLOY_ACCEPT_DATA_FROM accepts that; let a refresh" >&2
+  echo "         with this release publish first (the hosted night, D-217)" >&2
   exit 1
 fi
 if [ "$FROM" != "$HEAD_SHORT" ]; then
   if [ "${DEPLOY_ACCEPT_DATA_FROM:-}" != "$DATA_BY" ] || { [ "$DATA_BY" != "unknown" ] && [ "${DATA_BY#release-}" = "$DATA_BY" ]; }; then
-    echo "[deploy] refused: the served data was built by $DATA_BY, not release-$HEAD_SHORT; let the Mac's" >&2
-    echo "         engine publish a refresh with this release (docs/release-testflight.md, the v2 section):" >&2
+    echo "[deploy] refused: the served data was built by $DATA_BY, not release-$HEAD_SHORT; let a refresh" >&2
+    echo "         with this release publish first (the hosted night, D-217):" >&2
     echo "         a night whose data is unchanged keeps the old builder's name, and a refresh run by hand" >&2
     echo "         without APP_BUILD records unstamped, which nothing accepts" >&2
     case "$DATA_BY" in  # S5: only a release, or a record from before #198, may be named

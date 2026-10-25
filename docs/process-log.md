@@ -1256,3 +1256,137 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's delta over `9d3cf0e..0bdf2eb` is PASS: three faults were injected and all went red. The Security-Reviewer's delta over `9208fd8..471dd79` is PASS with no finding: `ci.yml` changes only its timeout. `make deploy-check` is PASS.
 - Post-merge for #409, #414, #416, #420 and #422: their branches were deleted, #415 and #421 got closing comments, and #406 was closed with run 40093188395 as evidence.
 - Lesson: a change the deploy gate counts as code, even a test or a workflow limit, re-opens both verdicts. Merging such a fix just before a release costs a delta round.
+
+## 2026-10-24 · fix/issue-418-accepted-cuts — an accepted cut is named row by row, expires, and goes to a security review
+
+- #418, carrying out the owner's rulings in D-221 (`c9390f3`):
+  - `_excused` now counts a linked model's lost spellings, not its model, so a cut naming the spelling a model keeps excuses none of its lost rows.
+  - Every cut needs an `until:` date and an ADR the log holds; an expired cut, or one without either, raises `AcceptedCutError` and the night fails closed.
+  - `scripts/review_need.py` routes any change to `data/accepted-cuts.yaml` to security in either mode (`EXCEPTION_FILES`, held equal to the refresh's path by a test).
+- The epoch_chess cut is retired (`cuts: []`): both served artifacts hold Epoch's published board since `release-55cf42e` and `release-2a68ca4`.
+- Red first (`1b926e7`, 11 tests), then the fix. INV-54 cites three more tests.
+- Lesson: an exception to a guard is policy, and a policy file that no review route names is one the reviews never see.
+
+## 2026-10-24 · enhancement/retire-mac-engine — the Mac is retired as an engine, and light mode's repeated deltas go back to DevFlow
+
+- The owner's ruling, recorded as D-222: the hosted engine is the only engine, and the Mac runs nothing. D-170 and D-171 are superseded. The order keeps the data refreshing: first `fly-production` and its token, then the nightly workflow, then one hosted night; only after that is the Mac's service taken off (owner-actions row). Retiring the code is #427.
+- GPF-009 records that light mode re-opened both release verdicts for a test-and-CI-only change, so v0.1.0 took three review rounds. The owner's ask is one security delta per release. Until DevFlow answers, fixes are batched between releases.
+- Owner-actions: the Mac deploy (#265), the hosted deploy and the v0.1.0 tag rows are done.
+- Lesson: an owner who says "we already moved" means the old path is a cost, not a fallback; write the retirement with its order, or the old path keeps getting named as the plan.
+
+## 2026-10-24 · fix/issue-411-json-errors — a source's bad JSON fails that source, never the night (run v020)
+
+- Thirteen client `json.loads` calls caught only `JSONDecodeError`, so `RecursionError` and the 4,300-digit `ValueError` escaped `_ingest_sources` and aborted every source's night. Every handler now catches `(ValueError, RecursionError)`.
+- Red first (`1225d48`): an AST scan requires every `json.loads` in `src/app/clients` to sit in a `try` that catches both. The one exemption is parquet_reader's own argv, named with its reason. A through-the-build test for Datacurve's two shapes goes with it.
+- Lesson: a rule that one exception class covers a library's failures needs the library's whole failure list, so derive the check from the call sites rather than from one example.
+
+## 2026-10-24 · fix/issue-412-simplebench-regex — SimpleBench's board regex is linear (run v020)
+
+- `\n\s*\];` let `\s*` cross newlines, so a page with no closing `];` was quadratic: 200k newlines took about a minute. `[ \t]*` cannot cross a newline, so the same page now fails at once.
+- Red first: a time-bounded test, under 1 s for 200k newlines.
+- Lesson: in a lazy match ended by a whitespace run, use a whitespace class that cannot hold the separator the lazy part steps over.
+
+## 2026-10-24 · fix/issue-417-bracket-regex — the bracket reading is linear (run v020)
+
+- `\s*\(` in `_TEXT_BRACKET` and `_PAREN_EFFORT` was retried at every position of a whitespace run, so a 20k-space name took about a second. `(?<!\s)` starts a match only where a run begins, so the run is scanned once. The matches are the same as before.
+- Red first: a test bounded to 0.25 s. The test of names that resolved before now pins each id and effort (the #416 delta Tester's M2).
+- Lesson: a leading `\s*` in a searched pattern is quadratic on whitespace unless something anchors where it may start.
+
+## 2026-10-24 · fix/issue-426-refresh-alarm — a night that never finishes says where it stopped (run v020)
+
+- #426 (D-223 clause 1): the nightly entry (`refresh.main`) builds in a child of the cycle, in its process group, and kills it at `BUILD_LIMIT_SECONDS` (25 minutes) on its own clock. A killed night's record names each source it started and never finished, and every record carries `source_seconds`. `refresh()` itself keeps the in-process build that the tests patch.
+- The build writes `start` and `done` per source to `--progress-out`, in a `finally`, so a failing source still closes its line.
+- Red first. Three CLI tests patch `build_in_child`, the builder `main` now uses, in place of `build_main`; what they assert is unchanged.
+- Lesson: a production-path change behind a test seam needs the seam moved to the entry point, or every test that patched the old default silently starts running the real thing.
+
+## 2026-10-24 · fix/issue-419-image-modality — a bracketed modality is a different product (run v020)
+
+- The modality guard read a token only between `-_/. `, so `GPT-4o (image)` and `(audio)` linked to the text model's rule. A parenthesis now bounds a token too.
+- Red first. The quiet case, `GPT-4o (2024-08-06)`, still resolves to the text model. Of the 424 bracketed names in the 2026-10-23 candidate, the guard refuses the same two as before.
+- Lesson: when a source changes its naming style, every token boundary in the name rules has to be re-read against the new style.
+
+## 2026-10-24 · fix/issue-403-media-price — a media board model with a text price is named in the build's drift (run v020)
+
+- Measured first, on the 2026-10-23 candidate: no media board model carries a per-token price, so the risk is latent. Ranking is price-free on a quality-only surface by construction (D-218 clause 1). `/v1/standings`, however, prices a model and not a surface, so a collision would show a per-token price on an image or video board.
+- The build now names any such model in its drift. The night records it and `/health` lists it. It is never refused.
+- Red first, including a wiring test that the check's lines reach the build's drift.
+- Lesson: a price keyed by model leaks onto every surface the model appears on; a surface that must not show it needs a check where the two keys meet.
+
+## 2026-10-24 · fix/issue-404-osworld-tests — the OSWorld reader's two fixes are held by tests (run v020)
+
+- `ensure_ascii=False` in `fetch_raw` and the joined text pieces in `_parse_xml` had no test, so reverting either left the suite green.
+- There are now two tests, each proven by fault injection. The file was reverted in place and restored byte-identical (md5).
+  - With `ensure_ascii` reverted, the non-ASCII board fails.
+  - With `+=` restored, 1.6M character references take 15 s against 0.2 s and fail the 5 s bound. 400k references were too few: CPython's in-place `+=` kept the quadratic path under a second.
+- Lesson: a timing test is only a test after it has been shown to fail on the slow path; size the input by measuring that path, not by guessing.
+
+## 2026-10-24 · fix/issue-413-schema-sync — the record schema is held to the validator again (run v020)
+
+- The v7.2 apply removed the conformance schema-sync test, while D-207 clause 4 kept `schemas/record.schema.json`. Nothing noticed drift. `tests/unit/test_record_schema_sync.py` restores the check as a project test: the record-type and status enums and the required fields equal `check_records.py`'s constants, failing closed on an empty set.
+- Proven both ways: a planted drift in the real file fails it, and the file was restored byte-identical (md5).
+- Lesson: when an upgrade removes a check whose subject the project kept, the check moves into the project in the same change, not later.
+
+## 2026-10-24 · fix/issue-429-cut-edges — an accepted cut expires within 30 days, under an ADR that names its board (run v020)
+
+- D-223 clauses 2 and 3 (the #418 security review's M1, M2 and R2):
+  - a cut's `until:` is at most 30 days out;
+  - its ADR must be a header outside any code block, not superseded, and naming the cut's board;
+  - ids past D-999 are read;
+  - an unreadable log has a test that it fails closed.
+- R1 takes no route (D-223 clause 4).
+- Red first. The fixtures that relied on the looser rules now carry a near expiry and a log that names the probe's board.
+- Lesson: an exception's expiry needs an upper bound as well as a lower one, or a date far in the future is a permanent exception written as a temporary one.
+
+## 2026-10-24 · fix/issue-401-dispatch-spellings — four deploy spellings the guard does not judge are refused on the record (run v020)
+
+- #401 (D-223 clause 6): `docs/refusals.md` R-4 refuses judging a dispatch through an HTTP client, an extension or alias, an action-based deploy, and a rerequest or deployment approval. `fly-production` admits only `main`, and the night's own deploy step runs `deploy_gate.py --check`, so none of them can ship unreviewed code. Its re-open triggers name what would change that.
+- Lesson: when every path to a deploy ends at one checked gate, a refusal that names the gate and its trigger is stronger than a guard that tries to enumerate every way to reach it.
+
+## 2026-10-24 · fix/issue-408-ceiling-flake — the reader's memory ceiling tests sit above a measured baseline (run v020)
+
+- #408 (D-223 clause 7): both ceiling tests used a fixed 100 MiB, and a py3.12 runner whose reader started heavier stopped the ordinary file. They now set the ceiling at the reader's own peak after its imports (measured with the reader's `_peak_rss`, 38 MiB here) plus 40 MiB. `ceiling.parquet`'s 96 MiB still passes it, so the stop is kept.
+- Both polarities were shown by changing the margin: at 0 the ordinary file fails, at 400 MiB the ceiling file is not stopped. The file was restored byte-identical.
+- Lesson: a test bound to a process's memory must measure that process's baseline on the runner it runs on, or the runner's interpreter decides the result.
+
+## 2026-10-24 · fix/issue-410-gate-exemption — the deploy gate's DevFlow exemption reads its pin at the protected base (run v020)
+
+- #410 (D-223 clause 5): the exemption compared a file with `refs/tags/<version>` named by the untracked `.gp/installed`, both writable by the change under evaluation. It now compares with the commit `docs/devflow-pin.txt` names at the protected base (the merge-base with the default branch), which an agent's branch can neither move nor forge. An upgrade the owner merges moves the pin, so it still owes no delta. `scripts/deploy_hosted_engine.sh`, `scripts/nightly_hosted.sh` and `scripts/ci/` join the safety surface.
+- Red first: a forged tag with the marker, a moved tag, a pin rewritten on the branch, and a deploy script byte-identical to its upstream commit; the quiet upgrade case passes. DevFlow's conformance test moved to the pin model (seven cases). The guard's refusal of tag writes is an owner-actions row.
+- Lesson: an exemption from a gate must read its proof from where the gate reads its policy (the protected base), never from the tree it judges.
+
+## 2026-10-24 · fix/issue-396-g2-rebuilds — G-2's rebuilds through a split, a mapped count, a parameter and an existential are refused (run v020)
+
+- #396 (D-223 clause 8): the count-or-search rule names `split`, `partition(by:)`, `removeAll(where:)`, `compactMap` and `Dictionary(grouping:by:)`, and a `map`/`flatMap` whose result one of them reads (R1). It follows a closure given to a parameter of the app's own that reaches one, to a fixed point. The flow follows a served number into `any` of a protocol, where a cast back to a number is refused. Shape (a), the counting loop, stays admitted (D-218 clause 4).
+- Red first: 15 shapes planted, each refused in all four configurations by its own phrase in `FIXTURE_REFUSALS`. Six admitted twins stay quiet, and the D-214 pin holds.
+- The first cast rule also refused the shipping client's reads of `[String: Any]` facts, so it was narrowed to `any` of a protocol, the shape the ruling names. An assumption row records the choice.
+- Lesson: run a new refusal against the shipping client before writing its scope down. The client showed the cast rule was wider than the ruling.
+
+## 2026-10-25 · enhancement/issue-427-retire-mac-code — the Mac engine's code and docs are retired; the hosted engine is the only one (run v020)
+
+- #427 (D-222, D-223 clause 10, D-224): the launcher and the installer are deleted with their tests, and INV-27 to INV-29 retire to the register's retired table and to `docs/watchlist.md` ("a Mac engine again"). The remover stays until the owner runs it.
+- `ios/app.sh` is a simulator-only helper that starts no engine; its loopback pin stays, because INV-73 cites its test. The deploy and `make cold-start` require `MODEL_RANKING_SERVED`; `ui-test` reads `MODEL_RANKING_DB` or the checkout's copy. The app asks for no local-network access; `NSAllowsLocalNetworking` stays for the simulator's loopback engine.
+- REQ-DEV-001 is superseded by D-222. The architecture, AGENTS.md, the brief's rollback, the release and iPhone guides describe the hosted engine alone. The engine's in-process nightly schedule stays as unused code: removing it touches INV-39 to INV-41's tests, which is not this change.
+- `test_prd_status` recognises only `D-1xx` ADRs, so a status naming D-222 alone is called bare; the row names D-170 and D-171 too.
+- Lesson: before deleting a script, list every invariant that cites a test reading it, not only the ones the ruling names: INV-73 held `ios/app.sh` too, so it was cut down rather than deleted.
+
+## 2026-10-25 · fix/issue-447-prd-adr-ids — the PRD status gate reads every project ADR id (run v020)
+
+- #447: `test_prd_status.py` matched only `D-1\d\d`, so a requirement superseded by D-222 alone was called bare (found while retiring the Mac engine, #427). The pattern is now named `SUCCESSOR` and reads `D-\d{3,}`.
+- Red first, with the quiet case: a status naming nothing is still refused.
+- Lesson: an id pattern written when ids had three digits and one leading digit ages out silently; match the id's shape, not its current range.
+
+## 2026-10-25 · fix/issue-450-plans-reverified — the plan table and Perplexity's rosters re-verified (run v020)
+
+- #450: all ten plan rows passed their 30-day window, so `plan-staleness` was red on every PR. The prices are unchanged.
+  - The agent read Claude's pricing and Perplexity Max's help article directly.
+  - The owner confirmed the other seven in a browser, since those pages returned 403 or a localised page to the agent.
+- The two Perplexity rosters were also stale, and their table had changed (as of 2026-10-17). They are transcribed again from two direct reads. Pro has 7 models, Max 11, and Sonar 2, GPT-5.6 Terra and Nemotron 3 Ultra are gone.
+- Lesson: a verification window on hand-kept data turns every PR red on the same day; one verification pass is cheaper before the window closes than after.
+
+## 2026-10-25 · integration/run-v020 — run v020 closed: 17 issues and release v0.2.0's verdicts on one branch
+
+- The owner asked to finish everything open and merge once. 15 queued issues, plus #447 and #450 found during the run, were each worked red-first on a branch cut from the integration head and stacked with a merge commit.
+- One stop: retiring the Mac scripts deletes INV-27..29's tests. The owner answered it as D-224.
+- The PRs were red on `plan-staleness` (ten prices 32 days old) and on a transient HuggingFace 502. The prices were re-verified (#450), with the owner confirming in a browser the seven pages the agent could not read.
+- Release v0.2.0, once: the Tester is MINOR, with 37 faults injected and three BLOCKING closed with its own tests. The security review is MINOR. `make deploy-check` is PASS. The follow-ups #452 and #453 wait for the next release.
+- Lesson: one run that ends in one release review cost one Tester and one security pass for 17 issues; the same work shipped one by one cost a delta pair each (GPF-009).

@@ -81,7 +81,7 @@ plans:
       - GPT-5.6 Luna
       - GPT-5 Thinking Mini
     source_url: https://chatgpt.com/pricing/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: chatgpt-plus
     provider: OpenAI
@@ -102,7 +102,7 @@ plans:
       - GPT-5.6 Luna
       - GPT-5 Thinking Mini
     source_url: https://chatgpt.com/pricing/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: chatgpt-pro
     provider: OpenAI
@@ -125,7 +125,7 @@ plans:
       - GPT-5.6 Luna
       - GPT-5 Thinking Mini
     source_url: https://chatgpt.com/pricing/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: claude-pro
     provider: Anthropic
@@ -139,7 +139,7 @@ plans:
       month-to-month. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
     included_models: []
     source_url: https://claude.com/pricing
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: claude-max
     provider: Anthropic
@@ -152,7 +152,7 @@ plans:
       higher output limits for all tasks. Plan cards name no specific model versions (model names appear elsewhere on the page — owner re-verifies at the gate).
     included_models: []
     source_url: https://claude.com/pricing
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: google-ai-plus
     provider: Google
@@ -167,7 +167,7 @@ plans:
     included_models:
       - Gemini 3.1 Pro
     source_url: https://one.google.com/about/google-ai-plans/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: google-ai-pro
     provider: Google
@@ -182,7 +182,7 @@ plans:
       - Gemini 3.1 Pro
       - Gemini 3 Pro
     source_url: https://one.google.com/about/google-ai-plans/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: google-ai-ultra
     provider: Google
@@ -199,7 +199,7 @@ plans:
       - Gemini 3.1 Pro
       - Gemini 3 Pro
     source_url: https://one.google.com/about/google-ai-plans/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: perplexity-pro
     provider: Perplexity
@@ -213,7 +213,7 @@ plans:
       annual option.
     included_models: []
     source_url: https://www.perplexity.ai/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25
 
   - id: perplexity-max
     provider: Perplexity
@@ -225,4 +225,4 @@ plans:
       Everything in Pro with the highest usage limits; $2,000/year annual option.
     included_models: []
     source_url: https://www.perplexity.ai/
-    last_verified: 2026-09-23
+    last_verified: 2026-10-25

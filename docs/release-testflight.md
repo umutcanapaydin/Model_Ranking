@@ -12,7 +12,9 @@ artifact, the deploy script, the app's icon, privacy manifest and Release addres
 needs your accounts, your card or your signing identity. **Deploy only after you have merged the
 release's pull requests and the release's security verdict of record,
 `docs/reviews/release-security.md`, is PASS or MINOR (not BLOCKING).** The first release was M19's
-(TestFlight build 1); the next is v2, build 4, below.
+(TestFlight build 1); the next is v2, build 4, below. **Since D-222 the Mac runs no engine:** the night
+refreshes and deploys the hosted engine (D-217), and a step below that names the Mac's engine is the
+record of a release made before it.
 
 ## v2 (M20 + M21), in this order
 
@@ -72,15 +74,14 @@ The M21 closure security seat says the release verdict stands for v2, on six con
 
 ## 1. The engine on Fly.io (once)
 
-1. **Update your checkout and your Mac's engine.** `git checkout main && git pull`, then `make
-   install`, then `scripts/install_engine_service.sh` (it keeps the home-network mode it finds). The
-   hosted engine serves a copy of the data your Mac's engine built, so the Mac must run the code you
-   deploy: let it refresh once after the install (since #258 it starts a minute after the install when
-   the served data was built by another release; otherwise the next night, between 23:00 and 01:00),
-   and check that `curl -s http://127.0.0.1:8080/health` names the new release and a refresh after it. The refresh
-   records which release built the served data (`<served>.refresh.json`, `served_built_by`, #198), and
-   the deploy refuses data another release built: a night whose data is unchanged keeps the old
-   builder's name, and a refresh run by hand without `APP_BUILD` records `unstamped`, which no `DEPLOY_ACCEPT_DATA_FROM` accepts.
+1. **Update your checkout.** `git checkout main && git pull`, then `make install`. The Mac runs no
+   engine (D-222): the hosted engine serves a copy of the data a refresh built with the code you
+   deploy, and the night builds it on a runner (`scripts/nightly_hosted.sh`, D-217). The refresh
+   records which release built the data (`<served>.refresh.json`, `served_built_by`, #198), and the
+   deploy refuses data another release built: a night whose data is unchanged keeps the old builder's
+   name, and a refresh run by hand without `APP_BUILD` records `unstamped`, which no
+   `DEPLOY_ACCEPT_DATA_FROM` accepts. A deploy by hand names that artifact in `MODEL_RANKING_SERVED`;
+   it has no default.
 2. **Log in and add a card.** `fly auth login`. Fly asks for a payment method before it places a
    machine, even the smallest (D-123): add one at https://fly.io/dashboard → Billing. The
    declared machine (`shared-cpu-1x`, 256 MB, always on; the script deploys one, `--ha=false`)
@@ -92,7 +93,7 @@ The M21 closure security seat says the release verdict stands for v2, on six con
    pull`: the deploy ships only `main`'s tip, from a clean tree.
 4. **Try the image on your Mac first** (optional, free): with Docker Desktop running, `make
    cold-start` builds the hosted image, boots it with nothing saved, and runs the customer journey
-   against it on `127.0.0.1:18080`.
+   against it on `127.0.0.1:18080`. `MODEL_RANKING_SERVED` names the artifact it derives from.
 5. **Deploy.** From the repository: `scripts/deploy_hosted_engine.sh --dry-run` first (it derives
    the public artifact and checks the tree), then `scripts/deploy_hosted_engine.sh`. It builds on
    Fly's builder, stamps the build `release-<sha>-data-<digest>-from-<sha>` (the code's commit, the public
@@ -137,12 +138,12 @@ Mac could deploy or destroy the app (#190).
 to claim, and every installed build would then ask their server (the security review's S10). To stop
 the engine, run `fly scale count 0`; `fly scale count 1` starts it again.
 
-**After each nightly refresh you want public,** run `scripts/deploy_hosted_engine.sh` again: the
-public artifact is derived from the one your Mac serves, and each deploy is one image of code and
-data. Nothing refreshes on Fly (D-116).
+**Each night** the workflow refreshes and, when the build is new, deploys (D-217): the public artifact
+is derived from the one the night built, and each deploy is one image of code and data. Nothing
+refreshes on Fly (D-116).
 
 **What the public artifact leaves out:** nothing but the vendor plans, which the app never shows
-(D-186, your ruling of 2026-10-08). The hosted engine serves every source your Mac's does. Before
+(D-186, your ruling of 2026-10-08). The hosted engine serves every source the refresh reads. Before
 external testers or the App Store, D-185's licence table is ruled source by source; leaving one out
 is one line in `LEFT_OUT` in `src/app/workflows/public.py`.
 

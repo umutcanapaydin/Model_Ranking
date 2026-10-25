@@ -1,8 +1,8 @@
-"""#139: `make ui-test` starts its engine from a copy of the artifact the service serves (D-175).
+"""#139, D-222: `make ui-test` starts its engine from a copy of the artifact MODEL_RANKING_DB names, else
+the checkout's `advisor.db` (D-175).
 
-It defaulted to the checkout's `advisor.db`, which on the owner's Mac was a copy from 2026-09-24,
-older than the refinement boards, so the UI test drove the combined list on boards the phone no
-longer gets. Each test runs a copy of `scripts/ui_test.sh` in a scratch layout of the repository,
+It once preferred the artifact the Mac's engine service served; that service is retired (#427), so its
+folder is no longer read. An artifact older than the screen is refused instead (#139). Each test runs a copy of `scripts/ui_test.sh` in a scratch layout of the repository,
 with a stub `xcodebuild` that fails at once: the script stops after copying the artifact it chose,
 and no build, simulator or engine is ever started.
 """
@@ -10,7 +10,6 @@ and no build, simulator or engine is ever started.
 from __future__ import annotations
 
 import os
-import re
 import shutil
 import socket
 import sqlite3
@@ -21,6 +20,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+#: Where the retired Mac service kept its artifact (D-222): planted to show it is no longer read.
 SERVED = Path("Library/Application Support/model-ranking/engine/data/advisor.db")
 
 
@@ -75,35 +75,16 @@ def _chosen(tmp_path: Path, env: dict[str, str]) -> str:
 
 
 @pytest.mark.needs("bash_curl")
-def test_ui_test_starts_from_the_served_artifact_when_there_is_one(tmp_path: Path) -> None:
-    assert _chosen(tmp_path, _layout(tmp_path, served=True)) == "the served artifact"
+def test_ui_test_starts_from_the_checkout_and_reads_no_retired_service_folder(tmp_path: Path) -> None:
+    """D-222 (#427): the Mac's service folder is no longer an engine's; a copy left there is not read."""
+    assert _chosen(tmp_path, _layout(tmp_path, served=True)) == "the checkout's copy"
+    assert _chosen(tmp_path / "bare", _layout(tmp_path / "bare", served=False)) == "the checkout's copy"
 
 
 @pytest.mark.needs("bash_curl")
-def test_ui_test_falls_back_to_the_checkout_and_obeys_its_variable(tmp_path: Path) -> None:
-    env = _layout(tmp_path, served=False)
-    assert _chosen(tmp_path, env) == "the checkout's copy"
+def test_ui_test_obeys_its_variable(tmp_path: Path) -> None:
     named = tmp_path / "named.db"
     _artifact(named, "the named artifact")
     env = {**_layout(tmp_path / "again", served=True), "MODEL_RANKING_DB": str(named)}
     assert _chosen(tmp_path / "again", env) == "the named artifact"
     assert os.environ.get("MODEL_RANKING_DB") != str(named)
-
-
-def test_the_served_path_is_the_one_the_installer_serves() -> None:
-    """The fix Tester's R1: the path is written in the installer, in `ui_test.sh` and here. It is
-    read from the installer, so a moved data directory fails here rather than as a quiet fallback
-    to the checkout's copy, the defect #139 is about."""
-
-    def value(text: str, name: str) -> str:
-        found = re.search(rf'^\s*(?:export\s+)?{name}="([^"]+)"', text, re.M)
-        assert found, f"no {name}= line"
-        return found.group(1)
-
-    installer = (ROOT / "scripts" / "install_engine_service.sh").read_text(encoding="utf-8")
-    base = value(installer, "BASE").replace("$HOME", "~")
-    deploy = value(installer, "DEPLOY").replace("$BASE", base)
-    served = value(installer, "MODEL_RANKING_DB").replace("$DEPLOY", deploy)
-    script = value((ROOT / "scripts" / "ui_test.sh").read_text(encoding="utf-8"), "SERVED")
-    assert served.startswith("~/") and "$" not in served, served
-    assert script.replace("$HOME", "~") == served == f"~/{SERVED}"

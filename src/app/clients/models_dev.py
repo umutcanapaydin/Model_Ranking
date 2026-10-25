@@ -63,7 +63,7 @@ def parse_models_dev(
     """Parse the makers' entries into pricing rows; returns (rows, skipped)."""
     try:
         payload: Any = json.loads(raw)
-    except json.JSONDecodeError as exc:
+    except (ValueError, RecursionError) as exc:  # #411: a 4,300-digit integer, deep nesting
         msg = f"models_dev payload is not valid JSON: {exc}"
         raise SourceError(msg) from exc
     if not isinstance(payload, dict):

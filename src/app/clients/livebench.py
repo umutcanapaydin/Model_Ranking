@@ -51,7 +51,7 @@ class LiveBenchClient:
         # source, never the night (D-121; the queue-1021 integration review's M2).
         try:
             return json.dumps({"table": table, "categories": json.loads(categories_text)})
-        except (json.JSONDecodeError, RecursionError) as exc:
+        except (ValueError, RecursionError) as exc:
             msg = f"{self.name}: categories.json is not valid JSON: {exc}"
             raise SourceError(msg) from exc
 
@@ -86,7 +86,7 @@ def parse_livebench(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreR
     """Parse one release into a row a model at the mean of its category averages; returns (rows, skipped)."""
     try:
         release: Any = json.loads(raw)
-    except (json.JSONDecodeError, RecursionError) as exc:
+    except (ValueError, RecursionError) as exc:
         msg = f"{source}: the release is not valid JSON: {exc}"
         raise SourceError(msg) from exc
     table = release.get("table") if isinstance(release, dict) else None
