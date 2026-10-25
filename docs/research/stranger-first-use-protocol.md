@@ -27,16 +27,15 @@ anything they type leaving their device unless they agree (D-126).
 
 ## 2. How the app reaches them
 
-The engine runs on the owner's Mac. It reaches a phone only on the owner's network, and only once the
-owner opts in (D-171). So the session is in person, on the owner's network:
+The engine is the hosted one on Fly.io (D-222); a phone reaches it from any network over HTTPS. The
+session is still in person:
 
 - **On the owner's iPhone** (the simplest). Install a build from `main`. Clear the gap register
   first ("Clear" on the register screen), so it holds only this session.
 - **Or on their own iPhone,** with a development build installed by the owner from Xcode. Then the
   register on their phone is theirs, and it is deleted with the app at the end.
 
-Start the engine with `scripts/install_engine_service.sh --lan`, and check that `/health` answers
-from the phone before the person arrives.
+Check that `https://model-ranking.fly.dev/health` answers from the phone before the person arrives.
 
 ## 3. What they are told
 
@@ -82,8 +81,6 @@ write?", answer: "Whatever you would really want an AI model for."
   under their list.
 - If they say no to all of it, the list is destroyed there and then.
 - Clear the gap register on the phone they used, or delete the development build from theirs.
-- **Close the home network.** Run `scripts/install_engine_service.sh --no-lan` once the last person
-  has gone, so the engine answers this Mac only again (D-171 note 7: `--no-lan` is the one control).
 
 ## 6. From notes to a held-out set
 
