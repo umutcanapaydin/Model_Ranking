@@ -6056,6 +6056,8 @@ workflow's install is left.
 
 **Amended by D-223 (2026-10-24)**: the Mac-engine code is retired in run v020 itself; the order of clause 2 now governs the integration PR's merge, which waits for a published hosted night (#427).
 
+**Amended by D-224 (2026-10-25)**: retiring the Mac-engine code retires INV-27, INV-28 and INV-29 with it; the hosted engine's own invariants stay (#427).
+
 ## D-223 — Run v020's rulings: how the queue's open decisions are settled
 
 **Status:** proposed
@@ -6085,3 +6087,31 @@ workflow's install is left.
 **Mitigation if violated:** a clause the run cannot carry out stops its wave (`docs/plans/run-v020.md`, Stops). It is never assumed around.
 
 **Revisit when:** the owner reopens one of the issues above.
+
+## D-224 — INV-27, INV-28 and INV-29 retire with the Mac engine's launcher, installer and wrapper
+
+**Status:** proposed
+**Owner ruling:** 2026-10-25, in chat, for run v020 (the answer to its `security-test` stop on #427)
+**Amends** D-222 clause 4 · from #427.
+
+**Context.** D-222 retires the Mac as an engine, and D-223 clause 10 retires its code in run v020. Three
+invariants hold that code: INV-27 (the launcher refuses to start on a failed startup check), INV-28 (every way of
+starting the engine binds loopback unless the owner opted in) and INV-29 (the service runs a deployed release of
+`origin/main` from outside `~/Desktop`, its wrapper the owner's alone). Their cited tests read and run
+`scripts/engine_service.sh`, `scripts/install_engine_service.sh` and `ios/app.sh`. Deleting the scripts deletes the
+tests, and a cited security test is never deleted without the owner (AGENTS.md §3).
+
+**Decision.**
+1. INV-27, INV-28 and INV-29 retire with the scripts they hold. Each row gets a `docs/watchlist.md` entry: what
+   it caught, why it goes, and what brings it back (a Mac engine again).
+2. What the hosted engine stands on stays as it is: the Host list, the refusal of a non-loopback bind with no list
+   (`src/app/adapter/main.py`, INV-25 and INV-26), the Dockerfile's bind and `fly.toml`'s hosts.
+3. `scripts/remove_engine_service.sh` stays until the owner has run it once (the owner-actions row of D-222).
+
+**Rationale.** An invariant over code that no longer exists guards nothing. Its test would hold a script kept only
+for the test. The engine those invariants protected is the one the owner retired.
+
+**Mitigation if violated:** a Mac engine reintroduced without these three would bind past loopback or run an
+unreviewed tree. The watchlist rows name that return as their trigger.
+
+**Revisit when:** an engine runs anywhere but Fly.io again.

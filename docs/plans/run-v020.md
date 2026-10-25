@@ -12,7 +12,7 @@ Started: 2026-10-24
 Ended: open
 Integration branch: `integration/run-v020` · PR: #432
 Plan PR: #431
-Rulings: D-223
+Rulings: D-223, D-224
 
 <!-- `Ended:` is `open` while the run runs. When it ends: `<YYYY-MM-DD> — <why>`, where why is one
      of `all milestones closed`, `owner stopped`, `stopped at <class>, nothing independent left`.
@@ -31,7 +31,7 @@ Rulings: D-223
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
 | issue-418 | fix/issue-418-accepted-cuts | #430 | none | stacked |
-| issue-427 | enhancement/retire-mac-engine | #428 | none | stopped |
+| issue-427 | enhancement/issue-427-retire-mac-code | none | none | running |
 | issue-411 | fix/issue-411-json-errors | #433 | none | stacked |
 | issue-412 | fix/issue-412-simplebench-regex | #434 | none | stacked |
 | issue-417 | fix/issue-417-bracket-regex | #435 | none | stacked |
@@ -44,13 +44,13 @@ Rulings: D-223
 | issue-410 | fix/issue-410-gate-exemption | #445 | none | stacked |
 | issue-401 | fix/issue-401-dispatch-spellings | #442 | none | stacked |
 | issue-408 | fix/issue-408-ceiling-flake | #443 | none | stacked |
-| issue-396 | fix/issue-396-g2-rebuilds | none | none | running |
+| issue-396 | fix/issue-396-g2-rebuilds | #446 | none | stacked |
 
 ## Stops
 
 | When | Wave | Class | What the owner decides | Continued on |
 |---|---|---|---|---|
-| 2026-10-24 | issue-427 | security-test | Retiring the Mac launcher and installer (D-223 cl. 10) deletes `tests/unit/test_engine_service.py`, the tests INV-27, INV-28 and INV-29 cite: retire those three invariants with the scripts? | issue-411 and the rest of the queue |
+| 2026-10-24 | issue-427 | security-test | Retiring the Mac launcher and installer (D-223 cl. 10) deletes `tests/unit/test_engine_service.py`, the tests INV-27, INV-28 and INV-29 cite: retire those three invariants with the scripts? | issue-411 and the rest of the queue; answered 2026-10-25: retire them (D-224) |
 
 ## For the owner
 
