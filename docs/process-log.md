@@ -1432,3 +1432,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The hosted engine runs v0.2.0 with the hotfix (`/health`: 0.2.0, `release-47f014d-data-d5339600-from-47f014d`, run 40349009446, no override). The owner asked for an app build right away.
 - The last ModelRanking archive was 0.2.0 (5), so `CURRENT_PROJECT_VERSION` goes to 6. `MARKETING_VERSION` stays 0.2.0. The archive is built from this commit.
 - Lesson: an upload needs a build number no earlier upload used; the archives folder is the only local record of which numbers went out.
+
+## 2026-10-27 · chore/retire-launchd-guard — the owner's patch retiring the Bash guard's launchd rules
+
+- #469 merged (384f876) and build 6 is on App Store Connect, so its owner-actions row is done.
+- The guard still refused the launchd installer and remover, both deleted (#427, #461). The agent may not write `.claude/`, so the change ships as an owner patch under `build/`, checked by its sha256. The owner applies it, re-pins it, and commits it on this branch.
+- The patch was tested on an exported copy of the tree with the guard applied and pinned: the guard's test file and `conformance/test-bash-guard.py` pass. The rule's watchlist row names what brings it back.
+- Lesson: a guard case for a script outlives the script by one owner step. Deleting the script and retiring its guard rule go on one owner row, not two.
