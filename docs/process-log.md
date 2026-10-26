@@ -1419,3 +1419,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Deleted: the script, its test, and its rows in `docs/architecture.md` and `scripts/README.md`. INV-73's test in the same file stays. Run v020's closed record still names the script, so `.path-refs-allow` declares it with its reason.
 - `docs/owner-actions.md`: the owner's finished rows are done (`fly-production`, the nightly workflow, the first night, the release merge and rerun, the v0.2.0 tag, the Mac service). The guard row now retires both `LAUNCHD` and `LAUNCHD_REMOVE`, because the guard is the owner's file.
 - Lesson: a one-shot tool kept "until it has run" needs the run reported back; the owner's message was the only signal.
+
+## 2026-10-26 · integration/hotfix-1026 — three fixes and their delta verdicts, merged once
+
+- The fixes for #460, #459 and #461 were stacked with merge commits, so the owner merges once and the nightly can deploy straight after.
+- The Tester was BLOCKING on B5: the D-225 republish had skipped W-047's re-read of the live artifact along with the content refusals. D-226 restores it, and the Tester's red test came before the fix. On re-verify the Tester was MINOR, and added a test for the serving-bound skip.
+- The security delta is MINOR. Its M4 (#467) points out that the serving-bound check is not a content comparison, so skipping it could deploy data a lowered bound refuses. R6 joins #466.
+- Lesson: "skip the refusals" grouped three kinds of check under one name: content comparisons, an identity re-read and an engine bound. Only the first was meant, and the two reviewers each found one of the others.
