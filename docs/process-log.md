@@ -1426,3 +1426,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester was BLOCKING on B5: the D-225 republish had skipped W-047's re-read of the live artifact along with the content refusals. D-226 restores it, and the Tester's red test came before the fix. On re-verify the Tester was MINOR, and added a test for the serving-bound skip.
 - The security delta is MINOR. Its M4 (#467) points out that the serving-bound check is not a content comparison, so skipping it could deploy data a lowered bound refuses. R6 joins #466.
 - Lesson: "skip the refusals" grouped three kinds of check under one name: content comparisons, an identity re-read and an engine bound. Only the first was meant, and the two reviewers each found one of the others.
+
+## 2026-10-26 · chore/build-6 — the app's build 6 for TestFlight, on v0.2.0's hosted engine
+
+- The hosted engine runs v0.2.0 with the hotfix (`/health`: 0.2.0, `release-47f014d-data-d5339600-from-47f014d`, run 40349009446, no override). The owner asked for an app build right away.
+- The last ModelRanking archive was 0.2.0 (5), so `CURRENT_PROJECT_VERSION` goes to 6. `MARKETING_VERSION` stays 0.2.0. The archive is built from this commit.
+- Lesson: an upload needs a build number no earlier upload used; the archives folder is the only local record of which numbers went out.
