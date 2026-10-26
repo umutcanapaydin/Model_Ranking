@@ -1003,6 +1003,20 @@ def _builds(previous: dict[str, object], code: int) -> tuple[str, str]:
     return built_by, served_before if isinstance(served_before, str) else "unknown"
 
 
+def _another_release_built(target: Path) -> bool:
+    """#460 (D-225): this cycle runs a release, and the served artifact's record names another builder or
+    none. Its candidate is then published even when nothing a user sees changed, so the deploy, which
+    refuses data another release built (#198), ships this release's own build of the same data."""
+    built_by = os.environ.get("APP_BUILD", "").strip()
+    if not built_by.startswith("release-"):
+        return False
+    try:
+        previous = json.loads(status_path(target).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    return not isinstance(previous, dict) or previous.get("served_built_by") != built_by
+
+
 def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float) -> Path:
     """Record this cycle. REQ-REF-004.
 
@@ -1624,7 +1638,8 @@ def _cycle(
         baseline = _served_without(target, set(expired)) if expired and live else live
         renamed = tuple(display_changes(live, fresh) + board_respellings(live, fresh)) if live is not None else ()
 
-        if live is not None and fresh.digest == live.digest:
+        same = live is not None and fresh.digest == live.digest
+        if live is not None and same and not _another_release_built(target):
             return record(
                 RefreshOutcome(
                     published=False,
@@ -1644,7 +1659,8 @@ def _cycle(
 
         # #230: computed once, so a published night and a refused one report the same figure.
         largest = largest_board_change(live, fresh, baseline) if live is not None else None
-        refusal = _reason_to_refuse(target, live, fresh, baseline, candidate)
+        # D-225 clause 2: the refusals guard what a user would see change, and on `same` nothing did.
+        refusal = None if same else _reason_to_refuse(target, live, fresh, baseline, candidate)
         if refusal is not None:
             return record(
                 RefreshOutcome(
@@ -1688,7 +1704,10 @@ def _cycle(
         return record(
             RefreshOutcome(
                 published=True,
-                reason="first artifact" if live is None else "the served content changed",
+                reason="first artifact" if live is None else (
+                    "unchanged content, republished as this release's own build (D-225)" if same
+                    else "the served content changed"
+                ),
                 live_fingerprint=live.digest if live else None,
                 candidate_fingerprint=fresh.digest,
                 surfaces=fresh.answering,
