@@ -478,3 +478,29 @@ def test_the_installed_workflow_is_the_proposal() -> None:
     if INSTALLED.exists():
         assert INSTALLED.read_bytes() == PROPOSAL.read_bytes()
     assert PROPOSAL.is_file()
+
+
+def _started_directly() -> dict[str, str]:
+    """Every tracked file a `run:` line of the workflow starts as a command, not through an interpreter, with
+    the mode git's index gives it. A path git does not track (a local `.venv`) is not in a runner's checkout."""
+    paths: set[str] = set()
+    for job in _workflow()["jobs"].values():
+        for step in job["steps"]:
+            for line in str(step.get("run", "")).splitlines():
+                words = line.split()
+                if words and "/" in words[0]:
+                    paths.add(words[0])
+    tracked = _git("-C", str(REPO), "ls-files", "-s", "--", *sorted(paths)) if paths else ""
+    return {row.split("\t", 1)[1]: row.split(" ", 1)[0] for row in tracked.splitlines()}
+
+
+def test_every_script_the_workflow_starts_directly_is_executable() -> None:
+    """#455 (D-217 clause 7): the workflow runs `scripts/nightly_hosted.sh refresh ...` as a command, so a
+    mode of 644 stopped the first night with `Permission denied`. The tests above start it through
+    `/bin/bash`, which never reads the mode. Held on disk and in git's index, which a runner's checkout
+    reads; the set is derived from the workflow and an empty one fails."""
+    started = _started_directly()
+    assert "scripts/nightly_hosted.sh" in started, started
+    for rel, mode in sorted(started.items()):
+        assert os.access(REPO / rel, os.X_OK), f"{rel} is not executable on disk"
+        assert mode == "100755", f"{rel} is tracked with mode {mode}, so a checkout cannot start it"

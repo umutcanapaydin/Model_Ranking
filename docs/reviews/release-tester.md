@@ -4,7 +4,7 @@ id: release-tester
 status: draft
 seat: independent
 process_version: v7.2
-date: 2026-10-25
+date: 2026-10-26
 ---
 # Release Tester Review
 
@@ -18,13 +18,13 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the three commits
 listed under "Tests added this review", on my own branch, after the range.
 **Independent:** yes
-**Date:** 2026-10-25
+**Date:** 2026-10-26 (delta round; the full round was 2026-10-25)
 **Commit range:** `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** e87f9a943548fee88dea9f8f759a55e2a02815a9 (this review's last test commit; `b4dd4f1` plus three
-test-only commits)
+**Reviewed head:** 0222150b195f2eba06fe33707c1124fcbd8ad70b (the delta round's test commit on `b762ffe`; the full
+round's head was `e87f9a9`, `b4dd4f1` plus three test-only commits)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
 (#426), the accepted-cuts guard (#418, #429), the client-decls gate (#396), and retires INV-27..29 with the Mac
 scripts (#427, D-224).
@@ -40,7 +40,9 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 2 MINOR. Three BLOCKING findings were found and each is closed by a test this review added
+MINOR -- 0 BLOCKING open, 4 MINOR (M1, M2 from the full round; M3, M4 from the delta round of 2026-10-26,
+below). The delta `e87f9a9..b762ffe` found one fault that stayed green, a non-executable `scripts/nightly_hosted.sh`
+(B4); it is closed by `0222150`. The full round found three BLOCKING findings, and each is closed by a test this review added
 (B1-B3 below): two deploy surfaces D-223 clause 5 named had no test and their removal stayed green; five accepted-cut
 schema checks had been silently bypassed by their own negative tests; `refresh.py` coverage fell on a touched module.
 Every acceptance criterion now has a passing citing test, every reported symptom was reproduced red on its pre-fix
@@ -248,8 +250,11 @@ None open. Found and closed in this review, each by a test on this branch:
 - **B3** `src/app/workflows/refresh.py` -- coverage fell 96.1% -> 94.9% (permission-matrix section 11): the progress
   reader's torn-line and unreadable-file branches and `_has_fileno`'s refusal (`:1463-1484`) and the B2 branches.
   Closed by `tests/unit/test_refresh_build_child.py:115,131,139` (`e87f9a9`); 96.5% now.
+- **B4** (delta round) `scripts/nightly_hosted.sh` -- its exec bit was held by no test (F43). Closed by
+  `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
+- **M3**, **M4**: from the delta round of 2026-10-26, set out under "Delta MINOR" below.
 - **M1** `src/app/clients/terminalbench.py:52-54` -- the widened catch in `TerminalBench4Client.fetch_raw` is held
   only by the AST shape scan (`tests/unit/test_client_json_errors.py:60`); no test drives a deep or 4,300-digit
   listing through it. Coverage unchanged from the base (90.3%).
@@ -267,6 +272,8 @@ None open. Found and closed in this review, each by a test on this branch:
 - `tests/unit/test_refresh_build_child.py:115,131,139` (`e87f9a9`) -- #426: the progress reader keeps only whole
   events, an unreadable progress file names no source, a stream with no descriptor is not handed to the child. Red
   under F32-F34.
+- `tests/unit/test_nightly_hosted.py:497` (`0222150`) -- #455, D-217 clause 7: every tracked file the nightly workflow
+  starts as a command is executable on disk and `100755` in git's index. Red under F43, and red at `761f9c6`.
 
 ## make check
 `make check` in this seat's worktree at `e87f9a9`, run serially as the merge gate, before this verdict was written:
@@ -275,3 +282,69 @@ offline sandbox, artifact required; coverage 93.00%), coverage-floor (54 modules
 install-check, wave-check-all (68 records), conformance (33, `test-deploy-shipped` among them), swift-test (727, and
 SlowTierTests 7 of 7) and client-decls (22 files, 4 configurations) all PASS. Each of the three test commits also
 passed the commit-msg hook's `make check-fast`.
+
+## Delta round 2026-10-26 (e87f9a9..0222150)
+
+**Range:** `e87f9a943548fee88dea9f8f759a55e2a02815a9..b762ffec9b33c2b1be96fe15b286af788ea4b3fd`, plus this round's
+test commit `0222150`. The code it changes is three files, which the owner merged in #454 and #455. The rest of the
+range is records already reviewed: this verdict, `release-security.md`, `docs/releases/v0.2.0.md`, `run-v020.md`,
+`owner-actions.md`, `process-log.md`, `security-invariants.md`.
+**Seat:** my own worktree `$TMPDIR/wt-tester-nightly` on `review/release-tester-nightly`, cut from `b762ffe`. Its own
+`.venv` was built by `make install` from the hash-checked locks, because the commit-msg hook's `check-fast` needs a
+venv this tree owns (`scripts/venv_owner.py`). It used a read-only copy of the main clone's `advisor.db`. A detached
+worktree at `761f9c6` ran the red half of the red-to-green pair and was removed clean. Nothing was pushed. No
+launchd, owner data directory, Fly or GitHub call was made.
+**Fresh eyes:** I wrote none of `e6647b9`, `d2b77de` or `023522a`. My only code in the range is the test in
+`0222150`.
+
+### Per change
+- **`.github/workflows/nightly-hosted.yml` (new, D-217 clause 7)**: `cmp` against `scripts/ci/nightly-hosted.yml` shows
+  the two are byte-identical. They are held equal by `tests/unit/test_nightly_hosted.py:476`. **F40**: a one-byte
+  drift (the first `n` of `nightly` changed to `N`) turned it RED (1 failed). It was reverted in place, and md5
+  `d97dbc02dda501914795589da4d7447c` matched before and after. The proposal's shape, which is now the installed
+  file's shape, stays held by the workflow tests at `:404-473`. **F41**: deleting the installed file stayed GREEN
+  (43 passed, and conformance PASS); the file was moved back, md5 unchanged. See M3.
+- **`conformance/test-ci-yaml.py:88-92` (the fallback parser skips keys nested deeper than a step's own keys)**:
+  **F42**: removing the 5 lines turned `test-ci-yaml` RED (exit 1, "the stdlib fallback parser disagrees with PyYAML
+  on job `refresh`" and "... `deploy`", `:375`), and `conformance/run-all.py` turned RED with it (1 failing). That is
+  the conformance job CI runs (`.github/workflows/ci.yml:175`). The lines were put back by exact string replacement,
+  md5 `d162f14f74e2d613bf0bc6f339994441` before and after. The commit before the fix, `e6647b9`, carries these
+  same bytes, so this is also the fix's red-to-green pair. The test holding the fix is the PyYAML-agreement check
+  run over the installed `nightly-hosted.yml`. Nothing in the file's own samples holds it. See M4.
+- **`scripts/nightly_hosted.sh` mode 644 -> 755 (#455)**: **F43**: `chmod 644` stayed GREEN on
+  `tests/unit/test_nightly_hosted.py` and `test_deploy_gate_pin.py` (54 passed), and conformance stayed PASS. Every
+  test starts the script with `/bin/bash <script>` (`:44-45`), which never reads the mode. The workflow starts it as
+  a command (`.github/workflows/nightly-hosted.yml:86,97,144`). That is the failure #455 fixed: "so the nightly run can
+  start it" (`023522a`). This is **B4**, closed by `tests/unit/test_nightly_hosted.py:497` (`0222150`). The test
+  derives from the workflow's `run:` lines every tracked file started as a command. It asserts each one is
+  executable on disk and tracked `100755` in git's index, which is what a runner's checkout reads. It fails if
+  `nightly_hosted.sh` is not in the derived set. With the new test, `chmod 644` turned RED ("not executable on
+  disk"), and so did `git update-index --chmod=-x` ("tracked with mode 100644"). Both were reverted, and the index
+  is again `100755 c9c964d`. **Red to green:** the test is RED at `761f9c6`, the merge before the fix, where the
+  index holds `100644`, and GREEN at `b762ffe`. `scripts/deploy_hosted_engine.sh`, which `nightly_hosted.sh`
+  `exec`s directly (`:49,90`), was already held: the scratch-repository tests copy it with its mode and run it.
+
+### Delta BLOCKING
+None open. **B4** (above) was found and closed in this round by `tests/unit/test_nightly_hosted.py:497`.
+
+### Delta MINOR
+- **M3** `tests/unit/test_nightly_hosted.py:478` -- `if INSTALLED.exists()` made the equality test vacuous while the
+  workflow was a proposal. Now that the owner has installed it, deleting `.github/workflows/nightly-hosted.yml`
+  stays green (F41). That turns the nightly refresh and deploy off without a red test. Since the night is now the
+  only route to the hosted engine (D-217, D-222), the test could require the installed file.
+- **M4** `conformance/test-ci-yaml.py:88-92`, `:251` -- the parser fix is held only because the current installed
+  `nightly-hosted.yml` happens to nest `name:` under `with:`. The self-proof samples (`MUST_FIRE`/`MUST_PASS`) have no
+  such step. If that workflow is removed or reworded, reverting the fix stays green. The check also runs only where
+  PyYAML is present, so the machine without PyYAML that the fallback serves is never shown the fix. A step-parse
+  sample with a nested `with: name:` would hold it. That is a change to a control (`/writing-a-control`), so it is
+  the author's to make, not this seat's.
+
+### Delta test integrity
+`git diff e87f9a9..b762ffe -- tests/` is empty. No test was weakened, skipped or deleted in the range.
+
+### Delta suite result
+- `make test` in this seat at `0222150`: 4684 passed, 37 skipped, offline sandbox, artifact required. Coverage was
+  93.00%, the same as the full round. coverage-floor PASS (54 modules), and the skip budget was 96 of 96.
+- `0222150` passed the commit-msg hook's `make check-fast`. `ruff check` on the changed test is clean.
+- **Mutation kill-rate (advisory):** no runner is wired. Hand faults F40-F43: 2 killed on the range's own tests
+  (F40, F42) and 2 survived (F41, F43). F43 is killed after `0222150`. F41 still survives (M3).
