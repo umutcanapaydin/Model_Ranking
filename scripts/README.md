@@ -49,7 +49,6 @@ run it once (D-224 clause 3):
 
 | Script | Run by | Purpose |
 |---|---|---|
-| `remove_engine_service.sh` | the owner, once, after a hosted night has published (D-222 clause 2) | takes the retired launchd service off the Mac, so it does not start again at login |
 | `deploy_hosted_engine.sh` | the night (`nightly_hosted.sh`, D-217); the owner by hand | derives the public artifact from the one `MODEL_RANKING_SERVED` names (required), deploys it to Fly.io and checks `/health` |
 | `simulator_session.sh` | by hand | REQ-RUN-001's first one-command session: a development engine, build, simulator, until Ctrl-C. Nothing calls it; `ios/app.sh` (the simulator only, against `make run`) is the path the owner's steps use |
 

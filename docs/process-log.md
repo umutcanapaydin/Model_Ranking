@@ -1398,3 +1398,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The security delta is MINOR with no new finding: only `main` reaches `fly-production`'s token, no `run:` interpolates an expression, the actions are pinned, and the gate runs before the deploy. R3 (the fallback parser drops `run:` on a wide indent) joins #457.
 - `make deploy-check` is PASS at `0222150`; it counts on `main` once this branch merges.
 - Lesson: a test that runs a script through its interpreter never reads the script's mode; whatever the workflow executes directly needs its execute bit asserted, or the first night finds it.
+
+## 2026-10-26 · enhancement/issue-461-retire-remover — the Mac service's remover goes once it has run
+
+- The owner ran the Mac service's remover after v0.2.0's hosted deploy, then deleted the engine folder and `hf-token`. D-224 clause 3 kept the remover only until then.
+- Deleted: the script, its test, and its rows in `docs/architecture.md` and `scripts/README.md`. INV-73's test in the same file stays. Run v020's closed record still names the script, so `.path-refs-allow` declares it with its reason.
+- `docs/owner-actions.md`: the owner's finished rows are done (`fly-production`, the nightly workflow, the first night, the release merge and rerun, the v0.2.0 tag, the Mac service). The guard row now retires both `LAUNCHD` and `LAUNCHD_REMOVE`, because the guard is the owner's file.
+- Lesson: a one-shot tool kept "until it has run" needs the run reported back; the owner's message was the only signal.
