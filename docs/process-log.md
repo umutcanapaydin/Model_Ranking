@@ -1398,3 +1398,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The security delta is MINOR with no new finding: only `main` reaches `fly-production`'s token, no `run:` interpolates an expression, the actions are pinned, and the gate runs before the deploy. R3 (the fallback parser drops `run:` on a wide indent) joins #457.
 - `make deploy-check` is PASS at `0222150`; it counts on `main` once this branch merges.
 - Lesson: a test that runs a script through its interpreter never reads the script's mode; whatever the workflow executes directly needs its execute bit asserted, or the first night finds it.
+
+## 2026-10-26 · fix/issue-460-unchanged-restamp — a release's first quiet night deploys its own build
+
+- After v0.2.0's merge, nights 40312586552 and 40315278404 refused their deploys: the data had not moved, so the refresh kept b762ffe's artifact and name, and the deploy refuses data another release built (#198). The owner deployed past it with `DEPLOY_ACCEPT_DATA_FROM`.
+- D-225: an unchanged cycle run by a release over another builder's artifact publishes its own candidate, so the record names who really built what is served. Hand-run and dev cycles, and a release's own repeat nights, stay unchanged. The deploy's refusal is untouched.
+- Red first (`7c542db`, two of six cases red), with the ADR before it. The owner's other option, accept the old stamp when `src/` and `data/` are unchanged, was rejected: it needs the old commit in the checkout, and still refuses after a source-only change.
+- Lesson: a record that carries a name forward on "nothing changed" goes stale the moment the code that produced it changes; the comparison has to include who built it.
