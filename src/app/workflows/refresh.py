@@ -1279,11 +1279,15 @@ def _reason_to_refuse(
             "produce — " + "; ".join(suspicious)
         )
 
-    # RE-READ the baseline immediately before publishing. The decision above was made against the
-    # artifact as it was when this cycle started, and a hand-run `build.py` can replace it in
-    # between — a review demonstrated a score of 95.0 published mid-cycle and then overwritten by
-    # this cycle's candidate, whose comparison had been against the pre-build artifact. The lock
-    # stops two REFRESHES; it cannot stop a person.
+    return _replaced_underneath(target, live)
+
+
+def _replaced_underneath(target: Path, live: ServingSummary) -> str | None:
+    """RE-READ the baseline immediately before publishing. The decision to publish was made against
+    the artifact as it was when this cycle started, and a hand-run `build.py` can replace it in
+    between — a review demonstrated a score of 95.0 published mid-cycle and then overwritten by
+    this cycle's candidate, whose comparison had been against the pre-build artifact. The lock
+    stops two REFRESHES; it cannot stop a person. D-226: a D-225 republish runs this too."""
     try:
         current = fingerprint_of(target)
     except UnreadableArtifact:
@@ -1659,8 +1663,10 @@ def _cycle(
 
         # #230: computed once, so a published night and a refused one report the same figure.
         largest = largest_board_change(live, fresh, baseline) if live is not None else None
-        # D-225 clause 2: the refusals guard what a user would see change, and on `same` nothing did.
-        refusal = None if same else _reason_to_refuse(target, live, fresh, baseline, candidate)
+        # D-225 clause 2, amended by D-226: on `same` nothing a user sees changed, so only the re-read
+        # of the live artifact runs, never the refusals that compare content.
+        refusal = (_replaced_underneath(target, live) if same and live is not None
+                   else _reason_to_refuse(target, live, fresh, baseline, candidate))
         if refusal is not None:
             return record(
                 RefreshOutcome(
