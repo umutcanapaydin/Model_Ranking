@@ -23,10 +23,9 @@ listed under "Tests added this review", each on a review branch of my own, after
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 20008c6efde82cef54ff60981d6d29ed50ae499b (the hotfix-1026 delta round's green test commit, on
-`6411610`, the head of `integration/hotfix-1026`; B5's declared red test is the one commit after this verdict, on
-`review/tester-hotfix-1026`, and it is the fix's starting point, so the deploy stays refused until it is green; the nightly delta round's head was `0222150`, the full round's
-`e87f9a9`)
+**Reviewed head:** 9ef64482ae331c65491ef2675289b22caa5db0da (the B5 re-verify round's test commit, on `133d638`,
+the fix on `integration/hotfix-1026`; the hotfix-1026 delta round's head was `20008c6`, the nightly delta round's
+`0222150`, the full round's `e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
 (#426), the accepted-cuts guard (#418, #429), the client-decls gate (#396), and retires INV-27..29 with the Mac
 scripts (#427, D-224).
@@ -42,9 +41,12 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-BLOCKING -- 1 BLOCKING open (B5, from the hotfix-1026 delta round below: a D-225 republish skips the re-read that
-stops a publish over an artifact replaced mid-cycle; red test `tests/unit/test_release_restamp.py:150`), 6 MINOR
-(M1, M2 from the full round; M3, M4 from the nightly delta round; M5, M6 from the hotfix-1026 delta round).
+MINOR -- 0 BLOCKING open. B5 is closed by `133d638` (D-226) and re-verified below: its test is red at `6cf0e51` and
+green at `133d638`. 5 MINOR open: M1, M2 (full round), M3 (#456), M4 (#457), M6 (#466). M5 is answered by D-226
+clause 3.
+
+The hotfix-1026 delta round, as it read when it closed: BLOCKING -- 1 BLOCKING open (B5: a D-225 republish skipped
+the re-read that stops a publish over an artifact replaced mid-cycle), 6 MINOR (M1-M6).
 
 The rounds before this one, as they read when they closed: MINOR -- 0 BLOCKING open, 4 MINOR (M1, M2 from the full
 round; M3, M4 from the delta round of 2026-10-26, below). The delta `e87f9a9..b762ffe` found one fault that stayed green, a non-executable `scripts/nightly_hosted.sh`
@@ -245,10 +247,10 @@ pre-injection bytes back, and F19 and F20 were re-run. The F20 result above is f
   `RUN_CONTRACT_TESTS`, as the CI contract job runs them.
 
 ## BLOCKING
-- **B5** (hotfix-1026 delta round, OPEN) `src/app/workflows/refresh.py:1663` -- set out under "Delta BLOCKING
-  (hotfix-1026)" below. Held by the red test `tests/unit/test_release_restamp.py:150` (the declared red commit after this verdict).
-
-Found and closed in this review, each by a test on this branch:
+None open. Found and closed in this review, each by a test on this branch:
+- **B5** (hotfix-1026 delta round) `src/app/workflows/refresh.py:1663` -- a D-225 republish skipped W-047's re-read.
+  Reproduced by `tests/unit/test_release_restamp.py:150` (`6cf0e51`, red), fixed by `133d638` (D-226: the re-read
+  `_replaced_underneath`, `:1285`, runs on `same`, `:1668`); re-verified in "B5 re-verify round" below.
 - **B1** `scripts/deploy_gate.py:213-215` -- D-223 clause 5 put `scripts/nightly_hosted.sh` and `scripts/ci/` on the
   safety surface, but only `deploy_hosted_engine.sh` was planted in a test; removing either stayed green (F12, F13).
   Closed by `tests/unit/test_deploy_gate_pin.py:185`, which names the three surfaces itself (`b70fc0b`).
@@ -263,7 +265,8 @@ Found and closed in this review, each by a test on this branch:
   `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
-- **M5**, **M6**: from the hotfix-1026 delta round, set out under "Delta MINOR (hotfix-1026)" below.
+- **M5**, **M6**: from the hotfix-1026 delta round, set out under "Delta MINOR (hotfix-1026)" below. M5 is answered
+  by D-226 clause 3; M6 is filed as #466. M3 and M4 are filed as #456 and #457.
 - **M3**, **M4**: from the delta round of 2026-10-26, set out under "Delta MINOR" below.
 - **M1** `src/app/clients/terminalbench.py:52-54` -- the widened catch in `TerminalBench4Client.fetch_raw` is held
   only by the AST shape scan (`tests/unit/test_client_json_errors.py:60`); no test drives a deep or 4,300-digit
@@ -274,6 +277,9 @@ Found and closed in this review, each by a test on this branch:
   this Mac): a much faster runner could pass the quadratic form. A step counter would not depend on the machine.
 
 ## Tests added this review
+- `tests/unit/test_release_restamp.py:173` (`9ef6448`, B5 re-verify round) -- D-226 clause 1: a republish past a
+  serving bound publishes and counts no refusal, and a night whose content moved is still refused at the bound. Red
+  under F57.
 - `tests/unit/test_release_restamp.py:93,112,126` (`20008c6`, hotfix-1026 round) -- D-225: the republish's reason and
   record (red under F48), an unreadable record taken over by the release (red under F45), and #460 end to end: the
   hosted deploy refuses the older release's data, then accepts it after the release's quiet night, and the startup
@@ -506,3 +512,52 @@ added, and no assertion was weakened.
   records). B5's red test goes in a declared red commit (`test: ..., red`), whose gate is `check-red`: lint,
   typecheck, `pytest-collect` and records, no test run. A docs commit after it cannot pass `check-docs`, which runs
   the tests, so this verdict is committed first and names `20008c6`.
+
+## B5 re-verify round 2026-10-26 (20008c6..9ef6448)
+
+**Range:** `db17f9b..133d638` on `integration/hotfix-1026` (local): `72eef28` (D-226, amending D-225 clause 2),
+`6cf0e51` (this review's red test for B5, recommitted unchanged by the coordinator after the ADR, because a docs
+commit cannot pass with a red test in the tree), `133d638` (the fix). Plus this round's test commit `9ef6448`.
+**Seat:** the same worktree `$TMPDIR/wt-tester-1026`; `review/tester-hotfix-1026` was moved to `133d638` (its own
+`e64b901` is the same test as `6cf0e51`, so nothing was lost) and `9ef6448` is on top, so the branch fast-forwards
+onto the integration branch. A detached worktree at `6cf0e51` ran the red half and was removed clean. Nothing was
+pushed; no launchd, owner data directory, Fly or GitHub call was made.
+**Fresh eyes:** I wrote none of `72eef28` or `133d638`. `6cf0e51`'s test and `9ef6448` are mine.
+
+### The fix
+`133d638` moves the re-read out of `_reason_to_refuse` into `_replaced_underneath(target, live)`
+(`src/app/workflows/refresh.py:1285`); `_reason_to_refuse` ends by calling it (`:1282`), and `_cycle` calls it alone
+on `same` (`:1668`). So a republish skips only the refusals that compare content, as D-226 clauses 1 and 2 say.
+
+### Red to green
+`tests/unit/test_release_restamp.py::test_a_republish_never_overwrites_an_artifact_replaced_mid_cycle` (`:150`):
+at `6cf0e51` 1 failed, 10 passed; at `133d638` 11 passed.
+
+### Fault injection
+Same method as above (exact replacement, original bytes put back at the same offset, md5
+`9bcbcce246010ec90dcacc1644f378d8` before and after each). Set: the eleven refresh, nightly, stamp and deploy test files
+(339 tests at `133d638`).
+
+| ID | Fault | At `133d638` | After `9ef6448` |
+|---|---|---|---|
+| F55 | the re-read dropped on `same` (`None if same ...`) | RED (`:150`) | RED |
+| F56 | `_replaced_underneath` never refuses | RED (`:150`, `test_refresh.py:1300`) | RED |
+| F57 | the full `_reason_to_refuse` on `same` (D-226 clause 1 reverted) | GREEN (339 passed) | RED (`:173`) |
+
+F57 stayed green: nothing held D-226 clause 1, the decision that a quiet night past a serving bound is not counted
+as a refusal. `tests/unit/test_release_restamp.py:173` (`9ef6448`) now holds it. It sets
+`MODEL_RANKING_MAX_RANKED_ROWS=1`, asserts the republish publishes with `consecutive_refusals == 0`, and asserts a
+night whose content moved is refused "past a bound", so the bound is shown to bite. It is a test gap with the code
+correct, so it is closed here rather than raised as a finding.
+
+### MINOR status
+- **M5** answered by D-226 clause 3 (`docs/decisions.md`, the D-226 entry): REQ-REF-002 still governs what a user
+  sees, and the owner asked on 2026-10-26 for a restamp on unchanged nights. D-226 is `proposed`. The criterion's
+  wording at `docs/prd.md:446` is unchanged, which the ADR accepts.
+- **M6** filed as #466; **M3**, **M4** as #456, #457. **M1**, **M2** unchanged.
+
+### Suite result
+- At `9ef6448`: 4697 passed, 37 skipped, offline sandbox, artifact required; coverage 93.02%; `refresh.py` 96.69%
+  (96.68% at the previous round's head), so the touched module's coverage did not fall.
+- `9ef6448` passed the commit-msg hook's `make check-fast`. `ruff check` on the changed test is clean.
+- **Mutation kill-rate (advisory):** F55-F57: 2 killed on the fix's tests, 1 survived (F57), killed after `9ef6448`.
