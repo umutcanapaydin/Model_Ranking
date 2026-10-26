@@ -1390,3 +1390,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The PRs were red on `plan-staleness` (ten prices 32 days old) and on a transient HuggingFace 502. The prices were re-verified (#450), with the owner confirming in a browser the seven pages the agent could not read.
 - Release v0.2.0, once: the Tester is MINOR, with 37 faults injected and three BLOCKING closed with its own tests. The security review is MINOR. `make deploy-check` is PASS. The follow-ups #452 and #453 wait for the next release.
 - Lesson: one run that ends in one release review cost one Tester and one security pass for 17 issues; the same work shipped one by one cost a delta pair each (GPF-009).
+
+## 2026-10-26 · release/v0.2.0 — the delta verdicts that let the nightly deploy v0.2.0
+
+- The owner installed the nightly workflow (#454, with a fix to `conformance/test-ci-yaml.py`'s fallback parser) and made `scripts/nightly_hosted.sh` executable (#455). The first night, run 40230588976, refreshed and then stopped at the deploy gate: three files had changed since both release verdicts.
+- The Tester's delta is MINOR. A non-executable `nightly_hosted.sh` stayed green, because every test starts it through `/bin/bash`. The Tester closed that with a test reading the disk mode and git's index mode (`0222150`). M3-M4 are filed as #456 and #457.
+- The security delta is MINOR with no new finding: only `main` reaches `fly-production`'s token, no `run:` interpolates an expression, the actions are pinned, and the gate runs before the deploy. R3 (the fallback parser drops `run:` on a wide indent) joins #457.
+- `make deploy-check` is PASS at `0222150`; it counts on `main` once this branch merges.
+- Lesson: a test that runs a script through its interpreter never reads the script's mode; whatever the workflow executes directly needs its execute bit asserted, or the first night finds it.
