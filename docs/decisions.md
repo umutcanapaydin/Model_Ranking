@@ -6115,3 +6115,40 @@ for the test. The engine those invariants protected is the one the owner retired
 unreviewed tree. The watchlist rows name that return as their trigger.
 
 **Revisit when:** an engine runs anywhere but Fly.io again.
+
+## D-225 — A release's first unchanged cycle publishes its own build of the same data
+
+**Status:** proposed
+**Amends** #198's record rule (the served artifact's builder carries forward on every cycle that does not publish) · from #460.
+
+**Context.** The hosted deploy refuses data another release built (#198, the M21-W1 review's M4): names, ids and
+boards are applied when the data is built. An unchanged cycle, whose candidate's fingerprint equals the served
+one, kept the older release's artifact and its name. So after any code change, a night whose data did not move
+refused its own deploy, and so did every quiet night after it, until a source changed. The owner deployed v0.2.0
+past it by hand with `DEPLOY_ACCEPT_DATA_FROM` (2026-10-26). The owner offered two remedies: accept the old stamp
+when `src/` and `data/` did not change, or restamp on an unchanged night.
+
+**Decision.**
+1. A cycle run by a release (`APP_BUILD` starts with `release-`) whose candidate matches the served fingerprint
+   publishes that candidate when the served artifact's record names a different builder, or none. The record
+   then names this release as the served artifact's builder, truthfully, because this release built the file now
+   served.
+2. Such a publish skips the refusal rules. They guard what a user would see change, and the fingerprint says
+   nothing did.
+3. A cycle with no release stamp (`unstamped`, `dev-*`, `unknown`) and a cycle whose own release built the served
+   artifact stay unchanged, so nothing churns.
+4. The deploy's refusal and `DEPLOY_ACCEPT_DATA_FROM` stay as they are.
+
+**Rationale.**
+- Relabelling the old file would name a release that never built it.
+- The rule "accept the old stamp when `src/` and `data/` are unchanged" needs the older commit in the night's
+  checkout. It still refuses after a source-only change, such as a version bump, on a quiet night.
+- Republishing once per release costs one file swap per release, and the data the deploy ships is then the
+  release's own.
+
+**Mitigation if violated:** without clause 1, a release's quiet night cannot deploy without the owner's
+override. Without clause 3, a hand-run cycle would take over a release's artifact as `unstamped`, which nothing
+deploys. `tests/unit/test_release_restamp.py` holds both.
+
+**Revisit when:** the deploy stops comparing the data's builder with the code's release, or the fingerprint stops
+covering everything the deploy ships.
