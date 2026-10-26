@@ -1405,3 +1405,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-225: an unchanged cycle run by a release over another builder's artifact publishes its own candidate, so the record names who really built what is served. Hand-run and dev cycles, and a release's own repeat nights, stay unchanged. The deploy's refusal is untouched.
 - Red first (`7c542db`, two of six cases red), with the ADR before it. The owner's other option, accept the old stamp when `src/` and `data/` are unchanged, was rejected: it needs the old commit in the checkout, and still refuses after a source-only change.
 - Lesson: a record that carries a name forward on "nothing changed" goes stale the moment the code that produced it changes; the comparison has to include who built it.
+
+## 2026-10-26 · fix/issue-459-version — `/health` says the release's version
+
+- v0.2.0 shipped answering `"version": "0.1.0"`. The version was kept by hand in `pyproject.toml` and in `APP_VERSION`, and nothing compared either one with `docs/releases/`.
+- `tests/unit/test_app_version.py` holds one fact in three places. `/health` serves `APP_VERSION`, which equals the package's version, and the package is never older than the newest release record. Having no record fails.
+- Red first (`27bb96f`), then both are bumped to 0.2.0. Found on the way: #463, a wall-clock bound that flakes under `check-fast`'s parallel load.
+- Lesson: a version string is a fact with a source of truth, the release record; without a gate against it, a release is cut and nobody bumps it.
