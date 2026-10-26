@@ -10,16 +10,18 @@ date: 2026-10-26
 
 **Reviewer:** Security-Reviewer subagent (`.claude/agents/Security-Reviewer.md`; the profile, `AGENTS.md`, `docs/security-baseline.md` and `permission-matrix.md` read from `main`), Stage 5.1, light mode, dispatched by run v020 for release v0.2.0 at the release Tester's head
 **Independent:** yes. I wrote none of this range's code, tests or records, and none of its earlier reviews.
-**Date:** 2026-10-25; delta round 2026-10-26
-**Release range:** `471dd79d740f5054d7cc4c7916ca8d4162bfc199..0222150b195f2eba06fe33707c1124fcbd8ad70b`: the release below, then the deploy delta `6416d53..0222150` (the nightly workflow), read in the round at the end. First round: `471dd79d740f5054d7cc4c7916ca8d4162bfc199..6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` on `integration/run-v020` (draft PR #432), 66 commits, 86 files. `471dd79` is the reviewed head of the v0.1.0 verdict. `6416d53` is the release Tester's v0.2.0 verdict (MINOR, reviewed head `e87f9a9`).
-**Reviewed head:** 0222150b195f2eba06fe33707c1124fcbd8ad70b. The delta round added no test, so the reviewed head is the release Tester's delta head it was dispatched at; the Tester's verdict commit `bb27bac` on top and this verdict's own commit change docs only. The first round's head was `6416d539b0a98bd1b9a23dc30a132b55ff9a92a5`.
+**Date:** 2026-10-25; delta rounds 2026-10-26 (the nightly workflow, then hotfix-1026)
+**Release range:** `471dd79d740f5054d7cc4c7916ca8d4162bfc199..9ef64482ae331c65491ef2675289b22caa5db0da`: the release below, then the deploy delta `6416d53..0222150` (the nightly workflow), then the deploy delta `0222150..9ef6448` (hotfix-1026: #459, #460, #461), each read in its round at the end. First round: `471dd79d740f5054d7cc4c7916ca8d4162bfc199..6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` on `integration/run-v020` (draft PR #432), 66 commits, 86 files. `471dd79` is the reviewed head of the v0.1.0 verdict. `6416d53` is the release Tester's v0.2.0 verdict (MINOR, reviewed head `e87f9a9`).
+**Reviewed head:** 9ef64482ae331c65491ef2675289b22caa5db0da. The hotfix-1026 round added no test, so the reviewed head is the release Tester's delta head it was dispatched at; the Tester's verdict commit `1a99f07` on top and this verdict's own commit change docs only. Earlier heads: `0222150b195f2eba06fe33707c1124fcbd8ad70b` (the nightly-workflow round) and `6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` (the first round).
 **Risk tier:** LOW by the brief: `docs/project-brief.md:110` declares no HIGH path. I read the range at MEDIUM depth because it edits the deploy gate, the brief reader, two deploy scripts and the nightly's process model. No auth, PII, payment or migration code is in the range, so the §11 senior-review trigger does not fire.
 **Seat:** worktree `review/release-security-v020` at `6416d53`, under `$TMPDIR`. I did not run `make install`. Tests and probes ran with the main clone's `.venv` interpreter, `PYTHONPATH` set to the worktree's `src` and `PYTHONDONTWRITEBYTECODE=1`; I checked that `app.__file__` resolves into the worktree. I copied the gitignored `advisor.db` in. I made no edit or commit in the main checkout and no network call, and I did not touch launchd, Fly or GitHub.
 
 > **This record replaces** the v0.1.0 verdict: the deploy delta `9208fd8..471dd79`, PASS, reviewed head `471dd79`. That text stays in git, at `git show 471dd79:docs/reviews/release-security.md`, together with the verdicts it extended at `9208fd8` and `660af4b`. This range closes the v0.1.0 MINORs it carried: #410, #411, #412, #417, #418 and #419. Their remaining edges are filed as #444 (from #410) or closed by #429 (from #418).
 
 ## Verdict
-MINOR: BLOCKING 0 · MAJOR 0 · MINOR 2 open (M1-M2, #453; M3 fixed in `9683734`) · NIT 0 · risks queued 4 (R1-R2 from the first round, R3-R4 from the delta round). The delta round `6416d53..0222150` (the owner-installed nightly workflow) found no BLOCKING, MAJOR or MINOR: it adds two risks queued and nothing that lets a branch, a tag or a crafted artifact reach the deploy token.
+MINOR: BLOCKING 0 · MAJOR 0 · MINOR 3 open (M1-M2, #453; M4 from the hotfix-1026 round, to be filed; M3 fixed in `9683734`) · NIT 0 · risks queued 6 (R1-R2 from the first round, R3-R4 from the nightly-workflow round, R5-R6 from the hotfix-1026 round). The hotfix-1026 round `0222150..9ef6448` (#459, #460, #461) found no BLOCKING: D-225's republish publishes only the running release's own fresh build of content equal to what is served, after the W-047 re-read, so it launders nothing past the deploy's #198 refusal; its one MINOR (M4) is the serving-bound check it skips.
+
+The nightly-workflow round `6416d53..0222150` (the owner-installed nightly workflow) found no BLOCKING, MAJOR or MINOR: it adds two risks queued and nothing that lets a branch, a tag or a crafted artifact reach the deploy token.
 
 The release adds no external surface: no new route, no new dependency and no new third-party import. The product's deploy controls got stricter: #410, `--no-replace-objects`, the safety surface, and `MODEL_RANKING_SERVED` now required. The accepted-cuts exception got narrower (#418, #429). All three findings come from two places: #426's new build child, and one test that the #427 retirement left uncited. None of them is exploitable in the current scope. None lets wrong data reach the served artifact, because only the parent publishes. Each has a short remedy.
 
@@ -300,3 +302,79 @@ The release adds no external surface: no new route, no new dependency and no new
   - Today it is the owner alone: the repository has one collaborator, the admin, who already holds the token.
   - It becomes a gap the day a second admin is added.
   - Revisit then: turn the bypass off, and add the owner as a required reviewer if deploys ever become anything other than the night's own.
+
+## Delta round 2026-10-26 hotfix (0222150..9ef6448)
+
+**Reviewer:** Security-Reviewer subagent, dispatched for the deploy delta before the next hosted deploy. I read the profile, `AGENTS.md`, `docs/security-baseline.md` and `permission-matrix.md` from `main`.
+**Independent:** yes. I wrote none of this range's code, tests or records, and none of the Tester's verdicts on it.
+**Range:** `0222150b195f2eba06fe33707c1124fcbd8ad70b..9ef64482ae331c65491ef2675289b22caa5db0da` on `integration/hotfix-1026` (not pushed), 20 commits with the Tester's verdict `1a99f07` on top (docs only). Code: `src/app/workflows/refresh.py` (+41/-8, #460, D-225, D-226), `src/app/adapter/main.py` and `pyproject.toml` (the version, #459), `scripts/remove_engine_service.sh` deleted (#461), `.path-refs-allow` (one row), tests `tests/unit/test_release_restamp.py`, `tests/unit/test_app_version.py`, `tests/unit/test_engine_service.py`.
+**Reviewed head:** 9ef64482ae331c65491ef2675289b22caa5db0da. I added no test.
+**Risk tier:** LOW by the brief (`docs/project-brief.md:110` declares no HIGH path). I read `refresh.py` at MEDIUM depth because it now decides what the deploy's #198 refusal accepts. No auth, PII, payment or migration code is in the range, so the §11 senior-review trigger does not fire.
+**Seat:** worktree `review/security-hotfix-1026` at `1a99f07`, under `$TMPDIR`. The main clone's `.venv` interpreter, `PYTHONPATH` set to the worktree's `src` and `PYTHONDONTWRITEBYTECODE=1`. Probes ran from a scratch file outside the tree, against `tmp_path` artifacts. No edit in the main checkout, no network call that changes anything, no launchd, Fly or GitHub write; one read-only `gh issue list`.
+
+**Verdict of this round:** MINOR. BLOCKING 0 · MAJOR 0 · MINOR 1 (M4) · risks queued 2 (R5, R6).
+
+### Findings
+
+#### BLOCKING
+- none
+
+#### MINOR
+- **M4** `src/app/workflows/refresh.py:1668-1669`, held by `tests/unit/test_release_restamp.py:173-185`. **A D-225 republish skips the serving-bound check, so it can publish, and the night can then deploy, an artifact the engine this release ships refuses to start on.**
+  - The bound check (`egress_problems`, D-173 clause 4, #57) lives inside `_reason_to_refuse` (`:1264`). On `same`, `:1668` calls only `_replaced_underneath`, so the candidate is never checked. D-226 clause 1 lists the serving-bound check among the skipped refusals on purpose.
+  - Unlike the others, that check does not compare content. It is an absolute property of the candidate under the bounds of the code that will serve it. `src/app/adapter/main.py:698` applies the same function when the engine starts, and in production a problem there refuses the start.
+  - Probe: the live artifact was published by `release-aaaaaaa`, and the bound is then lowered (`MODEL_RANKING_MAX_RANKED_ROWS=1`). The same release's cycle returns `1` (unchanged). `release-bbbbbbb`'s cycle returns `0` with `unchanged content, republished as this release's own build (D-225)`, and the record says `served_built_by: release-bbbbbbb`. `egress_problems` on the published file then reports the bound.
+  - Why it matters: D-225 fires exactly when the code changes. A release that lowers a bound default (`serving_bounds.py:41`) or adds a bound would republish on its first quiet night, pass `prepare` (the deploy script checks no bound), and ship to Fly an image whose engine refuses to start. `fly.toml` sets no bound variable, so the engine reads the code's defaults. Before D-225 that night stayed `unchanged`, the deploy refused another release's data, and the old machine kept serving. The test's premise, "the live file already serves exactly this", holds only for the old engine.
+  - Why MINOR, not BLOCKING: the engine's own start check still fails closed, so oversized data is never served; the cost is availability. No outside party can trigger it, because a bound changes only through reviewed code. And it does not fire for this deploy: `serving_bounds.py` and the bound constants in `main.py` are unchanged in the range, so the live state, built by the previous release under the same defaults, is within them.
+  - Remedy (supersedes D-226 clause 1 in part, so it is the owner's ruling): on `same`, run `egress_problems(candidate, bounds_from_env())`. If it reports anything, do not publish. Return the unchanged outcome with the bound named in the reason, so the night is not counted as a refusal (D-226's concern) and the deploy refuses as it did before D-225. Then turn `tests/unit/test_release_restamp.py:173-185` around: it should assert that the file is not replaced. Fix this before any release that touches `src/app/workflows/serving_bounds.py`.
+
+#### PASS (with evidence)
+- **The republish launders nothing past the #198 refusal.**
+  - What is published is the running release's own fresh candidate (`refresh.py:1696`). It is published only when its served digest equals the live one (`:1645`), so it serves the same content.
+  - It runs only after the W-047 re-read (`:1668`, `_replaced_underneath` at `:1285-1300`). Probe: `tests/unit/test_release_restamp.py:150-170` passes, so a writer that replaces the artifact mid-cycle is never overwritten and never relabelled.
+  - Rows carried forward from the live file for a source that failed (D-156) were already published on every changed night, judged only against that same live file. The republish adds no new way for another builder's rows to ship.
+- **Who controls `APP_BUILD` in the night.** Only `scripts/nightly_hosted.sh:55` sets it, from the checkout's own `HEAD`. The refresh and prepare legs run beside no token (`:38-45`), and the deploy leg unsets `DEPLOY_ACCEPT_DATA_FROM` (`:48`, `:90`). The deploy re-derives `HEAD_SHORT` from its own checkout and refuses any prepared stamp that is not `release-<HEAD>-data-<digest>-from-<HEAD>` (`scripts/deploy_hosted_engine.sh:100-106`). A cycle with no `release-` stamp never republishes (`refresh.py:1010-1012`; test `tests/unit/test_release_restamp.py:60`).
+- **A crafted `.refresh.json` can force a publish, and that is harmless.**
+  - Probe: a record whose `served_built_by` is a list, another release or missing makes the cycle publish (`refresh.py:1013-1017`; tests `:76`, `:112`).
+  - What it forces is the publish of this release's own same-content build, after the re-read. That is the outcome D-225 intends.
+  - The opposite forgery, a record that names the running release, keeps the cycle unchanged (probe: exit `1`). The deploy already trusts that label (`deploy_hosted_engine.sh:121-132`, `:141`), so the forgery gives nothing it did not give before this range.
+  - The record sits beside the artifact in one trust domain: whoever can write one can write the other. In the night, both come only from the workflow's own runs on `main` (D-217 clause 3).
+- **Skipping the content refusals lets nothing degraded through, M4 aside.** Every input of `degradations` and `upward_anomalies` is fixed by the digest (`refresh.py:762-876`), with two exceptions:
+  - The surface boards' model ids. These come from the release's own alias and registry data, not from a feed, and re-keying them is what D-225 exists to ship.
+  - The own board's unranked rows. They reach users only through the floor, which is hashed (`:820`).
+  - Gaps in the digest's coverage (R5) are gaps those guards cannot see either.
+- **The `json.loads` signal** (`refresh.py:1014`). It catches `OSError` and `ValueError`, which includes `JSONDecodeError` and `UnicodeDecodeError`, and treats a record that is not an object as another builder's (`:1017`). It reads only the refresh's own record, in the state directory. Probe: a record nested 200,000 deep raises `RecursionError`, but first in the pre-existing `_read_last_ok` (`:1306`), and the cycle fails closed: the artifact is byte-identical, and no candidate or scratch file is left. See R6.
+- **#459.** `APP_VERSION` and `pyproject.toml` say `0.2.0` (`src/app/adapter/main.py:83`, `pyproject.toml:9`). `/health` already served the version, so nothing new is disclosed. `tests/unit/test_app_version.py:44-48` fails closed on an empty `docs/releases/`.
+- **#461.**
+  - The remover is deleted by a commit, not by an `rm`.
+  - The Bash guard still refuses its name (`.claude/hooks/bash_guard.py:424`), which is safe: it refuses a file that is gone. The owner-actions row that retires the guard rule is the owner's.
+  - The `.path-refs-allow:153` row is exact: no wildcard, the one deleted path. It carries a reason (#461, D-224 clause 3) and sits in the section for retired files.
+  - The owner-actions edits change status cells and one row's text. No command added in the range writes anything the agent may not.
+- **Destructive operations and authority.** No commit in the range adds `reset --hard`, a force push, `rm -rf`, `DROP`, or a write under `.claude/`, `.githooks/` or `.github/workflows/**` (`git diff --name-status 0222150..1a99f07`).
+
+### Gates passed (delta)
+- [x] Secret scan green: `make secrets` on `6411610`, no leaks (dispatcher). Re-run here: `gitleaks git --log-opts=0222150..1a99f07` reports `17 commits scanned`, `no leaks found`.
+- [x] `make deps` (pip-audit --strict) green on `6411610` (dispatcher). No lock or dependency range changed; `pyproject.toml` changes only `version`.
+- [x] `make slopsquat` PASS: 20 declared, 0 suspect (dispatcher). No new third-party import: `tests/unit/test_app_version.py` imports `re`, `tomllib`, `pathlib` and `fastapi.testclient`, all already in use.
+- [x] Default-deny preserved: no new route or external surface. The deploy's #198 refusal and `DEPLOY_ACCEPT_DATA_FROM` are unchanged (`scripts/deploy_hosted_engine.sh` is not in the diff).
+- [x] Permission matrix not violated: no agent write to `.claude/`, `.githooks/`, `.github/workflows/**`, `Dockerfile` or `fly.toml`.
+- [x] Prompt-injection hygiene: nothing in the range feeds fetched text to a model or an agent, and no diff content tried to change policy.
+- [x] Auth/PII and the human-review trigger: not applicable (no HIGH path; no auth, PII, payment or migration code).
+- [x] SAST: `bandit` and `semgrep` are not installed in this seat. `ruff check --select S` on `src/app/workflows/refresh.py` and `src/app/adapter/main.py` passes ("All checks passed!"), and `pyproject.toml:75` keeps `S` in the gate's ruff set. Conformance PASS, 33 tests (dispatcher, `6411610`). Tests here: `tests/unit/test_release_restamp.py`, `test_app_version.py` and `test_engine_service.py` give `21 passed` at `1a99f07`. The coverage-floor message is expected on a partial run.
+
+### Acceptance criteria evidence (delta)
+- **D-225 clause 1** (a release republishes over another builder's or a missing record). Code: `src/app/workflows/refresh.py:1006-1017`, `:1645-1646`. Tests: `tests/unit/test_release_restamp.py:35`, `:76`, `:112`, `:126`.
+- **D-225 clause 3** (no churn for the same release or a cycle without a release stamp). Code: `refresh.py:1010-1012`, `:1017`. Tests: `tests/unit/test_release_restamp.py:51`, `:60`.
+- **D-226 clause 2** (the re-read runs on a republish). Code: `refresh.py:1668`, `:1285-1300`. Test: `tests/unit/test_release_restamp.py:150`.
+- **D-226 clause 1** (the content refusals are skipped). Code: `refresh.py:1668-1669`. Test: `tests/unit/test_release_restamp.py:173` (the serving-bound part is M4).
+- **#459**. Code: `src/app/adapter/main.py:83`, `pyproject.toml:9`. Tests: `tests/unit/test_app_version.py:39`, `:44`.
+- **#461**. The deletion of `scripts/remove_engine_service.sh` at `1ab57a0`, and `.path-refs-allow:153`. Its documented-paths gate is `conformance/test-documented-paths.py`, conformance PASS (dispatcher).
+
+### Risks queued (delta)
+- **R5** `src/app/workflows/refresh.py:762-876` against `src/app/workflows/standings.py:96-130`. **The digest does not cover everything `/v1/boards` serves.**
+  - On a surface's own board, a standing names the model's id (`_Row.model` is `s.model_id`), while the digest hashes the ranked row's display name.
+  - On an undeclared-surface board, the standing's `effort` and the price filter (`px_median`) are not hashed: only `raw_name|model_id|score` are (`:841-843`).
+  - Before this range, a change confined to those fields was never published. Now it ships once per release, on the first quiet night, and no guard looks at those fields on either path.
+  - Not exploitable: ids come from the release's own data. But D-225's "Revisit when: the fingerprint stops covering everything the deploy ships" is already true of the public artifact, which carries the whole database minus `plans` (`src/app/workflows/public.py:33-46`).
+  - Revisit with the next change to the fingerprint: hash the standings payload itself, or narrow D-225's wording to what `/v1` serves.
+- **R6** `src/app/workflows/refresh.py:1014`, `:1049`, `:1306`. **A record nested deeper than the interpreter's recursion limit raises `RecursionError`, which none of the record readers catch.** The cycle fails closed (probe: the artifact is unchanged and the scratch files are gone), but the crash handler's own `write_status` raises again, so no record of the crash is written. Same class as #466; fold it into #466's fix by catching `RecursionError` beside `ValueError`, or by bounding the record's size before parsing.

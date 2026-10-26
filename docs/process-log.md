@@ -1398,3 +1398,31 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The security delta is MINOR with no new finding: only `main` reaches `fly-production`'s token, no `run:` interpolates an expression, the actions are pinned, and the gate runs before the deploy. R3 (the fallback parser drops `run:` on a wide indent) joins #457.
 - `make deploy-check` is PASS at `0222150`; it counts on `main` once this branch merges.
 - Lesson: a test that runs a script through its interpreter never reads the script's mode; whatever the workflow executes directly needs its execute bit asserted, or the first night finds it.
+
+## 2026-10-26 · fix/issue-460-unchanged-restamp — a release's first quiet night deploys its own build
+
+- After v0.2.0's merge, nights 40312586552 and 40315278404 refused their deploys: the data had not moved, so the refresh kept b762ffe's artifact and name, and the deploy refuses data another release built (#198). The owner deployed past it with `DEPLOY_ACCEPT_DATA_FROM`.
+- D-225: an unchanged cycle run by a release over another builder's artifact publishes its own candidate, so the record names who really built what is served. Hand-run and dev cycles, and a release's own repeat nights, stay unchanged. The deploy's refusal is untouched.
+- Red first (`7c542db`, two of six cases red), with the ADR before it. The owner's other option, accept the old stamp when `src/` and `data/` are unchanged, was rejected: it needs the old commit in the checkout, and still refuses after a source-only change.
+- Lesson: a record that carries a name forward on "nothing changed" goes stale the moment the code that produced it changes; the comparison has to include who built it.
+
+## 2026-10-26 · fix/issue-459-version — `/health` says the release's version
+
+- v0.2.0 shipped answering `"version": "0.1.0"`. The version was kept by hand in `pyproject.toml` and in `APP_VERSION`, and nothing compared either one with `docs/releases/`.
+- `tests/unit/test_app_version.py` holds one fact in three places. `/health` serves `APP_VERSION`, which equals the package's version, and the package is never older than the newest release record. Having no record fails.
+- Red first (`27bb96f`), then both are bumped to 0.2.0. Found on the way: #463, a wall-clock bound that flakes under `check-fast`'s parallel load.
+- Lesson: a version string is a fact with a source of truth, the release record; without a gate against it, a release is cut and nobody bumps it.
+
+## 2026-10-26 · enhancement/issue-461-retire-remover — the Mac service's remover goes once it has run
+
+- The owner ran the Mac service's remover after v0.2.0's hosted deploy, then deleted the engine folder and `hf-token`. D-224 clause 3 kept the remover only until then.
+- Deleted: the script, its test, and its rows in `docs/architecture.md` and `scripts/README.md`. INV-73's test in the same file stays. Run v020's closed record still names the script, so `.path-refs-allow` declares it with its reason.
+- `docs/owner-actions.md`: the owner's finished rows are done (`fly-production`, the nightly workflow, the first night, the release merge and rerun, the v0.2.0 tag, the Mac service). The guard row now retires both `LAUNCHD` and `LAUNCHD_REMOVE`, because the guard is the owner's file.
+- Lesson: a one-shot tool kept "until it has run" needs the run reported back; the owner's message was the only signal.
+
+## 2026-10-26 · integration/hotfix-1026 — three fixes and their delta verdicts, merged once
+
+- The fixes for #460, #459 and #461 were stacked with merge commits, so the owner merges once and the nightly can deploy straight after.
+- The Tester was BLOCKING on B5: the D-225 republish had skipped W-047's re-read of the live artifact along with the content refusals. D-226 restores it, and the Tester's red test came before the fix. On re-verify the Tester was MINOR, and added a test for the serving-bound skip.
+- The security delta is MINOR. Its M4 (#467) points out that the serving-bound check is not a content comparison, so skipping it could deploy data a lowered bound refuses. R6 joins #466.
+- Lesson: "skip the refusals" grouped three kinds of check under one name: content comparisons, an identity re-read and an engine bound. Only the first was meant, and the two reviewers each found one of the others.

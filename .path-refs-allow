@@ -150,6 +150,7 @@ GP-v4.1-presentation.html                      # GP-internal deck named in the v
 General_Pipeline/*                             # GP's own ratification records, cited by the universal P-00x ADR bodies
 scripts/conformance_gate.py                    # the project's per-finding conformance wrapper (M10-M16), retired at D-155
 conformance_gate.py                            # same, named without its directory
+scripts/remove_engine_service.sh               # the Mac service's remover, retired by #461 once the owner ran it (D-224 clause 3); named in run v020's closed record
 # 6. Files generated at run time and gitignored: present on a developer machine, absent in CI.
 advisor.db.refresh.json                        # the refresh's own status record, written next to the artifact
 advisor.db.refresh.lock                        # the refresh's flock file
