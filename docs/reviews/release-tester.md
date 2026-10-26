@@ -15,16 +15,18 @@ is retired, expires and excuses by name), M2 by #417 (`tests/unit/test_arena_res
 M3 by `1b926e7` (the docstring cites D-220 clause 3).
 
 **Reviewer:** Tester subagent (`.claude/agents/Tester.md`, `AGENTS.md` and `.agents/rules/practices.md` read from
-`main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the three commits
-listed under "Tests added this review", on my own branch, after the range.
+`main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
+listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-26 (delta round; the full round was 2026-10-25)
+**Date:** 2026-10-26 (two delta rounds, the nightly workflow's and hotfix-1026's; the full round was 2026-10-25)
 **Commit range:** `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 0222150b195f2eba06fe33707c1124fcbd8ad70b (the delta round's test commit on `b762ffe`; the full
-round's head was `e87f9a9`, `b4dd4f1` plus three test-only commits)
+**Reviewed head:** 20008c6efde82cef54ff60981d6d29ed50ae499b (the hotfix-1026 delta round's green test commit, on
+`6411610`, the head of `integration/hotfix-1026`; B5's declared red test is the one commit after this verdict, on
+`review/tester-hotfix-1026`, and it is the fix's starting point, so the deploy stays refused until it is green; the nightly delta round's head was `0222150`, the full round's
+`e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
 (#426), the accepted-cuts guard (#418, #429), the client-decls gate (#396), and retires INV-27..29 with the Mac
 scripts (#427, D-224).
@@ -40,8 +42,12 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 4 MINOR (M1, M2 from the full round; M3, M4 from the delta round of 2026-10-26,
-below). The delta `e87f9a9..b762ffe` found one fault that stayed green, a non-executable `scripts/nightly_hosted.sh`
+BLOCKING -- 1 BLOCKING open (B5, from the hotfix-1026 delta round below: a D-225 republish skips the re-read that
+stops a publish over an artifact replaced mid-cycle; red test `tests/unit/test_release_restamp.py:150`), 6 MINOR
+(M1, M2 from the full round; M3, M4 from the nightly delta round; M5, M6 from the hotfix-1026 delta round).
+
+The rounds before this one, as they read when they closed: MINOR -- 0 BLOCKING open, 4 MINOR (M1, M2 from the full
+round; M3, M4 from the delta round of 2026-10-26, below). The delta `e87f9a9..b762ffe` found one fault that stayed green, a non-executable `scripts/nightly_hosted.sh`
 (B4); it is closed by `0222150`. The full round found three BLOCKING findings, and each is closed by a test this review added
 (B1-B3 below): two deploy surfaces D-223 clause 5 named had no test and their removal stayed green; five accepted-cut
 schema checks had been silently bypassed by their own negative tests; `refresh.py` coverage fell on a touched module.
@@ -239,7 +245,10 @@ pre-injection bytes back, and F19 and F20 were re-run. The F20 result above is f
   `RUN_CONTRACT_TESTS`, as the CI contract job runs them.
 
 ## BLOCKING
-None open. Found and closed in this review, each by a test on this branch:
+- **B5** (hotfix-1026 delta round, OPEN) `src/app/workflows/refresh.py:1663` -- set out under "Delta BLOCKING
+  (hotfix-1026)" below. Held by the red test `tests/unit/test_release_restamp.py:150` (the declared red commit after this verdict).
+
+Found and closed in this review, each by a test on this branch:
 - **B1** `scripts/deploy_gate.py:213-215` -- D-223 clause 5 put `scripts/nightly_hosted.sh` and `scripts/ci/` on the
   safety surface, but only `deploy_hosted_engine.sh` was planted in a test; removing either stayed green (F12, F13).
   Closed by `tests/unit/test_deploy_gate_pin.py:185`, which names the three surfaces itself (`b70fc0b`).
@@ -254,6 +263,7 @@ None open. Found and closed in this review, each by a test on this branch:
   `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
+- **M5**, **M6**: from the hotfix-1026 delta round, set out under "Delta MINOR (hotfix-1026)" below.
 - **M3**, **M4**: from the delta round of 2026-10-26, set out under "Delta MINOR" below.
 - **M1** `src/app/clients/terminalbench.py:52-54` -- the widened catch in `TerminalBench4Client.fetch_raw` is held
   only by the AST shape scan (`tests/unit/test_client_json_errors.py:60`); no test drives a deep or 4,300-digit
@@ -264,6 +274,12 @@ None open. Found and closed in this review, each by a test on this branch:
   this Mac): a much faster runner could pass the quadratic form. A step counter would not depend on the machine.
 
 ## Tests added this review
+- `tests/unit/test_release_restamp.py:93,112,126` (`20008c6`, hotfix-1026 round) -- D-225: the republish's reason and
+  record (red under F48), an unreadable record taken over by the release (red under F45), and #460 end to end: the
+  hosted deploy refuses the older release's data, then accepts it after the release's quiet night, and the startup
+  catch-up (#258) sees no other release's data (red under F49).
+- `tests/unit/test_release_restamp.py:150` (hotfix-1026 round, the declared red commit after this verdict) -- B5: a D-225
+  republish must not overwrite an artifact replaced mid-cycle. RED at `6411610`; green under F47.
 - `tests/unit/test_deploy_gate_pin.py:185` (`b70fc0b`) -- D-223 cl. 5, #410: each of `scripts/deploy_hosted_engine.sh`,
   `scripts/nightly_hosted.sh`, `scripts/ci/nightly-hosted.yml` is code to the gate even byte-identical to the pinned
   commit. Red under F11, F12, F13.
@@ -348,3 +364,145 @@ None open. **B4** (above) was found and closed in this round by `tests/unit/test
 - `0222150` passed the commit-msg hook's `make check-fast`. `ruff check` on the changed test is clean.
 - **Mutation kill-rate (advisory):** no runner is wired. Hand faults F40-F43: 2 killed on the range's own tests
   (F40, F42) and 2 survived (F41, F43). F43 is killed after `0222150`. F41 still survives (M3).
+
+## Delta round 2026-10-26 hotfix (0222150..20008c6)
+
+**Range:** `0222150b195f2eba06fe33707c1124fcbd8ad70b..6411610`, the head of `integration/hotfix-1026` (local, not
+pushed), plus this round's two test commits: `20008c6`, and B5's declared red test in the commit after this verdict. Three branches, merged into the lane by merge
+commits: `fix/issue-460-unchanged-restamp` (#460, D-225; `src/app/workflows/refresh.py`, red test `7c542db`),
+`fix/issue-459-version` (#459; `pyproject.toml` and `APP_VERSION` 0.1.0 -> 0.2.0, red test `27bb96f`) and
+`enhancement/issue-461-retire-remover` (#461; `scripts/remove_engine_service.sh` and its one test deleted, docs, a
+`.path-refs-allow` row, owner-actions rows). The rest of the range is records already reviewed (`cd00af7`, the v0.2.0
+release merge).
+**Risk tier:** HIGH. #460 adds a publish path to the refresh cycle and lifts its refusals on that path; the deploy
+gate's data-builder check reads what that path writes.
+**Seat:** my own worktree `$TMPDIR/wt-tester-1026` on `review/tester-hotfix-1026`, cut from `6411610`. The fault
+runs used the main clone's `.venv` interpreter with `PYTHONPATH` on this worktree's `src` and
+`PYTHONDONTWRITEBYTECODE=1`; the commit-msg hook's `check-fast` needs a venv this tree owns, so `make install` built
+one here before the first commit. A read-only copy of the main clone's `advisor.db`. Two detached worktrees at
+`7c542db` and `27bb96f` ran the red halves and were removed clean. Nothing was pushed; no launchd, owner data
+directory, Fly or GitHub call was made.
+**Fresh eyes:** I wrote none of `e6c5497`..`1ab57a0`. My only code in the range is the two test commits.
+
+### Acceptance-criterion coverage (hotfix-1026)
+- **#460 / D-225 clause 1** (a release's unchanged cycle over another builder's artifact publishes, and the record
+  names this release) -> `tests/unit/test_release_restamp.py:35` (asserts `EXIT_PUBLISHED`, equal fingerprints,
+  `served_built_by == release-bbbbbbb`, and the served file is the new build: `observed_at == LATER`) -- GREEN.
+  "Or none": `:76` (`{}`) and `:112` (`not json`, empty; added here) -- GREEN.
+- **D-225 clause 2** (the refusals are skipped on `same`) -> no test needs it: F47 (computing the refusal on `same`)
+  stays green on every test of the range and of this round. What the skip lifts on `same` is B5.
+- **D-225 clause 3** (no release stamp, or the same release, stays unchanged) -> `:51` (same release) and `:60`
+  (`None`, `dev-abc1234`, `unknown`) -- GREEN; red under F44 and F46.
+- **D-225 clause 4 / the goal** (the deploy accepts the data a release's quiet night republished) ->
+  `tests/unit/test_release_restamp.py:126` (added here): a scratch repository whose served record names
+  `release-1234567` is refused by `scripts/deploy_hosted_engine.sh --dry-run`; a refresh with
+  `APP_BUILD=release-<HEAD short>` (as `scripts/nightly_hosted.sh:55` stamps it) and identical content publishes;
+  the deploy then passes, its stamp ends `-from-<HEAD short>`, and `nightly.built_by_another` is False -- GREEN.
+- **#459** (`/health` == `APP_VERSION` == the package version; the package is never older than the newest
+  `docs/releases/v*.md`) -> `tests/unit/test_app_version.py:39`, `:44` -- GREEN.
+- **#461** (nothing runs or tests the remover; INV-73's test stays) -> `git grep remove_engine_service` leaves only
+  the Bash guard that refuses running it (`.claude/hooks/bash_guard.py:424`, its tests at
+  `tests/unit/test_bash_guard_bounds.py:546`), the ADR and record history, and the `.path-refs-allow` row. INV-73
+  still cites `tests/unit/test_engine_service.py:57`, which exists and passes; renaming it turned
+  `tests/unit/test_security_invariants.py::test_the_list_holds_together` RED (F54).
+
+### Red to green (hotfix-1026)
+- **#460**: at `7c542db` (the red commit, before the fix) `test_release_restamp.py` is 2 failed, 4 passed
+  (`:35`, `:76`); at `6411610` all pass.
+- **#459**: at `27bb96f` `test_app_version.py:44` fails ("pyproject.toml says 0.1.0, but docs/releases/ records
+  v0.2.0"); at `6411610` both pass. `:39` passes on both sides, as it should: the two copies agreed at 0.1.0.
+- **B5** (this round): `test_release_restamp.py:150` is RED at `6411610` ("a concurrent publish was overwritten:
+  unchanged content, republished as this release's own build (D-225)"); it turns green under F47.
+
+### Fault-injection table (hotfix-1026)
+Each fault was one exact string replacement made by a script that wrote it, ran the tests, put the original bytes
+back at the same offset and compared md5 before and after; every row's md5 matched
+(`refresh.py` `f130ab1b8f18619a837b1398abccd83d`, `main.py` `0d15ef484eae8762365760feab2280c1`, `pyproject.toml`
+`2e91ddedb97363e2e5d53c9ee02118f9`, `test_engine_service.py` `76797a9d4441523706128452d7ac4c9a`). The set: the
+eleven refresh, nightly, stamp and deploy test files (334 tests) for F44-F49, `test_app_version.py` for F50-F53.
+
+| ID | Fault | Range's tests | After this round |
+|---|---|---|---|
+| F44 | `_another_release_built` without the `startswith("release-")` check | RED (7 failed: `:60` x3, `test_refresh.py` x3, `test_refresh_carry.py` x1) | RED |
+| F45 | an unreadable record returns False | GREEN (334 passed) | RED (`:112` x2, `:150`) |
+| F46 | an equal `served_built_by` republishes anyway (churn) | RED (`:51`) | RED |
+| F47 | the refusal is computed on `same` (clause 2 removed) | GREEN (334 passed) | GREEN, and it turns B5's `:150` green: the remedy, not a hole |
+| F48 | the republish's reason reads "the served content changed" | GREEN (334 passed) | RED (`:93`) |
+| F49 | `_another_release_built` never consulted (#460 reverted) | RED (`:35`, `:76`) | RED (6 failed, `:126` among them) |
+| F50 | `APP_VERSION` alone 0.2.1 | RED (`test_app_version.py:39`) | RED |
+| F51 | `pyproject.toml` alone 0.2.1 | RED (`:39`) | RED |
+| F51b | `APP_VERSION` alone 0.1.9 | RED (`:39`) | RED |
+| F52 | a `docs/releases/v9.9.9.md` record added (removed after) | RED (`:44`) | RED |
+| F53 | `docs/releases/` emptied (both records moved out and back, md5 `62dca946...`, `cbb4c0d3...` unchanged) | RED (`:44`, "no release record ... names a version") | RED |
+| F54 | INV-73's cited test renamed | RED (`test_security_invariants.py`) | RED |
+
+**Mutation kill-rate (advisory):** no runner is wired for this stack. Hand faults F44-F54 (12): 9 killed on the
+range's own tests, 3 survived (F45, F47, F48). After this round F45 and F48 are killed; F47 survives by design and is
+the remedy for B5.
+
+### Interactions checked (hotfix-1026)
+- **`consecutive_refusals`**: a republish is `EXIT_PUBLISHED`, so the count goes to 0 as on any served cycle
+  (`refresh.py:1053-1056`); `:93` seeds 2 and asserts 0.
+- **`sources_last_ok`**: `served` covers both published and unchanged (`refresh.py:1074-1077`), so the republish
+  moves the same arrivals an unchanged night did. No change in behaviour.
+- **Carried and expired sources on `same`**: `same` compares the candidate with the live digest
+  (`refresh.py:1641`). The build drops an expired source's rows, so `same` with a non-empty `expired` happens only
+  when those rows changed nothing served. Then `_served_without` (`:1345`) equals the live artifact in what it
+  serves, and `degradations`/`upward_anomalies` (`:1268-1278`) have nothing to report: skipping them on `same` lets
+  through no removal a user sees. What it drops are unserved rows, which an unchanged night kept. The record's
+  `carried`/`expired` (`:1083-1092`) are written the same on both outcomes. Not a finding.
+- **The two refusals that are not about change**: `_reason_to_refuse` also holds the serving-bound check on the
+  candidate (`:1264-1266`, D-173 clause 4) and the re-read of the live artifact before a publish (`:1286-1294`).
+  D-225 clause 2's reason ("they guard what a user would see change") holds for neither. The bound check on an
+  identical-serving candidate repeats what the live file already is, so skipping it is not worse than the unchanged
+  night it replaces. Skipping the re-read is B5.
+- **#258 startup catch-up** (`src/app/adapter/nightly.py:163`): before D-225 a release engine with the in-process
+  nightly caught up at every startup and never converged on quiet data, because an unchanged cycle kept the old
+  builder's name. After a republish `built_by_another` is False (`:126`). The switch is refused in production, so
+  this is not reached on Fly.
+
+### Delta BLOCKING (hotfix-1026)
+- **B5** `src/app/workflows/refresh.py:1663` (`refusal = None if same else _reason_to_refuse(...)`) -- a D-225
+  republish skips the re-read before `candidate.replace(target)` (`:1690`). That re-read is W-047's guard: the lock
+  stops two refreshes, never a hand-run `build.py`. An independent review once demonstrated a 95.0 build published
+  mid-cycle and overwritten (`tests/unit/test_refresh.py:1300`). Before D-225 an unchanged cycle never published, so
+  it never needed the re-read. Now a release's quiet night publishes over any artifact that replaced the live one
+  while it built, and the record names this release as its builder. The new publish path has no test for it; F47
+  shows that nothing in the range needs clause 2's skip. **Reproduced:**
+  `tests/unit/test_release_restamp.py:150` (the declared red commit after this verdict) is RED at `6411610`: the 95.0
+  artifact is lost and the outcome is `published`. **Exposure:** low in today's topology. The hosted night runs
+  alone on a CI runner (`scripts/nightly_hosted.sh`), the Mac runs no engine, and a cycle without a `release-*`
+  stamp never republishes. But it is a load-bearing guard removed on a HIGH path (REQ-REF-001: never leaves the
+  live artifact worse than it found it), so it blocks. **Remedy (the author's, through `/fix-issue`; D-225 clause 2
+  is amended by a new ADR or a superseding one):** on `same`, keep the re-read. The smallest form computes the
+  re-read on both paths and skips only the change guards. F47, which computes the whole refusal on `same`, also
+  turns `:150` green with all 334 tests green, but it would also refuse a quiet night past a bound and count it as
+  a refusal.
+
+### Delta MINOR (hotfix-1026)
+- **M5** `docs/prd.md:446` -- REQ-REF-002 still reads "An unchanged upstream produces no publish and says so". D-225
+  now publishes a release's first unchanged night (its record says `published`, with the D-225 reason). D-225
+  amends #198's record rule but not this criterion. Changing what a criterion means is the owner's call, so the
+  author should raise it with the owner or amend the statement under an ADR.
+- **M6** `src/app/workflows/refresh.py:1049-1051` (outside the range, from before it) -- `write_status` reads the
+  previous record and calls `.get` on it without checking it is an object. A record that is valid JSON but not an
+  object (`[]`) crashes every cycle with `AttributeError`, and the crash leaves the record unrewritten, so the
+  cycle never recovers. Found when `[]` was tried as an unreadable record for D-225: `_another_release_built`'s
+  `not isinstance(previous, dict)` branch (`:1017`) leads only into this crash. The author files it.
+
+### Delta test integrity (hotfix-1026)
+`git diff 0222150..6411610 -- tests/ conformance/`: two files added (`test_app_version.py`, `test_release_restamp.py`)
+and one test deleted, `test_engine_service.py::test_the_remover_takes_off_the_service_the_retired_installer_put_on`,
+with the script it read (#461, D-224 clause 3). No invariant cites it (`git grep` is empty). No `skip` or `xfail` was
+added, and no assertion was weakened.
+
+### Delta suite result (hotfix-1026)
+- At `6411610`: 4691 passed, 37 skipped, offline sandbox, artifact required, coverage 93.00%; `refresh.py` 96.47%
+  (`:1015-1016`, the unreadable-record branch, uncovered), `main.py` 98%.
+- With B5's red test in the tree: 4695 passed, 1 failed (B5's red test `:150`, as declared), 37 skipped; coverage 93.02%;
+  `refresh.py` 96.68% (`:1015-1016` now covered), against 96.47% at `6411610` and 96.5% at the previous rounds'
+  head, so the touched module's coverage is above its prior level.
+- `20008c6` passed the commit-msg hook's `make check-fast` (lint, typecheck, test, swift-test, client-decls,
+  records). B5's red test goes in a declared red commit (`test: ..., red`), whose gate is `check-red`: lint,
+  typecheck, `pytest-collect` and records, no test run. A docs commit after it cannot pass `check-docs`, which runs
+  the tests, so this verdict is committed first and names `20008c6`.
