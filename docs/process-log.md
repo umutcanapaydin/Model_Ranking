@@ -1398,3 +1398,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The security delta is MINOR with no new finding: only `main` reaches `fly-production`'s token, no `run:` interpolates an expression, the actions are pinned, and the gate runs before the deploy. R3 (the fallback parser drops `run:` on a wide indent) joins #457.
 - `make deploy-check` is PASS at `0222150`; it counts on `main` once this branch merges.
 - Lesson: a test that runs a script through its interpreter never reads the script's mode; whatever the workflow executes directly needs its execute bit asserted, or the first night finds it.
+
+## 2026-10-26 · fix/issue-459-version — `/health` says the release's version
+
+- v0.2.0 shipped answering `"version": "0.1.0"`. The version was kept by hand in `pyproject.toml` and in `APP_VERSION`, and nothing compared either one with `docs/releases/`.
+- `tests/unit/test_app_version.py` holds one fact in three places. `/health` serves `APP_VERSION`, which equals the package's version, and the package is never older than the newest release record. Having no record fails.
+- Red first (`27bb96f`), then both are bumped to 0.2.0. Found on the way: #463, a wall-clock bound that flakes under `check-fast`'s parallel load.
+- Lesson: a version string is a fact with a source of truth, the release record; without a gate against it, a release is cut and nobody bumps it.
