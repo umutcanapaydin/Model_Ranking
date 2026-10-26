@@ -15,9 +15,11 @@ from pathlib import Path
 
 import pytest
 
+from app.adapter.nightly import built_by_another
 from app.workflows.refresh import EXIT_PUBLISHED, EXIT_UNCHANGED, refresh, status_path
 
-from .test_refresh import _builder
+from .test_deploy_hosted import _deploy, _git, _scratch
+from .test_refresh import _artifact, _builder
 
 
 def _served(target: Path, monkeypatch: pytest.MonkeyPatch, build: str) -> None:
@@ -83,3 +85,63 @@ def test_a_record_from_before_198_is_taken_over_by_the_release(
     _outcome, code = refresh(target, builder=_builder(top_score=74.5, stamp="LATER"))
     assert code == EXIT_PUBLISHED
     assert _record(target)["served_built_by"] == "release-bbbbbbb"
+
+
+# --- The hotfix-1026 Tester (docs/reviews/release-tester.md, delta round 2026-10-26 hotfix) ----------------
+
+
+def test_the_republish_reason_names_d225_and_the_record_says_published(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-225: the night's record says what the cycle did. A republish of unchanged data reads apart from a
+    night whose content moved, and it clears the refusal count like any served cycle."""
+    target = tmp_path / "advisor.db"
+    _served(target, monkeypatch, "release-aaaaaaa")
+    record = _record(target)
+    status_path(target).write_text(json.dumps({**record, "consecutive_refusals": 2}), encoding="utf-8")
+    monkeypatch.setenv("APP_BUILD", "release-bbbbbbb")
+    outcome, code = refresh(target, builder=_builder(top_score=74.5, stamp="LATER"))
+    assert code == EXIT_PUBLISHED
+    assert outcome.reason == "unchanged content, republished as this release's own build (D-225)"
+    after = _record(target)
+    assert after["outcome"] == "published" and after["consecutive_refusals"] == 0
+    assert after["built_by"] == after["served_built_by"] == "release-bbbbbbb"
+
+
+@pytest.mark.parametrize("record", ["not json", ""])
+def test_an_unreadable_record_is_taken_over_by_the_release(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, record: str
+) -> None:
+    """D-225 clause 1, `or none`: the deploy refuses a record it cannot read (`unreadable`), so a release's
+    quiet night over one publishes its own build and writes a record the deploy reads."""
+    target = tmp_path / "advisor.db"
+    _served(target, monkeypatch, "release-aaaaaaa")
+    status_path(target).write_text(record, encoding="utf-8")
+    monkeypatch.setenv("APP_BUILD", "release-bbbbbbb")
+    _outcome, code = refresh(target, builder=_builder(top_score=74.5, stamp="LATER"))
+    assert code == EXIT_PUBLISHED
+    assert _record(target)["served_built_by"] == "release-bbbbbbb"
+
+
+def test_a_releases_quiet_night_makes_its_own_deploy_and_startup_accept_the_data(tmp_path: Path) -> None:
+    """#460 end to end: the record a republish writes is the one `scripts/deploy_hosted_engine.sh` reads.
+    Before the night the deploy refuses data an older release built; after a quiet night run by HEAD's
+    release (`scripts/nightly_hosted.sh` stamps `release-<short sha>`) the same deploy goes through, and the
+    engine's startup catch-up (#258) no longer sees another release's data."""
+    repo, served, calls, env = _scratch(tmp_path)
+    _artifact(served, top_score=74.5, stamp="t0")
+    status_path(served).write_text(json.dumps({"served_built_by": "release-1234567"}), encoding="utf-8")
+    assert _deploy(env, "--dry-run").returncode != 0, "the older release's data must be refused first"
+
+    head = _git("-C", str(repo), "rev-parse", "--short=7", "HEAD")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("APP_BUILD", f"release-{head}")
+        outcome, code = refresh(served, builder=_builder(top_score=74.5, stamp="LATER"))
+    assert code == EXIT_PUBLISHED, outcome.reason
+    assert outcome.live_fingerprint == outcome.candidate_fingerprint
+
+    done = _deploy(env)
+    assert done.returncode == 0, done.stdout + done.stderr
+    stamp = [arg for arg in calls.read_text(encoding="utf-8").split() if arg.startswith("APP_BUILD=")][-1]
+    assert stamp.endswith(f"-from-{head}"), stamp
+    assert not built_by_another(_record(served), f"release-{head}")
