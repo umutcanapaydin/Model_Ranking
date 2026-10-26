@@ -1412,3 +1412,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `tests/unit/test_app_version.py` holds one fact in three places. `/health` serves `APP_VERSION`, which equals the package's version, and the package is never older than the newest release record. Having no record fails.
 - Red first (`27bb96f`), then both are bumped to 0.2.0. Found on the way: #463, a wall-clock bound that flakes under `check-fast`'s parallel load.
 - Lesson: a version string is a fact with a source of truth, the release record; without a gate against it, a release is cut and nobody bumps it.
+
+## 2026-10-26 · enhancement/issue-461-retire-remover — the Mac service's remover goes once it has run
+
+- The owner ran the Mac service's remover after v0.2.0's hosted deploy, then deleted the engine folder and `hf-token`. D-224 clause 3 kept the remover only until then.
+- Deleted: the script, its test, and its rows in `docs/architecture.md` and `scripts/README.md`. INV-73's test in the same file stays. Run v020's closed record still names the script, so `.path-refs-allow` declares it with its reason.
+- `docs/owner-actions.md`: the owner's finished rows are done (`fly-production`, the nightly workflow, the first night, the release merge and rerun, the v0.2.0 tag, the Mac service). The guard row now retires both `LAUNCHD` and `LAUNCHD_REMOVE`, because the guard is the owner's file.
+- Lesson: a one-shot tool kept "until it has run" needs the run reported back; the owner's message was the only signal.

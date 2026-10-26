@@ -1,8 +1,7 @@
 """#32, retired by D-222 (#427): the engine ran on the owner's Mac as a launchd service. It runs only on Fly.io now.
 
 The launcher, the installer and their tests are gone with INV-27 to INV-29 (D-224; `docs/watchlist.md`
-names what brings them back). What stays here:
-- the remover, until the owner has run it once (D-222 clause 2, D-224 clause 3);
+names what brings them back), and the remover went once the owner ran it (#461). What stays here:
 - `ios/app.sh`, a simulator-only helper now: it starts no engine, and its build is pinned to loopback
   (INV-73), where `make run` serves;
 - `make run`'s loopback bind, and the checks that read every script.
@@ -15,20 +14,8 @@ import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-REMOVER = REPO / "scripts" / "remove_engine_service.sh"
 APP_SH = REPO / "ios" / "app.sh"
 LABEL = "com.ilgar.modelranking.engine"
-
-
-def test_the_remover_takes_off_the_service_the_retired_installer_put_on() -> None:
-    """D-222 clause 2: the owner takes the Mac's service off with the remover once a hosted night has
-    published. It unloads the job and removes the plist and the wrapper the installer wrote."""
-    remover = REMOVER.read_text(encoding="utf-8")
-    for piece in (LABEL, 'PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"',
-                  'WRAPPER="$HOME/Library/Application Support/model-ranking/engine_service.sh"'):
-        assert piece in remover, piece
-    assert 'launchctl bootout "gui/$(id -u)/$LABEL"' in remover
-    assert 'rm -f "$PLIST"' in remover and 'rm -f "$WRAPPER"' in remover
 
 
 def test_the_app_script_starts_no_engine() -> None:

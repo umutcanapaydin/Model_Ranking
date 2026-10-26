@@ -56,7 +56,6 @@ deterministic, tested code (D-104).
 | `ios/ModelRanking/Engine/` | Routing, reading the question, the engine client, the standings store, the combination, the notices, every rule a screen applies; run by `swift test` through `ios/Package.swift` | Ranking a model; any number the engine did not send, except the two named arithmetic files |
 | `ios/ModelRanking/ContentView.swift` | Rendering the screens | Decisions |
 | `ios/UITests/` | The UI test target, run locally by `make ui-test` (D-175) | Judging the on-device model's reading (the router probe measures it) |
-| `scripts/remove_engine_service.sh` | Taking the retired launchd service off the owner's Mac, once (D-222, D-224); it goes after the owner runs it | Starting an engine: nothing in the tree starts one on the Mac |
 | `Dockerfile`, `fly.toml`, `scripts/deploy_hosted_engine.sh`, `scripts/nightly_hosted.sh`, `src/app/workflows/public.py` | The hosted engine, the only engine (D-222): its image, its one machine and Host, the night that refreshes and deploys it (D-217), and the public artifact it carries (D-185) | Refreshing on the serving host: the hosted engine serves what the night derived |
 | `requirements/*.lock` | The exact versions, with hashes, that every install takes, written by `make lock` (D-177) | Choosing versions: `pyproject.toml` declares the ranges |
 | `src/app/workers/` | Nothing (an empty package) | — |
@@ -474,8 +473,8 @@ becomes a served surface id, a declared refinement, a yes/no reading, or nothing
 ## 5. Deployment topology
 
 Nothing runs on the owner's Mac (D-222): its launchd service (D-170) and the home-network option
-(D-171) are retired with their scripts (#427), and `scripts/remove_engine_service.sh` takes the
-service off once, after a hosted night has published (D-222 clause 2, D-224 clause 3).
+(D-171) are retired with their scripts (#427). The owner took the service off once a hosted night had
+published (D-222 clause 2), and the remover went with it (#461).
 
 - **The app.** The engine's address is set per build: `ENGINE_URL` in `ios/Config/Engine.xcconfig`.
   A git-ignored `Engine.local.xcconfig` overrides it for Debug builds only; a Release build always
