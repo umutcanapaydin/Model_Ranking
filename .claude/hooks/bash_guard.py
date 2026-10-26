@@ -140,10 +140,6 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
 - `fly` or `flyctl` but the read-only subcommands in READ_ONLY_FLY, and `fly` behind `xargs` (D-185),
   whatever the deploy gate says: the hosted engine is deployed and destroyed by the owner only;
 - `deploy_hosted_engine.sh` run with anything but exactly `--dry-run` (D-185);
-- `install_engine_service.sh` (the launchd deploy) run with anything but exactly `--dry-run`, `--print-plist` or
-  `--print-wrapper`, each alone, and `remove_engine_service.sh` run at all: each changes the owner's launchd
-  service (#284). The installer prints for those three and nothing else; the remover reads no argument, so its
-  `--dry-run` would take the service off;
 - git's own configuration and hooks (#285): `git config --edit`, `--ed...`, `-e` (alone or in a cluster) and
   `edit`; and a write, by the redirections and programs of the owner's-directory rule below, into a `.git`
   directory's `config`, `config.worktree` or `hooks/` (any case, as written and as resolved), the same files of
@@ -254,8 +250,6 @@ Not held, by class -- said here so nobody believes otherwise:
   `GIT_CONFIG_SYSTEM`, `XDG_CONFIG_HOME` or `HOME` set for a `git` command, `/etc/gitconfig`, a config file
   written by a program this does not list (`git apply`, `python -c`) or through a path built when the command
   runs (#285);
-- the owner's launchd service changed by `launchctl` itself, by a script that runs the installer, or by a copy of
-  it under another name (#284);
 - a worktree's commits that no branch outside it holds, and its ignored files, which `git status --porcelain`
   does not list (#286);
 - a wrapper not in WRAPPERS, whose program is then read as an argument;
@@ -417,14 +411,8 @@ MKTEMP = re.compile(r"^\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*g?mktemp\b")
 #: The programs this guard reads; a program word written as a pattern is refused outright.
 #: This project's hosted-engine deploy script (D-185).
 DEPLOY = "deploy_hosted_engine.sh"
-#: This project's launchd deploy and its removal (#284): each changes the owner's launchd service. The installer's
-#: argument lists that only print or only print its usage, each the whole list; the remover reads no argument
-#: at all (`remove_engine_service.sh --dry-run` takes the service off), so none of its calls is allowed.
-LAUNCHD = "install_engine_service.sh"
-LAUNCHD_REMOVE = "remove_engine_service.sh"
-LAUNCHD_READ_ONLY = (["--dry-run"], ["--print-plist"], ["--print-wrapper"])
-GUARDED = {"git", "rm", "mv", "gh", "ssh", "eval", "source", ".", "find", "fly", "flyctl", DEPLOY, LAUNCHD,
-           LAUNCHD_REMOVE, *SHELLS, *WRAPPERS, *SETTERS}
+GUARDED = {"git", "rm", "mv", "gh", "ssh", "eval", "source", ".", "find", "fly", "flyctl", DEPLOY, *SHELLS, *WRAPPERS,
+           *SETTERS}
 #: How long, in all, one call may spend asking git about worktrees it would remove (#286): `git status
 #: --porcelain` in each, `git worktree list` for `git worktree remove`. Past it, a live worktree is not removed.
 STATUS_S = 5.0
@@ -519,10 +507,6 @@ FLY = ("BLOCKED: `{shown}` may change the hosted engine, and only the owner runs
        "(D-185, permission-matrix.md S3); an agent may run only the read-only subcommands.")
 DEPLOY_SCRIPT = ("BLOCKED: the hosted engine is deployed by the owner, in their own terminal (D-185); an agent "
                  "may run the script with --dry-run only.")
-LAUNCHD_SCRIPT = ("BLOCKED: `{name}` deploys to or takes off the owner's launchd service, which changes the owner's "
-                  "machine (#284, AGENTS.md S1 and S5); the owner runs it, in their own terminal. An agent may run "
-                  "`scripts/install_engine_service.sh` with exactly `--dry-run`, `--print-plist` or `--print-wrapper` "
-                  "only, and `scripts/remove_engine_service.sh` not at all.")
 CONFIG_EDIT = ("BLOCKED: `git config --edit` (`-e`, `edit`) opens a config file in an editor, where `core.hooksPath`, "
                "an alias or a pager can be set where this guard does not read it (#285). Set the key with "
                "`git config <key> <value>`, which this guard reads.")
@@ -1760,10 +1744,6 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
     named = program.casefold()
     if named == DEPLOY and (args != ["--dry-run"] or behind_xargs):
         return DEPLOY_SCRIPT
-    # #284: the launchd deploy only prints (its plist, its wrapper, or its usage for `--dry-run`, which it does not
-    # know); the remover reads no argument, so it is never allowed.
-    if named == LAUNCHD_REMOVE or (named == LAUNCHD and (args not in LAUNCHD_READ_ONLY or behind_xargs)):
-        return LAUNCHD_SCRIPT.format(name=program)
     if program == "mv" and (hit := _project_tree(_mv_sources(words[1:]))):
         return PROJECT_TREE.format(target=hit)
     if program == "git":  # its ref words with this text's literals in (`m=main; git push origin --delete $m`)

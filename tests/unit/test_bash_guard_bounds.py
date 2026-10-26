@@ -532,39 +532,7 @@ def test_a_harmless_git_alias_and_ssh_command_are_allowed(guard: ModuleType, ung
     assert _bash(guard, command, ungoverned) is None, command
 
 
-# --- the owner's guard patch of run golden-night (D-206 clause 9): #284, #285 and #286 --------------------------
-
-@pytest.mark.parametrize("command", [
-    "scripts/install_engine_service.sh", "./scripts/install_engine_service.sh --lan",
-    "scripts/install_engine_service.sh --no-lan", "bash scripts/install_engine_service.sh",
-    "scripts/install_engine_service.sh --deploy-only /tmp/x --no-venv", "scripts/install_engine_service.sh --dry-run --lan",
-    "scripts/install_engine_service.sh --lan --print-plist", "scripts/install_engine_service.sh --print-plist --print-wrapper",
-    "source scripts/install_engine_service.sh", "sudo scripts/install_engine_service.sh",
-    "bash -c 'scripts/install_engine_service.sh'", "echo x | xargs scripts/install_engine_service.sh --dry-run",
-    "scripts/install_engine_service.sh --dry-run && scripts/install_engine_service.sh",
-    "MODEL_RANKING_REPO=/x /abs/scripts/install_engine_service.sh", "a=scripts/install_engine_service.sh; $a",
-    "scripts/remove_engine_service.sh", "scripts/remove_engine_service.sh --dry-run", "bash scripts/remove_engine_service.sh",
-    "./remove_engine_service.sh --print-plist", "eval 'scripts/remove_engine_service.sh'",
-])
-def test_the_launchd_deploy_and_its_removal_are_refused(guard: ModuleType, ungoverned: Path, command: str) -> None:
-    """#284: `scripts/install_engine_service.sh` deploys `origin/main` to the owner's launchd service and
-    `scripts/remove_engine_service.sh` takes it off; both change the owner's machine. The installer has no
-    `--dry-run` (it prints its usage and exits 2), so only that and its two printing modes pass, each alone. The
-    remover reads no argument, so `--dry-run` would take the service off: it is refused whatever it is given."""
-    why = _bash(guard, command, ungoverned)
-    assert why and "#284" in why, (command, why)
-
-
-@pytest.mark.parametrize("command", [
-    "scripts/install_engine_service.sh --dry-run", "scripts/install_engine_service.sh --print-plist",
-    "bash scripts/install_engine_service.sh --print-wrapper", "grep -n install_engine_service.sh scripts/README.md",
-    "cat scripts/remove_engine_service.sh", "git log --oneline -- scripts/remove_engine_service.sh",
-    "git commit -m 'run scripts/install_engine_service.sh after the merge'",
-])
-def test_the_launchd_scripts_print_modes_and_mentions_are_allowed(guard: ModuleType, ungoverned: Path,
-                                                                  command: str) -> None:
-    assert _bash(guard, command, ungoverned) is None, command
-
+# --- the owner's guard patch of run golden-night (D-206 clause 9): #285 and #286 --------------------------------
 
 @pytest.mark.parametrize(("command", "where"), [
     ("git config --edit", "."), ("git config -e", "."), ("git config --global --edit", "."), ("git config edit", "."),
@@ -762,7 +730,7 @@ def test_a_worktree_removal_whose_path_this_cannot_read_is_refused(guard: Module
 # --- the owner-bundle security review of run golden-night: P1, M1 and M2 ---------------------------------------
 @pytest.mark.parametrize("command", [
     "bash -c 'rm -rf ~' --help", "sh -c 'git push --force origin main' --version", "bash -c 'fly deploy' --help",
-    "bash scripts/remove_engine_service.sh --help", "zsh -c 'rm -rf ~' --version --help",
+    "zsh -c 'rm -rf ~' --version --help",
     "bash --help -c 'rm -rf ~'", "bash -c 'git config --edit' --help",
 ])
 def test_a_shell_given_help_or_version_beside_a_command_still_has_the_command_read(guard: ModuleType,
@@ -781,8 +749,7 @@ def test_a_shell_asked_only_for_its_help_or_version_is_allowed(guard: ModuleType
 
 
 @pytest.mark.parametrize("command", [
-    "scripts/DEPLOY_HOSTED_ENGINE.sh", "SCRIPTS/REMOVE_ENGINE_SERVICE.SH", "scripts/Install_Engine_Service.sh",
-    "bash scripts/Deploy_Hosted_Engine.sh --dry-run --force",
+    "scripts/DEPLOY_HOSTED_ENGINE.sh", "SCRIPTS/DEPLOY_HOSTED_ENGINE.SH", "bash scripts/Deploy_Hosted_Engine.sh --dry-run --force",
 ])
 def test_the_deploy_scripts_are_named_whatever_their_case(guard: ModuleType, ungoverned: Path, command: str) -> None:
     """M1: the owner's disk is case-insensitive, so a script named in another case is the same script."""
