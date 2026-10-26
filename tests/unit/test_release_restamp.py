@@ -145,3 +145,26 @@ def test_a_releases_quiet_night_makes_its_own_deploy_and_startup_accept_the_data
     stamp = [arg for arg in calls.read_text(encoding="utf-8").split() if arg.startswith("APP_BUILD=")][-1]
     assert stamp.endswith(f"-from-{head}"), stamp
     assert not built_by_another(_record(served), f"release-{head}")
+
+
+def test_a_republish_never_overwrites_an_artifact_replaced_mid_cycle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """W-047's guard on the D-225 path. The lock stops two refreshes, not a hand-run `build.py`: an unchanged
+    cycle that publishes must still re-read the live artifact before it replaces it, as every other publish
+    does (`tests/unit/test_refresh.py::test_a_baseline_replaced_mid_cycle_is_not_published_over`). Before
+    D-225 an unchanged cycle never published, so it never needed the re-read."""
+    target = tmp_path / "advisor.db"
+    _served(target, monkeypatch, "release-aaaaaaa")
+    monkeypatch.setenv("APP_BUILD", "release-bbbbbbb")
+
+    def builds_while_someone_else_publishes(argv: list[str]) -> int:
+        _artifact(Path(argv[argv.index("--db") + 1]), top_score=74.5, stamp="LATER")
+        _artifact(target, top_score=95.0)  # another writer, mid-cycle
+        return 0
+
+    outcome, code = refresh(target, builder=builds_while_someone_else_publishes)
+    assert code != EXIT_PUBLISHED, f"a concurrent publish was overwritten: {outcome.reason}"
+    with sqlite3.connect(f"file:{target}?mode=ro", uri=True) as conn:
+        kept = conn.execute("SELECT max(score) FROM scores").fetchone()[0]
+    assert kept == pytest.approx(95.0), "the other writer's artifact was lost"
