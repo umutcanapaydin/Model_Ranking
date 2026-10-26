@@ -1439,3 +1439,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The guard still refused the launchd installer and remover, both deleted (#427, #461). The agent may not write `.claude/`, so the change ships as an owner patch under `build/`, checked by its sha256. The owner applies it, re-pins it, and commits it on this branch.
 - The patch was tested on an exported copy of the tree with the guard applied and pinned: the guard's test file and `conformance/test-bash-guard.py` pass. The rule's watchlist row names what brings it back.
 - Lesson: a guard case for a script outlives the script by one owner step. Deleting the script and retiring its guard rule go on one owner row, not two.
+
+## 2026-10-27 · release/v0.2.0 — the deploy delta verdicts for 9ef6448..50c4764, ahead of the night's hosted deploy
+
+- `make deploy-check` failed on four code files #469 and #470 changed (the guard, its pin, its tests, build 6's pbxproj). The release Tester's delta (MINOR, 0 BLOCKING) added two `--help` cases to replace the one #470 removed; the Security-Reviewer's delta (MINOR, 0 BLOCKING) ran 850 commands through the guard before and after and found only verdicts naming the two deleted scripts changed. Both at reviewed head `50c4764`; `make deploy-check` PASS.
+- Security M5 (the guard no longer documents launchctl as unguarded) is #471; it rides in the owner's next guard patch with #410's.
+- The owner's row retiring the launchd guard is done (b9b7c1b). The 18 merged branches still on origin were each checked as contained in main, then deleted.
+- Lesson: a retirement that deletes a control's rule also deletes what its docstring said the control does not hold; the reviewer of the retirement reads the "not held" list, not only the rules.
