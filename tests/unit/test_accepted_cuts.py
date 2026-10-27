@@ -173,6 +173,8 @@ def _cuts_on_disk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str | N
         path.parent.mkdir()
         path.write_text(text, encoding="utf-8")
     monkeypatch.setattr(refresh.load_accepted_cuts, "__defaults__", (path,))
+    # D-228: the night reads the file's re-spellings too, from the same path, against the same log.
+    monkeypatch.setattr(refresh.load_accepted_respellings, "__defaults__", (path,))
     # D-223 clause 3: the ADR a cut names must name its board, so the probe's cut gets a log of its own.
     log = tmp_path / "decisions.md"
     log.write_text(f"## D-220 — a probe's cut\n\nAccepted for {SLICE.source}.\n", encoding="utf-8")

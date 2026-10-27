@@ -1461,3 +1461,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Proof: the 27 new refusal cases fail on today's guard and pass on the patched one; the 21 allowed cases pass on both. On the patched, pinned export, the guard's bounds pass 734 and conformance reports 0 wrong. Ruff finds 153 on both copies, so the patch adds none.
 - The Bash guard refused `cp` into a non-repository export's `.claude/`. The red proof ran instead in a second export with only the test file replaced, outside `.claude/`.
 - Lesson: when a rule reaches the owner as "edit this file", the agent can still write it as a tested patch. Then the owner's step is one command, not a design task.
+
+## 2026-10-27 · fix/issue-475-t2i-respelling — an accepted re-spelling is neither lost nor new (D-228)
+
+- The owner's hand-started hosted night refused: text_to_image's board "would lose 27 of 82 rows". Measured as #415 was, against the served state (run 40428147997) and a candidate built from that day's sources: 82 rows in, 82 out, every name re-spelled from a slug to a display name; 27 derive a new model id. No model left.
+- A cut could not say it: it excuses losses on declared boards only, and the novelty guards read the same 27 as new. The owner chose named old -> new pairs (D-228): a `respellings` list in `data/accepted-cuts.yaml`, under a cut's terms (ADR naming the board, `until:` 2026-11-10, security review). The guards judge a pair as the row it was only where the old model left and the new model is one the board never had.
+- On the real data: degradations, anomalies and the largest board change all empty, the digest unchanged; the real `refresh()` on a copy of the served state publishes.
+- Lesson: a source that changes its spelling scheme board by board will block the night once per board; measure the last board still in the old scheme before calling the first one done.
