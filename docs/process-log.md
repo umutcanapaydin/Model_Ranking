@@ -1453,3 +1453,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `_why_unchanged` (`src/app/workflows/refresh.py`) now ends a quiet night past a bound as unchanged. It names the bound and counts no refusal, and the older artifact keeps serving. D-227 amends D-226 clause 1.
 - The test that held the skip was flipped first and committed red (`397c1c9`). Then came the fix. `_cycle` was at the complexity limit, so the check lives in a helper rather than inline.
 - Lesson: "skip the checks that compare content" needs each skipped check named. One of them was a bound the code it serves checks again.
+
+## 2026-10-27 · chore/guard-version-tags — the owner's guard patch for #410's version tags and replace refs, and #471
+
+- #410's guard half was an owner row asking for an editor session. It is now `build/owner-guard-version-tags.patch`, checked by its sha256 like #470's. `git tag` making, forcing or deleting a `v*` tag, `update-ref` under `refs/tags/v` or `refs/replace/`, and a fetch, pull or push into `refs/replace/` are refused. Listing is allowed.
+- #471: the patch puts back a general "not held" line for `launchctl` and `~/Library/LaunchAgents`, and adds one for a remote's tags, which the rule does not hold.
+- Proof: the 27 new refusal cases fail on today's guard and pass on the patched one; the 21 allowed cases pass on both. On the patched, pinned export, the guard's bounds pass 734 and conformance reports 0 wrong. Ruff finds 153 on both copies, so the patch adds none.
+- The Bash guard refused `cp` into a non-repository export's `.claude/`. The red proof ran instead in a second export with only the test file replaced, outside `.claude/`.
+- Lesson: when a rule reaches the owner as "edit this file", the agent can still write it as a tested patch. Then the owner's step is one command, not a design task.
