@@ -1282,6 +1282,25 @@ def _reason_to_refuse(
     return _replaced_underneath(target, live)
 
 
+def _why_unchanged(target: Path, candidate: Path, same: bool) -> str | None:
+    """Why a cycle whose candidate matches the served fingerprint publishes nothing, or None when it
+    publishes: content that moved, or a D-225 republish of a release's own build.
+
+    #467 (D-227): a republish still answers to the bounds its own engine checks when it starts. A
+    release that lowered one keeps the older artifact serving: unchanged, not counted as a refusal."""
+    if not same:
+        return None
+    if not _another_release_built(target):
+        return "nothing a user would notice changed"
+    past = egress_problems(candidate, bounds_from_env())
+    if past:
+        return (
+            "unchanged content, not republished: the candidate is past a bound the engine serves under — "
+            + "; ".join(past)
+        )
+    return None
+
+
 def _replaced_underneath(target: Path, live: ServingSummary) -> str | None:
     """RE-READ the baseline immediately before publishing. The decision to publish was made against
     the artifact as it was when this cycle started, and a hand-run `build.py` can replace it in
@@ -1643,12 +1662,13 @@ def _cycle(
         renamed = tuple(display_changes(live, fresh) + board_respellings(live, fresh)) if live is not None else ()
 
         same = live is not None and fresh.digest == live.digest
-        if live is not None and same and not _another_release_built(target):
+        quiet = _why_unchanged(target, candidate, same)
+        if quiet is not None:
             return record(
                 RefreshOutcome(
                     published=False,
-                    reason="nothing a user would notice changed",
-                    live_fingerprint=live.digest,
+                    reason=quiet,
+                    live_fingerprint=fresh.digest,  # `quiet` implies `same`: the served digest
                     candidate_fingerprint=fresh.digest,
                     surfaces=fresh.answering,
                     arrived=arrived,
@@ -1663,8 +1683,8 @@ def _cycle(
 
         # #230: computed once, so a published night and a refused one report the same figure.
         largest = largest_board_change(live, fresh, baseline) if live is not None else None
-        # D-225 clause 2, amended by D-226: on `same` nothing a user sees changed, so only the re-read
-        # of the live artifact runs, never the refusals that compare content.
+        # D-225 clause 2, amended by D-226 and D-227: on `same` nothing a user sees changed, so only the
+        # bounds above and the re-read of the live artifact run, never the refusals that compare content.
         refusal = (_replaced_underneath(target, live) if same and live is not None
                    else _reason_to_refuse(target, live, fresh, baseline, candidate))
         if refusal is not None:

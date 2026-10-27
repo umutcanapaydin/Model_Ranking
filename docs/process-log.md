@@ -1439,3 +1439,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The guard still refused the launchd installer and remover, both deleted (#427, #461). The agent may not write `.claude/`, so the change ships as an owner patch under `build/`, checked by its sha256. The owner applies it, re-pins it, and commits it on this branch.
 - The patch was tested on an exported copy of the tree with the guard applied and pinned: the guard's test file and `conformance/test-bash-guard.py` pass. The rule's watchlist row names what brings it back.
 - Lesson: a guard case for a script outlives the script by one owner step. Deleting the script and retiring its guard rule go on one owner row, not two.
+
+## 2026-10-27 · fix/issue-467-republish-bound — a D-225 republish answers to the serving bounds
+
+- #467 (hotfix-1026 security M4). D-226 clause 1 let a republish skip `egress_problems` together with the content refusals. That check compares no content: it is the engine's own startup check. A release that lowered a bound would therefore deploy, on its first quiet night, data its engine refuses to start on.
+- `_why_unchanged` (`src/app/workflows/refresh.py`) now ends a quiet night past a bound as unchanged. It names the bound and counts no refusal, and the older artifact keeps serving. D-227 amends D-226 clause 1.
+- The test that held the skip was flipped first and committed red (`397c1c9`). Then came the fix. `_cycle` was at the complexity limit, so the check lives in a helper rather than inline.
+- Lesson: "skip the checks that compare content" needs each skipped check named. One of them was a bound the code it serves checks again.
