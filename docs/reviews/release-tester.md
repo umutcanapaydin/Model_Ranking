@@ -4,7 +4,7 @@ id: release-tester
 status: draft
 seat: independent
 process_version: v7.2
-date: 2026-10-26
+date: 2026-10-27
 ---
 # Release Tester Review
 
@@ -18,14 +18,15 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-26 (two delta rounds, the nightly workflow's and hotfix-1026's; the full round was 2026-10-25)
+**Date:** 2026-10-27 (the launchd-guard and build-6 delta round; the nightly, hotfix-1026 and B5 rounds were
+2026-10-26, the full round 2026-10-25)
 **Commit range:** `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 9ef64482ae331c65491ef2675289b22caa5db0da (the B5 re-verify round's test commit, on `133d638`,
-the fix on `integration/hotfix-1026`; the hotfix-1026 delta round's head was `20008c6`, the nightly delta round's
-`0222150`, the full round's `e87f9a9`)
+**Reviewed head:** 50c4764bd94ffaa21201eaffaa6892f65c07e811 (the 2026-10-27 delta round's test commit, on `f32cdbf`,
+main's tip after #469 and #470; the B5 re-verify round's head was `9ef6448`, the hotfix-1026 delta round's `20008c6`,
+the nightly delta round's `0222150`, the full round's `e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
 (#426), the accepted-cuts guard (#418, #429), the client-decls gate (#396), and retires INV-27..29 with the Mac
 scripts (#427, D-224).
@@ -41,7 +42,11 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open. B5 is closed by `133d638` (D-226) and re-verified below: its test is red at `6cf0e51` and
+MINOR -- 0 BLOCKING open, 5 MINOR open (M1, M2, M3 #456, M4 #457, M6 #466), none new. The 2026-10-27 delta round
+(below, `9ef6448..f32cdbf`) found the guard's launchd retirement, its re-pin and build 6 to be what they say; it closed
+one test gap of its own (a case #470 deleted with the launchd rules) in `50c4764`.
+
+The B5 re-verify round, as it read when it closed: MINOR -- 0 BLOCKING open. B5 is closed by `133d638` (D-226) and re-verified below: its test is red at `6cf0e51` and
 green at `133d638`. 5 MINOR open: M1, M2 (full round), M3 (#456), M4 (#457), M6 (#466). M5 is answered by D-226
 clause 3.
 
@@ -561,3 +566,65 @@ correct, so it is closed here rather than raised as a finding.
   (96.68% at the previous round's head), so the touched module's coverage did not fall.
 - `9ef6448` passed the commit-msg hook's `make check-fast`. `ruff check` on the changed test is clean.
 - **Mutation kill-rate (advisory):** F55-F57: 2 killed on the fix's tests, 1 survived (F57), killed after `9ef6448`.
+
+## Delta round 2026-10-27 (9ef6448..f32cdbf)
+
+**Range:** `9ef64482ae331c65491ef2675289b22caa5db0da..f32cdbffdfc8ef2de4081a4e75350378d149ab09`, main's tip and the tip
+of `release/v0.2.0`, plus this round's test commit `50c4764`. Code: `.claude/hooks/bash_guard.py`,
+`tests/unit/test_bash_guard_bounds.py` (#470, `b9b7c1b`, the owner's patch, D-224, #284), `.claude/settings.json`
+(the re-pin), `ios/ModelRanking.xcodeproj/project.pbxproj` (#469, `b72de72`, build 6). The rest is records and
+`build/`.
+**Risk tier:** HIGH for the guard (a safety control loses rules); LOW for the build number.
+**Seat:** my own worktree `$TMPDIR/release-tester-1027` on `review/release-tester-1027`, cut from `f32cdbf`, with its
+own `.venv` (`make install`; `app` resolves to this tree's `src`) and a read-only copy of the main clone's
+`advisor.db`. The fault ran in memory (a pytest plugin in the scratchpad recompiled `_judge_shell`), so the guard file
+was never written: md5 `8adfc7f1ce14533472a70f69855030de` before and after. Nothing was pushed; no launchd, Fly or
+GitHub call was made.
+**Fresh eyes:** I wrote none of `b72de72`, `b9b7c1b` or the re-pin. My only code in the range is `50c4764`.
+
+### Per change
+- **The retirement removes only launchd rules.** `git diff 9ef6448..f32cdbf -- .claude/hooks/bash_guard.py` takes out
+  the two docstring bullets (#284), `LAUNCHD`, `LAUNCHD_REMOVE`, `LAUNCHD_READ_ONLY`, `LAUNCHD_SCRIPT`, the two names
+  from `GUARDED` (`bash_guard.py:414`) and the one branch in `judge_words` (was `:1763-1766`); the `DEPLOY` branch
+  above it (`:1745`) is untouched. No removed name is left in the guard, `conformance/`, `permission-matrix.md` or
+  `INSTALL.md` (`grep -n -i -e 284 -e launchd -e engine_service`: nothing). Neither script is in `scripts/`; the only
+  code-tree mentions left are `.path-refs-allow:153` (a written reason), `scripts/README.md:47` (prose) and
+  `tests/unit/test_testflight_ready.py:91`, an absence assertion. The rule's retirement is recorded in
+  `docs/watchlist.md:53` with its trigger (a launchd service again), as D-224 clause 1 asks.
+- **The guard still refuses what it must.** `tests/unit/test_bash_guard_bounds.py`: 684 passed at `f32cdbf`, 686 at
+  `50c4764`. `conformance/test-bash-guard.py`: PASS, 591 tool calls fed as Claude Code feeds them, 0 wrong verdicts,
+  exit 0. The deploy script's rule keeps its refusals (`:125-139`) and its case rule (`:754-760`).
+- **The pin matches the guard.** `python3 .claude/hooks/guard_pin.py --check` (read-only): `guard-pin PASS ... sha256
+  36cf17e8484a`, exit 0; `shasum -a 256 .claude/hooks/bash_guard.py` is `36cf17e8...0961`, and it is the only hash
+  in `.claude/settings.json`, twice (the Write/Edit hook `:79`, the Bash hook `:90`). The diff changes only those two
+  hashes and their 12-character echoes.
+- **Build 6 is only the build number.** The pbxproj diff is four lines, `CURRENT_PROJECT_VERSION = 5;` to `6;`, one per
+  build configuration; all four now read `6`, `MARKETING_VERSION` stays `0.2.0`. No test reads the build number; the
+  owner's TestFlight upload is what refuses a reused one.
+
+### Test integrity
+`git diff 9ef6448..f32cdbf -- tests/ conformance/` is one file, `test_bash_guard_bounds.py`, +3/-36. The deleted
+cases are the two launchd tests (20 refused, 7 allowed), the mixed-case launchd names in the case test (whose
+deploy-script cases stay, one added), and `bash scripts/remove_engine_service.sh --help` in the P1 test
+(`:739`). Each goes with the rule it tested, by D-224 and the owner's patch, so none is deleted to force green. One
+was collateral: the P1 case was the only one where a shell runs a guarded SCRIPT FILE, not a `-c` string, with
+`--help` after it. **F58**: `_judge_shell`'s P1 check turned from `all` to `any` (`bash_guard.py:2752`), in memory:
+RED on the six `-c` cases left, so P1 is still held, but the script-file shape had no case. `50c4764` adds
+`bash scripts/deploy_hosted_engine.sh --help` and `sh scripts/deploy_hosted_engine.sh --version`
+(`tests/unit/test_bash_guard_bounds.py:735-737`): GREEN on the guard, RED under F58 (8 failed, the two new among
+them). A test gap with the code correct, so it is closed here rather than raised as a finding.
+
+### Delta BLOCKING
+None.
+
+### Delta MINOR
+None new. M1, M2, M3 (#456), M4 (#457) and M6 (#466) are unchanged by this range.
+
+### Delta suite result
+- `make test` in this seat at `50c4764`: 4670 passed, 37 skipped, offline sandbox, artifact required; coverage
+  93.02%, as at `9ef6448`; coverage-floor PASS (54 modules), skip budget 96 of 96. 4697 at `9ef6448`, less the 29
+  launchd cases #470 removed, plus the two `50c4764` adds.
+- `50c4764` passed the commit-msg hook's `make check-fast` (lint, typecheck, records with conformance, swift-test,
+  client-decls, test). `ruff check` on the changed test is clean.
+- **Mutation kill-rate (advisory):** no runner is wired. F58: killed on the range's own tests (the `-c` cases); the
+  script-file shape it exposed is held after `50c4764`.

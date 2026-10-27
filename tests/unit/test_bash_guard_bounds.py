@@ -732,6 +732,9 @@ def test_a_worktree_removal_whose_path_this_cannot_read_is_refused(guard: Module
     "bash -c 'rm -rf ~' --help", "sh -c 'git push --force origin main' --version", "bash -c 'fly deploy' --help",
     "zsh -c 'rm -rf ~' --version --help",
     "bash --help -c 'rm -rf ~'", "bash -c 'git config --edit' --help",
+    # the release Tester's delta round of 2026-10-27: #470 took out `bash scripts/remove_engine_service.sh --help`,
+    # the one case of a guarded SCRIPT FILE (not `-c`) read past a shell's trailing `--help`; the deploy script holds it
+    "bash scripts/deploy_hosted_engine.sh --help", "sh scripts/deploy_hosted_engine.sh --version",
 ])
 def test_a_shell_given_help_or_version_beside_a_command_still_has_the_command_read(guard: ModuleType,
                                                                                   ungoverned: Path,
