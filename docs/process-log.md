@@ -1468,3 +1468,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - A cut could not say it: it excuses losses on declared boards only, and the novelty guards read the same 27 as new. The owner chose named old -> new pairs (D-228): a `respellings` list in `data/accepted-cuts.yaml`, under a cut's terms (ADR naming the board, `until:` 2026-11-10, security review). The guards judge a pair as the row it was only where the old model left and the new model is one the board never had.
 - On the real data: degradations, anomalies and the largest board change all empty, the digest unchanged; the real `refresh()` on a copy of the served state publishes.
 - Lesson: a source that changes its spelling scheme board by board will block the night once per board; measure the last board still in the old scheme before calling the first one done.
+
+## 2026-10-27 · integration/night-1027 — #474, #473 and #476 under one deploy delta, ahead of the hosted night
+
+- The owner asked for one delta review over the three open PRs before re-running the hosted night. They are merged here in that order; the only conflicts were the appended process-log entries and the D-227/D-228 ADRs, each kept in full.
+- The release Tester's round (MINOR, 0 BLOCKING, reviewed head `07a7fc6`) found six re-spelling conditions held only indirectly and added a test for each. Its M7 (the entry's 2026-11-10 expiry would turn every night and CI red) is #477.
+- The Security-Reviewer's round (MINOR, 0 BLOCKING, reviewed head `718cae4`): M6 (a pair moves its whole model) is #478; it is not live, since no text_to_image model has two names on either side. M7 (duplicate YAML keys override silently) is #479. `make deploy-check` PASS.
+- Lesson: an exception keyed by name, applied by model, reaches every row of that model. Write the binding test with a model that has two names.
