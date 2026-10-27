@@ -170,16 +170,22 @@ def test_a_republish_never_overwrites_an_artifact_replaced_mid_cycle(
     assert kept == pytest.approx(95.0), "the other writer's artifact was lost"
 
 
-def test_a_republish_past_a_serving_bound_is_not_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """D-226 clause 1: a republish skips the refusals that compare content, the serving-bound check among them.
-    The live file already serves exactly this, so a quiet night past a bound is not counted as a refusal, while
-    a night whose content moved is still refused at the bound."""
+def test_a_republish_past_a_serving_bound_stays_unchanged_and_names_the_bound(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#467 (D-227): a republish runs the serving-bound check first, because the engine runs the same check when
+    it starts. A release that lowered a bound keeps the older artifact serving on a quiet night, names the bound,
+    and does not count a refusal; a night whose content moved is still refused at the bound."""
     target = tmp_path / "advisor.db"
     _served(target, monkeypatch, "release-aaaaaaa")
+    served = target.read_bytes()
     monkeypatch.setenv("MODEL_RANKING_MAX_RANKED_ROWS", "1")
     monkeypatch.setenv("APP_BUILD", "release-bbbbbbb")
     outcome, code = refresh(target, builder=_builder(top_score=74.5, stamp="LATER"))
-    assert code == EXIT_PUBLISHED, outcome.reason
-    assert _record(target)["consecutive_refusals"] == 0
+    assert code == EXIT_UNCHANGED, outcome.reason
+    assert not outcome.published and "past a bound" in outcome.reason, outcome.reason
+    assert target.read_bytes() == served, "a file past the engine's own bound replaced the served one"
+    record = _record(target)
+    assert record["served_built_by"] == "release-aaaaaaa" and record["consecutive_refusals"] == 0
     moved, code = refresh(target, builder=_builder(top_score=75.5, stamp="LATER"))
     assert code == EXIT_REFUSED and "past a bound" in moved.reason, "the bound must bite on a moved night"

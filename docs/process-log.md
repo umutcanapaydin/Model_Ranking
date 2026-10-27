@@ -1446,3 +1446,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Security M5 (the guard no longer documents launchctl as unguarded) is #471; it rides in the owner's next guard patch with #410's.
 - The owner's row retiring the launchd guard is done (b9b7c1b). The 18 merged branches still on origin were each checked as contained in main, then deleted.
 - Lesson: a retirement that deletes a control's rule also deletes what its docstring said the control does not hold; the reviewer of the retirement reads the "not held" list, not only the rules.
+
+## 2026-10-27 · fix/issue-467-republish-bound — a D-225 republish answers to the serving bounds
+
+- #467 (hotfix-1026 security M4). D-226 clause 1 let a republish skip `egress_problems` together with the content refusals. That check compares no content: it is the engine's own startup check. A release that lowered a bound would therefore deploy, on its first quiet night, data its engine refuses to start on.
+- `_why_unchanged` (`src/app/workflows/refresh.py`) now ends a quiet night past a bound as unchanged. It names the bound and counts no refusal, and the older artifact keeps serving. D-227 amends D-226 clause 1.
+- The test that held the skip was flipped first and committed red (`397c1c9`). Then came the fix. `_cycle` was at the complexity limit, so the check lives in a helper rather than inline.
+- Lesson: "skip the checks that compare content" needs each skipped check named. One of them was a bound the code it serves checks again.

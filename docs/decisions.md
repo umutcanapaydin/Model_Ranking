@@ -6183,3 +6183,36 @@ the file this cycle compared against stay the file it replaces. That question ha
 (`tests/unit/test_release_restamp.py::test_a_republish_never_overwrites_an_artifact_replaced_mid_cycle`).
 
 **Revisit when:** the refresh's lock covers every writer of the artifact, a hand-run build included.
+
+**Amended by D-227 (2026-10-27)**: clause 1 no longer skips the serving-bound check; a republish past a bound stays unchanged (#467).
+
+## D-227 — A republish under D-225 still answers to the serving bounds
+
+**Status:** proposed
+**Amends** D-226 clause 1 · from #467, the hotfix-1026 security delta round's M4 (`3413d7a:docs/reviews/release-security.md`).
+
+**Context.** D-226 clause 1 let a republish skip every refusal that compares content, the serving-bound check
+`egress_problems` (D-173 clause 4, #57) among them. That check compares nothing: it tests the candidate against
+the bounds of the code that will serve it, and the engine runs the same check when it starts
+(`src/app/adapter/main.py`). The reviewer's probe: with `MODEL_RANKING_MAX_RANKED_ROWS=1`, a new release's quiet
+night republished a file past the bound and stamped it with that release.
+
+**Decision.**
+1. A cycle whose candidate matches the served fingerprint and would republish under D-225 clause 1 first runs
+   `egress_problems` on its candidate, with the bounds of the running code.
+2. If the candidate is past a bound, the cycle publishes nothing and ends unchanged (`EXIT_UNCHANGED`). Its
+   reason names the bound. It is not counted as a refusal: the served content is the same, and the older
+   artifact keeps serving.
+3. The other content refusals stay skipped on a republish (D-226 clause 1), and the re-read before the publish
+   stays (D-226 clause 2).
+
+**Rationale.** A release that lowers a bound's default (`src/app/workflows/serving_bounds.py`) would otherwise
+deploy, on its first quiet night, data its own engine refuses to start on. Before D-225 that night kept the old
+artifact serving, and this restores that. Counting it as a refusal would page the owner for a night on which
+no content changed, so it stays unchanged.
+
+**Mitigation if violated:** without clause 1, a release that lowers a bound stops the hosted engine's next
+restart (`tests/unit/test_release_restamp.py::test_a_republish_past_a_serving_bound_stays_unchanged_and_names_the_bound`).
+
+**Revisit when:** the engine stops checking the bounds at startup, or the deploy itself checks the data against
+the release's bounds.
