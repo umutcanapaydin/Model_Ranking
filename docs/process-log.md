@@ -1446,3 +1446,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Security M5 (the guard no longer documents launchctl as unguarded) is #471; it rides in the owner's next guard patch with #410's.
 - The owner's row retiring the launchd guard is done (b9b7c1b). The 18 merged branches still on origin were each checked as contained in main, then deleted.
 - Lesson: a retirement that deletes a control's rule also deletes what its docstring said the control does not hold; the reviewer of the retirement reads the "not held" list, not only the rules.
+
+## 2026-10-27 · chore/guard-version-tags — the owner's guard patch for #410's version tags and replace refs, and #471
+
+- #410's guard half was an owner row asking for an editor session. It is now `build/owner-guard-version-tags.patch`, checked by its sha256 like #470's. `git tag` making, forcing or deleting a `v*` tag, `update-ref` under `refs/tags/v` or `refs/replace/`, and a fetch, pull or push into `refs/replace/` are refused. Listing is allowed.
+- #471: the patch puts back a general "not held" line for `launchctl` and `~/Library/LaunchAgents`, and adds one for a remote's tags, which the rule does not hold.
+- Proof: the 27 new refusal cases fail on today's guard and pass on the patched one; the 21 allowed cases pass on both. On the patched, pinned export, the guard's bounds pass 734 and conformance reports 0 wrong. Ruff finds 153 on both copies, so the patch adds none.
+- The Bash guard refused `cp` into a non-repository export's `.claude/`. The red proof ran instead in a second export with only the test file replaced, outside `.claude/`.
+- Lesson: when a rule reaches the owner as "edit this file", the agent can still write it as a tested patch. Then the owner's step is one command, not a design task.
