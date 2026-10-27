@@ -1446,3 +1446,32 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Security M5 (the guard no longer documents launchctl as unguarded) is #471; it rides in the owner's next guard patch with #410's.
 - The owner's row retiring the launchd guard is done (b9b7c1b). The 18 merged branches still on origin were each checked as contained in main, then deleted.
 - Lesson: a retirement that deletes a control's rule also deletes what its docstring said the control does not hold; the reviewer of the retirement reads the "not held" list, not only the rules.
+
+## 2026-10-27 · fix/issue-467-republish-bound — a D-225 republish answers to the serving bounds
+
+- #467 (hotfix-1026 security M4). D-226 clause 1 let a republish skip `egress_problems` together with the content refusals. That check compares no content: it is the engine's own startup check. A release that lowered a bound would therefore deploy, on its first quiet night, data its engine refuses to start on.
+- `_why_unchanged` (`src/app/workflows/refresh.py`) now ends a quiet night past a bound as unchanged. It names the bound and counts no refusal, and the older artifact keeps serving. D-227 amends D-226 clause 1.
+- The test that held the skip was flipped first and committed red (`397c1c9`). Then came the fix. `_cycle` was at the complexity limit, so the check lives in a helper rather than inline.
+- Lesson: "skip the checks that compare content" needs each skipped check named. One of them was a bound the code it serves checks again.
+
+## 2026-10-27 · chore/guard-version-tags — the owner's guard patch for #410's version tags and replace refs, and #471
+
+- #410's guard half was an owner row asking for an editor session. It is now `build/owner-guard-version-tags.patch`, checked by its sha256 like #470's. `git tag` making, forcing or deleting a `v*` tag, `update-ref` under `refs/tags/v` or `refs/replace/`, and a fetch, pull or push into `refs/replace/` are refused. Listing is allowed.
+- #471: the patch puts back a general "not held" line for `launchctl` and `~/Library/LaunchAgents`, and adds one for a remote's tags, which the rule does not hold.
+- Proof: the 27 new refusal cases fail on today's guard and pass on the patched one; the 21 allowed cases pass on both. On the patched, pinned export, the guard's bounds pass 734 and conformance reports 0 wrong. Ruff finds 153 on both copies, so the patch adds none.
+- The Bash guard refused `cp` into a non-repository export's `.claude/`. The red proof ran instead in a second export with only the test file replaced, outside `.claude/`.
+- Lesson: when a rule reaches the owner as "edit this file", the agent can still write it as a tested patch. Then the owner's step is one command, not a design task.
+
+## 2026-10-27 · fix/issue-475-t2i-respelling — an accepted re-spelling is neither lost nor new (D-228)
+
+- The owner's hand-started hosted night refused: text_to_image's board "would lose 27 of 82 rows". Measured as #415 was, against the served state (run 40428147997) and a candidate built from that day's sources: 82 rows in, 82 out, every name re-spelled from a slug to a display name; 27 derive a new model id. No model left.
+- A cut could not say it: it excuses losses on declared boards only, and the novelty guards read the same 27 as new. The owner chose named old -> new pairs (D-228): a `respellings` list in `data/accepted-cuts.yaml`, under a cut's terms (ADR naming the board, `until:` 2026-11-10, security review). The guards judge a pair as the row it was only where the old model left and the new model is one the board never had.
+- On the real data: degradations, anomalies and the largest board change all empty, the digest unchanged; the real `refresh()` on a copy of the served state publishes.
+- Lesson: a source that changes its spelling scheme board by board will block the night once per board; measure the last board still in the old scheme before calling the first one done.
+
+## 2026-10-27 · integration/night-1027 — #474, #473 and #476 under one deploy delta, ahead of the hosted night
+
+- The owner asked for one delta review over the three open PRs before re-running the hosted night. They are merged here in that order; the only conflicts were the appended process-log entries and the D-227/D-228 ADRs, each kept in full.
+- The release Tester's round (MINOR, 0 BLOCKING, reviewed head `07a7fc6`) found six re-spelling conditions held only indirectly and added a test for each. Its M7 (the entry's 2026-11-10 expiry would turn every night and CI red) is #477.
+- The Security-Reviewer's round (MINOR, 0 BLOCKING, reviewed head `718cae4`): M6 (a pair moves its whole model) is #478; it is not live, since no text_to_image model has two names on either side. M7 (duplicate YAML keys override silently) is #479. `make deploy-check` PASS.
+- Lesson: an exception keyed by name, applied by model, reaches every row of that model. Write the binding test with a model that has two names.

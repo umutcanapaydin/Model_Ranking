@@ -5982,6 +5982,8 @@ Hand aliases for the 31 rows would fix none of the 18 rows that the grammar now 
 **Amended by D-221 (2026-10-24)**: clause 3's cut excuses a row by its own raw name, never by model; every cut names
 an `until:` date and goes to a security review; the epoch_chess entry is retired (#418).
 
+**Amended by D-228 (2026-10-27)**: the cuts file gains a `respellings` list; an accepted old -> new pair is judged as the row it was, on its board, by the loss and novelty guards alike (#475).
+
 ## D-221 — An accepted cut excuses rows by name, carries an expiry, goes to a security review, and the first one is retired
 
 **Status:** proposed
@@ -6019,6 +6021,8 @@ names is a standing relaxation, and a standing relaxation is not what D-220 acce
 - A row excused by a name the cut does not hold refuses the night as before.
 
 **Revisit when:** a second cut is accepted in one month, or a cut's expiry stops a night that should have published.
+
+**Amended by D-228 (2026-10-27)**: a `respellings` entry follows a cut's rules (an ADR naming its board, an `until:`, a security review) and may name a surface's own board (#475).
 
 ## D-222 — The hosted engine is the only engine: the Mac runs nothing once the hosted nightly has published
 
@@ -6183,3 +6187,87 @@ the file this cycle compared against stay the file it replaces. That question ha
 (`tests/unit/test_release_restamp.py::test_a_republish_never_overwrites_an_artifact_replaced_mid_cycle`).
 
 **Revisit when:** the refresh's lock covers every writer of the artifact, a hand-run build included.
+
+**Amended by D-227 (2026-10-27)**: clause 1 no longer skips the serving-bound check; a republish past a bound stays unchanged (#467).
+
+## D-227 — A republish under D-225 still answers to the serving bounds
+
+**Status:** proposed
+**Amends** D-226 clause 1 · from #467, the hotfix-1026 security delta round's M4 (`3413d7a:docs/reviews/release-security.md`).
+
+**Context.** D-226 clause 1 let a republish skip every refusal that compares content, the serving-bound check
+`egress_problems` (D-173 clause 4, #57) among them. That check compares nothing: it tests the candidate against
+the bounds of the code that will serve it, and the engine runs the same check when it starts
+(`src/app/adapter/main.py`). The reviewer's probe: with `MODEL_RANKING_MAX_RANKED_ROWS=1`, a new release's quiet
+night republished a file past the bound and stamped it with that release.
+
+**Decision.**
+1. A cycle whose candidate matches the served fingerprint and would republish under D-225 clause 1 first runs
+   `egress_problems` on its candidate, with the bounds of the running code.
+2. If the candidate is past a bound, the cycle publishes nothing and ends unchanged (`EXIT_UNCHANGED`). Its
+   reason names the bound. It is not counted as a refusal: the served content is the same, and the older
+   artifact keeps serving.
+3. The other content refusals stay skipped on a republish (D-226 clause 1), and the re-read before the publish
+   stays (D-226 clause 2).
+
+**Rationale.** A release that lowers a bound's default (`src/app/workflows/serving_bounds.py`) would otherwise
+deploy, on its first quiet night, data its own engine refuses to start on. Before D-225 that night kept the old
+artifact serving, and this restores that. Counting it as a refusal would page the owner for a night on which
+no content changed, so it stays unchanged.
+
+**Mitigation if violated:** without clause 1, a release that lowers a bound stops the hosted engine's next
+restart (`tests/unit/test_release_restamp.py::test_a_republish_past_a_serving_bound_stays_unchanged_and_names_the_bound`).
+
+**Revisit when:** the engine stops checking the bounds at startup, or the deploy itself checks the data against
+the release's bounds.
+
+## D-228 — A re-spelling the owner accepted, pair by pair, is neither a loss nor new
+
+**Status:** proposed
+**Owner ruling:** 2026-10-27, in chat, on #475 (*"named old -> new pairs, dated; the new ids are served"*, translated)
+**Amends** D-220 clause 3 and D-221 (the cuts file gains a second list) · from #475.
+
+**Context.** The owner's hand-started hosted night of 2026-10-27 (run 40479143629) refused: "text_to_image's board
+would lose 27 of 82 rows". Measured against the served state and against a candidate built from that day's sources:
+- LMArena's `text_to_image` board holds 82 rows, published 2026-10-26. The served state holds 82, from its
+  2026-10-07 snapshot. No model left the board.
+- LMArena re-spelled every name on it, from slugs to display names (`flux-2-max` -> `FLUX.2 [max]`). It was the last
+  LMArena board still in slugs: the other seven changed no row.
+- 55 names keep their model id. 27 derive a new one (`flux2-max` -> `flux.2-max`, `photon` -> `luma-photon`), so
+  three guards fire: the board guard reads 27 rows lost (D-159), and the novelty guards read the same 27 as new
+  models on the surface (D-132) and as new rows on its board.
+- The new ids are the better ones: `text_to_image` and `image_edit` share 44 models instead of 28.
+
+A cut (D-220 clause 3) cannot say this: it excuses losses only, and only on declared boards. This board is a
+surface's own board, and the novelty guards would still refuse.
+
+**Decision.**
+1. **A `respellings` list in `data/accepted-cuts.yaml`.** It sits beside `cuts` and follows a cut's rules (D-221,
+   D-223 clauses 2 and 3): a board, an ADR the log holds that names the board, a reason, an `until:` date at most 30
+   days out, and `pairs`, a map from each old raw name to its new one. The board is a surface (its own board) or a
+   declared board. No name is blank. No pair maps a name to itself. No two old names share a new one. No name is
+   both old and new. A file that is not this schema fails the refresh. It never excuses everything.
+2. **A pair is judged as the row it was, only when it is a re-spelling.** That means the old name and its model left
+   the board, and the new name and its model arrived. Where that holds, the guards read the candidate's model as the
+   served one, on that board alone. On a surface's own board that also covers the surface's ranked models. A pair
+   whose names or models do not fit this shape changes nothing, and nor do two old models arriving as one. Any other
+   row is judged as before.
+3. **What is published is the candidate as built.** Its digest and every served row are unchanged. The night's record
+   names each accepted pair as a re-spelling, `old -> new on <board>`.
+4. **The first entry is #475's.** It names the 27 `text_to_image` pairs measured above. It expires 2026-11-10, and it
+   has no effect once a night has published, because the served board then holds the new names.
+
+**Rationale.** The alternative was 27 hand aliases mapping the new names to the old ids. They would be permanent,
+they are the route D-220 declined, and they would keep `text_to_image` apart from `image_edit`. Pairs name exactly the
+rows the owner accepted, expire, and go to a security review as a cut does. A cut's "excuse the losses" would still
+leave the novelty guards refusing, and widening cuts to own boards would excuse losses with no named arrival behind
+them.
+
+**Mitigation if violated:**
+- If a pair hides a real loss, the pair is inert unless its new name arrived on that board under a model the board
+  never had. A real loss has no such arrival.
+- If a pair outlives its night, it is inert once the old name has left the served board, and it fails the refresh
+  after `until:`.
+
+**Revisit when:** a second `respellings` entry is needed in one month, or an upstream re-spells a board while also
+changing which models it holds.
