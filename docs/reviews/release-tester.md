@@ -18,14 +18,15 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-27 (the launchd-guard and build-6 delta round; the nightly, hotfix-1026 and B5 rounds were
-2026-10-26, the full round 2026-10-25)
+**Date:** 2026-10-27 (the night-1027 delta round, and before it the launchd-guard and build-6 delta round; the
+nightly, hotfix-1026 and B5 rounds were 2026-10-26, the full round 2026-10-25)
 **Commit range:** `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 50c4764bd94ffaa21201eaffaa6892f65c07e811 (the 2026-10-27 delta round's test commit, on `f32cdbf`,
-main's tip after #469 and #470; the B5 re-verify round's head was `9ef6448`, the hotfix-1026 delta round's `20008c6`,
+**Reviewed head:** 07a7fc6e51df76f9eb8fd238a26f9d3fd0bc2a39 (the night-1027 delta round's test commit, on `ac7bba9`,
+the head of `integration/night-1027` with #474, #473 and #476; the 2026-10-27 delta round's head was `50c4764`, the
+B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
 (#426), the accepted-cuts guard (#418, #429), the client-decls gate (#396), and retires INV-27..29 with the Mac
@@ -42,7 +43,14 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 5 MINOR open (M1, M2, M3 #456, M4 #457, M6 #466), none new. The 2026-10-27 delta round
+MINOR -- 0 BLOCKING open, 6 MINOR open (M1, M2, M3 #456, M4 #457, M6 #466, and M7, new). The night-1027 delta round
+(below, `50c4764..ac7bba9`) found D-227 and D-228 each proven by a citing test that is red before its fix; six faults
+in D-228's new code stayed green, and `07a7fc6` closes all six. M7: the committed re-spelling expires on 2026-11-10,
+after which every hosted night fails, by design, and so do at least 92 unit tests that read the committed file
+against today's date; nothing tracks retiring it. Not a deploy blocker.
+
+The 2026-10-27 delta round, as it read when it closed: MINOR -- 0 BLOCKING open, 5 MINOR open (M1, M2, M3 #456,
+M4 #457, M6 #466), none new. The 2026-10-27 delta round
 (below, `9ef6448..f32cdbf`) found the guard's launchd retirement, its re-pin and build 6 to be what they say; it closed
 one test gap of its own (a case #470 deleted with the launchd rules) in `50c4764`.
 
@@ -270,6 +278,7 @@ None open. Found and closed in this review, each by a test on this branch:
   `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
+- **M7**: from the night-1027 delta round, set out under "Night-1027 delta MINOR" below.
 - **M5**, **M6**: from the hotfix-1026 delta round, set out under "Delta MINOR (hotfix-1026)" below. M5 is answered
   by D-226 clause 3; M6 is filed as #466. M3 and M4 are filed as #456 and #457.
 - **M3**, **M4**: from the delta round of 2026-10-26, set out under "Delta MINOR" below.
@@ -282,6 +291,10 @@ None open. Found and closed in this review, each by a test on this branch:
   this Mac): a much faster runner could pass the quadratic form. A step counter would not depend on the machine.
 
 ## Tests added this review
+- `tests/unit/test_accepted_respellings.py:268,276` (`07a7fc6`, night-1027 round) -- D-228 clause 2: one shape per
+  condition of `_respelled_ids` (old model kept, new name onto a kept model, old name kept, new name already
+  served, the night after the publish) leaves `respelled`'s result equal to the candidate; a re-spelled model with
+  two rows beside an unlinked row reads as the board it was. Red under F60-F63, F73 and F74.
 - `tests/unit/test_release_restamp.py:173` (`9ef6448`, B5 re-verify round) -- D-226 clause 1: a republish past a
   serving bound publishes and counts no refusal, and a night whose content moved is still refused at the bound. Red
   under F57.
@@ -628,3 +641,130 @@ None new. M1, M2, M3 (#456), M4 (#457) and M6 (#466) are unchanged by this range
   client-decls, test). `ruff check` on the changed test is clean.
 - **Mutation kill-rate (advisory):** no runner is wired. F58: killed on the range's own tests (the `-c` cases); the
   script-file shape it exposed is held after `50c4764`.
+
+## Night-1027 delta round 2026-10-27 (50c4764..ac7bba9)
+
+**Range:** `50c4764bd94ffaa21201eaffaa6892f65c07e811..ac7bba9`, the head of `integration/night-1027`, plus this
+round's test commit `07a7fc6`. Three PRs merged into the lane: #474 (`fix/issue-467-republish-bound`, D-227: red
+`397c1c9`, ADR `975b186`, fix `6c40bcc`), #473 (`chore/guard-version-tags`: `docs/owner-actions.md` and the process
+log only; the guard patch under `build/` is not in git and is out of scope) and #476 (`fix/issue-475-t2i-respelling`,
+D-228: red `2401eaa`, ADR `838d8b0`, fix `534bc09`). Code: `src/app/workflows/refresh.py`,
+`data/accepted-cuts.yaml`; tests: `tests/unit/test_accepted_respellings.py` (new), `test_release_restamp.py`,
+`test_accepted_cuts.py`.
+**Risk tier:** HIGH. Both fixes move the refresh's publish guards (the serving bounds on a republish; the board and
+novelty guards under an accepted re-spelling) on the night the hosted engine deploys.
+**Seat:** my own worktree `$TMPDIR/tmp.ZohPZL5Yky/rt` on `review/release-tester-1027b`, cut from `ac7bba9`, with its
+own `.venv` (`make install`; `app` resolves to this tree's `src`) and a copy of the main clone's `advisor.db`. A
+second detached worktree (`.../rg`) ran the red-to-green pairs with this seat's venv and `PYTHONPATH` on its own
+`src`. No launchd service, owner data directory, Fly or GitHub write was touched; nothing was pushed.
+**Fresh eyes:** I wrote none of the range. My only code is `07a7fc6`.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+
+### Acceptance-criterion coverage
+D-227 (#467):
+- Clause 1 (a republish runs `egress_problems` with the running code's bounds, `refresh.py:1408`, called at `:1790`)
+  and clause 2 (past a bound: nothing published, `EXIT_UNCHANGED`, the bound named, no refusal counted) ->
+  `tests/unit/test_release_restamp.py:173`. It sets `MODEL_RANKING_MAX_RANKED_ROWS=1` under a new release and asserts
+  `EXIT_UNCHANGED`, "past a bound" in the reason, the served bytes unchanged, `served_built_by` still the old release
+  and `consecutive_refusals == 0`; a night whose content moved is still refused at the bound. GREEN. Red under F67.
+- Clause 3 (the other content refusals stay skipped; the re-read stays) -> `test_release_restamp.py:150` (the re-read,
+  B5) and `:93,112,126` (the republish publishes on unchanged content). GREEN. F77 (below) is equivalent since D-227.
+
+D-228 (#475):
+- Clause 1, the schema -> `tests/unit/test_accepted_respellings.py:148` (17 shapes: no or past or too-far `until:`,
+  an unknown ADR, an unknown board, blank names, a self-map, two onto one, a chain, pairs not a map or empty, an extra
+  key, a board twice, `respellings` a map, an unknown top key, no `cuts`), `:153` (the ADR must name the board),
+  `:116` (a surface and a declared board both parse), `:122` (the cuts parser reads the shared file), `:202` (a
+  malformed list fails the night through `refresh()`). GREEN. Red under F65, F71, F72, F75, F76.
+- Clause 2, a pair judged as the row it was only when it is a re-spelling, on its board alone, a surface's ranked
+  models too -> `:56` (the control: 4 of 12 re-derived, all three guards fire), `:64` (accepted: no reason), `:69`
+  (one board's pairs excuse nothing on the other), `:74` (an unlisted re-derivation still counts), `:87`, `:95` (two
+  old models arriving as one excuse neither), and, after `07a7fc6`, `:268` (each shape that is not a re-spelling
+  leaves the candidate unchanged) and `:276` (every row reads as the row it was). GREEN. Red under F59-F64, F69, F73,
+  F74.
+- Clause 3, the published candidate and its digest unchanged; the record names each pair -> `:52` (every judged
+  summary keeps the candidate's digest), `:276`, and `:191-198` through `refresh()`: published, `renamed` holds
+  "Probe 00 -> PROBE.00 on board ... and 1 more", `largest_board_change` is None. GREEN. Red under F66, F68, F70.
+- Clause 4, the first entry -> `:208` parses the committed file. That it names exactly #475's 27 pairs is data, not
+  behaviour; I checked it by hand instead: all 27 old names are on the served side's recorded board
+  (`tests/fixtures/arena_media/text_to_image.json`, LMArena's 2026-10-07 snapshot, 82 rows), none of the 27 new
+  names is, and `registry.derive_identity(..., media=True)` derives a different id for each of the 27 pairs. The new
+  side (LMArena's 2026-10-26 names) needs the network and was not checked here.
+
+### Red to green
+- #467: `test_release_restamp.py:173` RED at `397c1c9` ("unchanged content, republished as this release's own build
+  (D-225)", `:185`), 12 of 12 GREEN at `6c40bcc`.
+- #475: `test_accepted_respellings.py` 30 of 30 RED at `2401eaa`, 30 of 30 GREEN at `534bc09`. At the red commit the
+  tests fail on the missing `respelled` and loader, not on the guard; the symptom itself (three guards refusing a
+  re-derived board) is held by the control `:56`, GREEN at the fix.
+
+### Fault injection
+Each fault an exact replacement in `refresh.py`, the original bytes put back at the same offset, md5
+`2fe61a43115002ff6f55342c37f18b62` before and after each. Set: the eighteen refresh, cut, re-spelling, restamp and
+board test files (561 tests at `ac7bba9`, 567 at `07a7fc6`).
+
+One revert went wrong and was repaired before any other step: F75's replacement text also matched the cuts parser's
+`known =` line, so the first harness's `replace(new, old, 1)` put the original back on the wrong line. md5 read
+`168d1aa2...`; `git diff` showed the two `known =` lines swapped; I swapped them back in place, by offset, and md5
+read `2fe61a43...` again with a clean `git status`. The harness then reverted by offset, and F75-F78 were re-run.
+
+| ID | Fault | At `ac7bba9` | After `07a7fc6` |
+|---|---|---|---|
+| F59 | `_respelled_ids`' one-to-one rule dropped | RED (`:95`) | RED |
+| F60 | `now[new] not in before` dropped | GREEN | RED (`:268[onto-a-kept-model]`) |
+| F61 | `was[old] not in after` dropped | GREEN | RED (`:268[the-old-model-stayed]`) |
+| F62 | `old not in now` dropped | GREEN | RED (`:268[the-old-name-stayed]`) |
+| F63 | `new not in was` dropped | GREEN | RED (`:268[the-new-name-was-served]`) |
+| F64 | every pair applied to every board, not the board named | RED (`:69`) | RED |
+| F65 | `_check_terms` skipped for a re-spelling (`until:`, ADR, reason) | RED (`:148` x4, `:153`, `:202`) | RED |
+| F66 | `respelled` changes the digest | RED (`:64,69,74`) | RED |
+| F67 | `_why_unchanged`'s `egress_problems` removed | RED (`test_release_restamp.py:173`) | RED |
+| F68 | `respelled` not applied in `_cycle` (the loader still read) | RED (`:191`) | RED |
+| F69 | a surface's ranked models not moved | RED (`:64,69,191`) | RED |
+| F70 | the spellings not moved | RED (`:191`) | RED |
+| F71 | a board named twice accepted | RED (`:148[a-board-twice]`) | RED |
+| F72 | the two-onto-one and chain checks dropped | RED (`:148` x2) | RED |
+| F73 | `_moved_rows` drops the unlinked rows | GREEN | RED (`:276`) |
+| F74 | `_moved_rows` collapses a model's copies | GREEN | RED (`:276`) |
+| F75 | surfaces dropped from a re-spelling's known boards | RED (92 tests) | RED |
+| F76 | the `respellings` list never read | RED (18 tests) | RED |
+| F77 | the full `_reason_to_refuse` on `same` (D-226 clause 1 reverted) | GREEN | GREEN (equivalent) |
+| F78 | the cuts parser stops calling `_check_terms` (the refactor) | RED (14 tests) | RED |
+
+F60-F63, F73 and F74 stayed green: each condition D-228 clause 2 names was held only through a guard's verdict, and
+"onto a kept model" only through the one-to-one rule beside it. The code is correct; the tests had gaps, so `07a7fc6`
+closes them rather than raising findings. F77 is equivalent since D-227: the bound check that killed it as F57 now
+runs in `_why_unchanged` before the refusal, and on `same` the digest covers every count, row and price the
+remaining content refusals compare.
+
+### Test integrity
+`git diff 50c4764..ac7bba9 -- tests/` deletes no test. `test_release_restamp.py:173` is flipped from D-226 clause 1's
+"publishes, no refusal" to D-227's "unchanged, no refusal", as D-227 clause 2 rules, and keeps its moved-night bound
+assertion. `test_accepted_cuts.py:177` adds one line: the cut fixture also points the re-spelling loader at its file.
+
+### Night-1027 delta BLOCKING
+None.
+
+### Night-1027 delta MINOR
+- **M7** `data/accepted-cuts.yaml:21` (`until: 2026-11-10`), read by `src/app/workflows/refresh.py:1784` through
+  `load_accepted_respellings()`'s default path -- from 2026-11-11 the committed entry fails `_check_terms`
+  (`refresh.py:356-359`; `parse_accepted_respellings(raw, today=2026-11-11)` raises "text_to_image's cut has no
+  `until:` date, or it is past"). For the hosted night that is D-228's design: the refresh fails until the entry goes.
+  But nothing tracks retiring it after the first published night (no owner-actions row, watchlist entry or issue),
+  and the suite reads the same committed file against today's date: F75, which raises the same `AcceptedCutError`,
+  turned 92 tests red in the refresh set alone (`test_floor_served.py`, `test_refresh*.py` and the rest, every test
+  that reaches `refresh()` with the default loader path). So on 2026-11-11 `make test` and CI go red on every branch,
+  whatever it changes. Remedy: an issue or owner-actions row to remove the entry once a hosted night has published
+  the new names (D-228 clause 4 says it is inert from then), and point the suite's default loader paths at a fixture
+  (a conftest fixture, as `_cuts_on_disk` does) so no test depends on the committed file's dates except
+  `test_the_committed_file_parses`. Fix before 2026-11-10; not a deploy blocker.
+- M1, M2, M3 (#456), M4 (#457) and M6 (#466) are unchanged by this range.
+
+### Night-1027 delta suite result
+- `make test` in this seat at `ac7bba9`: 4700 passed, 37 skipped, offline sandbox, artifact required; coverage
+  93.10%; `refresh.py` 97% (96.69% at `9ef6448`), so the touched module's coverage did not fall. coverage-floor PASS
+  (54 modules), skip budget 96 of 96.
+- `07a7fc6` passed the commit-msg hook's `make check-fast` (lint, typecheck, records with conformance, swift-test,
+  client-decls, test: 4706 passed, 37 skipped, coverage 93.10%). `ruff check` on the changed test is clean.
+- **Mutation kill-rate (advisory):** no runner is wired. F59-F78: 13 of 20 killed on the range's own tests, 6
+  survived and 1 equivalent; 19 of 20 killed after `07a7fc6`, the equivalent F77 left.

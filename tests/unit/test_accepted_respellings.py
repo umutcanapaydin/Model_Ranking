@@ -21,7 +21,7 @@ from app.workflows import refresh
 from app.workflows.refresh import degradations, fingerprint_of, upward_anomalies
 
 from .test_accepted_cuts import ACCEPTED_CUTS_FILE
-from .test_refresh_board_ids import SLICE, _boards
+from .test_refresh_board_ids import SLICE, Change, _boards
 
 OWN = "coding"
 TODAY = dt.date(2026, 10, 27)
@@ -209,3 +209,80 @@ def test_the_committed_file_parses() -> None:
     """The file the night reads is the schema, whatever it holds today."""
     refresh.load_accepted_cuts(ACCEPTED_CUTS_FILE)
     refresh.load_accepted_respellings(ACCEPTED_CUTS_FILE)
+
+
+# --- D-228 clause 2, shape by shape (the release Tester's delta round 2026-10-27b). A pair that is not a
+# re-spelling changes NOTHING `respelled` returns; one that is reads every row as the row it was. Each shape
+# below fails exactly one of `_respelled_ids`' conditions, so each condition is held on its own: the
+# guard-level tests above reach "onto a kept model" only through the one-to-one rule, and never reach the old
+# model kept, the old name kept, or a new name already served.
+
+def _rows(sql: str, *values: object) -> Change:
+    return lambda conn: conn.execute(sql, values)
+
+
+def _then(*changes: Change) -> Change:
+    def change(conn: sqlite3.Connection) -> None:
+        for step in changes:
+            step(conn)
+    return change
+
+
+def _add(model: str, raw: str, harness: str = "arena-crowd") -> Change:
+    """One more row on `SLICE`, `raw` linked to `model`."""
+    return _rows("INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, source_url,"
+                 " observed_at) VALUES (?, ?, ?, ?, 'elo', 1300.0, ?, 'fixture://x', 't')",
+                 model, raw, SLICE.source, SLICE.benchmark, harness)
+
+
+def _new_model(model: str) -> Change:
+    return _then(_rows("INSERT INTO models (id, display, vendor) VALUES (?, ?, 'Probe')", model, model.upper()),
+                 _rows("INSERT INTO px_median (model_id, in_m, out_m) VALUES (?, 2.0, 6.0)", model))
+
+
+_RE_DERIVED = _re_derive(0)  # `Probe 00` (`probe-00`) -> `PROBE.00` (`probe.00`), on both boards
+_BOTH = {OWN: _pairs(0), SLICE.source: _pairs(0)}
+
+#: shape -> (the served board's change, the candidate's change, the pairs accepted).
+_NOT_A_RE_SPELLING: dict[str, tuple[Change | None, Change, dict[str, dict[str, str]]]] = {
+    # The old model stayed on the board (`Probe 01` now links to it): `was[old] not in after`.
+    "the-old-model-stayed": (None, _then(_RE_DERIVED, _rows(  # type: ignore[arg-type]
+        "UPDATE scores SET model_id = 'probe-00' WHERE raw_name = 'Probe 01'")), _BOTH),
+    # The new name arrived under a model the board already had: `now[new] not in before`.
+    "onto-a-kept-model": (None, _then(_RE_DERIVED, _rows(  # type: ignore[arg-type]
+        "UPDATE scores SET model_id = 'probe-11' WHERE raw_name = 'PROBE.00'")), _BOTH),
+    # The old NAME is still on the board, under another new model: `old not in now`.
+    "the-old-name-stayed": (None, _then(_RE_DERIVED, _new_model("probe.99"), _rows(  # type: ignore[arg-type]
+        "UPDATE scores SET raw_name = 'Probe 00', model_id = 'probe.99' WHERE raw_name = 'Probe 01'")), _BOTH),
+    # The new name was already on the served board (a second row of `probe-11`): `new not in was`.
+    "the-new-name-was-served": (_add("probe-11", "PROBE.00"),
+                                _then(_RE_DERIVED, _add("probe-11", "Probe 11b")),  # type: ignore[arg-type]
+                                {SLICE.source: _pairs(0)}),
+    # The night after the publish: the served board holds the new name, so the pair is inert (D-228,
+    # "Mitigation if violated").
+    "after-the-publish": (_RE_DERIVED, _RE_DERIVED, _BOTH),  # type: ignore[dict-item]
+}
+
+
+@pytest.mark.parametrize("shape", sorted(_NOT_A_RE_SPELLING))
+def test_a_pair_that_is_not_a_re_spelling_changes_nothing(tmp_path: Path, shape: str) -> None:
+    served, change, accepted = _NOT_A_RE_SPELLING[shape]
+    live = fingerprint_of(_boards(tmp_path / "live.db", served))
+    candidate = fingerprint_of(_boards(tmp_path / "candidate.db", change))
+    assert live is not None and candidate is not None
+    assert refresh.respelled(candidate, live, accepted) == candidate, f"{shape} moved the candidate"
+
+
+def test_a_re_spelling_reads_every_row_as_the_row_it_was(tmp_path: Path) -> None:
+    """The shapes' control: a re-spelled model with two rows on a board, beside a row linked to no model,
+    reads as the board it was, row for row, while the digest stays the candidate's."""
+    both_nights = _then(_add("probe-00", "Probe 00", harness="a-second-harness"),
+                        _rows("UPDATE scores SET model_id = NULL WHERE raw_name = 'Probe 05' AND source = ?",
+                              SLICE.source))
+    live = fingerprint_of(_boards(tmp_path / "live.db", both_nights))
+    candidate = fingerprint_of(_boards(tmp_path / "candidate.db", _then(both_nights, _RE_DERIVED)))  # type: ignore[arg-type]
+    assert live is not None and candidate is not None
+    judged = refresh.respelled(candidate, live, _BOTH)
+    assert candidate.boards != live.boards, "the control re-derives no id"
+    assert judged.board == live.board and judged.boards == live.boards and judged.models == live.models
+    assert judged.digest == candidate.digest
