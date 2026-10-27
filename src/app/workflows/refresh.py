@@ -305,12 +305,7 @@ def parse_accepted_cuts(
 ) -> dict[str, frozenset[str]]:
     """Each declared board's accepted cut: the raw names it may lose. Anything else in the file raises,
     a cut past its `until:` date included (D-221 clause 3), and one whose ADR the log does not hold."""
-    try:
-        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
-    except yaml.YAMLError as exc:
-        raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
-    if not isinstance(doc, dict) or set(doc) != {"cuts"} or not isinstance(doc["cuts"], list):
-        raise AcceptedCutError("accepted cuts: the file is one key, `cuts`, a list")
+    doc = _accepted_doc(raw)
     known = {board.source for board in declared_boards.uncovered()}
     cuts: dict[str, frozenset[str]] = {}
     for entry in doc["cuts"]:
@@ -323,6 +318,18 @@ def parse_accepted_cuts(
     return cuts
 
 
+def _accepted_doc(raw: str) -> dict[str, list[object]]:
+    """The file: `cuts`, a list, and beside it, optionally, `respellings`, a list (D-228 clause 1)."""
+    try:
+        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
+    except yaml.YAMLError as exc:
+        raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
+    if (not isinstance(doc, dict) or set(doc) not in ({"cuts"}, {"cuts", "respellings"})
+            or not all(isinstance(entries, list) for entries in doc.values())):
+        raise AcceptedCutError("accepted cuts: the file is `cuts`, a list, and optionally `respellings`, a list")
+    return doc
+
+
 def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str) -> tuple[str, frozenset[str]]:
     """One cut, its every field checked; the board and the names it may lose."""
     if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
@@ -330,6 +337,17 @@ def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str)
     board, decision, reason, until, rows = (entry[key] for key in ("board", "decision", "reason", "until", "rows"))
     if board not in known:
         raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board")
+    _check_terms(board, decision, reason, until, today, decisions)
+    # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
+    # excuse a lost unlinked row of any such name.
+    if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and spelling_key(r) for r in rows):
+        raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names, each with a letter or digit")
+    return board, frozenset(rows)
+
+
+def _check_terms(board: str, decision: object, reason: object, until: object, today: dt.date, decisions: str) -> None:
+    """What a cut and a re-spelling both owe: an ADR the log holds that names the board, a reason, and an
+    `until:` no more than MAX_CUT_DAYS out (D-221, D-223)."""
     if not isinstance(decision, str) or not re.fullmatch(r"D-\d{3,}", decision):
         raise AcceptedCutError(f"accepted cuts: {board}'s decision is not an ADR id")
     _check_cut_adr(board, decision, decisions)
@@ -339,11 +357,116 @@ def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str)
     if expiry is None or not today <= expiry <= today + dt.timedelta(days=MAX_CUT_DAYS):
         raise AcceptedCutError(f"accepted cuts: {board}'s cut has no `until:` date, or it is past, or more than "
                                f"{MAX_CUT_DAYS} days out ({until}; D-223 clause 2)")
-    # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
-    # excuse a lost unlinked row of any such name.
-    if not isinstance(rows, list) or not rows or not all(isinstance(r, str) and spelling_key(r) for r in rows):
-        raise AcceptedCutError(f"accepted cuts: {board}'s rows are not a list of names, each with a letter or digit")
-    return board, frozenset(rows)
+
+
+#: D-228: a re-spelling the owner accepted names its board and each old -> new pair, under a cut's terms.
+_RESPELLING_KEYS = {"board", "decision", "reason", "until", "pairs"}
+
+
+def parse_accepted_respellings(
+    raw: str, *, today: dt.date | None = None, decisions: str | None = None
+) -> dict[str, dict[str, str]]:
+    """Each board's accepted re-spelling: old raw name -> new raw name (D-228). A surface names its own board,
+    a declared board its source. Anything that is not the schema raises, as a cut does."""
+    doc = _accepted_doc(raw)
+    known = set(CATEGORIES) | {board.source for board in declared_boards.uncovered()}
+    accepted: dict[str, dict[str, str]] = {}
+    for entry in doc.get("respellings", []):
+        if decisions is None:
+            decisions = _decision_log()
+        board, pairs = _checked_respelling(entry, known, today or dt.datetime.now(tz=dt.UTC).date(), decisions)
+        if board in accepted:
+            raise AcceptedCutError(f"accepted cuts: {board!r}'s re-spelling is named twice")
+        accepted[board] = pairs
+    return accepted
+
+
+def _checked_respelling(entry: object, known: set[str], today: dt.date, decisions: str) -> tuple[str, dict[str, str]]:
+    """One re-spelling, its every field checked: names with a letter or digit, no name kept, no two old names
+    onto one new one, no name both old and new (D-228 clause 1)."""
+    if not isinstance(entry, dict) or set(entry) != _RESPELLING_KEYS:
+        raise AcceptedCutError(f"accepted cuts: each re-spelling has exactly {sorted(_RESPELLING_KEYS)}")
+    board, decision, reason, until, pairs = (entry[key] for key in ("board", "decision", "reason", "until", "pairs"))
+    if board not in known:
+        raise AcceptedCutError(f"accepted cuts: {board!r} is neither a surface nor a declared board")
+    _check_terms(board, decision, reason, until, today, decisions)
+    if (not isinstance(pairs, dict) or not pairs
+            or not all(isinstance(old, str) and isinstance(new, str) and spelling_key(old) and spelling_key(new)
+                       and old != new for old, new in pairs.items())):
+        raise AcceptedCutError(f"accepted cuts: {board}'s pairs are not a map of old names to new ones, each "
+                               "with a letter or digit")
+    if len(set(pairs.values())) != len(pairs) or set(pairs) & set(pairs.values()):
+        raise AcceptedCutError(f"accepted cuts: {board}'s pairs map two names onto one, or chain one onto another")
+    return board, dict(pairs)
+
+
+def load_accepted_respellings(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, dict[str, str]]:
+    """The committed re-spellings (D-228). A missing file accepts none; an unreadable one raises."""
+    if not path.exists():
+        return {}
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise AcceptedCutError(f"accepted cuts: {path} cannot be read: {exc}") from exc
+    return parse_accepted_respellings(raw)
+
+
+def respelled(
+    candidate: ServingSummary, live: ServingSummary | None, accepted: Mapping[str, Mapping[str, str]]
+) -> ServingSummary:
+    """The candidate as the guards judge it under the re-spellings the owner accepted (D-228 clause 2).
+
+    On each named board, a pair moves the candidate's model back to the served one only where it is a
+    re-spelling: the old name's model left that board, the new name's model is one that board never had, and
+    one model maps to one. The candidate's rows then read as the rows they were, on that board alone, and on a
+    surface's own board in its ranked models too. The digest is the candidate's: what is published is
+    unchanged. A first artifact has nothing to be re-spelled from."""
+    if live is None:
+        return candidate
+    board, boards, models, spellings = dict(candidate.board), dict(candidate.boards), dict(candidate.models), dict(
+        candidate.spellings)
+    for name, pairs in sorted(accepted.items()):
+        for subject, rows_by, ranked in ((OWN_BOARD, board, models), (DECLARED_BOARD, boards, None)):
+            key = subject.format(name=name)
+            if name not in rows_by or key not in live.spellings:
+                continue
+            ids = _respelled_ids(live.spellings[key], spellings.get(key, {}), pairs)
+            if not ids:
+                continue
+            rows_by[name] = _moved_rows(rows_by[name], ids)
+            spellings[key] = _moved_spellings(spellings.get(key, {}), ids)
+            if ranked is not None and name in ranked:
+                ranked[name] = frozenset(ids.get(model, model) for model in ranked[name])
+    return dataclasses.replace(candidate, board=board, boards=boards, models=models, spellings=spellings)
+
+
+def _respelled_ids(before: Spellings, after: Spellings, pairs: Mapping[str, str]) -> dict[str, str]:
+    """The candidate's model -> the served one, for each pair that is a re-spelling on this board."""
+    was = {raw: model for model, names in before.items() for raw in names}
+    now = {raw: model for model, names in after.items() for raw in names}
+    found: list[tuple[str, str]] = [
+        (now[new], was[old]) for old, new in pairs.items()
+        if old in was and new in now and old not in now and new not in was
+        and now[new] not in before and was[old] not in after]
+    # One model to one: a candidate model claimed by two served ones, or the reverse, is not a re-spelling.
+    targets = Counter(model for _, model in set(found))
+    sources = Counter(model for model, _ in set(found))
+    return {new: old for new, old in set(found) if sources[new] == 1 and targets[old] == 1}
+
+
+def _moved_rows(rows: frozenset[BoardRow], ids: Mapping[str, str]) -> frozenset[BoardRow]:
+    """A board's rows with each re-spelled model read as the served one, its rows numbered as `LinkedRow`'s."""
+    counts = Counter(ids.get(row.model, row.model) for row in rows if isinstance(row, LinkedRow))
+    linked = {LinkedRow(model, copy) for model, count in counts.items() for copy in range(count)}
+    return frozenset({row for row in rows if isinstance(row, UnlinkedRow)} | linked)
+
+
+def _moved_spellings(spellings: Spellings, ids: Mapping[str, str]) -> Spellings:
+    moved: dict[str, frozenset[str]] = {}
+    for model, names in spellings.items():
+        target = ids.get(model, model)
+        moved[target] = moved.get(target, frozenset()) | names
+    return moved
 
 
 #: D-223 clause 2 (#429): a cut is a short exception; renewing it past this takes a new ADR.
@@ -1638,6 +1761,8 @@ def _cycle(
                 surfaces=0,
             )
             return record(outcome, EXIT_FAILED)
+        # D-228 (#475): a re-spelling the owner accepted is judged as the rows it was. The digest stays.
+        fresh = respelled(fresh, live, load_accepted_respellings())
 
         baseline = _served_without(target, set(expired)) if expired and live else live
         renamed = tuple(display_changes(live, fresh) + board_respellings(live, fresh)) if live is not None else ()

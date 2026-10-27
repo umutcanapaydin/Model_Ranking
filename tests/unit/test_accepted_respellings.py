@@ -95,13 +95,13 @@ def test_a_pair_onto_a_model_the_board_kept_is_not_a_re_spelling(tmp_path: Path)
 def test_two_old_names_onto_one_new_model_excuse_neither(tmp_path: Path) -> None:
     """A pair maps one model to one model; two models arriving as one is not a re-spelling."""
     def merged(conn: sqlite3.Connection) -> None:
-        _re_derive(0, 1, 2, 3)(conn)  # type: ignore[operator]
-        conn.execute("UPDATE scores SET model_id = 'probe.00' WHERE model_id = 'probe.01'")
+        _re_derive(0, 1, 2, 3, 4, 5)(conn)  # type: ignore[operator]
+        for odd in (1, 3, 5):
+            conn.execute("UPDATE scores SET model_id = ? WHERE model_id = ?", (f"probe.{odd - 1:02d}", f"probe.{odd:02d}"))
 
-    accepted = {OWN: _pairs(0, 1, 2, 3), SLICE.source: _pairs(0, 1, 2, 3)}
-    reasons = _judged(tmp_path, merged, accepted)
-    assert any(r.startswith(f"board {SLICE.source} would lose 2 of 12") for r in reasons) or any(
-        f"{OWN} would lose" in r or "would lose 2 of 12" in r for r in reasons), reasons
+    pairs = _pairs(0, 1, 2, 3, 4, 5)
+    reasons = _judged(tmp_path, merged, {OWN: pairs, SLICE.source: pairs})
+    assert any(r.startswith(f"board {SLICE.source} would lose 6 of 12") for r in reasons), reasons
 
 
 # --- The file: `respellings` beside `cuts` in `data/accepted-cuts.yaml`, under a cut's rules (D-221, D-223).
