@@ -3,7 +3,7 @@
 Mode: light
 Started: 2026-10-28
 Ended: open
-Integration branch: none · PR: none
+Integration branch: `integration/run-night-1028` · PR: none
 Plan PR: #482
 Rulings: D-229
 
@@ -11,7 +11,7 @@ Rulings: D-229
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | edaf1ce | issues | running |
 
 ## Waves
 
