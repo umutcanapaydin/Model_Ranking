@@ -1482,6 +1482,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
 - Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
 
+## 2026-10-28 · fix/issue-466-status-object — a previous refresh record that is not an object is read as none
+
+- `write_status` read the previous `.refresh.json` with `json.loads` and called `.get` on whatever came back; `[]`, a string, a number or `null` crashed every cycle before the record was rewritten, so the cycle never recovered by itself. Valid JSON that is not an object is now no previous record, as an unreadable file already was (`refresh.py`, `write_status`), held by `test_a_previous_record_that_is_not_an_object_is_read_as_none`, red first.
+- Lesson: `json.loads` returns whatever the file holds; a reader that suppresses the parse error owes the same suppression to the wrong shape.
 ## 2026-10-28 · fix/issue-463-bracket-bound — the bracket reading's linearity test measures a ratio, not the machine
 
 - `test_the_bracket_reading_is_linear_on_a_long_whitespace_run` bounded one parse at 0.25 s and failed under `check-fast`'s parallel load; during run night-1028 the machine's load average passed 100 and it refused a push. It now times the reading at 5k and 20k spaces, best of three each, and asserts the larger under `max(8 × smaller, 0.1 s)`.

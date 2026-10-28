@@ -523,3 +523,16 @@ def test_the_expiry_baseline_drops_every_expired_source_at_once(tmp_path: Path) 
     expected = _expected_without(live, tmp_path, expired, ("scores", "pricing", "access"))
     assert _served_without(live, expired).digest == expected
     assert _served_without(live, {next(iter(_BOARD))}).digest != expected
+
+
+@pytest.mark.parametrize("previous", ["[]", '"x"', "3", "null"])
+def test_a_previous_record_that_is_not_an_object_is_read_as_none(tmp_path: Path, previous: str) -> None:
+    """#466: a `.refresh.json` that is valid JSON but not an object crashed every cycle on `.get`, before
+    the record was rewritten, so the cycle never recovered. It is read as no previous record, as an
+    unreadable file already is, and this cycle's record is written."""
+    target = tmp_path / "advisor.db"
+    status_path(target).write_text(previous, encoding="utf-8")
+    outcome = RefreshOutcome(published=True, reason="r", live_fingerprint=None,
+                             candidate_fingerprint="", surfaces=1, arrived=("arena",))
+    write_status(target, outcome, 0, at=dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp())
+    assert _record(target)["sources_last_ok"]["arena"] == "2026-09-23T00:00:00+00:00"
