@@ -321,7 +321,7 @@ def parse_accepted_cuts(
 def _accepted_doc(raw: str) -> dict[str, list[object]]:
     """The file: `cuts`, a list, and beside it, optionally, `respellings`, a list (D-228 clause 1)."""
     try:
-        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
+        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)", unique_keys=True)
     except yaml.YAMLError as exc:
         raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
     if (not isinstance(doc, dict) or set(doc) not in ({"cuts"}, {"cuts", "respellings"})
@@ -441,13 +441,18 @@ def respelled(
 
 
 def _respelled_ids(before: Spellings, after: Spellings, pairs: Mapping[str, str]) -> dict[str, str]:
-    """The candidate's model -> the served one, for each pair that is a re-spelling on this board."""
+    """The candidate's model -> the served one, for each pair that is a re-spelling on this board.
+
+    #478: a pair names rows, not models. A model moves only when the pairs list every name it had on the
+    served board, and its new model's names are exactly theirs."""
     was = {raw: model for model, names in before.items() for raw in names}
     now = {raw: model for model, names in after.items() for raw in names}
     found: list[tuple[str, str]] = [
         (now[new], was[old]) for old, new in pairs.items()
         if old in was and new in now and old not in now and new not in was
-        and now[new] not in before and was[old] not in after]
+        and now[new] not in before and was[old] not in after
+        and before[was[old]] <= pairs.keys()
+        and after[now[new]] == {pairs[name] for name in before[was[old]]}]
     # One model to one: a candidate model claimed by two served ones, or the reverse, is not a re-spelling.
     targets = Counter(model for _, model in set(found))
     sources = Counter(model for model, _ in set(found))
