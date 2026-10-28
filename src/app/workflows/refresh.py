@@ -1169,7 +1169,9 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     # saw `published` and never learned a refusal had happened.
     previous: dict[str, object] = {}
     with contextlib.suppress(OSError, ValueError):
-        previous = json.loads(path.read_text(encoding="utf-8"))
+        read = json.loads(path.read_text(encoding="utf-8"))
+        # #466: valid JSON that is not an object is no previous record, as an unreadable file is.
+        previous = read if isinstance(read, dict) else {}
 
     refused_before = previous.get("consecutive_refusals", 0)
     carried = int(refused_before) if isinstance(refused_before, int) else 0

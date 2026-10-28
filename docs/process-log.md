@@ -1481,3 +1481,8 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner's build 6 said "Apple Intelligence off" and was right; the reader had no way to learn how to turn it on. The caption under the question box, and the help line under an answer, now open a sheet for the state the platform reports: the steps (Settings → Apple Intelligence & Siri), and a line that the app still answers without it. Each state has its own guide in English and Turkish (`OnDeviceGuide`, `FrontDoor.swift`), held by `OnDeviceGuideTests`.
 - D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
 - Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
+
+## 2026-10-28 · fix/issue-466-status-object — a previous refresh record that is not an object is read as none
+
+- `write_status` read the previous `.refresh.json` with `json.loads` and called `.get` on whatever came back; `[]`, a string, a number or `null` crashed every cycle before the record was rewritten, so the cycle never recovered by itself. Valid JSON that is not an object is now no previous record, as an unreadable file already was (`refresh.py`, `write_status`), held by `test_a_previous_record_that_is_not_an_object_is_read_as_none`, red first.
+- Lesson: `json.loads` returns whatever the file holds; a reader that suppresses the parse error owes the same suppression to the wrong shape.
