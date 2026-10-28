@@ -3,7 +3,7 @@
 Mode: light
 Started: 2026-10-28
 Ended: open
-Integration branch: `integration/run-night-1028` · PR: none
+Integration branch: `integration/run-night-1028` · PR: #483
 Plan PR: #482
 Rulings: D-229
 
@@ -17,8 +17,8 @@ Rulings: D-229
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-481 | fix/issue-481-intelligence-guide | none | none | queued |
-| issue-477 | fix/issue-477-respelling-expiry | none | none | queued |
+| issue-481 | fix/issue-481-intelligence-guide | #485 | none | stacked |
+| issue-477 | fix/issue-477-respelling-expiry | none | none | running |
 | issue-478 | fix/issue-477-respelling-expiry | none | none | queued |
 | issue-479 | fix/issue-477-respelling-expiry | none | none | queued |
 | issue-466 | fix/issue-466-status-object | none | none | queued |
