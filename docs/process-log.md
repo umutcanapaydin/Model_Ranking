@@ -1486,3 +1486,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 
 - `write_status` read the previous `.refresh.json` with `json.loads` and called `.get` on whatever came back; `[]`, a string, a number or `null` crashed every cycle before the record was rewritten, so the cycle never recovered by itself. Valid JSON that is not an object is now no previous record, as an unreadable file already was (`refresh.py`, `write_status`), held by `test_a_previous_record_that_is_not_an_object_is_read_as_none`, red first.
 - Lesson: `json.loads` returns whatever the file holds; a reader that suppresses the parse error owes the same suppression to the wrong shape.
+## 2026-10-28 · fix/issue-463-bracket-bound — the bracket reading's linearity test measures a ratio, not the machine
+
+- `test_the_bracket_reading_is_linear_on_a_long_whitespace_run` bounded one parse at 0.25 s and failed under `check-fast`'s parallel load; during run night-1028 the machine's load average passed 100 and it refused a push. It now times the reading at 5k and 20k spaces, best of three each, and asserts the larger under `max(8 × smaller, 0.1 s)`.
+- The fault still goes red: with the #417 `(?<!\s)` removed from both regexes the test failed with 5k: 0.0995 s, 20k: 1.5501 s (a ratio of 15.6); the regexes were restored byte for byte from a copy.
+- There is no red commit: the change is the test itself, and its proof is the fault above.
+- The first ratio form (best of three, 0.1 s floor) still failed once in a concurrent `check-fast`: 20k spaces measured 0.146 s against 0.016 s alone. The measurements are now interleaved, best of five, with a 0.5 s floor; the quadratic reading still fails it at 1.55 s.
+- Lesson: a complexity claim is a ratio between two sizes; a wall-clock bound is a claim about the machine.
