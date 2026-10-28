@@ -47,7 +47,7 @@ from typing import NamedTuple, TypeVar
 import yaml
 
 from app.clients import epoch_bundle
-from app.clients.protocols import cycle_budget
+from app.clients.protocols import cycle_budget, cycle_ends
 from app.workflows import access
 from app.workflows import boards as declared_boards
 from app.workflows.build import CARRY_TABLES
@@ -129,6 +129,7 @@ class _Limits:
     def __init__(self, seconds: float, poll: float) -> None:
         self._previous = signal.signal(signal.SIGALRM, signal.SIG_DFL)
         signal.setitimer(signal.ITIMER_REAL, seconds)
+        _CycleClock.ends = time.monotonic() + seconds
         named = os.environ.get(ENGINE_PID, "")
         self._parent = os.getppid()
         if named.isdigit() and self._parent == 1 and int(named) != 1:
@@ -147,6 +148,7 @@ class _Limits:
     def close(self) -> None:
         self._done.set()
         signal.setitimer(signal.ITIMER_REAL, 0)
+        _CycleClock.ends = None
         if self._previous is not None:
             signal.signal(signal.SIGALRM, self._previous)
 
@@ -1603,12 +1605,33 @@ def _discard(scratch: Path | None) -> None:
         shutil.rmtree(scratch, ignore_errors=True)
 
 
+class _CycleClock:
+    """When this process's cycle alarm fires (monotonic), set by `_Limits`, or None outside `main`."""
+
+    ends: float | None = None
+
+
+def _cycle_deadline() -> float | None:
+    return _CycleClock.ends
+
+
 def build_in_child(argv: list[str], *, limit: float = BUILD_LIMIT_SECONDS,
                    command: Sequence[str] | None = None) -> int:
     """Run the build as a child of this cycle and return its exit code, or `EXIT_BUILD_KILLED` once it passes
     `limit` (#426). The child stays in the cycle's process group, so the engine's kill of the group takes it
-    too; its stdout goes to this process's stderr, since this cycle's stdout carries only its outcome."""
-    argv_full = [*(command or [sys.executable, "-B", "-m", "app.workflows.build"]), *argv]
+    too; its stdout goes to this process's stderr, since this cycle's stdout carries only its outcome.
+
+    #453: the child is started with `-B -P -m`, as every other child is, so a planted `app/` in the working
+    directory never runs. The cycle's clocks reach it: it is killed two minutes before the cycle's own alarm,
+    whichever comes first, so the cycle always outlives it and writes why; and it is handed the seconds left
+    of the fetch budget (`--fetch-seconds`), which its own process would otherwise not know."""
+    now = time.monotonic()
+    deadline = _cycle_deadline()
+    if deadline is not None:
+        limit = min(limit, deadline - (CYCLE_LIMIT_SECONDS - BUILD_LIMIT_SECONDS) - now)
+    fetch_ends = cycle_ends()
+    budget = ["--fetch-seconds", f"{max(0.0, fetch_ends - now):.1f}"] if fetch_ends is not None else []
+    argv_full = [*(command or [sys.executable, "-B", "-P", "-m", "app.workflows.build"]), *argv, *budget]
     out = sys.stderr.fileno() if _has_fileno(sys.stderr) else None
     proc = subprocess.Popen(argv_full, stdout=out)  # noqa: S603 -- our own interpreter and module, no shell
     try:
@@ -1643,6 +1666,8 @@ def _read_progress(path: Path) -> dict[str, float | None]:
         try:
             at = float(stamp)
         except ValueError:
+            continue
+        if not math.isfinite(at):  # #453 R2: `float()` reads `nan` and `inf`
             continue
         if event == "start":
             started[name] = at

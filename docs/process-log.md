@@ -1493,3 +1493,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - There is no red commit: the change is the test itself, and its proof is the fault above.
 - The first ratio form (best of three, 0.1 s floor) still failed once in a concurrent `check-fast`: 20k spaces measured 0.146 s against 0.016 s alone. The measurements are now interleaved, best of five, with a 0.5 s floor; the quadratic reading still fails it at 1.55 s.
 - Lesson: a complexity claim is a ratio between two sizes; a wall-clock bound is a claim about the machine.
+## 2026-10-28 · fix/issue-453-build-child — the build child runs with -P, inside the cycle's clocks
+
+- M1: `build_in_child` started `python -B -m app.workflows.build`; every other child uses `-B -P -m`, so a planted `app/` in the working directory could run. It now carries `-P`, pinned by a test that reads the argv.
+- M2: the child's 25 minutes counted from its own start, so a cycle that spent minutes before the build let the parent's 27-minute alarm fire first: no record, the child orphaned. `_Limits` now records when the cycle's alarm fires, and the child is killed two minutes before it, whichever comes first. The 20-minute fetch budget never reached the child (its `cycle_ends()` was `None`); the cycle hands it the seconds left as `--fetch-seconds`, and the build runs its fetches inside `cycle_budget`.
+- R2: the progress reader skips a `nan` or `inf` time. R1 (`NSAllowsLocalNetworking` in every iOS build) is split out to #488: making the key Debug-only means a preprocessed Info.plist, which needs both builds checked.
+- Lesson: a limit counted from a child's own start is not the parent's limit; hand the child the parent's deadline, not a duration.
