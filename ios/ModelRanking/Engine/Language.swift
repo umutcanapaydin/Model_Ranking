@@ -679,6 +679,10 @@ extension UIText {
         }
     }
 
+    static func openSettings(_ language: Language) -> String { "" }
+
+    static func intelligenceGuideDone(_ language: Language) -> String { "" }
+
     /// D-188 clause 5 (M20-W4): the primary board's own answer, and back to the combined list.
     static func primaryOnItsOwn(_ language: Language) -> String {
         language == .turkish ? "Yalnızca ana tablonun cevabını göster" : "Show the primary board's own answer"

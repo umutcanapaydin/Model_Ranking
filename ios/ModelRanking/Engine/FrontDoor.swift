@@ -218,6 +218,21 @@ public enum OnDeviceState: Equatable {
     }
 }
 
+// MARK: - #481: what the reader can do about it, said as steps
+
+public struct OnDeviceGuide: Equatable {
+    public let title: String
+    public let steps: [String]
+    public let opensSettings: Bool
+    public let stillWorks: String
+}
+
+extension OnDeviceState {
+    public var hasGuide: Bool { false }
+
+    public func guide(_ language: Language) -> OnDeviceGuide? { nil }
+}
+
 // MARK: - The gap register (M14-W3, REQ-GAP-001/002, D-142 §3)
 //
 // Every question the catalogue could not answer is a person telling us which surface to build next.

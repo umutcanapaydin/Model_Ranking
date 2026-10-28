@@ -884,3 +884,68 @@ final class GapRegisterHardeningTests: OfflineTestCase {
         }
     }
 }
+
+// MARK: - #481: what the reader can do about it, as steps
+
+final class OnDeviceGuideTests: OfflineTestCase {
+    private let degraded: [OnDeviceState] = [.notEligible, .turnedOff, .downloading, .unavailable]
+
+    func testThereIsNoGuideWhenTheModelIsAvailable() {
+        XCTAssertNil(OnDeviceState.available.guide(.english))
+        XCTAssertNil(OnDeviceState.available.guide(.turkish))
+    }
+
+    func testEveryDegradedStateHasItsOwnGuideInBothLanguages() throws {
+        for language in [Language.english, .turkish] {
+            var titles = Set<String>()
+            for state in degraded {
+                let guide = try XCTUnwrap(state.guide(language), "\(state), \(language)")
+                XCTAssertFalse(guide.title.isEmpty, "\(state)")
+                XCTAssertFalse(guide.steps.isEmpty, "\(state): the reader is given nothing to do")
+                XCTAssertFalse(guide.steps.contains { $0.trimmingCharacters(in: .whitespaces).isEmpty }, "\(state)")
+                XCTAssertFalse(guide.stillWorks.isEmpty, "\(state): the reader is not told the app still answers")
+                titles.insert(guide.title)
+            }
+            XCTAssertEqual(titles.count, degraded.count, "two states share one guide in \(language)")
+        }
+        for state in degraded {
+            let english = try XCTUnwrap(state.guide(.english))
+            let turkish = try XCTUnwrap(state.guide(.turkish))
+            XCTAssertNotEqual(english.title, turkish.title, "\(state)")
+            XCTAssertEqual(english.steps.count, turkish.steps.count, "\(state): one language skips a step")
+            XCTAssertNotEqual(english.steps, turkish.steps, "\(state)")
+        }
+    }
+
+    /// The owner's case: Apple Intelligence was off on a phone that runs it. The guide names the
+    /// Settings page in the reader's language and offers the button that opens Settings.
+    func testTheTurnedOffGuideWalksToTheSettingsPageAndOpensSettings() throws {
+        let english = try XCTUnwrap(OnDeviceState.turnedOff.guide(.english))
+        let turkish = try XCTUnwrap(OnDeviceState.turnedOff.guide(.turkish))
+        XCTAssertTrue(english.opensSettings)
+        XCTAssertTrue(turkish.opensSettings)
+        XCTAssertTrue(english.steps.contains { $0.contains("Apple Intelligence & Siri") }, "\(english.steps)")
+        XCTAssertTrue(turkish.steps.contains { $0.contains("Apple Intelligence ve Siri") }, "\(turkish.steps)")
+    }
+
+    /// A phone that can never run it is not sent to Settings to look for a switch that is not there.
+    func testAPhoneThatCannotRunItIsNotSentToSettings() throws {
+        XCTAssertFalse(try XCTUnwrap(OnDeviceState.notEligible.guide(.english)).opensSettings)
+        XCTAssertFalse(try XCTUnwrap(OnDeviceState.notEligible.guide(.turkish)).opensSettings)
+    }
+
+    /// The caption is what the reader taps, so it is tappable exactly when there is a guide behind it.
+    func testTheCaptionOpensAGuideExactlyWhenTheModelIsNotAvailable() {
+        XCTAssertFalse(OnDeviceState.available.hasGuide)
+        for state in degraded {
+            XCTAssertTrue(state.hasGuide, "\(state)")
+        }
+    }
+
+    func testTheSettingsButtonIsLabelledInBothLanguages() {
+        XCTAssertEqual(UIText.openSettings(.english), "Open Settings")
+        XCTAssertEqual(UIText.openSettings(.turkish), "Ayarları Aç")
+        XCTAssertEqual(UIText.intelligenceGuideDone(.english), "Done")
+        XCTAssertEqual(UIText.intelligenceGuideDone(.turkish), "Tamam")
+    }
+}
