@@ -1487,4 +1487,5 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `test_the_bracket_reading_is_linear_on_a_long_whitespace_run` bounded one parse at 0.25 s and failed under `check-fast`'s parallel load; during run night-1028 the machine's load average passed 100 and it refused a push. It now times the reading at 5k and 20k spaces, best of three each, and asserts the larger under `max(8 × smaller, 0.1 s)`.
 - The fault still goes red: with the #417 `(?<!\s)` removed from both regexes the test failed with 5k: 0.0995 s, 20k: 1.5501 s (a ratio of 15.6); the regexes were restored byte for byte from a copy.
 - There is no red commit: the change is the test itself, and its proof is the fault above.
+- The first ratio form (best of three, 0.1 s floor) still failed once in a concurrent `check-fast`: 20k spaces measured 0.146 s against 0.016 s alone. The measurements are now interleaved, best of five, with a 0.5 s floor; the quadratic reading still fails it at 1.55 s.
 - Lesson: a complexity claim is a ratio between two sizes; a wall-clock bound is a claim about the machine.

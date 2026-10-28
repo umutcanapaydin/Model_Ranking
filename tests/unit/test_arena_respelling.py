@@ -81,25 +81,24 @@ def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[
     name took a second in `canonicalize_with_reason`; an upstream file of such names could stall the night.
 
     #463: a wall-clock bound measured the machine, and failed under `check-fast`'s parallel load. The reading is
-    timed at n and at 4n spaces, the best of three each: a linear reading takes about 4 times as long, the
-    quadratic one 16 times, whatever else the machine is doing. The floor keeps microseconds of noise from
-    deciding the ratio; the quadratic reading spends about a second at 4n, far past it."""
+    timed at n and at 4n spaces, interleaved, the best of five each: a linear reading takes about 4 times as long,
+    the quadratic one 16 times. The floor keeps load from deciding the ratio: alone the linear reading takes
+    0.016 s at 4n and measured 0.146 s under a load average past 100, while the quadratic one takes 1.5 s."""
     import time
 
     from app.workflows.registry import canonicalize_with_reason
 
-    def seconds(n: int) -> float:
-        name = shape(n)
-        best = float("inf")
-        for _ in range(3):
-            started = time.perf_counter()
-            canonicalize_with_reason(name)
-            derive_identity(name)
-            best = min(best, time.perf_counter() - started)
-        return best
+    def once(name: str) -> float:
+        started = time.perf_counter()
+        canonicalize_with_reason(name)
+        derive_identity(name)
+        return time.perf_counter() - started
 
-    small, large = seconds(5_000), seconds(20_000)
-    assert large < max(8 * small, 0.1), f"5k spaces: {small:.4f} s, 20k: {large:.4f} s"
+    names = shape(5_000), shape(20_000)
+    small = large = float("inf")
+    for _ in range(5):
+        small, large = min(small, once(names[0])), min(large, once(names[1]))
+    assert large < max(8 * small, 0.5), f"5k spaces: {small:.4f} s, 20k: {large:.4f} s"
 
 
 def test_a_moving_alias_in_brackets_still_derives_nothing() -> None:
