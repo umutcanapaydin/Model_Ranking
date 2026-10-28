@@ -1482,6 +1482,23 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
 - Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
 
+## 2026-10-28 · fix/issue-466-status-object — a previous refresh record that is not an object is read as none
+
+- `write_status` read the previous `.refresh.json` with `json.loads` and called `.get` on whatever came back; `[]`, a string, a number or `null` crashed every cycle before the record was rewritten, so the cycle never recovered by itself. Valid JSON that is not an object is now no previous record, as an unreadable file already was (`refresh.py`, `write_status`), held by `test_a_previous_record_that_is_not_an_object_is_read_as_none`, red first.
+- Lesson: `json.loads` returns whatever the file holds; a reader that suppresses the parse error owes the same suppression to the wrong shape.
+## 2026-10-28 · fix/issue-463-bracket-bound — the bracket reading's linearity test measures a ratio, not the machine
+
+- `test_the_bracket_reading_is_linear_on_a_long_whitespace_run` bounded one parse at 0.25 s and failed under `check-fast`'s parallel load; during run night-1028 the machine's load average passed 100 and it refused a push. It now times the reading at 5k and 20k spaces, best of three each, and asserts the larger under `max(8 × smaller, 0.1 s)`.
+- The fault still goes red: with the #417 `(?<!\s)` removed from both regexes the test failed with 5k: 0.0995 s, 20k: 1.5501 s (a ratio of 15.6); the regexes were restored byte for byte from a copy.
+- There is no red commit: the change is the test itself, and its proof is the fault above.
+- The first ratio form (best of three, 0.1 s floor) still failed once in a concurrent `check-fast`: 20k spaces measured 0.146 s against 0.016 s alone. The measurements are now interleaved, best of five, with a 0.5 s floor; the quadratic reading still fails it at 1.55 s.
+- Lesson: a complexity claim is a ratio between two sizes; a wall-clock bound is a claim about the machine.
+## 2026-10-28 · fix/issue-453-build-child — the build child runs with -P, inside the cycle's clocks
+
+- M1: `build_in_child` started `python -B -m app.workflows.build`; every other child uses `-B -P -m`, so a planted `app/` in the working directory could run. It now carries `-P`, pinned by a test that reads the argv.
+- M2: the child's 25 minutes counted from its own start, so a cycle that spent minutes before the build let the parent's 27-minute alarm fire first: no record, the child orphaned. `_Limits` now records when the cycle's alarm fires, and the child is killed two minutes before it, whichever comes first. The 20-minute fetch budget never reached the child (its `cycle_ends()` was `None`); the cycle hands it the seconds left as `--fetch-seconds`, and the build runs its fetches inside `cycle_budget`.
+- R2: the progress reader skips a `nan` or `inf` time. R1 (`NSAllowsLocalNetworking` in every iOS build) is split out to #488: making the key Debug-only means a preprocessed Info.plist, which needs both builds checked.
+- Lesson: a limit counted from a child's own start is not the parent's limit; hand the child the parent's deadline, not a duration.
 ## 2026-10-28 · fix/issue-477-respelling-expiry — D-228's entry retired; the suite off the committed policy; pairs name rows; repeated keys refused
 
 - #477: the hosted nights of 2026-10-27 and 2026-10-28 published text_to_image's new ids (the served board holds 82 rows under `flux.2-max` and its kin), so D-228's 27 pairs were inert; the entry is removed, recorded as retired in the file's header. An autouse fixture in `tests/conftest.py` points both loaders' defaults at an empty policy, so the suite can no longer go red on the day an `until:` passes; only the tests naming `ACCEPTED_CUTS_FILE` read the committed file.

@@ -8,6 +8,7 @@ killed night's record names the source it was reading. Every night's record carr
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import time
@@ -145,3 +146,87 @@ def test_a_stream_with_no_file_descriptor_is_not_handed_to_the_child() -> None:
     assert refresh_module._has_fileno(object()) is False
     with Path(__file__).open(encoding="utf-8") as stream:
         assert refresh_module._has_fileno(stream) is True
+
+
+# --- #453 (release v0.2.0 security M1, M2, R2): the child is started as every other child is, and the cycle's
+# clocks reach it.
+
+def test_the_build_child_is_started_with_safe_path(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """M1: every child the engine starts uses `-B -P -m`, so a planted `app/` package in the working directory
+    never runs; the build child did not carry `-P`."""
+    seen: list[list[str]] = []
+
+    class Recorded:
+        def __init__(self, argv: list[str], **_: object) -> None:
+            seen.append(argv)
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+    monkeypatch.setattr(refresh_module.subprocess, "Popen", Recorded)
+    assert refresh_module.build_in_child(["--db", "x"]) == 0
+    assert seen[0][:5] == [sys.executable, "-B", "-P", "-m", "app.workflows.build"]
+
+
+def test_the_child_is_bounded_by_what_is_left_of_the_cycle(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """M2: the child's 25 minutes counted from its own start, so a cycle that spent minutes before the build let
+    the parent's 27-minute alarm kill the parent first, with no record written and the child orphaned. The child
+    is killed two minutes before the cycle ends, whichever comes first."""
+    monkeypatch.setattr(refresh_module, "_cycle_deadline", lambda: time.monotonic() + 120.5)
+    started = time.monotonic()
+    code = refresh_module.build_in_child([], command=[sys.executable, "-c", "import time; time.sleep(30)"])
+    assert code == refresh_module.EXIT_BUILD_KILLED
+    assert time.monotonic() - started < 15
+
+
+def test_the_child_is_handed_what_is_left_of_the_fetch_budget(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """M2: the 20-minute fetch budget never reached the child, whose `cycle_ends()` was `None`. The cycle hands it
+    the seconds left, and the build runs its fetches inside them."""
+    from app.clients.protocols import cycle_budget
+
+    seen: list[list[str]] = []
+
+    class Recorded:
+        def __init__(self, argv: list[str], **_: object) -> None:
+            seen.append(argv)
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+    monkeypatch.setattr(refresh_module.subprocess, "Popen", Recorded)
+    with cycle_budget(90.0):
+        refresh_module.build_in_child(["--db", "x"])
+    argv = seen[0]
+    left = float(argv[argv.index("--fetch-seconds") + 1])
+    assert 0 < left <= 90.0
+
+
+def test_the_build_fetches_within_the_seconds_it_is_handed(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """M2, the child's side: `--fetch-seconds` sets the build's fetch budget for the whole build."""
+    from app.clients.protocols import cycle_ends
+
+    budgets: list[float | None] = []
+
+    def build(*_: object, **__: object) -> object:
+        budgets.append(cycle_ends())
+        raise SystemExit(2)
+
+    monkeypatch.setattr(build_module, "build", build)
+    plans = tmp_path / "plans.yaml"
+    rosters = tmp_path / "rosters.yaml"
+    plans.write_text("{}\n", encoding="utf-8")
+    rosters.write_text("{}\n", encoding="utf-8")
+    before = time.monotonic()
+    with contextlib.suppress(SystemExit):
+        build_module.main(["--db", str(tmp_path / "out.db"), "--plans", str(plans), "--rosters", str(rosters),
+                           "--fetch-seconds", "45"])
+    assert budgets and budgets[0] is not None
+    assert before + 44 <= budgets[0] <= time.monotonic() + 45
+
+
+def test_the_progress_reader_refuses_a_time_that_is_not_finite(tmp_path: Path) -> None:
+    """R2: `float()` reads `nan` and `inf`, so a progress line could carry a time no record can hold."""
+    progress = tmp_path / "progress"
+    progress.write_text("start\taider\tnan\ndone\taider\t12.5\nstart\tarena\t1.0\ndone\tarena\tinf\n",
+                        encoding="utf-8")
+    assert refresh_module._read_progress(progress) == {"arena": None}
