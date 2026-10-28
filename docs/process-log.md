@@ -1481,3 +1481,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner's build 6 said "Apple Intelligence off" and was right; the reader had no way to learn how to turn it on. The caption under the question box, and the help line under an answer, now open a sheet for the state the platform reports: the steps (Settings → Apple Intelligence & Siri), and a line that the app still answers without it. Each state has its own guide in English and Turkish (`OnDeviceGuide`, `FrontDoor.swift`), held by `OnDeviceGuideTests`.
 - D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
 - Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
+
+## 2026-10-28 · fix/issue-463-bracket-bound — the bracket reading's linearity test measures a ratio, not the machine
+
+- `test_the_bracket_reading_is_linear_on_a_long_whitespace_run` bounded one parse at 0.25 s and failed under `check-fast`'s parallel load; during run night-1028 the machine's load average passed 100 and it refused a push. It now times the reading at 5k and 20k spaces, best of three each, and asserts the larger under `max(8 × smaller, 0.1 s)`.
+- The fault still goes red: with the #417 `(?<!\s)` removed from both regexes the test failed with 5k: 0.0995 s, 20k: 1.5501 s (a ratio of 15.6); the regexes were restored byte for byte from a copy.
+- There is no red commit: the change is the test itself, and its proof is the fault above.
+- The first ratio form (best of three, 0.1 s floor) still failed once in a concurrent `check-fast`: 20k spaces measured 0.146 s against 0.016 s alone. The measurements are now interleaved, best of five, with a 0.5 s floor; the quadratic reading still fails it at 1.55 s.
+- Lesson: a complexity claim is a ratio between two sizes; a wall-clock bound is a claim about the machine.

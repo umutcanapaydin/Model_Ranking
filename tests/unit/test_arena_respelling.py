@@ -11,6 +11,7 @@ of the fixture.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -73,19 +74,31 @@ def test_a_name_that_resolved_before_resolves_as_before(name: str, model_id: str
     assert (derived.model_id, derived.effort) == (model_id, effort)
 
 
-@pytest.mark.parametrize("name", ["x (" + " " * 20_000 + "y", "x" + " " * 20_000 + "(y)"],
+@pytest.mark.parametrize("shape", [lambda n: "x (" + " " * n + "y", lambda n: "x" + " " * n + "(y)"],
                          ids=["unclosed-after-a-run", "a-run-before-the-bracket"])
-def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(name: str) -> None:
+def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[[int], str]) -> None:
     """#417 (the #416 security delta's M1): `\\s*\\(` retried at every start in a whitespace run, so a 20k-space
-    name took a second in `canonicalize_with_reason`; an upstream file of such names could stall the night."""
+    name took a second in `canonicalize_with_reason`; an upstream file of such names could stall the night.
+
+    #463: a wall-clock bound measured the machine, and failed under `check-fast`'s parallel load. The reading is
+    timed at n and at 4n spaces, interleaved, the best of five each: a linear reading takes about 4 times as long,
+    the quadratic one 16 times. The floor keeps load from deciding the ratio: alone the linear reading takes
+    0.016 s at 4n and measured 0.146 s under a load average past 100, while the quadratic one takes 1.5 s."""
     import time
 
     from app.workflows.registry import canonicalize_with_reason
 
-    started = time.perf_counter()
-    canonicalize_with_reason(name)
-    derive_identity(name)
-    assert time.perf_counter() - started < 0.25
+    def once(name: str) -> float:
+        started = time.perf_counter()
+        canonicalize_with_reason(name)
+        derive_identity(name)
+        return time.perf_counter() - started
+
+    names = shape(5_000), shape(20_000)
+    small = large = float("inf")
+    for _ in range(5):
+        small, large = min(small, once(names[0])), min(large, once(names[1]))
+    assert large < max(8 * small, 0.5), f"5k spaces: {small:.4f} s, 20k: {large:.4f} s"
 
 
 def test_a_moving_alias_in_brackets_still_derives_nothing() -> None:
