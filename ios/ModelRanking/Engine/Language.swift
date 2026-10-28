@@ -679,6 +679,15 @@ extension UIText {
         }
     }
 
+    /// #481: the guide's button, and its close.
+    static func openSettings(_ language: Language) -> String {
+        language == .turkish ? "Ayarları Aç" : "Open Settings"
+    }
+
+    static func intelligenceGuideDone(_ language: Language) -> String {
+        language == .turkish ? "Tamam" : "Done"
+    }
+
     /// D-188 clause 5 (M20-W4): the primary board's own answer, and back to the combined list.
     static func primaryOnItsOwn(_ language: Language) -> String {
         language == .turkish ? "Yalnızca ana tablonun cevabını göster" : "Show the primary board's own answer"

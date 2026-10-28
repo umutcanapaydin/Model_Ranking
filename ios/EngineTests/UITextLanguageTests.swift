@@ -73,6 +73,8 @@ final class UITextLanguageTests: OfflineTestCase {
             ("shortBoardDate", { UIText.shortBoardDate(.readOn("2026-09-24"), $0) }),
             ("familyNote", { UIText.familyNote(models: 58, boards: [NamedBoard(name: "Aider", date: .unknown)], coverage: 2, $0) }),
             ("onDeviceCaption", { UIText.onDeviceCaption(.notEligible, $0) }),
+            ("openSettings", { UIText.openSettings($0) }),
+            ("intelligenceGuideDone", { UIText.intelligenceGuideDone($0) }),
             ("primaryOnItsOwn", { UIText.primaryOnItsOwn($0) }),
             ("backToCombined", { UIText.backToCombined($0) }),
             ("notASearchNote", { UIText.notASearchNote($0) }),
