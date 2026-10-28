@@ -50,6 +50,8 @@ struct ContentView: View {
     @State private var showingGaps = false
     /// #260: the Credits screen, every publisher the boards credit.
     @State private var showingCredits = false
+    /// #481: the guide behind the Apple Intelligence caption.
+    @State private var showingIntelligenceGuide = false
     /// D-167/D-168 (M17-W5). Every board's standings, kept on this device for a day and fetched the
     /// same way whatever the reader asks, and the refinements the reader removed from this question.
     @State private var standings: Standings?
@@ -152,6 +154,7 @@ struct ContentView: View {
             .sheet(isPresented: $choosingSurface) { surfaceSheet }
             .sheet(isPresented: $showingGaps) { gapSheet }
             .sheet(isPresented: $showingCredits) { creditsSheet }
+            .sheet(isPresented: $showingIntelligenceGuide) { intelligenceGuideSheet }
             .task { await load() }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { onDevice = TieredRouter.onDeviceState() }
@@ -590,11 +593,25 @@ struct ContentView: View {
                     Text(UIText.privateQuestion(language)).font(.caption)
                 }
                 .foregroundStyle(Design.muted)
-                // #208 (the owner's ask): which tier reads the question, said very small.
-                Text(UIText.onDeviceCaption(onDevice, language))
-                    .font(.caption2)
-                    .foregroundStyle(onDevice == .available ? AnyShapeStyle(Design.accent) : AnyShapeStyle(Design.muted))
+                // #208 (the owner's ask): which tier reads the question, said very small. #481: when
+                // the model is not running, the caption opens the guide that says what to do.
+                if onDevice.hasGuide {
+                    Button { showingIntelligenceGuide = true } label: {
+                        HStack(spacing: 3) {
+                            Text(UIText.onDeviceCaption(onDevice, language))
+                            Image(systemName: "info.circle")
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(Design.muted)
+                    }
+                    .buttonStyle(.plain)
                     .accessibilityIdentifier("aiCaption")
+                } else {
+                    Text(UIText.onDeviceCaption(onDevice, language))
+                        .font(.caption2)
+                        .foregroundStyle(Design.accent)
+                        .accessibilityIdentifier("aiCaption")
+                }
             }
             }
             // #208, #351: Apple Intelligence's moving glow around the question, livelier while it reads it.
@@ -676,9 +693,13 @@ struct ContentView: View {
                 // question was NOT routed by the model, since that is the only time it explains
                 // anything the reader is looking at.
                 if outcome.tier != .model, let help = onDevice.help(language) {
-                    Text(help)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    Button { showingIntelligenceGuide = true } label: {
+                        Text(help)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -760,6 +781,37 @@ struct ContentView: View {
     /// #260 (the owner's D-185 ruling): every publisher the served boards credit, with what it
     /// publishes, its licence and both links. The links are selectable text: D-126 keeps every way to
     /// open a URL out of the client, so the reader copies one into a browser.
+    /// #481: what the reader can do to turn Apple Intelligence on, from `OnDeviceState.guide`.
+    private var intelligenceGuideSheet: some View {
+        NavigationStack {
+            List {
+                if let guide = onDevice.guide(language) {
+                    Section {
+                        ForEach(Array(guide.steps.enumerated()), id: \.offset) { index, step in
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                Text("\(index + 1).").font(.subheadline.monospacedDigit()).foregroundStyle(.secondary)
+                                Text(step).font(.subheadline)
+                            }
+                        }
+                    }
+                    Section {
+                        Text(guide.stillWorks).font(.footnote).foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(UIText.onDeviceCaption(onDevice, language)).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle(onDevice.guide(language)?.title ?? UIText.onDeviceCaption(onDevice, language))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(UIText.intelligenceGuideDone(language)) { showingIntelligenceGuide = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
     private var creditsSheet: some View {
         NavigationStack {
             List {

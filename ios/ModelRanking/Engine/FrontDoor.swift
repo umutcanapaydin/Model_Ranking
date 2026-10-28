@@ -220,17 +220,86 @@ public enum OnDeviceState: Equatable {
 
 // MARK: - #481: what the reader can do about it, said as steps
 
+/// The guide behind the caption: what is wrong, what to do, and that the app still answers.
+///
+/// The owner's phone said "Apple Intelligence off" and was right, and the reader had no way to
+/// learn how to turn it on (#481). iOS offers no public link to the Apple Intelligence page, so the
+/// path is written out. The screen draws no Settings button yet: opening one makes a URL outside
+/// EngineClient, which D-126's client-decls control refuses; the owner decides that exception.
 public struct OnDeviceGuide: Equatable {
     public let title: String
     public let steps: [String]
+    /// Whether the remedy is in Settings: never on a phone that cannot run the model.
     public let opensSettings: Bool
     public let stillWorks: String
 }
 
 extension OnDeviceState {
-    public var hasGuide: Bool { false }
+    /// Whether the caption opens a guide: exactly when the model is not available.
+    public var hasGuide: Bool { self != .available }
 
-    public func guide(_ language: Language) -> OnDeviceGuide? { nil }
+    public func guide(_ language: Language) -> OnDeviceGuide? {
+        let turkish = language == .turkish
+        let stillWorks = turkish
+            ? "Uygulama bu arada da cevap verir: sorular kelimelerine göre eşleştirilir."
+            : "The app still answers meanwhile: questions are matched by their words."
+        switch self {
+        case .available:
+            return nil
+        case .turnedOff:
+            return OnDeviceGuide(
+                title: turkish ? "Apple Intelligence'ı açın" : "Turn on Apple Intelligence",
+                steps: turkish ? [
+                    "Ayarlar uygulamasını açın.",
+                    "Apple Intelligence ve Siri'ye dokunun.",
+                    "Apple Intelligence'ı açın.",
+                    "Model iner: telefon Wi-Fi'da ve şarjda birkaç dakika bekleyin, sonra uygulamaya dönün.",
+                    "Anahtar yoksa ya da gri ise: telefonun dili ile Siri'nin dili aynı ve desteklenen bir dil olmalı.",
+                ] : [
+                    "Open the Settings app.",
+                    "Tap Apple Intelligence & Siri.",
+                    "Turn on Apple Intelligence.",
+                    "The model downloads: keep the phone on Wi-Fi and charging for a few minutes, then come back.",
+                    "No switch, or a grey one: the phone's language and Siri's language must be the same supported language.",
+                ],
+                opensSettings: true, stillWorks: stillWorks)
+        case .downloading:
+            return OnDeviceGuide(
+                title: turkish ? "Apple Intelligence iniyor" : "Apple Intelligence is downloading",
+                steps: turkish ? [
+                    "Telefonu Wi-Fi'da ve şarjda tutun; indirme arka planda sürer.",
+                    "İlerlemeyi Ayarlar → Apple Intelligence ve Siri'de görebilirsiniz.",
+                    "Bitince uygulama kendiliğinden Apple Intelligence'a geçer.",
+                ] : [
+                    "Keep the phone on Wi-Fi and charging; the download goes on in the background.",
+                    "Settings → Apple Intelligence & Siri shows its progress.",
+                    "When it finishes, the app switches to Apple Intelligence by itself.",
+                ],
+                opensSettings: true, stillWorks: stillWorks)
+        case .notEligible:
+            return OnDeviceGuide(
+                title: turkish ? "Bu telefon Apple Intelligence'ı çalıştıramıyor" : "This phone cannot run Apple Intelligence",
+                steps: turkish ? [
+                    "Apple Intelligence, iPhone 15 Pro ve sonrasında, iOS 26 ile çalışır.",
+                    "Bu telefonda açılacak bir ayar yok.",
+                ] : [
+                    "Apple Intelligence runs on iPhone 15 Pro and later, with iOS 26.",
+                    "There is no setting to turn on on this phone.",
+                ],
+                opensSettings: false, stillWorks: stillWorks)
+        case .unavailable:
+            return OnDeviceGuide(
+                title: turkish ? "Apple Intelligence şu an kullanılamıyor" : "Apple Intelligence is unavailable now",
+                steps: turkish ? [
+                    "Biraz sonra tekrar deneyin.",
+                    "Sürerse Ayarlar → Apple Intelligence ve Siri'de açık olduğunu kontrol edin.",
+                ] : [
+                    "Try again a little later.",
+                    "If it goes on, check in Settings → Apple Intelligence & Siri that it is on.",
+                ],
+                opensSettings: true, stillWorks: stillWorks)
+        }
+    }
 }
 
 // MARK: - The gap register (M14-W3, REQ-GAP-001/002, D-142 §3)
