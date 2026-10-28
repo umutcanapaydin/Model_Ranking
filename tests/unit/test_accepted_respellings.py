@@ -265,6 +265,14 @@ _NOT_A_RE_SPELLING: dict[str, tuple[Change | None, Change, dict[str, dict[str, s
                                            _rows("UPDATE scores SET raw_name = 'PROBE.00 ALT', model_id = 'probe.00'"
                                                  " WHERE raw_name = 'Probe 00 alt'")),
                                      {SLICE.source: _pairs(0)}),
+    # The #477 security round's M4: both names of the old model are listed, but the second pair's new name was
+    # already served under another model (`probe-11`). Only one pair is a re-spelling, so the model stays.
+    "a-sibling-pair-that-is-not-a-re-spelling": (
+        _then(_add("probe-00", "Probe 00 alt"), _add("probe-11", "PROBE.00 ALT")),  # type: ignore[arg-type]
+        _then(_add("probe-00", "Probe 00 alt"), _add("probe-11", "PROBE.00 ALT"),  # type: ignore[arg-type]
+              _rows("DELETE FROM scores WHERE raw_name = 'PROBE.00 ALT'"), _RE_DERIVED,
+              _rows("UPDATE scores SET raw_name = 'PROBE.00 ALT', model_id = 'probe.00' WHERE raw_name = 'Probe 00 alt'")),
+        {SLICE.source: {**_pairs(0), "Probe 00 alt": "PROBE.00 ALT"}}),
     # The night after the publish: the served board holds the new name, so the pair is inert (D-228,
     # "Mitigation if violated").
     "after-the-publish": (_RE_DERIVED, _RE_DERIVED, _BOTH),  # type: ignore[dict-item]
@@ -335,3 +343,40 @@ def test_the_suite_reads_no_committed_policy_by_default() -> None:
     assert refresh.load_accepted_cuts.__defaults__ != (refresh.ACCEPTED_CUTS_PATH,)
     assert refresh.load_accepted_respellings.__defaults__ != (refresh.ACCEPTED_CUTS_PATH,)
     assert refresh.load_accepted_cuts() == {} and refresh.load_accepted_respellings() == {}
+
+
+def test_a_merge_key_fails_closed() -> None:
+    """The #477 security round's M1: `<<: *pairs` copies one mapping into another, and the mapping's own key then
+    silently replaces the copied one, which is #479's override by another road."""
+    raw = ("cuts: []\nrespellings:\n  - board: coding\n    decision: D-228\n    reason: r\n    until: 2026-10-30\n"
+           "    pairs: &p\n      \"Probe 00\": \"PROBE.00\"\n  - board: SLICE\n    decision: D-228\n    reason: r\n"
+           "    until: 2026-10-30\n    pairs:\n      <<: *p\n      \"Probe 00\": \"PROBE.09\"\n").replace("SLICE", SLICE.source)
+    with pytest.raises(refresh.AcceptedCutError, match="merge key"):
+        refresh.parse_accepted_respellings(raw, today=TODAY, decisions=LOG)
+
+
+def test_a_wide_mapping_is_walked_in_linear_time() -> None:
+    """The #477 security round's M2: `list.count` per key made the repeated-key walk quadratic (40,000 keys took
+    115 s). The walk alone, on a composed mapping of 40,000 keys, counted once, is well under two seconds."""
+    import time
+
+    import yaml
+
+    from app.workflows import yaml_guard
+
+    node = yaml.compose("".join(f"k{i}: 1\n" for i in range(40_000)), Loader=yaml.SafeLoader)
+    started = time.perf_counter()
+    yaml_guard._refuse_repeated_keys(node, "a wide mapping")
+    assert time.perf_counter() - started < 2.0
+
+
+@pytest.mark.parametrize("board", ["[coding]", "{coding: 1}"])
+def test_a_board_that_is_not_a_name_fails_closed(board: str) -> None:
+    """#479's second clause (the #477 security round's M3): a list or a mapping as `board:` raised `TypeError`."""
+    respelling = (f"cuts: []\nrespellings:\n  - board: {board}\n    decision: D-228\n    reason: r\n"
+                  "    until: 2026-10-30\n    pairs:\n      \"Probe 00\": \"PROBE.00\"\n")
+    cut = f"cuts:\n  - board: {board}\n    decision: D-228\n    reason: r\n    until: 2026-10-30\n    rows: [a]\n"
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_respellings(respelling, today=TODAY, decisions=LOG)
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_cuts(cut, today=TODAY, decisions=LOG)

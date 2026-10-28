@@ -26,6 +26,7 @@ alias limit is the half that matters, because expansion is where a small input b
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 import yaml
@@ -163,8 +164,13 @@ def _refuse_repeated_keys(node: yaml.Node, what: str) -> None:
             continue
         seen.add(id(current))
         if isinstance(current, yaml.MappingNode):
-            keys = [key.value for key, _ in current.value if isinstance(key, yaml.ScalarNode)]
-            repeated = sorted({key for key in keys if keys.count(key) > 1})
+            # The #477 security round's M1: a merge key (`<<: *entry`) copies another mapping's keys in, and the
+            # mapping's own key then silently replaces the copied one; a policy file has no use for it.
+            if any(key.tag == "tag:yaml.org,2002:merge" for key, _ in current.value):
+                raise YamlGuardError(f"{what}: a merge key (`<<`) copies one entry into another")
+            # M2: counted once, not with `list.count` per key, which was quadratic in a mapping's size.
+            counts = Counter(key.value for key, _ in current.value if isinstance(key, yaml.ScalarNode))
+            repeated = sorted(key for key, count in counts.items() if count > 1)
             if repeated:
                 raise YamlGuardError(f"{what}: the key {repeated[0]!r} is written twice in one mapping")
             stack.extend(value for _, value in current.value)
