@@ -1475,3 +1475,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The release Tester's round (MINOR, 0 BLOCKING, reviewed head `07a7fc6`) found six re-spelling conditions held only indirectly and added a test for each. Its M7 (the entry's 2026-11-10 expiry would turn every night and CI red) is #477.
 - The Security-Reviewer's round (MINOR, 0 BLOCKING, reviewed head `718cae4`): M6 (a pair moves its whole model) is #478; it is not live, since no text_to_image model has two names on either side. M7 (duplicate YAML keys override silently) is #479. `make deploy-check` PASS.
 - Lesson: an exception keyed by name, applied by model, reaches every row of that model. Write the binding test with a model that has two names.
+
+## 2026-10-28 · fix/issue-481-intelligence-guide — the Apple Intelligence caption opens a guide
+
+- The owner's build 6 said "Apple Intelligence off" and was right; the reader had no way to learn how to turn it on. The caption under the question box, and the help line under an answer, now open a sheet for the state the platform reports: the steps (Settings → Apple Intelligence & Siri), and a line that the app still answers without it. Each state has its own guide in English and Turkish (`OnDeviceGuide`, `FrontDoor.swift`), held by `OnDeviceGuideTests`.
+- D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
+- Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
