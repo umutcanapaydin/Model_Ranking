@@ -11,6 +11,7 @@ of the fixture.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -73,19 +74,32 @@ def test_a_name_that_resolved_before_resolves_as_before(name: str, model_id: str
     assert (derived.model_id, derived.effort) == (model_id, effort)
 
 
-@pytest.mark.parametrize("name", ["x (" + " " * 20_000 + "y", "x" + " " * 20_000 + "(y)"],
+@pytest.mark.parametrize("shape", [lambda n: "x (" + " " * n + "y", lambda n: "x" + " " * n + "(y)"],
                          ids=["unclosed-after-a-run", "a-run-before-the-bracket"])
-def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(name: str) -> None:
+def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[[int], str]) -> None:
     """#417 (the #416 security delta's M1): `\\s*\\(` retried at every start in a whitespace run, so a 20k-space
-    name took a second in `canonicalize_with_reason`; an upstream file of such names could stall the night."""
+    name took a second in `canonicalize_with_reason`; an upstream file of such names could stall the night.
+
+    #463: a wall-clock bound measured the machine, and failed under `check-fast`'s parallel load. The reading is
+    timed at n and at 4n spaces, the best of three each: a linear reading takes about 4 times as long, the
+    quadratic one 16 times, whatever else the machine is doing. The floor keeps microseconds of noise from
+    deciding the ratio; the quadratic reading spends about a second at 4n, far past it."""
     import time
 
     from app.workflows.registry import canonicalize_with_reason
 
-    started = time.perf_counter()
-    canonicalize_with_reason(name)
-    derive_identity(name)
-    assert time.perf_counter() - started < 0.25
+    def seconds(n: int) -> float:
+        name = shape(n)
+        best = float("inf")
+        for _ in range(3):
+            started = time.perf_counter()
+            canonicalize_with_reason(name)
+            derive_identity(name)
+            best = min(best, time.perf_counter() - started)
+        return best
+
+    small, large = seconds(5_000), seconds(20_000)
+    assert large < max(8 * small, 0.1), f"5k spaces: {small:.4f} s, 20k: {large:.4f} s"
 
 
 def test_a_moving_alias_in_brackets_still_derives_nothing() -> None:
