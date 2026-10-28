@@ -1481,3 +1481,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner's build 6 said "Apple Intelligence off" and was right; the reader had no way to learn how to turn it on. The caption under the question box, and the help line under an answer, now open a sheet for the state the platform reports: the steps (Settings → Apple Intelligence & Siri), and a line that the app still answers without it. Each state has its own guide in English and Turkish (`OnDeviceGuide`, `FrontDoor.swift`), held by `OnDeviceGuideTests`.
 - D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
 - Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
+
+## 2026-10-28 · fix/issue-477-respelling-expiry — D-228's entry retired; the suite off the committed policy; pairs name rows; repeated keys refused
+
+- #477: the hosted nights of 2026-10-27 and 2026-10-28 published text_to_image's new ids (the served board holds 82 rows under `flux.2-max` and its kin), so D-228's 27 pairs were inert; the entry is removed, recorded as retired in the file's header. An autouse fixture in `tests/conftest.py` points both loaders' defaults at an empty policy, so the suite can no longer go red on the day an `until:` passes; only the tests naming `ACCEPTED_CUTS_FILE` read the committed file.
+- #478: `_respelled_ids` moves a model only when the pairs list every name it had on the served board and its new model's names are exactly theirs (shape `a-name-the-pairs-do-not-list`, and its control with both names listed).
+- #479: `safe_load_bounded(..., unique_keys=True)` refuses a key written twice in one mapping, on the composed node, before PyYAML keeps the last; the policy loader asks for it. Other YAML inputs are unchanged.
+- Lesson: a test suite that reads a dated policy file has a date on which it fails; give the suite its own policy, and keep one test on the committed one.
