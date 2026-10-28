@@ -1481,3 +1481,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner's build 6 said "Apple Intelligence off" and was right; the reader had no way to learn how to turn it on. The caption under the question box, and the help line under an answer, now open a sheet for the state the platform reports: the steps (Settings → Apple Intelligence & Siri), and a line that the app still answers without it. Each state has its own guide in English and Turkish (`OnDeviceGuide`, `FrontDoor.swift`), held by `OnDeviceGuideTests`.
 - D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
 - Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
+
+## 2026-10-28 · fix/issue-453-build-child — the build child runs with -P, inside the cycle's clocks
+
+- M1: `build_in_child` started `python -B -m app.workflows.build`; every other child uses `-B -P -m`, so a planted `app/` in the working directory could run. It now carries `-P`, pinned by a test that reads the argv.
+- M2: the child's 25 minutes counted from its own start, so a cycle that spent minutes before the build let the parent's 27-minute alarm fire first: no record, the child orphaned. `_Limits` now records when the cycle's alarm fires, and the child is killed two minutes before it, whichever comes first. The 20-minute fetch budget never reached the child (its `cycle_ends()` was `None`); the cycle hands it the seconds left as `--fetch-seconds`, and the build runs its fetches inside `cycle_budget`.
+- R2: the progress reader skips a `nan` or `inf` time. R1 (`NSAllowsLocalNetworking` in every iOS build) is split out to its own issue: making the key Debug-only means a preprocessed Info.plist, which needs both builds checked.
+- Lesson: a limit counted from a child's own start is not the parent's limit; hand the child the parent's deadline, not a duration.
