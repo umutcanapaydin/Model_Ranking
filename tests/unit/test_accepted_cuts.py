@@ -85,7 +85,7 @@ def test_a_cut_excuses_an_unlinked_row_by_its_spelling(tmp_path: Path) -> None:
 def test_the_committed_file_holds_no_cut_once_epochs_chess_cut_is_retired() -> None:
     """D-221 clause 1 (#418): the epoch_chess cut is retired once both served artifacts hold Epoch's
     published board (the Mac at `release-55cf42e`, the hosted engine at `release-2a68ca4`)."""
-    assert refresh.load_accepted_cuts() == {}
+    assert refresh.load_accepted_cuts(ACCEPTED_CUTS_FILE) == {}
     assert ACCEPTED_CUTS_FILE.read_text(encoding="utf-8").rstrip().endswith("cuts: []")
 
 
