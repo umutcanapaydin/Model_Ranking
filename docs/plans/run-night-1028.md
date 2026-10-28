@@ -4,8 +4,8 @@ Mode: light
 Started: 2026-10-28
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
-Rulings: none
+Plan PR: #482
+Rulings: D-229
 
 ## Milestones, in order
 
