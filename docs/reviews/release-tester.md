@@ -4,7 +4,7 @@ id: release-tester
 status: draft
 seat: independent
 process_version: v7.2
-date: 2026-10-27
+date: 2026-10-29
 ---
 # Release Tester Review
 
@@ -18,15 +18,16 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-27 (the night-1027 delta round, and before it the launchd-guard and build-6 delta round; the
-nightly, hotfix-1026 and B5 rounds were 2026-10-26, the full round 2026-10-25)
+**Date:** 2026-10-29 (the night-1028 delta round; the night-1027 and the launchd-guard and build-6 delta rounds were
+2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
 **Commit range:** `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 07a7fc6e51df76f9eb8fd238a26f9d3fd0bc2a39 (the night-1027 delta round's test commit, on `ac7bba9`,
-the head of `integration/night-1027` with #474, #473 and #476; the 2026-10-27 delta round's head was `50c4764`, the
-B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
+**Reviewed head:** e00c516df11f75791cfab5ba27035650604c3e12 (the night-1028 delta round's head, the tip of
+`integration/run-night-1028` (draft PR #483) with #485, #490, #487, #489, #486, #491, #492, #495 and build 7; this
+round's tests follow it in their own commit; the night-1027 delta round's head was `07a7fc6`, the 2026-10-27 delta
+round's `50c4764`, the B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
 (#426), the accepted-cuts guard (#418, #429), the client-decls gate (#396), and retires INV-27..29 with the Mac
@@ -43,7 +44,16 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 6 MINOR open (M1, M2, M3 #456, M4 #457, M6 #466, and M7, new). The night-1027 delta round
+MINOR -- 0 BLOCKING open, 2 MINOR open (M8 and M9, both new); M1, M2, M3 (#456), M4 (#457), M6 (#466) and M7 (#477)
+are closed in this range. The night-1028 delta round (below, `07a7fc6..e00c516`) found every acceptance criterion of
+the run's eleven issues proven by a citing test, each red on its pre-fix commit where the issue fixes code; eight
+faults in the new code stayed green (F83, F84, F99, F109, F110, F114, F123, F124), and this round's tests close all
+eight. M8: the #463 ratio's 0.5 s floor sits within about 2x of the #417 regression's own time. M9: #481's screen
+wiring ran in no test here, and the existing UI test reads the caption's label, which the guide's button changes.
+Neither blocks the deploy or the build 7 upload.
+
+The night-1027 delta round, as it read when it closed: MINOR -- 0 BLOCKING open, 6 MINOR open (M1, M2, M3 #456, M4
+#457, M6 #466, and M7, new). The night-1027 delta round
 (below, `50c4764..ac7bba9`) found D-227 and D-228 each proven by a citing test that is red before its fix; six faults
 in D-228's new code stayed green, and `07a7fc6` closes all six. M7: the committed re-spelling expires on 2026-11-10,
 after which every hosted night fails, by design, and so do at least 92 unit tests that read the committed file
@@ -278,6 +288,8 @@ None open. Found and closed in this review, each by a test on this branch:
   `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
+- **M8**, **M9**: from the night-1028 delta round, set out under "Night-1028 delta MINOR" below. M1-M4, M6 and M7 are
+  closed there, by #452, #463, #456, #457, #466 and #477.
 - **M7**: from the night-1027 delta round, set out under "Night-1027 delta MINOR" below.
 - **M5**, **M6**: from the hotfix-1026 delta round, set out under "Delta MINOR (hotfix-1026)" below. M5 is answered
   by D-226 clause 3; M6 is filed as #466. M3 and M4 are filed as #456 and #457.
@@ -291,6 +303,14 @@ None open. Found and closed in this review, each by a test on this branch:
   this Mac): a much faster runner could pass the quadratic form. A step counter would not depend on the machine.
 
 ## Tests added this review
+- Night-1028 round, as working-tree changes on `e00c516` for the run's session to commit (the seat has no
+  `advisor.db`, so its commit hook cannot pass): `tests/unit/test_refresh_build_child.py:182` (#453 M2: `_Limits`,
+  the alarm `main` sets, is the clock `build_in_child` reads, and a closed cycle leaves none; red under F83, F84),
+  `tests/unit/test_accepted_respellings.py:278` (#478: a new model with a name no pair lists does not move; red under
+  F99), `:352` (#477: without the fixture both loaders default to the committed file; red under F109, F110),
+  `tests/unit/test_deploy_gate_444.py:66` (#444 M3: a dispatched workflow whose file name is not lower-case is on the
+  surface; red under F114), `ios/EngineTests/FrontDoorTests.swift:923` with its manifest line (#481: no sentence of a
+  Turkish guide is an English one; red under F123, F124).
 - `tests/unit/test_accepted_respellings.py:268,276` (`07a7fc6`, night-1027 round) -- D-228 clause 2: one shape per
   condition of `_respelled_ids` (old model kept, new name onto a kept model, old name kept, new name already
   served, the night after the publish) leaves `respelled`'s result equal to the candidate; a re-spelled model with
@@ -768,3 +788,192 @@ None.
   client-decls, test: 4706 passed, 37 skipped, coverage 93.10%). `ruff check` on the changed test is clean.
 - **Mutation kill-rate (advisory):** no runner is wired. F59-F78: 13 of 20 killed on the range's own tests, 6
   survived and 1 equivalent; 19 of 20 killed after `07a7fc6`, the equivalent F77 left.
+
+## Night-1028 delta round 2026-10-29 (07a7fc6..e00c516)
+
+**Range:** `07a7fc6e51df76f9eb8fd238a26f9d3fd0bc2a39..e00c516df11f75791cfab5ba27035650604c3e12`, the tip of
+`integration/run-night-1028` (draft PR #483; record `docs/plans/run-night-1028.md`, rulings D-229). 25 code files,
++827/-100. Nine draft PRs stacked: #485 (#481: red `68f75b5`, fix `7a7508f`), #490 (#477, #478, #479: red `2911dda`,
+fix `a78eb15`, its security round's MINORs `a56cf3d`), #487 (#466: red `7db7758`, fix `3486f82`), #489 (#453: red
+`0eb5e12`, fix `59d12b7`), #486 (#463: `dcc3b24`, `38d9eab`, test only), #491 (#456, #457: `6df974d`, test only),
+#492 (#452: `6e1512e`, test only), #495 (#444: red `6e7bdb9`, fix `fba96ba`), and build 7 (`4280613`).
+**Risk tier:** HIGH. The range moves the deploy gate's exemption (#444), the refresh's build child and its clocks
+(#453), and the policy file's parser and the re-spelling guard (#477-#479).
+**Seat:** my own worktree `$TMPDIR/wt-tester-1028` on `review/release-tester-1028`, at `e00c516`, with its own
+`.venv` (`make install`; `app` resolves to this tree's `src`) and no `advisor.db`, so nothing here is committed: this
+verdict and the tests below are working-tree changes for the run's session to commit. A second detached worktree
+(`$TMPDIR/wt-tester-1028-rg`, removed after) ran the red-to-green pairs with this seat's venv and `PYTHONPATH` on its
+own `src`. Targeted test files only (the machine's load average was 27-90). No launchd service, owner data
+directory, simulator, Fly or GitHub write was touched; nothing was pushed.
+**Fresh eyes:** I wrote none of the range. My only code is the tests listed under "Tests added this review".
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: the diff, the issues with their comments, D-229 and the tests, not the implementers' sessions.
+
+### Acceptance-criterion coverage
+- **#481** (D-229 clause 1), the issue's done-when as triaged: each degraded state has its own guide in both
+  languages, no empty and no shared sentence, `.available` none -> `ios/EngineTests/FrontDoorTests.swift:893`
+  (no guide when available), `:898` (every degraded state: a title, steps, none blank, the "still answers" line;
+  titles differ across states and languages; step lists differ as wholes), `:923` (added here: no Turkish sentence is
+  an English one), `:936` (`.turnedOff` names "Apple Intelligence & Siri" / "Apple Intelligence ve Siri" and is a
+  Settings remedy), `:946` (`.notEligible` is not), `:952` (the caption has a guide exactly when not available),
+  `:959` (both button labels). GREEN (7 of 7). The Settings button is not drawn: D-126's client-decls control refuses
+  the URL, the run's assumption, filed as #484; "on the device" is the owner's check. The screen wiring is M9.
+- **#477** (1) the D-228 entry retired -> `tests/unit/test_accepted_respellings.py:337` (the committed file holds no
+  re-spelling) and `test_accepted_cuts.py:85`; (2) the suite reads no committed policy -> `:343` (the loaders' defaults
+  are the fixture's and read nothing) and, added here, `:352` (without the fixture both default to the committed file).
+  GREEN. F108 is the probe of the symptom itself: an expired `until: 2026-10-01` entry put back in the committed file
+  turns only the two tests that name it red (`:208`, `:337`); 271 refresh, restamp, carry, floor and cut tests stay
+  green, where the night-1027 round saw 92 go red. That the hosted nights of 2026-10-27 and 2026-10-28 published the
+  new names is a claim about served data, not checked offline here.
+- **#478** a pair names rows, not models -> `:263` (an old model's second name the pairs do not list), `:270` (a
+  listed sibling pair that is not itself a re-spelling), `:278` (added here: the new model's name no pair lists),
+  `:310` (the control: both names listed, the model reads as it was). GREEN. Red under F97-F100.
+- **#479** repeated keys and merge keys refused, `board:` that is not a name -> `:328` (a second `cuts`, a second
+  `pairs` key; both parsers), `:361` (a merge key), `:371` (40,000 keys walked under 2 s), `:387` (a list or mapping
+  as `board:`, cut and re-spelling). GREEN. Red under F89-F95.
+- **#466** a non-object record reads as none -> `tests/unit/test_refresh_carry.py:529` (`[]`, `"x"`, `3`, `null`: the
+  cycle's record is written). GREEN. Red under F79.
+- **#453** M1 `-P` -> `tests/unit/test_refresh_build_child.py:154`; M2 bounded by the cycle -> `:171` (a stood-in
+  deadline) and, added here, `:182` (the alarm `_Limits` sets is the deadline the child reads, and a closed cycle
+  leaves none); M2 the fetch budget -> `:211` (handed down as `--fetch-seconds`) and `:233` (the build's
+  `cycle_ends()` is set from it); R2 -> `:256` (`nan`, `inf` read as no time). GREEN. R1 (`NSAllowsLocalNetworking`)
+  is not in this range's diff and has no test; the issue names it as a recommendation.
+- **#463** linear whatever the load -> `tests/unit/test_arena_respelling.py:79`, a ratio between 5k and 20k spaces
+  with a 0.5 s floor. GREEN here at load averages 27-90; the #417 regression still goes red (F101, F102). See M8.
+- **#452** M1 -> `tests/unit/test_terminalbench_4.py:209` (deep nesting, a 5,000-digit integer, garbage: each a
+  `SourceError`, never a `RecursionError`); M2 -> `tests/unit/test_simplebench.py:167` and
+  `tests/unit/test_osworld.py:375`, ratios with floors of 1.0 s and 3.0 s. GREEN. Red under F103-F105; OSWorld's fault
+  proof is the known timeout, not re-run.
+- **#456** a missing installed workflow fails -> `tests/unit/test_nightly_hosted.py:483,489`. GREEN. F119, the
+  installed path pointed at a missing file without touching `.github/` (agents never write there): RED, "is missing:
+  the hosted engine's nightly refresh and deploy are off"; the pre-#456 body under the same fault: GREEN, the
+  reported F41.
+- **#457** a self-proof sample with a nested `name:` -> `conformance/test-ci-yaml.py:262,298`, run by the fallback
+  parser itself whether PyYAML is installed or not. PASS. F118 (the fix at `:88` reverted): FAIL, "read the steps of a
+  sample with `name:` nested under `with:` as ['hosted-state', 'after']".
+- **#444** M2 symlink -> `tests/unit/test_deploy_gate_444.py:30`; M3 derived surface -> `:69` (a declared script, a
+  dispatched workflow, a workflow running a deploy, and, added here, a dispatched workflow not in lower case) with its
+  control `:80`; R2 forged blob -> `:88`; M1 the pin routed to security -> `:105` (light mode) and `:115` (derived from
+  the gate's own constant). GREEN. Red under F111-F114, F116, F117. Known and filed, not re-raised: the commit and tree
+  checks of `verified_blob` and `deploy_surface`'s fail-closed branch are untested (#494 M2-M3); a forged loose tree
+  at the reviewed head (#493). A probe here confirmed #494 M1's mixed-case case: a declared `scripts/Ship_It.sh`
+  shipped by an upgrade passes the gate (`declared()` lower-cases it); not live, the brief's four commands are lower
+  case.
+- **Build 7** (D-229 clause 2) -> `ios/ModelRanking.xcodeproj/project.pbxproj:239,260,280,296`, all four
+  configurations `CURRENT_PROJECT_VERSION = 7`, `MARKETING_VERSION` unchanged. A record, no test.
+
+### Red to green
+- #481: `OnDeviceGuideTests` 6 tests with 14 failures at `68f75b5`; 6 of 6 GREEN at `7a7508f`.
+- #477-#479: `test_accepted_respellings.py` + `test_accepted_cuts.py` 5 RED at `2911dda` (the unlisted name, both
+  repeated-key shapes, the committed entry, the committed-policy default); 100 of 100 GREEN at `a78eb15`.
+  `a56cf3d`'s tests on `a78eb15`'s code: 5 RED (the sibling pair, the merge key, the quadratic walk, both
+  non-name boards); 47 of 47 GREEN at `a56cf3d`.
+- #466: 4 of 4 RED at `7db7758`, GREEN at `3486f82`.
+- #453: 5 RED at `0eb5e12` (`-P`, the deadline, the budget handed down, the build's side, finite times); 14 of 14
+  GREEN at `59d12b7`.
+- #444: 7 RED at `6e7bdb9`, 1 GREEN (the control); 8 of 8 GREEN at `fba96ba`.
+- #463, #452, #456, #457 change tests only; each symptom is a fault that stayed green or a flaky bound, so their proof
+  is the fault table (F101-F105, F118, F119).
+
+### Fault injection
+Each fault an exact single-occurrence replacement, run, the original bytes written back, md5 compared and
+`git status` clean after each: `refresh.py` `5d6e5531360a014ae12f9ca7b41f568b`, `yaml_guard.py` `0b4b9eba...`,
+`build.py` `3a1b05aa...`, `registry.py` `fca8e67c...`, `simplebench.py` `d0289da8...`, `terminalbench.py`
+`12cf0448...`, `tests/conftest.py` `4db614f0...`, `data/accepted-cuts.yaml` `9df42ef5...`, `scripts/deploy_gate.py`
+`fadc4291...`, `scripts/review_need.py` `9a54dbb5...`, `conformance/test-ci-yaml.py` `d7161657...`,
+`FrontDoor.swift` `aec0978b...`. Every restore matched. F119 changes no file.
+
+| ID | Fault | On the range's tests | After this round |
+|---|---|---|---|
+| F79 | `write_status` keeps a non-object record | RED (`test_refresh_carry.py:529` x4) | RED |
+| F80 | the build child without `-P` | RED (`:154`) | RED |
+| F81 | the cycle's deadline not applied to the child | RED (`:171`) | RED |
+| F82 | the two-minute margin dropped | RED (`:171`) | RED |
+| F83 | `_Limits` never sets the deadline | GREEN (all of `tests/unit`, 4677) | RED (`:182`) |
+| F84 | `_Limits.close` leaves the deadline set | GREEN | RED (`:182`) |
+| F85 | `--fetch-seconds` not passed | RED (`:211`) | RED |
+| F86 | `max(0.0, ...)` dropped | GREEN | GREEN (equivalent: a spent budget refuses every fetch either way) |
+| F87 | the build ignores `--fetch-seconds` | RED (`:233`) | RED |
+| F88 | non-finite progress times read | RED (`:256`) | RED |
+| F89 | `unique_keys=True` dropped from the policy reader | RED (`:328` x2, `:361`) | RED |
+| F90 | the merge-key refusal dropped | RED (`:361`) | RED |
+| F91 | a key counted twice allowed | RED (`:328` x2) | RED |
+| F92 | the walk skips sequences | RED (`:328`, `:361`) | RED |
+| F93 | the walk skips a mapping's values | RED (`:328`, `:361`) | RED |
+| F94 | a cut's `board:` type check dropped | RED (`:387` x2) | RED |
+| F95 | a re-spelling's `board:` type check dropped | RED (`:387` x2) | RED |
+| F96 | the walk's seen-node check dropped | GREEN | GREEN (equivalent: revisits are bounded by the expansion limit) |
+| F97 | old model's names need not all be listed | RED (`:263`) | RED |
+| F98 | sibling pairs need not be re-spellings | RED (`:270`) | RED |
+| F99 | the new model's names need not be exactly the listed ones | GREEN | RED (`:278`) |
+| F100 | all three #478 conditions dropped | RED (`:263`, `:270`) | RED |
+| F101 | #417 `_TEXT_BRACKET` lookbehind dropped | RED (`test_arena_respelling.py:79`, 1.03 s at 20k) | RED |
+| F102 | #417 `_PAREN_EFFORT` lookbehind dropped | RED (`:79` x2, 1.54 s) | RED |
+| F103 | #412 simplebench `\n\s*\];` restored | RED (`test_simplebench.py:167`, 86 s) | RED |
+| F104 | terminalbench catches `ValueError` only | RED (`test_terminalbench_4.py:209`, nested) | RED |
+| F105 | terminalbench catches `RecursionError` only | RED (`:209`, digits, garbage) | RED |
+| F106 | the conftest fixture not autouse | RED (`:343`) | RED |
+| F107 | the D-228 entry put back | RED (`:337`) | RED |
+| F108 | the entry put back, expired (`until: 2026-10-01`) | RED (`:208`, `:337` only; 271 others green) | RED |
+| F109 | `load_accepted_cuts`' default points elsewhere | GREEN | RED (`:352`) |
+| F110 | `load_accepted_respellings`' default points elsewhere | GREEN | RED (`:352`) |
+| F111 | the symlink refusal dropped | RED (`test_deploy_gate_444.py:30`) | RED |
+| F112 | `rel in surface` dropped | RED (`:69` x3) | RED |
+| F113 | declared scripts left off the surface | RED (`:69`, script) | RED |
+| F114 | the on-disk workflow names left off the surface | GREEN | RED (`:69`, not in lower case) |
+| F115 | the lower-cased workflow names left off the surface | GREEN | GREEN (equivalent: the on-disk names cover every file that exists) |
+| F116 | `_object` does not hash the bytes | RED (`:88`) | RED |
+| F117 | the pin left out of `EXCEPTION_FILES` | RED (`:105`, `:115`) | RED |
+| F118 | #457's fallback-parser fix reverted | FAIL (`conformance/test-ci-yaml.py:298`) | FAIL |
+| F119 | the installed nightly workflow missing (simulated) | RED (`test_nightly_hosted.py:483`) | RED |
+| F120 | `hasGuide` always true | RED (`FrontDoorTests.swift:952`) | RED |
+| F121 | `.turnedOff` not a Settings remedy | RED (`:936`) | RED |
+| F122 | `.notEligible` sent to Settings | RED (`:946`) | RED |
+| F123 | the Turkish "still answers" line in English | GREEN | RED (`:923`) |
+| F124 | one Turkish `.turnedOff` step in English | GREEN | RED (`:923`) |
+
+F83, F84, F99, F109, F110, F114, F123 and F124 stayed green; the code is correct in each, the tests had the gap, and
+this round's tests close all eight rather than raising findings. F109/F110 is a gap #477's fixture opened: before it,
+`test_accepted_cuts.py:88` called the loader with its default; now no test saw the default the hosted night reads.
+
+### Test integrity
+`git diff 07a7fc6..e00c516 -- tests ios/EngineTests conformance` deletes no test and adds no skip.
+`test_accepted_cuts.py:88` now names the committed file (the fixture would otherwise answer); `:302` turns `==` into
+`in` because `EXCEPTION_FILES` gained the pin, which `test_deploy_gate_444.py:115` holds; adding an entry there only
+routes more to security. The three timing tests trade a wall-clock bound for a ratio with a floor (M8 on the arena
+one). `test_nightly_hosted.py:483` drops its `if INSTALLED.exists()` guard, as #456 asks.
+
+### Night-1028 delta BLOCKING
+None.
+
+### Night-1028 delta MINOR
+- **M8** `tests/unit/test_arena_respelling.py:101` -- the #463 ratio `large < max(8 * small, 0.5)` floors at 0.5 s,
+  and the regression it guards takes 1.03 s at 20k spaces here (F101, at a load average of 90; F102 1.54 s). A runner
+  about twice as fast as this Mac passes the quadratic form through the floor, the narrow red margin M2 named. The
+  simplebench and osworld floors leave 12x and 5x. Remedy: time 10k and 40k spaces, so the quadratic form takes about
+  four times as long while the linear one stays far under the floor.
+- **M9** `ios/ModelRanking/ContentView.swift:598-614,695-703,784-813` -- #481's screen wiring (the caption is a
+  button exactly when `hasGuide`, the help line opens the guide, the sheet lists the steps) ran in no test here: the
+  Engine tests hold `OnDeviceState`, and the UI tests are outside `check`. The existing
+  `ios/UITests/ScreenPathTests.swift:199` `testTheQuestionSaysWhoReadsIt` matches `caption.label` exactly against the
+  five caption sentences, and in every state but `.available` the caption is now a button whose label also holds an
+  `info.circle` image. Not run here (the simulator is shared with another session). Remedy: run that UI test before
+  the build 7 upload and, if the label changed, give the image `.accessibilityHidden(true)` or match the label's
+  prefix; a UI test that taps the caption and finds the first step would hold the sheet.
+- Closed in this range: M1 by `test_terminalbench_4.py:209` (#452), M2 by the three ratio tests (#452, #463; M8
+  is what remains), M3 by `test_nightly_hosted.py:483,489` (#456), M4 by `conformance/test-ci-yaml.py:262` (#457), M6
+  by `test_refresh_carry.py:529` (#466), M7 by `a78eb15` and the conftest fixture (#477).
+
+### Night-1028 delta suite result
+- Targeted, in this seat at `e00c516`: the twelve test files the range touches, 418 passed; with this round's tests,
+  the changed files and their neighbours 316 passed, the Swift manifest and client-contract tests 84 passed, the three
+  timing tests 4 passed serially; `conformance/test-ci-yaml.py` PASS; `swift test --filter OnDeviceGuideTests` 7 of 7,
+  and `swift test --list-tests` matches `ios/EngineTests/test-manifest.txt`. `ruff check` on the three changed test
+  files is clean. One full `tests/unit` run went with F83 in place: 4677 passed, 59 skipped. `make test` and
+  `make check` were not run in this seat (the machine's load; no `advisor.db`): the commit hook's `make check-fast` is
+  the run's session's.
+- Coverage on touched code: every changed statement of `refresh.py` (23) and `build.py` (6) runs in the targeted
+  set; of `yaml_guard.py`'s 21, all but `:164` (the seen-node `continue`, F96, equivalent). `scripts/deploy_gate.py`
+  runs in a subprocess, which coverage does not see; its faults above stand in.
+- **Mutation kill-rate (advisory):** no runner is wired. F79-F124: 35 of 46 killed on the range's own tests, 8
+  survived and 3 equivalent; 43 of 46 killed after this round's tests, the equivalent F86, F96 and F115 left.

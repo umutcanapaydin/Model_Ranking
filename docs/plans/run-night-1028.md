@@ -37,4 +37,11 @@ Rulings: D-229
 
 ## For the owner
 
-The run is planned and waits for the answers to its decisions message. Nothing is merged, deployed or uploaded by the run.
+The run stopped short of its close when the session's usage limit was reached. All eleven issues are stacked on #483, and nothing was deployed or uploaded.
+
+1. **Merge #482**, the plan, which accepts D-229.
+2. **Do not merge #483 yet.** It still owes the release Security-Reviewer's delta round. After that round, `make deploy-check` must be green.
+3. **The release Tester's round is in.** It is in `docs/reviews/release-tester.md`: MINOR, 0 BLOCKING, reviewed head `e00c516`. Its tests, and the fixes for its M8 and M9, landed after that head in `0f1837f`. That commit needs the Tester's re-check before `deploy-check` passes.
+4. **Answer the stop on #493**, an escalated gate bypass that predates this run.
+5. **Decide #484**, whether to add a Settings button.
+6. **Upload build 7**, which is already numbered, once `deploy-check` is green.
