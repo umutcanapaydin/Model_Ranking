@@ -18,9 +18,9 @@ Rulings: D-229
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
 | issue-481 | fix/issue-481-intelligence-guide | #485 | none | stacked |
-| issue-477 | fix/issue-477-respelling-expiry | none | none | running |
-| issue-478 | fix/issue-477-respelling-expiry | none | none | queued |
-| issue-479 | fix/issue-477-respelling-expiry | none | none | queued |
+| issue-477 | fix/issue-477-respelling-expiry | #490 | none | stacked |
+| issue-478 | fix/issue-477-respelling-expiry | #490 | none | stacked |
+| issue-479 | fix/issue-477-respelling-expiry | #490 | none | stacked |
 | issue-466 | fix/issue-466-status-object | #487 | none | stacked |
 | issue-453 | fix/issue-453-build-child | #489 | none | stacked |
 | issue-463 | fix/issue-463-bracket-bound | #486 | none | stacked |
