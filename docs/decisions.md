@@ -6298,3 +6298,31 @@ never stacked.
 
 **Revisit when:** the owner's feedback run asks for a first-launch guide, or a control change in this run turns
 out to need loosening.
+
+## D-230 — The Apple Intelligence guide's "Open Settings" button: one named door out of the client
+
+**Status:** proposed
+**Owner ruling:** 2026-10-29, in chat, on #484
+
+**Decision.**
+1. **The guide shows "Open Settings"** where turning Apple Intelligence on is the remedy (`OnDeviceGuide.opensSettings`),
+   as D-229 clause 1 asked. The button opens the system's Settings page for this app, and nothing else.
+2. **One named exception to D-126's client controls**, which refuse a URL made from a string and every way to open
+   one outside `EngineClient.swift`. The exception is one file, `ios/ModelRanking/SettingsDoor.swift`:
+   - **The compiled gate** (`scripts/client_decl_gate.py`) allows that file five declarations (`SETTINGS_DOOR_ALLOWED`),
+     and only while its bytes hash to `SETTINGS_DOOR_SHA256`. Each declaration must be seen on the shipping client
+     (`unseen_permissions`).
+   - **The text gate** (`tests/unit/test_router_hints.py`) permits the file's two expressions exactly (`EGRESS_EXACT`),
+     never a pattern over the file.
+   - The same declarations anywhere else stay refused, as before.
+3. **D-126 is not edited and not superseded.** Its controls stand for every other file; this ADR names the one door.
+
+**Rationale.** The address is the system's constant (`UIApplication.openSettingsURLString`): no network address, and
+no text the reader typed or the engine sent can reach it. A pin on the whole file makes a second address there a
+reviewed edit of the gate, not a quiet one. The alternative was a guide of steps only, which leaves the reader to
+find the page by hand.
+
+**Mitigation if violated:** a change to `SettingsDoor.swift`, or a second file given the same declarations, fails
+`make client-decls` and the text gate. Either is refused until a new ADR names it.
+
+**Revisit when:** another system page needs opening, or iOS offers a way to open Settings that makes no URL.
