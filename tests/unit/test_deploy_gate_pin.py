@@ -54,7 +54,9 @@ class Repo:
 def _installed(tmp_path: Path) -> Repo:
     """DevFlow v9.9's tooling on main, its commit pinned, both verdicts at that head."""
     repo = Repo(tmp_path / "repo")
-    repo.write("docs/project-brief.md", "- **Working mode:** `light`\n")
+    # #494: a declaration the gate can read to its files; with none, nothing is exempt.
+    repo.write("docs/project-brief.md", "- **Working mode:** `light`\n"
+                                        "- **Deploy commands:** `scripts/deploy_hosted_engine.sh`\n")
     repo.write("scripts/tool.py", "VERSION = 1\n")
     repo.write("scripts/deploy_hosted_engine.sh", "echo deploy\n")
     repo.write("src/app.py", "x = 1\n")
