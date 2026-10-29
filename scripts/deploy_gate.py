@@ -189,7 +189,10 @@ def verdict_head(text: str) -> str | None:
 
 def changed_since(root: Path, head: str) -> list[str] | None:
     """Every code path that differs from `head` in the working tree of `root`, or None when git cannot
-    compare. Committed, uncommitted and untracked alike; nested checkouts (`dir/`) are not this tree."""
+    compare. Committed, uncommitted and untracked alike; nested checkouts (`dir/`) are not this tree. None as well
+    when the comparison cannot be trusted (#493, #500: `compare_problem`), so `closure_check` agrees with the gate."""
+    if compare_problem(root, head):
+        return None
     try:
         # Against the WORKING TREE, not HEAD: an uncommitted edit deploys as surely as a commit.
         out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", head], capture_output=True,
@@ -233,11 +236,11 @@ def _batch_read(batch: subprocess.Popen[bytes], oid: str, kind: str) -> bytes | 
 
 
 def _subtrees(body: bytes, size: int) -> list[str]:
-    """The ids of a tree's own subtrees (mode 40000); a blob, a link or a submodule is none."""
+    """The ids of a tree's own subtrees (a mode whose type bits say tree); a blob, a link or a submodule is none."""
     out, at = [], 0
     while at < len(body):
         space, nul = body.index(b" ", at), body.index(b"\0", at)
-        if body[at:space] == b"40000":
+        if int(body[at:space], 8) & 0o170000 == 0o040000:  # the review's M2: `040000` is a tree to git too
             out.append(body[nul + 1:nul + 1 + size].hex())
         at = nul + 1 + size
     return out
@@ -249,8 +252,11 @@ def _unhashed(root: Path, head: str) -> str | None:
     parses a commit, and no tree below it, so a forged subtree hid a change from `git diff`. Blobs need no check: the
     diff compares their ids. One `git cat-file --batch` reads them all."""
     try:
+        # The name alone, never `^{commit}`: peeling parses the commit, and a forged one then fails to resolve, which
+        # read as "not in this clone" while `git diff` used it unhashed (the #493 review's B1).
         commit = subprocess.run(["git", "--no-replace-objects", "-C", str(root), "rev-parse", "--verify", "--quiet",
-                                 f"{head}^{{commit}}"], capture_output=True, encoding="utf-8", timeout=30).stdout.strip()
+                                 "--end-of-options", head], capture_output=True, encoding="utf-8",
+                                timeout=30).stdout.strip()
         batch = subprocess.Popen(["git", "--no-replace-objects", "-C", str(root), "cat-file", "--batch"],
                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     except (OSError, subprocess.SubprocessError):
@@ -288,7 +294,8 @@ def compare_problem(root: Path, head: str) -> str | None:
         return "git cannot list the index"
     if flagged:
         return (f"the index tells git not to look at {', '.join(flagged[:5])}{' ...' if len(flagged) > 5 else ''} "
-                "(assume-unchanged or skip-worktree; `git update-index --no-assume-unchanged --no-skip-worktree`)")
+                "(assume-unchanged or skip-worktree; `git update-index --no-assume-unchanged --no-skip-worktree <path>`, "
+                "or `git sparse-checkout disable`)")
     unhashed = _unhashed(root, head)
     return f"the reviewed head's {unhashed}" if unhashed else None
 
