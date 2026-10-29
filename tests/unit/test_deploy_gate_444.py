@@ -61,7 +61,11 @@ BRIEF = ("- **Working mode:** `light`\n"
     ("scripts/ship_it.sh", "echo ship --somewhere-else\n"),
     (".github/workflows/release.yml", "on: workflow_dispatch\njobs:\n  a:\n    steps:\n      - run: echo hi\n"),
     (".github/workflows/carrier.yml", "on: push\njobs:\n  a:\n    steps:\n      - run: scripts/ship_it.sh\n"),
-], ids=["a-declared-deploy-script", "a-dispatched-workflow", "a-workflow-that-runs-a-deploy"])
+    # The release Tester, night-1028 round: `gh workflow run release.yml` dispatches `Release.yml` as well. Only the
+    # surface's on-disk names hold that spelling, and dropping them stayed green while every workflow was lower-case.
+    (".github/workflows/Release.yml", "on: workflow_dispatch\njobs:\n  a:\n    steps:\n      - run: echo hi\n"),
+], ids=["a-declared-deploy-script", "a-dispatched-workflow", "a-workflow-that-runs-a-deploy",
+        "a-dispatched-workflow-not-in-lower-case"])
 def test_what_the_deploy_commands_start_is_code_even_byte_identical(tmp_path: Path, rel: str, text: str) -> None:
     """M3: the safety surface was a hand-kept list, and the installed nightly workflow was not on it. What the brief's
     deploy commands start -- a declared script, a dispatched workflow, a workflow whose run line is a deploy command --

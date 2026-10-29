@@ -273,6 +273,10 @@ _NOT_A_RE_SPELLING: dict[str, tuple[Change | None, Change, dict[str, dict[str, s
               _rows("DELETE FROM scores WHERE raw_name = 'PROBE.00 ALT'"), _RE_DERIVED,
               _rows("UPDATE scores SET raw_name = 'PROBE.00 ALT', model_id = 'probe.00' WHERE raw_name = 'Probe 00 alt'")),
         {SLICE.source: {**_pairs(0), "Probe 00 alt": "PROBE.00 ALT"}}),
+    # #478's other half (the release Tester, night-1028 round): the old model's names are all listed, but the new
+    # model arrives with a name no pair lists. Moving it would read that new row as one the board always had.
+    "a-new-name-the-pairs-do-not-list": (None, _then(_RE_DERIVED, _add("probe.00", "PROBE.00 NEW")),  # type: ignore[arg-type]
+                                         {SLICE.source: _pairs(0)}),
     # The night after the publish: the served board holds the new name, so the pair is inert (D-228,
     # "Mitigation if violated").
     "after-the-publish": (_RE_DERIVED, _RE_DERIVED, _BOTH),  # type: ignore[dict-item]
@@ -343,6 +347,15 @@ def test_the_suite_reads_no_committed_policy_by_default() -> None:
     assert refresh.load_accepted_cuts.__defaults__ != (refresh.ACCEPTED_CUTS_PATH,)
     assert refresh.load_accepted_respellings.__defaults__ != (refresh.ACCEPTED_CUTS_PATH,)
     assert refresh.load_accepted_cuts() == {} and refresh.load_accepted_respellings() == {}
+
+
+def test_the_night_reads_the_committed_file_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#477 (2)'s other side (the release Tester, night-1028 round): with every test on the fixture's policy, the
+    loaders' own default -- the file the hosted night reads -- was held by no test, so pointing it elsewhere, where a
+    missing file accepts nothing, stayed green. Without the fixture, both loaders default to the committed file."""
+    monkeypatch.undo()  # the conftest fixture's defaults, set through this same monkeypatch
+    assert refresh.load_accepted_cuts.__defaults__ == (ACCEPTED_CUTS_FILE,)
+    assert refresh.load_accepted_respellings.__defaults__ == (ACCEPTED_CUTS_FILE,)
 
 
 def test_a_merge_key_fails_closed() -> None:

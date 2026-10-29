@@ -605,6 +605,9 @@ struct ContentView: View {
                         .foregroundStyle(Design.muted)
                     }
                     .buttonStyle(.plain)
+                    // The release Tester's M9 (night-1028): the label stays the caption's own words, as it was
+                    // before the caption became a button, so VoiceOver and the UI tests read the same line.
+                    .accessibilityLabel(Text(UIText.onDeviceCaption(onDevice, language)))
                     .accessibilityIdentifier("aiCaption")
                 } else {
                     Text(UIText.onDeviceCaption(onDevice, language))

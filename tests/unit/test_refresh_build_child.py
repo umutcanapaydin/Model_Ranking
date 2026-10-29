@@ -179,6 +179,35 @@ def test_the_child_is_bounded_by_what_is_left_of_the_cycle(monkeypatch) -> None:
     assert time.monotonic() - started < 15
 
 
+def test_the_cycle_alarm_is_the_clock_the_child_is_bounded_by(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """M2, the wiring (the release Tester, night-1028 round): the test above stands the cycle's deadline in by hand,
+    so `_Limits` -- the alarm `main` sets -- could stop telling `build_in_child` when the cycle ends, or leave a
+    finished cycle's deadline behind, and the suite stayed green. The child is given what is left of the alarm,
+    less the two minutes the cycle keeps to write its record; outside a cycle it has its own limit only."""
+    timeouts: list[float | None] = []
+
+    class Recorded:
+        def __init__(self, argv: list[str], **_: object) -> None:
+            pass
+
+        def wait(self, timeout: float | None = None) -> int:
+            timeouts.append(timeout)
+            return 0
+
+    monkeypatch.setattr(refresh_module.subprocess, "Popen", Recorded)
+    assert refresh_module._cycle_deadline() is None
+    limits = refresh_module._Limits(600.0, 60.0)
+    try:
+        refresh_module.build_in_child(["--db", "x"])
+    finally:
+        limits.close()
+    assert refresh_module._cycle_deadline() is None, "a closed cycle left its deadline behind"
+    refresh_module.build_in_child(["--db", "x"])
+    margin = refresh_module.CYCLE_LIMIT_SECONDS - refresh_module.BUILD_LIMIT_SECONDS
+    assert timeouts[0] is not None and 600.0 - margin - 30 < timeouts[0] <= 600.0 - margin
+    assert timeouts[1] == refresh_module.BUILD_LIMIT_SECONDS
+
+
 def test_the_child_is_handed_what_is_left_of_the_fetch_budget(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """M2: the 20-minute fetch budget never reached the child, whose `cycle_ends()` was `None`. The cycle hands it
     the seconds left, and the build runs its fetches inside them."""

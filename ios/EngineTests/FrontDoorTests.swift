@@ -917,6 +917,20 @@ final class OnDeviceGuideTests: OfflineTestCase {
         }
     }
 
+    /// #481's "no shared sentence", sentence by sentence (the release Tester, night-1028 round): the
+    /// test above holds the titles apart and the step lists apart as wholes, so one English step, or
+    /// the English "still answers" line, on the Turkish guide stayed green.
+    func testNoSentenceOfTheTurkishGuideIsAnEnglishOne() throws {
+        for state in degraded {
+            let english = try XCTUnwrap(state.guide(.english))
+            let turkish = try XCTUnwrap(state.guide(.turkish))
+            let said = Set([english.title, english.stillWorks] + english.steps)
+            for sentence in [turkish.title, turkish.stillWorks] + turkish.steps {
+                XCTAssertFalse(said.contains(sentence), "\(state): the Turkish reader is given the English \"\(sentence)\"")
+            }
+        }
+    }
+
     /// The owner's case: Apple Intelligence was off on a phone that runs it. The guide names the
     /// Settings page in the reader's language and offers the button that opens Settings.
     func testTheTurnedOffGuideWalksToTheSettingsPageAndOpensSettings() throws {

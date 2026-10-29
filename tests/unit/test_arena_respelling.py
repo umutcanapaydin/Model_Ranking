@@ -83,7 +83,8 @@ def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[
     #463: a wall-clock bound measured the machine, and failed under `check-fast`'s parallel load. The reading is
     timed at n and at 4n spaces, interleaved, the best of five each: a linear reading takes about 4 times as long,
     the quadratic one 16 times. The floor keeps load from deciding the ratio: alone the linear reading takes
-    0.016 s at 4n and measured 0.146 s under a load average past 100, while the quadratic one takes 1.5 s."""
+    0.033 s at 40k spaces, while the quadratic one takes about 6 s there (the night-1028 release Tester's M8: at
+    20k the floor sat only 2x under the regression's own time)."""
     import time
 
     from app.workflows.registry import canonicalize_with_reason
@@ -94,11 +95,11 @@ def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[
         derive_identity(name)
         return time.perf_counter() - started
 
-    names = shape(5_000), shape(20_000)
+    names = shape(10_000), shape(40_000)
     small = large = float("inf")
     for _ in range(5):
         small, large = min(small, once(names[0])), min(large, once(names[1]))
-    assert large < max(8 * small, 0.5), f"5k spaces: {small:.4f} s, 20k: {large:.4f} s"
+    assert large < max(8 * small, 0.5), f"10k spaces: {small:.4f} s, 40k: {large:.4f} s"
 
 
 def test_a_moving_alias_in_brackets_still_derives_nothing() -> None:
