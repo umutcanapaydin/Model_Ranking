@@ -6271,3 +6271,30 @@ them.
 
 **Revisit when:** a second `respellings` entry is needed in one month, or an upstream re-spells a board while also
 changing which models it holds.
+
+## D-229 — Run night-1028's rulings: the Apple Intelligence guide, build 7, and the control changes it may make
+
+**Status:** proposed
+**Owner ruling:** 2026-10-28, in chat, for run night-1028
+
+**Decision.**
+1. **#481's guide opens on a tap.** The caption under the question box and the help line under an answer become
+   tappable whenever Apple Intelligence is not available. The tap opens a short sheet for that state: the steps, an
+   "Open Settings" button where turning it on is the remedy, and a line saying the app still answers without it. The
+   app shows no guide by itself at first launch.
+2. **The run raises the app's build number to 7** after #481. The archive and the TestFlight upload stay the owner's.
+3. **The run may change these controls, and only to tighten them:** #444 (the deploy gate refuses a symlinked
+   shipped file, derives its safety surface from the brief's `Deploy commands:` and the workflows they start, checks
+   the pinned commit's objects before comparing, and routes the pin file to security), #456 (a missing installed
+   nightly workflow fails its test) and #457 (a self-proof sample for the nested `name:`). #444's R1 is in the Bash
+   guard, so it stays the owner's patch. Each change goes through `/writing-a-control`.
+4. **The owner's test feedback from build 6 is a later run's**, not this one's.
+
+**Rationale.** The owner chose the recommended option on each of the run's four questions. Clause 3 pre-answers
+the Escalate-NOW class `control-change` for these three issues alone, so the run does not stop on them.
+
+**Mitigation if violated:** a change under clause 3 that loosens a control is a stop of class `control-change`,
+never stacked.
+
+**Revisit when:** the owner's feedback run asks for a first-launch guide, or a control change in this run turns
+out to need loosening.
