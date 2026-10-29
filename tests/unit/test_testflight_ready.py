@@ -11,9 +11,13 @@ from __future__ import annotations
 import json
 import plistlib
 import re
+import shutil
 import struct
+import subprocess
 import tomllib
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 APP = REPO / "ios" / "ModelRanking"
@@ -147,3 +151,42 @@ def test_no_target_setting_overrides_what_the_engine_config_or_the_local_file_se
     for name, settings in configs.items():
         keys = {line.split("=", 1)[0].strip().strip('"').split("[")[0] for line in settings.splitlines() if "=" in line}
         assert not keys & owned, (name, sorted(keys & owned))
+
+
+def _resolved(name: str, config: str) -> str | None:
+    """The value Engine.xcconfig gives `name` in `config`: the last line that sets it, unconditioned or for `config`."""
+    value = None
+    for line in (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines():  # raw: not Swift
+        match = None if line.lstrip().startswith("//") else SETTING.match(line)
+        if match and match.group(1) in (name, f"{name}[config={config}]"):
+            value = match.group(2)
+    return value
+
+
+@pytest.mark.skipif(shutil.which("cc") is None, reason="needs a C preprocessor, which Xcode runs on Info.plist")
+@pytest.mark.parametrize(("config", "allowed"), [("Debug", True), ("Release", False)])
+def test_only_a_debug_build_allows_local_networking(config: str, allowed: bool) -> None:
+    """#488 (the night-1028 release security review's R1): `NSAllowsLocalNetworking` was set in every
+    configuration, while a Release build talks only to the hosted engine over HTTPS. Info.plist as each
+    configuration builds it -- through Xcode's own preprocessing command (`cc -E -P -x c -Wno-trigraphs` with the
+    configuration's definitions) when the configuration preprocesses it -- carries the exception in Debug alone,
+    and still carries the engine's address for the build to fill in."""
+    source = CONFIG / "Info.plist"
+    built = source.read_bytes()
+    if _resolved("INFOPLIST_PREPROCESS", config) == "YES":
+        defines = [f"-D{d}" for d in (_resolved("INFOPLIST_PREPROCESSOR_DEFINITIONS", config) or "").split()]
+        built = subprocess.run(["cc", "-E", "-P", "-x", "c", "-Wno-trigraphs", str(source), *defines],
+                               capture_output=True, check=True, timeout=60).stdout
+    info = plistlib.loads(built)
+    assert info["EngineURL"] == "$(ENGINE_URL)"
+    assert ("NSAllowsLocalNetworking" in info.get("NSAppTransportSecurity", {})) is allowed, info
+
+
+def test_no_local_file_can_give_a_release_build_local_networking() -> None:
+    """#488, as the M19 review's S1 for the address: the last matching setting wins, so the lines that decide a
+    Release build's Info.plist come after the optional `Engine.local.xcconfig`, which may set anything."""
+    lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()  # raw: not Swift
+    include = next(i for i, line in enumerate(lines) if line.startswith('#include? "Engine.local.xcconfig"'))
+    for name in ("INFOPLIST_PREPROCESS", "INFOPLIST_PREPROCESSOR_DEFINITIONS[config=Release]"):
+        at = [i for i, line in enumerate(lines) if (m := SETTING.match(line)) and m.group(1) == name]
+        assert at and min(at) > include, (name, at, include)
