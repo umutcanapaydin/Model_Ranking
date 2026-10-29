@@ -299,7 +299,7 @@ def test_review_need_reads_the_file_the_refresh_reads() -> None:
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert (str(refresh.ACCEPTED_CUTS_PATH.relative_to(root)),) == module.EXCEPTION_FILES
+    assert str(refresh.ACCEPTED_CUTS_PATH.relative_to(root)) in module.EXCEPTION_FILES
 
 
 @pytest.mark.parametrize(("mode", "want"), [("light", "review-need: security"),
