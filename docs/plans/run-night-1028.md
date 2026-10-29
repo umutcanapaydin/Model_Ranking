@@ -2,7 +2,7 @@
 
 Mode: light
 Started: 2026-10-28
-Ended: open
+Ended: 2026-10-29 — all milestones closed
 Integration branch: `integration/run-night-1028` · PR: #483
 Plan PR: #482
 Rulings: D-229
@@ -37,11 +37,15 @@ Rulings: D-229
 
 ## For the owner
 
-The run stopped short of its close when the session's usage limit was reached. All eleven issues are stacked on #483, and nothing was deployed or uploaded.
+The run ended on 2026-10-29. All eleven issues are stacked on #483. Both release verdicts are current, and `make deploy-check` is PASS:
+- Tester: MINOR, reviewed head `3cddbdd`.
+- Security: MINOR, reviewed head `c29392c`.
 
-1. **Merge #482**, the plan, which accepts D-229.
-2. **Do not merge #483 yet.** It still owes the release Security-Reviewer's delta round. After that round, `make deploy-check` must be green.
-3. **The release Tester's round is in.** It is in `docs/reviews/release-tester.md`: MINOR, 0 BLOCKING, reviewed head `e00c516`. Its tests, and the fixes for its M8 and M9, landed after that head in `0f1837f`. That commit needs the Tester's re-check before `deploy-check` passes.
-4. **Answer the stop on #493**, an escalated gate bypass that predates this run.
-5. **Decide #484**, whether to add a Settings button.
-6. **Upload build 7**, which is already numbered, once `deploy-check` is green.
+Nothing was deployed or uploaded.
+
+1. **Merge #482**, the plan. This accepts D-229.
+2. **Merge #483**, the integration PR, as a **merge commit, never a squash**. It carries, in order: #485 (#481), #486 (#463), #487 (#466), #489 (#453), #490 (#477, #478, #479), #491 (#456, #457), #492 (#452) and #495 (#444), plus build 7 and the release Tester's tests.
+3. **Answer the stop on #493.** The deploy gate trusts the reviewed head's trees, so a forged loose tree object hides a code change and the gate still says PASS. This was escalated; it predates the run. Until it is fixed, run `git fsck --full` before a deploy. It was clean on 2026-10-29.
+4. **Run the UI test before the upload.** It is `ScreenPathTests` (the caption's label, M9). Then upload build 7 to TestFlight.
+5. **Decide #484**: whether the guide gets a Settings button. That needs an exception to D-126's client-decls control.
+6. **New issues, all triaged:** #484, #488 (`NSAllowsLocalNetworking` in Debug only), #493, #494 (#444's MINORs) and #496 (`RecursionError` in the status readers).

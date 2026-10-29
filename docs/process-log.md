@@ -1526,3 +1526,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R1 (a ref written by a program the guard does not list) is the Bash guard's, so the owner's. Checking the pin against DevFlow's remote at upgrade time (M1's second half) needs the network at upgrade, and stays with `/setup-project`'s upgrade step.
 - The security round (`docs/reviews/fix-issue-444-security.md`, MINOR, 0 BLOCKING, reviewed head `fba96ba`): nothing loosened. Its M1-M3 (a deploy command not written as a literal path, two untested branches) are #494; its R1, a forged loose tree reachable from the reviewed head hiding a change from `changed_since` (a gate bypass that stays green, predating #444), is #493, escalated to the owner as a run stop.
 - Lesson: an exemption keyed by "the same bytes" must say which bytes: the file's own (not a link's target), and the object store's verified ones (not whatever it serves).
+
+## 2026-10-29 · integration/run-night-1028 — run night-1028: the whole open queue, eleven issues, one delta review
+
+- Stacked in order: #485 (#481), #486 (#463), #487 (#466), #489 (#453), #490 (#477-#479), #491 (#456, #457), #492 (#452), #495 (#444), then build 7. The merges' only conflicts were appended process-log entries, each kept.
+- The release Tester's round (MINOR, reviewed head `3cddbdd` after a re-check) found eight faults that stayed green and added a test for each, and two MINORs fixed in `0f1837f` (the arena ratio's sizes, the caption button's accessibility label). The Security-Reviewer's round (MINOR, reviewed head `c29392c`) filed M8 as #496. `make deploy-check` PASS.
+- One stop: #493, found by #444's per-fix review, a gate bypass that predates the run.
+- The machine's load average passed 100 for hours (other projects' builds); every commit's `check-fast` took 3-10 minutes, and a wall-clock test refused a push before #463 was fixed.
+- Lesson: in a run, merge the integration branch into a fix branch before its push, so the push's gate runs on the fixes already stacked, not on the flakes they remove.
