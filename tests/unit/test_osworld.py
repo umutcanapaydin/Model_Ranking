@@ -375,11 +375,21 @@ def test_a_non_ascii_board_serialises_within_twice_its_text(monkeypatch: pytest.
 def test_a_sheet_of_character_references_reads_in_linear_time() -> None:
     """#404 (the queue-1021 integration review's N1, held by a test): expat hands each character reference to the text
     handler as a piece of its own; the reader joins an element's pieces once, where `+=` on each was quadratic. 1.6M
-    references in one cell take about 0.2 s joined and about 15 s concatenated."""
+    references in one cell take about 0.2 s joined and about 15 s concatenated.
+
+    #452 (the release v0.2.0 Tester's M2): timed at 400k and 1.6M references, interleaved, best of two; a linear
+    reading takes about 4 times as long, the quadratic one 16, and the floor keeps machine load from deciding."""
     import time
 
-    body = _sheet('<row r="1"><c r="A1" t="inlineStr"><is><t>' + "&#65;" * 1_600_000 + "</t></is></c></row>")
-    started = time.perf_counter()
-    root = _ow()._parse_xml(body, "xl/worksheets/sheet1.xml")
-    assert time.perf_counter() - started < 5.0
-    assert any(len(node.text) == 1_600_000 for node in root.iter(f"{SPREADSHEET_NS} t"))
+    def once(references: int) -> float:
+        body = _sheet('<row r="1"><c r="A1" t="inlineStr"><is><t>' + "&#65;" * references + "</t></is></c></row>")
+        started = time.perf_counter()
+        root = _ow()._parse_xml(body, "xl/worksheets/sheet1.xml")
+        elapsed = time.perf_counter() - started
+        assert any(len(node.text) == references for node in root.iter(f"{SPREADSHEET_NS} t"))
+        return elapsed
+
+    small = large = float("inf")
+    for _ in range(2):
+        small, large = min(small, once(400_000)), min(large, once(1_600_000))
+    assert large < max(8 * small, 3.0), f"400k references: {small:.3f} s, 1.6M: {large:.3f} s"

@@ -1513,3 +1513,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #457 (carried on this branch, the same kind of change): `conformance/test-ci-yaml.py` now proves its fallback parser on a sample of its own, a step whose `with:` holds `name:`, on every run, with or without PyYAML. With #454's fix removed the sample fires ("read the steps ... as ['hosted-state', 'after']"); the file was restored from a copy.
 - Both tighten a control under D-229 clause 3; neither loosens one.
 - Lesson: a control proven only by the shape of one installed file is proven only until someone edits that file; give it a sample of its own.
+
+## 2026-10-28 · fix/issue-452-tester-minors — terminalbench's bad-JSON catch has a behaviour test; two wall-clock bounds become ratios
+
+- M1: #411's `(ValueError, RecursionError)` catch in `terminalbench.py`'s `fetch_raw` was held only by an AST scan. A respx test now serves a listing nested past the recursion limit, an integer past the digit limit, and garbage, and expects the source's `SourceError`. With `RecursionError` removed from the catch, the nested case fails.
+- M2: `test_simplebench.py` and `test_osworld.py` bounded one parse by wall clock. Each now times two sizes, interleaved, and asserts the larger under `max(8 × smaller, floor)`. With simplebench's `\n\s*\];` restored the test fails (25k newlines: 0.84 s, 100k: 14.3 s). OSWorld's fault, re-made as a join on every piece, ran past a 300 s timeout instead of failing cleanly; its proof is that run, not a measured ratio. The arena bound is #463's.
+- Lesson: a fault proof is only as good as the fault; a mutation harsher than the real regression proves the test less, not more.
