@@ -1534,3 +1534,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - One stop: #493, found by #444's per-fix review, a gate bypass that predates the run.
 - The machine's load average passed 100 for hours (other projects' builds); every commit's `check-fast` took 3-10 minutes, and a wall-clock test refused a push before #463 was fixed.
 - Lesson: in a run, merge the integration branch into a fix branch before its push, so the push's gate runs on the fixes already stacked, not on the flakes they remove.
+
+## 2026-10-29 · chore/guard-patch-owner-row — the guard patch's owner row, on a branch from main
+
+- #473 (`chore/guard-version-tags`) merged on 2026-10-27 without the owner's guard patch: main's `bash_guard.py` still lacks the `v*` tag and replace-ref refusals, so #410's and #471's guard half never shipped, while their issues are closed.
+- The 2026-10-27 row is superseded; the new row applies the same patch (sha256 checked) on `owner/guard-version-tags` from main, re-pins, pushes and opens the draft in one command.
+- Checked on an export of main at `4c314a1`: the patch applies (one hunk offset), the guard's bound tests pass 736, its conformance test 0 wrong.
+- Lesson: an owner row that patches a draft's branch says "apply, then merge"; a merge before the apply closes the PR and its issues with nothing landed, so `/post-merge` should check that a merged PR carries the change its owner row names.
