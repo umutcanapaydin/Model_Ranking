@@ -771,6 +771,10 @@ EGRESS_EXACT = {
     ("StandingsStore.swift", "data.write(to: url, options: .atomic)"): "D-167: the store writes its own file",
     ("StandingsStore.swift", "public let url: URL"): "D-167: the store's own file",
     ("StandingsStore.swift", "public init(url: URL)"): "D-167: the store's own file",
+    # #484 (D-230): the one door that is not the engine, the system's Settings page for this app. The compiled gate
+    # pins the file whole (`SETTINGS_DOOR_SHA256`).
+    ("SettingsDoor.swift", "URL(string: UIApplication.openSettingsURLString)"): "D-230: the system's Settings address",
+    ("SettingsDoor.swift", "UIApplication.shared.open(settings)"): "D-230: opens that address, and only it",
 }
 
 #: The one piece of app storage the client keeps: the language choice, typed as `Language`, so it

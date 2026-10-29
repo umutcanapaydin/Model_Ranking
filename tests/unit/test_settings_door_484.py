@@ -26,7 +26,7 @@ def test_the_guide_opens_settings_where_turning_it_on_is_the_remedy() -> None:
     code = _code((CLIENT / "ContentView.swift").read_text(encoding="utf-8"))
     sheet = code[code.index("private var intelligenceGuideSheet"):code.index("private var creditsSheet")]
     guard, button = sheet.find("if guide.opensSettings {"), sheet.find(
-        "Button(UIText.openSettings(language)) { SettingsDoor.open() }")
+        "Button(UIText.openSettings(language)) { SettingsDoor.showSettings() }")
     assert 0 <= guard < button, sheet
 
 

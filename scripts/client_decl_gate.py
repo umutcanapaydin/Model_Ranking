@@ -596,6 +596,34 @@ FORBIDDEN_EXCEPT = {
     ("EngineClient.swift", "HTTPCookie.AcceptPolicy.never"): "#144: the session refuses every cookie",
 }
 
+#: #484 (D-230, the owner's ruling of 2026-10-29): the one door out of the app that is not the engine, the system's
+#: Settings page for this app, where Apple Intelligence is turned on. Its address is the system's constant
+#: (`UIApplication.openSettingsURLString`), never text. These declarations, each as the compiler resolves it (measured on
+#: the shipping client, 2026-10-29), are allowed in that one file and only while its bytes hash to the pin, so a second
+#: address there, or the same call elsewhere, is a reviewed edit of this gate. The text gate permits the file's two
+#: expressions exactly (`tests/unit/test_router_hints.py`, `EGRESS_EXACT`).
+SETTINGS_DOOR = "SettingsDoor.swift"
+SETTINGS_DOOR_SHA256 = "c9f7469687b9f05e460f770bd9e2436ec1cc32dda7bf95b072324ea1c0c6ba4c"
+SETTINGS_DOOR_ALLOWED = frozenset({
+    "Foundation.URL.init(string:", "Foundation.URL.made", "UIKit.UIApplication.openSettingsURLString",
+    "UIKit.UIApplication.shared", "UIKit.UIApplication.open(_:options:completionHandler:",
+})
+
+
+def settings_door_problem(folder: pathlib.Path) -> str | None:
+    """D-230: why the door's exception does not apply, or None: the file is the pinned one, byte for byte."""
+    path = folder / SETTINGS_DOOR
+    try:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return f"{SETTINGS_DOOR}: cannot be read, so the door's exception (D-230) does not apply"
+    if digest != SETTINGS_DOOR_SHA256:
+        return (f"{SETTINGS_DOOR}: its bytes are not the ones D-230 pins (sha256 {digest[:12]}, pinned "
+                f"{SETTINGS_DOOR_SHA256[:12]}); the door opens the system's Settings page and nothing else, so a change "
+                "here is a reviewed edit of SETTINGS_DOOR_SHA256")
+    return None
+
+
 #: `@AppStorage("language")` is the one piece of app storage the client keeps, and it holds a
 #: `Language`, never text a reader typed. The text gate pins its declaration; here the SwiftUI
 #: property wrapper itself is allowed only in the file that declares it.
@@ -3114,6 +3142,8 @@ def unseen_permissions(found: dict[str, set[str]]) -> list[str]:
                 if (name, called) not in seen_calls]
     seen_types = {fact.split(">.")[1] for facts in found.values() for fact in facts if fact.startswith("main.<unserved>.")}
     missing += [f"`{name}`, which no type decodes" for name in NOT_SERVED if name not in seen_types]
+    missing += [f"{SETTINGS_DOOR}: `{decl}`, the door's (D-230)" for decl in sorted(SETTINGS_DOOR_ALLOWED)
+                if decl not in found.get(SETTINGS_DOOR, set())]
     # The backlog-gates review round 2's N1: the store's Foundation list and the engine client's members.
     missing += [f"{name}: `{entry}` on the store's Foundation list" for name, allowed in STORE_FOUNDATION_ALLOWED.items()
                 for entry in sorted(allowed) if f"Foundation.{entry}" not in found.get(name, set())]
@@ -3382,8 +3412,13 @@ def _sink_module_problem(name: str, module: str, symbol: str) -> str | None:
 
 def problems(found: dict[str, set[str]]) -> list[str]:
     bad: list[str] = []
+    door = settings_door_problem(CLIENT) if SETTINGS_DOOR in found else None
+    if door is not None:
+        bad.append(door)
     for name, decls in sorted(found.items()):
         for decl in sorted(decls):
+            if name == SETTINGS_DOOR and door is None and decl in SETTINGS_DOOR_ALLOWED:
+                continue
             module, _, symbol = decl.partition(".")
             if module == "main" and symbol.startswith("<"):
                 if (problem := _sink_problem(name, symbol) or _flow_problem(name, symbol)
