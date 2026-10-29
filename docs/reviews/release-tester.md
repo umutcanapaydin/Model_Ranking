@@ -24,9 +24,10 @@ listed under "Tests added this review", each on a review branch of my own, after
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** e00c516df11f75791cfab5ba27035650604c3e12 (the night-1028 delta round's head, the tip of
-`integration/run-night-1028` (draft PR #483) with #485, #490, #487, #489, #486, #491, #492, #495 and build 7; this
-round's tests follow it in their own commit; the night-1027 delta round's head was `07a7fc6`, the 2026-10-27 delta
+**Reviewed head:** 3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9 (the night-1028 delta round's re-check: `0f1837f`
+carries this round's tests and the fixes for M8 and M9, `3cddbdd` this verdict; the round itself reviewed `e00c516`,
+the tip of `integration/run-night-1028` (draft PR #483) with #485, #490, #487, #489, #486, #491, #492, #495 and build
+7; the night-1027 delta round's head was `07a7fc6`, the 2026-10-27 delta
 round's `50c4764`, the B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
@@ -44,8 +45,10 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 2 MINOR open (M8 and M9, both new); M1, M2, M3 (#456), M4 (#457), M6 (#466) and M7 (#477)
-are closed in this range. The night-1028 delta round (below, `07a7fc6..e00c516`) found every acceptance criterion of
+MINOR -- 0 BLOCKING open, 0 MINOR open. M8 and M9, the night-1028 round's two, are fixed at `0f1837f` and re-checked
+(below, "Night-1028 re-check"); M9's UI test is the owner's run on the simulator before the build 7 upload. As the
+night-1028 round read when it closed: MINOR -- 0 BLOCKING open, 2 MINOR open (M8 and M9, both new); M1, M2, M3
+(#456), M4 (#457), M6 (#466) and M7 (#477) are closed in this range. The night-1028 delta round (below, `07a7fc6..e00c516`) found every acceptance criterion of
 the run's eleven issues proven by a citing test, each red on its pre-fix commit where the issue fixes code; eight
 faults in the new code stayed green (F83, F84, F99, F109, F110, F114, F123, F124), and this round's tests close all
 eight. M8: the #463 ratio's 0.5 s floor sits within about 2x of the #417 regression's own time. M9: #481's screen
@@ -288,8 +291,8 @@ None open. Found and closed in this review, each by a test on this branch:
   `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
-- **M8**, **M9**: from the night-1028 delta round, set out under "Night-1028 delta MINOR" below. M1-M4, M6 and M7 are
-  closed there, by #452, #463, #456, #457, #466 and #477.
+- **M8**, **M9**: from the night-1028 delta round, set out under "Night-1028 delta MINOR" below; both fixed at
+  `0f1837f` and re-checked. M1-M4, M6 and M7 are closed there, by #452, #463, #456, #457, #466 and #477.
 - **M7**: from the night-1027 delta round, set out under "Night-1027 delta MINOR" below.
 - **M5**, **M6**: from the hotfix-1026 delta round, set out under "Delta MINOR (hotfix-1026)" below. M5 is answered
   by D-226 clause 3; M6 is filed as #466. M3 and M4 are filed as #456 and #457.
@@ -977,3 +980,21 @@ None.
   runs in a subprocess, which coverage does not see; its faults above stand in.
 - **Mutation kill-rate (advisory):** no runner is wired. F79-F124: 35 of 46 killed on the range's own tests, 8
   survived and 3 equivalent; 43 of 46 killed after this round's tests, the equivalent F86, F96 and F115 left.
+
+### Night-1028 re-check 2026-10-29 (e00c516..3cddbdd)
+`git diff e00c516 3cddbdd -- ios tests src` is this round's tests, byte-identical to what this seat wrote, and the two
+fixes below; the rest is this verdict and `docs/plans/run-night-1028.md`. Seat: a fresh worktree
+`$TMPDIR/wt-tester-1028b`, detached at `3cddbdd`, with its own `.venv`; nothing committed, nothing pushed.
+- **M8, fixed:** `tests/unit/test_arena_respelling.py:98` now times 10k and 40k spaces against the same
+  `max(8 * small, 0.5)`. GREEN at `3cddbdd` (load average about 2). F101 (`_TEXT_BRACKET`'s lookbehind dropped): RED,
+  "10k spaces: 0.2544 s, 40k: 3.9675 s"; F102 (`_PAREN_EFFORT`'s): RED on both shapes, 6.12 s and 6.21 s at 40k.
+  The regression now runs about 8x past the floor, where it ran 2x; `registry.py` restored, md5
+  `fca8e67c83941ae93928d07429017011` before and after, `git status` clean.
+- **M9, fixed as far as this seat can run it:** `ios/ModelRanking/ContentView.swift:610` gives the caption's button
+  `.accessibilityLabel(Text(UIText.onDeviceCaption(onDevice, language)))`, so its label is the caption's sentence
+  again, the one `ios/UITests/ScreenPathTests.swift:199` matches, and not the sentence plus the `info.circle` image.
+  `make client-decls`, which type-checks every file under `ios/ModelRanking` against the iOS SDK: PASS, 4
+  configurations. The UI test was not run here (the simulators are booted by another session); running it before the
+  build 7 upload stays the owner's.
+- This round's tests at `3cddbdd`: the three Python files and the arena test, 196 passed; `swift test --filter
+  OnDeviceGuideTests` 7 of 7.
