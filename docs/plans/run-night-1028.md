@@ -26,8 +26,8 @@ Rulings: D-229
 | issue-463 | fix/issue-463-bracket-bound | #486 | none | stacked |
 | issue-456 | fix/issue-456-nightly-installed | #491 | none | stacked |
 | issue-457 | fix/issue-456-nightly-installed | #491 | none | stacked |
-| issue-452 | fix/issue-452-tester-minors | none | none | queued |
-| issue-444 | fix/issue-444-deploy-gate-pin | none | none | queued |
+| issue-452 | fix/issue-452-tester-minors | #492 | none | stacked |
+| issue-444 | fix/issue-444-deploy-gate-pin | none | none | running |
 
 ## Stops
 
