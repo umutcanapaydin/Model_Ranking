@@ -78,6 +78,7 @@ refused, or this could not run.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -244,20 +245,87 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
     """Whether `rel` is a file DevFlow shipped, byte for byte as the commit pinned at the protected base has it --
     DevFlow's own tooling after an upgrade, which is not this product's code (v7.2, the owner's ruling of
     2026-10-17: every upgrade made both release verdicts stale). False with no pin at the base, for the safety
-    surface, and for anything the project changed (#410: never from a local tag or the untracked marker)."""
+    surface, and for anything the project changed (#410: never from a local tag or the untracked marker).
+
+    #444: false for a symlink (M2: `lstat`, never the target's bytes), for what the deploy commands start (M3,
+    `deploy_surface`), and when the pinned bytes do not hash to the ids git names them by (R2)."""
     if rel in SAFETY_SURFACE or rel.startswith(SAFETY_SURFACE_DIRS) \
             or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
         return False
     pinned = devflow_pin(root)
     target = root / rel
-    if pinned is None or not target.is_file():
+    if pinned is None or target.is_symlink() or not target.is_file():
         return False
+    surface = deploy_surface(root)
+    if surface is None or rel in surface:
+        return False
+    shipped = verified_blob(root, pinned, rel)
+    return shipped is not None and shipped == target.read_bytes()
+
+
+_SURFACES: dict[str, frozenset[str] | None] = {}
+
+
+def deploy_surface(root: Path) -> frozenset[str] | None:
+    """#444 M3: what the brief's deploy commands start, derived rather than listed -- each tracked file a declared
+    command names, and each workflow file a declared `gh workflow run` dispatches or whose run line is a declared
+    command. None when the workflows cannot all be read: then nothing is exempt (fail closed)."""
+    key = str(root)
+    if key not in _SURFACES:
+        decl = declared(root)
+        texts, complete = _workflow_texts(root)
+        named = {word for words in decl for word in words if "/" in word}
+        files = set(deploy_workflows(root, decl, texts)) if complete else None
+        if files is None:
+            _SURFACES[key] = None
+        else:
+            workflows = {f"{d}/{p.name}" for d in WORKFLOW_DIRS if (root / d).is_dir()
+                         for p in (root / d).iterdir() if p.name.lower() in files}
+            _SURFACES[key] = frozenset({word for word in named if (root / word).is_file()} | workflows
+                                       | {f"{d}/{name}" for d in WORKFLOW_DIRS for name in files})
+    return _SURFACES[key]
+
+
+def _object(root: Path, kind: str, oid: str) -> bytes | None:
+    """An object's bytes, only when they hash to its id (#444 R2: git serves a loose object without hashing it)."""
     try:
-        shipped = subprocess.run(["git", "-C", str(root), "cat-file", "-p", f"{pinned}:{rel}"],
-                                 capture_output=True, timeout=30)
+        done = subprocess.run(["git", "-C", str(root), "cat-file", kind, oid], capture_output=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
-        return False
-    return shipped.returncode == 0 and shipped.stdout == target.read_bytes()
+        return None
+    body = done.stdout
+    # SHA-1 because git names its objects by it: this checks the bytes against the name, nothing more.
+    named = hashlib.sha1(b"%s %d\0" % (kind.encode(), len(body)) + body).hexdigest()  # noqa: S324
+    if done.returncode != 0 or named != oid:
+        return None
+    return body
+
+
+def verified_blob(root: Path, commit: str, rel: str) -> bytes | None:
+    """The bytes of `rel` at `commit`, every object on the way -- the commit, each tree, the blob -- hashed against
+    its id. None when one does not hash, or the path is not a file there."""
+    body = _object(root, "commit", commit)
+    m = re.match(rb"tree ([0-9a-f]{40})\n", body or b"")
+    if m is None:
+        return None
+    oid, parts = m.group(1).decode(), rel.split("/")
+    for depth, part in enumerate(parts):
+        tree = _object(root, "tree", oid)
+        if tree is None:
+            return None
+        found = None
+        at = 0
+        while at < len(tree):
+            space, nul = tree.index(b" ", at), tree.index(b"\0", at)
+            mode, name, entry = tree[at:space], tree[space + 1:nul], tree[nul + 1:nul + 21].hex()
+            at = nul + 21
+            if name == part.encode():
+                found = (mode, entry)
+                break
+        last = depth == len(parts) - 1
+        if found is None or (found[0] == b"40000") == last:
+            return None
+        oid = found[1]
+    return _object(root, "blob", oid)
 
 
 def current(root: Path, rel: Path, label: str, independent: bool = False) -> tuple[str | None, str]:

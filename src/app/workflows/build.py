@@ -37,6 +37,7 @@ least one test through the real entry point). The defaults are the real clients.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import json
 import math
@@ -54,7 +55,7 @@ from typing import Any
 from app.clients.arena import METRIC as ARENA_ELO
 from app.clients.arena_slices import ARENA_SLICES, ArenaSlice, fetch_slices
 from app.clients.epoch_board import EpochBoard, parse_board, read_bundle_file
-from app.clients.protocols import SourceError
+from app.clients.protocols import SourceError, cycle_budget
 from app.workflows import access
 from app.workflows.epoch import committed_last_verified
 from app.workflows.ingest import RunContext, SourceReport, _calendar_date, _store_scores
@@ -934,6 +935,11 @@ def main(argv: list[str] | None = None) -> int:
         "--progress-out",
         help="append each source's start and finish here (#426), so a killed build says where it was",
     )
+    parser.add_argument(
+        "--fetch-seconds",
+        type=float,
+        help="the seconds left of the refresh cycle's fetch budget (#453); every fetch of this build ends within it",
+    )
     args = parser.parse_args(argv)
     global PROGRESS_FILE  # one build per process: the child the cycle starts (#426)
     PROGRESS_FILE = Path(args.progress_out) if args.progress_out else None
@@ -984,14 +990,18 @@ def main(argv: list[str] | None = None) -> int:
     conn: sqlite3.Connection | None = None
     try:
         conn = connect(str(workspace))
-        report = build(
-            conn,
-            plans_yaml=Path(args.plans).read_text(encoding="utf-8"),
-            rosters_yaml=Path(args.rosters).read_text(encoding="utf-8"),
-            bundle_dir=Path(args.epoch_dir) if args.epoch_dir else None,
-            carry_from=Path(args.carry_from) if args.carry_from else None,
-            last_ok=_read_last_ok(args.last_ok),
-        )
+        # #453: the cycle's fetch budget, handed down; a build run by hand has none, as before.
+        budget = (cycle_budget(args.fetch_seconds) if args.fetch_seconds is not None
+                  else contextlib.nullcontext())
+        with budget:
+            report = build(
+                conn,
+                plans_yaml=Path(args.plans).read_text(encoding="utf-8"),
+                rosters_yaml=Path(args.rosters).read_text(encoding="utf-8"),
+                bundle_dir=Path(args.epoch_dir) if args.epoch_dir else None,
+                carry_from=Path(args.carry_from) if args.carry_from else None,
+                last_ok=_read_last_ok(args.last_ok),
+            )
     except BaseException as exc:
         if conn is not None:
             conn.close()

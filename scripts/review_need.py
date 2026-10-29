@@ -87,7 +87,9 @@ POLICY_SCRIPTS = tuple(f"scripts/{name}.py" for name in POLICY_MODULES)
 #: D-221 clause 4 (#418): an exception to a product safety guard is policy too. `data/accepted-cuts.yaml` lets the
 #: refresh excuse rows a board loses, so any change to it is a security review in either mode.
 #: `tests/unit/test_accepted_cuts.py` holds this equal to the path `app.workflows.refresh` reads.
-EXCEPTION_FILES = ("data/accepted-cuts.yaml",)
+#: #444 M1: the DevFlow pin decides which bytes the deploy gate exempts from the release verdicts, so a change to it
+#: is policy too. `tests/unit/test_deploy_gate_444.py` holds it equal to the path `deploy_gate` reads.
+EXCEPTION_FILES = ("data/accepted-cuts.yaml", "docs/devflow-pin.txt")
 #: #319 (D-209 clause 5): what names a policy reader -- a policy module, its make target, a plan's
 #: `security-globs:` line or a policy field's label. A script under POLICY_READER_DIRS that names one, at either end
 #: of the range, is a policy script; in LINE_POLICY_PATHS (the Makefile, the plans) only a changed line naming one

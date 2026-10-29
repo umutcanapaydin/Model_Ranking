@@ -47,7 +47,7 @@ from typing import NamedTuple, TypeVar
 import yaml
 
 from app.clients import epoch_bundle
-from app.clients.protocols import cycle_budget
+from app.clients.protocols import cycle_budget, cycle_ends
 from app.workflows import access
 from app.workflows import boards as declared_boards
 from app.workflows.build import CARRY_TABLES
@@ -129,6 +129,7 @@ class _Limits:
     def __init__(self, seconds: float, poll: float) -> None:
         self._previous = signal.signal(signal.SIGALRM, signal.SIG_DFL)
         signal.setitimer(signal.ITIMER_REAL, seconds)
+        _CycleClock.ends = time.monotonic() + seconds
         named = os.environ.get(ENGINE_PID, "")
         self._parent = os.getppid()
         if named.isdigit() and self._parent == 1 and int(named) != 1:
@@ -147,6 +148,7 @@ class _Limits:
     def close(self) -> None:
         self._done.set()
         signal.setitimer(signal.ITIMER_REAL, 0)
+        _CycleClock.ends = None
         if self._previous is not None:
             signal.signal(signal.SIGALRM, self._previous)
 
@@ -321,7 +323,7 @@ def parse_accepted_cuts(
 def _accepted_doc(raw: str) -> dict[str, list[object]]:
     """The file: `cuts`, a list, and beside it, optionally, `respellings`, a list (D-228 clause 1)."""
     try:
-        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
+        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)", unique_keys=True)
     except yaml.YAMLError as exc:
         raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
     if (not isinstance(doc, dict) or set(doc) not in ({"cuts"}, {"cuts", "respellings"})
@@ -335,7 +337,7 @@ def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str)
     if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
         raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
     board, decision, reason, until, rows = (entry[key] for key in ("board", "decision", "reason", "until", "rows"))
-    if board not in known:
+    if not isinstance(board, str) or board not in known:  # #479: a list or a mapping is no board
         raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board")
     _check_terms(board, decision, reason, until, today, decisions)
     # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
@@ -387,7 +389,7 @@ def _checked_respelling(entry: object, known: set[str], today: dt.date, decision
     if not isinstance(entry, dict) or set(entry) != _RESPELLING_KEYS:
         raise AcceptedCutError(f"accepted cuts: each re-spelling has exactly {sorted(_RESPELLING_KEYS)}")
     board, decision, reason, until, pairs = (entry[key] for key in ("board", "decision", "reason", "until", "pairs"))
-    if board not in known:
+    if not isinstance(board, str) or board not in known:  # #479: a list or a mapping is no board
         raise AcceptedCutError(f"accepted cuts: {board!r} is neither a surface nor a declared board")
     _check_terms(board, decision, reason, until, today, decisions)
     if (not isinstance(pairs, dict) or not pairs
@@ -441,13 +443,25 @@ def respelled(
 
 
 def _respelled_ids(before: Spellings, after: Spellings, pairs: Mapping[str, str]) -> dict[str, str]:
-    """The candidate's model -> the served one, for each pair that is a re-spelling on this board."""
+    """The candidate's model -> the served one, for each pair that is a re-spelling on this board.
+
+    #478: a pair names rows, not models. A model moves only when the pairs list every name it had on the
+    served board, and its new model's names are exactly theirs."""
     was = {raw: model for model, names in before.items() for raw in names}
     now = {raw: model for model, names in after.items() for raw in names}
+
+    def respelling(old: str, new: str) -> bool:
+        return (old in was and new in now and old not in now and new not in was
+                and now[new] not in before and was[old] not in after)
+
+    # The #477 security round's M4: every name of the old model is a pair that is itself a re-spelling, so a
+    # pair whose new name was already served never moves its row along with a sibling that passes.
     found: list[tuple[str, str]] = [
         (now[new], was[old]) for old, new in pairs.items()
-        if old in was and new in now and old not in now and new not in was
-        and now[new] not in before and was[old] not in after]
+        if respelling(old, new)
+        and before[was[old]] <= pairs.keys()
+        and all(respelling(name, pairs[name]) for name in before[was[old]])
+        and after[now[new]] == {pairs[name] for name in before[was[old]]}]
     # One model to one: a candidate model claimed by two served ones, or the reverse, is not a re-spelling.
     targets = Counter(model for _, model in set(found))
     sources = Counter(model for model, _ in set(found))
@@ -1169,7 +1183,9 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     # saw `published` and never learned a refusal had happened.
     previous: dict[str, object] = {}
     with contextlib.suppress(OSError, ValueError):
-        previous = json.loads(path.read_text(encoding="utf-8"))
+        read = json.loads(path.read_text(encoding="utf-8"))
+        # #466: valid JSON that is not an object is no previous record, as an unreadable file is.
+        previous = read if isinstance(read, dict) else {}
 
     refused_before = previous.get("consecutive_refusals", 0)
     carried = int(refused_before) if isinstance(refused_before, int) else 0
@@ -1601,12 +1617,33 @@ def _discard(scratch: Path | None) -> None:
         shutil.rmtree(scratch, ignore_errors=True)
 
 
+class _CycleClock:
+    """When this process's cycle alarm fires (monotonic), set by `_Limits`, or None outside `main`."""
+
+    ends: float | None = None
+
+
+def _cycle_deadline() -> float | None:
+    return _CycleClock.ends
+
+
 def build_in_child(argv: list[str], *, limit: float = BUILD_LIMIT_SECONDS,
                    command: Sequence[str] | None = None) -> int:
     """Run the build as a child of this cycle and return its exit code, or `EXIT_BUILD_KILLED` once it passes
     `limit` (#426). The child stays in the cycle's process group, so the engine's kill of the group takes it
-    too; its stdout goes to this process's stderr, since this cycle's stdout carries only its outcome."""
-    argv_full = [*(command or [sys.executable, "-B", "-m", "app.workflows.build"]), *argv]
+    too; its stdout goes to this process's stderr, since this cycle's stdout carries only its outcome.
+
+    #453: the child is started with `-B -P -m`, as every other child is, so a planted `app/` in the working
+    directory never runs. The cycle's clocks reach it: it is killed two minutes before the cycle's own alarm,
+    whichever comes first, so the cycle always outlives it and writes why; and it is handed the seconds left
+    of the fetch budget (`--fetch-seconds`), which its own process would otherwise not know."""
+    now = time.monotonic()
+    deadline = _cycle_deadline()
+    if deadline is not None:
+        limit = min(limit, deadline - (CYCLE_LIMIT_SECONDS - BUILD_LIMIT_SECONDS) - now)
+    fetch_ends = cycle_ends()
+    budget = ["--fetch-seconds", f"{max(0.0, fetch_ends - now):.1f}"] if fetch_ends is not None else []
+    argv_full = [*(command or [sys.executable, "-B", "-P", "-m", "app.workflows.build"]), *argv, *budget]
     out = sys.stderr.fileno() if _has_fileno(sys.stderr) else None
     proc = subprocess.Popen(argv_full, stdout=out)  # noqa: S603 -- our own interpreter and module, no shell
     try:
@@ -1641,6 +1678,8 @@ def _read_progress(path: Path) -> dict[str, float | None]:
         try:
             at = float(stamp)
         except ValueError:
+            continue
+        if not math.isfinite(at):  # #453 R2: `float()` reads `nan` and `inf`
             continue
         if event == "start":
             started[name] = at

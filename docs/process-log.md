@@ -1475,3 +1475,62 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The release Tester's round (MINOR, 0 BLOCKING, reviewed head `07a7fc6`) found six re-spelling conditions held only indirectly and added a test for each. Its M7 (the entry's 2026-11-10 expiry would turn every night and CI red) is #477.
 - The Security-Reviewer's round (MINOR, 0 BLOCKING, reviewed head `718cae4`): M6 (a pair moves its whole model) is #478; it is not live, since no text_to_image model has two names on either side. M7 (duplicate YAML keys override silently) is #479. `make deploy-check` PASS.
 - Lesson: an exception keyed by name, applied by model, reaches every row of that model. Write the binding test with a model that has two names.
+
+## 2026-10-28 · fix/issue-481-intelligence-guide — the Apple Intelligence caption opens a guide
+
+- The owner's build 6 said "Apple Intelligence off" and was right; the reader had no way to learn how to turn it on. The caption under the question box, and the help line under an answer, now open a sheet for the state the platform reports: the steps (Settings → Apple Intelligence & Siri), and a line that the app still answers without it. Each state has its own guide in English and Turkish (`OnDeviceGuide`, `FrontDoor.swift`), held by `OnDeviceGuideTests`.
+- D-229 clause 1 also asked for an "Open Settings" button. Opening Settings makes a URL in `ContentView.swift`, which the client-decls control and the egress pins refuse (D-126). The guide ships steps-only, and the exception is the owner's: #484.
+- Lesson: before promising a button that leaves the app, grep what the client-decls control allows the design layer to call.
+
+## 2026-10-28 · fix/issue-466-status-object — a previous refresh record that is not an object is read as none
+
+- `write_status` read the previous `.refresh.json` with `json.loads` and called `.get` on whatever came back; `[]`, a string, a number or `null` crashed every cycle before the record was rewritten, so the cycle never recovered by itself. Valid JSON that is not an object is now no previous record, as an unreadable file already was (`refresh.py`, `write_status`), held by `test_a_previous_record_that_is_not_an_object_is_read_as_none`, red first.
+- Lesson: `json.loads` returns whatever the file holds; a reader that suppresses the parse error owes the same suppression to the wrong shape.
+## 2026-10-28 · fix/issue-463-bracket-bound — the bracket reading's linearity test measures a ratio, not the machine
+
+- `test_the_bracket_reading_is_linear_on_a_long_whitespace_run` bounded one parse at 0.25 s and failed under `check-fast`'s parallel load; during run night-1028 the machine's load average passed 100 and it refused a push. It now times the reading at 5k and 20k spaces, best of three each, and asserts the larger under `max(8 × smaller, 0.1 s)`.
+- The fault still goes red: with the #417 `(?<!\s)` removed from both regexes the test failed with 5k: 0.0995 s, 20k: 1.5501 s (a ratio of 15.6); the regexes were restored byte for byte from a copy.
+- There is no red commit: the change is the test itself, and its proof is the fault above.
+- The first ratio form (best of three, 0.1 s floor) still failed once in a concurrent `check-fast`: 20k spaces measured 0.146 s against 0.016 s alone. The measurements are now interleaved, best of five, with a 0.5 s floor; the quadratic reading still fails it at 1.55 s.
+- Lesson: a complexity claim is a ratio between two sizes; a wall-clock bound is a claim about the machine.
+## 2026-10-28 · fix/issue-453-build-child — the build child runs with -P, inside the cycle's clocks
+
+- M1: `build_in_child` started `python -B -m app.workflows.build`; every other child uses `-B -P -m`, so a planted `app/` in the working directory could run. It now carries `-P`, pinned by a test that reads the argv.
+- M2: the child's 25 minutes counted from its own start, so a cycle that spent minutes before the build let the parent's 27-minute alarm fire first: no record, the child orphaned. `_Limits` now records when the cycle's alarm fires, and the child is killed two minutes before it, whichever comes first. The 20-minute fetch budget never reached the child (its `cycle_ends()` was `None`); the cycle hands it the seconds left as `--fetch-seconds`, and the build runs its fetches inside `cycle_budget`.
+- R2: the progress reader skips a `nan` or `inf` time. R1 (`NSAllowsLocalNetworking` in every iOS build) is split out to #488: making the key Debug-only means a preprocessed Info.plist, which needs both builds checked.
+- Lesson: a limit counted from a child's own start is not the parent's limit; hand the child the parent's deadline, not a duration.
+## 2026-10-28 · fix/issue-477-respelling-expiry — D-228's entry retired; the suite off the committed policy; pairs name rows; repeated keys refused
+
+- #477: the hosted nights of 2026-10-27 and 2026-10-28 published text_to_image's new ids (the served board holds 82 rows under `flux.2-max` and its kin), so D-228's 27 pairs were inert; the entry is removed, recorded as retired in the file's header. An autouse fixture in `tests/conftest.py` points both loaders' defaults at an empty policy, so the suite can no longer go red on the day an `until:` passes; only the tests naming `ACCEPTED_CUTS_FILE` read the committed file.
+- #478: `_respelled_ids` moves a model only when the pairs list every name it had on the served board and its new model's names are exactly theirs (shape `a-name-the-pairs-do-not-list`, and its control with both names listed).
+- #479: `safe_load_bounded(..., unique_keys=True)` refuses a key written twice in one mapping, on the composed node, before PyYAML keeps the last; the policy loader asks for it. Other YAML inputs are unchanged.
+- The security round (`docs/reviews/fix-issue-477-security.md`, MINOR, 0 BLOCKING, reviewed head `c9d6584`) found four MINORs, all fixed here, each with a test that fails without its fix: a merge key (`<<`) still overrode a pair (M1, refused when `unique_keys` is on); `list.count` made the key walk quadratic (M2, 40,000 keys: 9.6 s before, a `Counter` now); a list or mapping as `board:` raised `TypeError` (M3, #479's second clause); a sibling pair that was not itself a re-spelling moved with one that was (M4, every pair of the old model must pass). Its R1 and R2 are written down in the verdict.
+- Lesson: a test suite that reads a dated policy file has a date on which it fails; give the suite its own policy, and keep one test on the committed one.
+
+## 2026-10-28 · fix/issue-456-nightly-installed — a missing nightly workflow fails its test; the fallback parser's nested-name fix proves itself
+
+- #456: `test_the_installed_workflow_is_the_proposal` compared the installed `nightly-hosted.yml` with the proposal only when it existed, so deleting it switched the nightly refresh and deploy off with the suite green (the Tester's F41). Since #454 it is installed on main, so a missing copy now fails; `test_a_missing_installed_workflow_fails` holds the helper to that. The workflow file itself is untouched.
+- #457 (carried on this branch, the same kind of change): `conformance/test-ci-yaml.py` now proves its fallback parser on a sample of its own, a step whose `with:` holds `name:`, on every run, with or without PyYAML. With #454's fix removed the sample fires ("read the steps ... as ['hosted-state', 'after']"); the file was restored from a copy.
+- Both tighten a control under D-229 clause 3; neither loosens one.
+- Lesson: a control proven only by the shape of one installed file is proven only until someone edits that file; give it a sample of its own.
+
+## 2026-10-28 · fix/issue-452-tester-minors — terminalbench's bad-JSON catch has a behaviour test; two wall-clock bounds become ratios
+
+- M1: #411's `(ValueError, RecursionError)` catch in `terminalbench.py`'s `fetch_raw` was held only by an AST scan. A respx test now serves a listing nested past the recursion limit, an integer past the digit limit, and garbage, and expects the source's `SourceError`. With `RecursionError` removed from the catch, the nested case fails.
+- M2: `test_simplebench.py` and `test_osworld.py` bounded one parse by wall clock. Each now times two sizes, interleaved, and asserts the larger under `max(8 × smaller, floor)`. With simplebench's `\n\s*\];` restored the test fails (25k newlines: 0.84 s, 100k: 14.3 s). OSWorld's fault, re-made as a join on every piece, ran past a 300 s timeout instead of failing cleanly; its proof is that run, not a measured ratio. The arena bound is #463's.
+- Lesson: a fault proof is only as good as the fault; a mutation harsher than the real regression proves the test less, not more.
+
+## 2026-10-28 · fix/issue-444-deploy-gate-pin — the deploy gate's DevFlow exemption, tightened
+
+- The #410 review's M1-M3 and R2, under D-229 clause 3 (tightening only). `shipped_unchanged` exempts a DevFlow tooling file only when it is not a symlink (M2: a link to any file holding the pinned bytes read as unchanged); not something the brief's deploy commands start (M3: `deploy_surface` derives the declared scripts, the dispatched workflows and the workflows whose run line is a deploy command, and fails closed when a workflow cannot be read; the hand-kept `SAFETY_SURFACE` stays as the floor); and only when the commit, every tree on the path and the blob hash to their ids (R2: git serves a forged loose object at the pinned id). `docs/devflow-pin.txt` is a security review in either mode (M1, `EXCEPTION_FILES`, held equal to the gate's `DEVFLOW_PIN`).
+- R1 (a ref written by a program the guard does not list) is the Bash guard's, so the owner's. Checking the pin against DevFlow's remote at upgrade time (M1's second half) needs the network at upgrade, and stays with `/setup-project`'s upgrade step.
+- The security round (`docs/reviews/fix-issue-444-security.md`, MINOR, 0 BLOCKING, reviewed head `fba96ba`): nothing loosened. Its M1-M3 (a deploy command not written as a literal path, two untested branches) are #494; its R1, a forged loose tree reachable from the reviewed head hiding a change from `changed_since` (a gate bypass that stays green, predating #444), is #493, escalated to the owner as a run stop.
+- Lesson: an exemption keyed by "the same bytes" must say which bytes: the file's own (not a link's target), and the object store's verified ones (not whatever it serves).
+
+## 2026-10-29 · integration/run-night-1028 — run night-1028: the whole open queue, eleven issues, one delta review
+
+- Stacked in order: #485 (#481), #486 (#463), #487 (#466), #489 (#453), #490 (#477-#479), #491 (#456, #457), #492 (#452), #495 (#444), then build 7. The merges' only conflicts were appended process-log entries, each kept.
+- The release Tester's round (MINOR, reviewed head `3cddbdd` after a re-check) found eight faults that stayed green and added a test for each, and two MINORs fixed in `0f1837f` (the arena ratio's sizes, the caption button's accessibility label). The Security-Reviewer's round (MINOR, reviewed head `c29392c`) filed M8 as #496. `make deploy-check` PASS.
+- One stop: #493, found by #444's per-fix review, a gate bypass that predates the run.
+- The machine's load average passed 100 for hours (other projects' builds); every commit's `check-fast` took 3-10 minutes, and a wall-clock test refused a push before #463 was fixed.
+- Lesson: in a run, merge the integration branch into a fix branch before its push, so the push's gate runs on the fixes already stacked, not on the flakes they remove.

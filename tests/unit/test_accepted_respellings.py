@@ -258,6 +258,25 @@ _NOT_A_RE_SPELLING: dict[str, tuple[Change | None, Change, dict[str, dict[str, s
     "the-new-name-was-served": (_add("probe-11", "PROBE.00"),
                                 _then(_RE_DERIVED, _add("probe-11", "Probe 11b")),  # type: ignore[arg-type]
                                 {SLICE.source: _pairs(0)}),
+    # #478: the old model had a second name the pairs do not list, and it arrives re-spelled under the same
+    # new model. One pair would move the whole model, the unlisted row with it: a pair names rows, not models.
+    "a-name-the-pairs-do-not-list": (_add("probe-00", "Probe 00 alt"),
+                                     _then(_add("probe-00", "Probe 00 alt"), _RE_DERIVED,  # type: ignore[arg-type]
+                                           _rows("UPDATE scores SET raw_name = 'PROBE.00 ALT', model_id = 'probe.00'"
+                                                 " WHERE raw_name = 'Probe 00 alt'")),
+                                     {SLICE.source: _pairs(0)}),
+    # The #477 security round's M4: both names of the old model are listed, but the second pair's new name was
+    # already served under another model (`probe-11`). Only one pair is a re-spelling, so the model stays.
+    "a-sibling-pair-that-is-not-a-re-spelling": (
+        _then(_add("probe-00", "Probe 00 alt"), _add("probe-11", "PROBE.00 ALT")),  # type: ignore[arg-type]
+        _then(_add("probe-00", "Probe 00 alt"), _add("probe-11", "PROBE.00 ALT"),  # type: ignore[arg-type]
+              _rows("DELETE FROM scores WHERE raw_name = 'PROBE.00 ALT'"), _RE_DERIVED,
+              _rows("UPDATE scores SET raw_name = 'PROBE.00 ALT', model_id = 'probe.00' WHERE raw_name = 'Probe 00 alt'")),
+        {SLICE.source: {**_pairs(0), "Probe 00 alt": "PROBE.00 ALT"}}),
+    # #478's other half (the release Tester, night-1028 round): the old model's names are all listed, but the new
+    # model arrives with a name no pair lists. Moving it would read that new row as one the board always had.
+    "a-new-name-the-pairs-do-not-list": (None, _then(_RE_DERIVED, _add("probe.00", "PROBE.00 NEW")),  # type: ignore[arg-type]
+                                         {SLICE.source: _pairs(0)}),
     # The night after the publish: the served board holds the new name, so the pair is inert (D-228,
     # "Mitigation if violated").
     "after-the-publish": (_RE_DERIVED, _RE_DERIVED, _BOTH),  # type: ignore[dict-item]
@@ -286,3 +305,91 @@ def test_a_re_spelling_reads_every_row_as_the_row_it_was(tmp_path: Path) -> None
     assert candidate.boards != live.boards, "the control re-derives no id"
     assert judged.board == live.board and judged.boards == live.boards and judged.models == live.models
     assert judged.digest == candidate.digest
+
+
+def test_a_model_with_two_names_moves_when_the_pairs_list_both(tmp_path: Path) -> None:
+    """#478's control: the same model, both of its names listed, reads as the board it was."""
+    served = _add("probe-00", "Probe 00 alt")
+    live = fingerprint_of(_boards(tmp_path / "live.db", served))
+    candidate = fingerprint_of(_boards(tmp_path / "candidate.db", _then(served, _RE_DERIVED, _rows(  # type: ignore[arg-type]
+        "UPDATE scores SET raw_name = 'PROBE.00 ALT', model_id = 'probe.00' WHERE raw_name = 'Probe 00 alt'"))))
+    assert live is not None and candidate is not None
+    both = {SLICE.source: {**_pairs(0), "Probe 00 alt": "PROBE.00 ALT"}}
+    judged = refresh.respelled(candidate, live, both)
+    assert candidate.boards[SLICE.source] != live.boards[SLICE.source], "the control re-derives no id"
+    assert judged.boards[SLICE.source] == live.boards[SLICE.source]
+
+
+@pytest.mark.parametrize("raw", [
+    "cuts: []\ncuts: []\n",
+    "cuts: []\nrespellings:\n  - board: coding\n    decision: D-228\n    reason: r\n    until: 2026-10-30\n"
+    "    pairs:\n      \"Probe 00\": \"PROBE.00\"\n      \"Probe 00\": \"PROBE.01\"\n",
+])
+def test_a_key_written_twice_fails_closed(raw: str) -> None:
+    """#479: YAML keeps the last of two equal keys, so a second `pairs` entry or a second `cuts` list would
+    silently replace the first. The file is refused instead."""
+    with pytest.raises(refresh.AcceptedCutError, match="twice"):
+        refresh.parse_accepted_respellings(raw, today=TODAY, decisions=LOG)
+    with pytest.raises(refresh.AcceptedCutError, match="twice"):
+        refresh.parse_accepted_cuts(raw, today=TODAY, decisions=LOG)
+
+
+def test_the_committed_file_holds_no_re_spelling_once_a_night_published_the_new_names() -> None:
+    """#477 (1): the hosted nights of 2026-10-27 and 2026-10-28 published text_to_image's new names, so the
+    D-228 entry is inert, and past 2026-11-10 it would fail every night. It is removed."""
+    assert refresh.load_accepted_respellings(ACCEPTED_CUTS_FILE) == {}
+
+
+def test_the_suite_reads_no_committed_policy_by_default() -> None:
+    """#477 (2): a test that runs the refresh reads a fixture's empty policy, never the committed file, whose
+    `until:` dates would turn the whole suite red on the day they pass. Only the tests that name
+    ACCEPTED_CUTS_FILE read it."""
+    assert refresh.load_accepted_cuts.__defaults__ != (refresh.ACCEPTED_CUTS_PATH,)
+    assert refresh.load_accepted_respellings.__defaults__ != (refresh.ACCEPTED_CUTS_PATH,)
+    assert refresh.load_accepted_cuts() == {} and refresh.load_accepted_respellings() == {}
+
+
+def test_the_night_reads_the_committed_file_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#477 (2)'s other side (the release Tester, night-1028 round): with every test on the fixture's policy, the
+    loaders' own default -- the file the hosted night reads -- was held by no test, so pointing it elsewhere, where a
+    missing file accepts nothing, stayed green. Without the fixture, both loaders default to the committed file."""
+    monkeypatch.undo()  # the conftest fixture's defaults, set through this same monkeypatch
+    assert refresh.load_accepted_cuts.__defaults__ == (ACCEPTED_CUTS_FILE,)
+    assert refresh.load_accepted_respellings.__defaults__ == (ACCEPTED_CUTS_FILE,)
+
+
+def test_a_merge_key_fails_closed() -> None:
+    """The #477 security round's M1: `<<: *pairs` copies one mapping into another, and the mapping's own key then
+    silently replaces the copied one, which is #479's override by another road."""
+    raw = ("cuts: []\nrespellings:\n  - board: coding\n    decision: D-228\n    reason: r\n    until: 2026-10-30\n"
+           "    pairs: &p\n      \"Probe 00\": \"PROBE.00\"\n  - board: SLICE\n    decision: D-228\n    reason: r\n"
+           "    until: 2026-10-30\n    pairs:\n      <<: *p\n      \"Probe 00\": \"PROBE.09\"\n").replace("SLICE", SLICE.source)
+    with pytest.raises(refresh.AcceptedCutError, match="merge key"):
+        refresh.parse_accepted_respellings(raw, today=TODAY, decisions=LOG)
+
+
+def test_a_wide_mapping_is_walked_in_linear_time() -> None:
+    """The #477 security round's M2: `list.count` per key made the repeated-key walk quadratic (40,000 keys took
+    115 s). The walk alone, on a composed mapping of 40,000 keys, counted once, is well under two seconds."""
+    import time
+
+    import yaml
+
+    from app.workflows import yaml_guard
+
+    node = yaml.compose("".join(f"k{i}: 1\n" for i in range(40_000)), Loader=yaml.SafeLoader)
+    started = time.perf_counter()
+    yaml_guard._refuse_repeated_keys(node, "a wide mapping")
+    assert time.perf_counter() - started < 2.0
+
+
+@pytest.mark.parametrize("board", ["[coding]", "{coding: 1}"])
+def test_a_board_that_is_not_a_name_fails_closed(board: str) -> None:
+    """#479's second clause (the #477 security round's M3): a list or a mapping as `board:` raised `TypeError`."""
+    respelling = (f"cuts: []\nrespellings:\n  - board: {board}\n    decision: D-228\n    reason: r\n"
+                  "    until: 2026-10-30\n    pairs:\n      \"Probe 00\": \"PROBE.00\"\n")
+    cut = f"cuts:\n  - board: {board}\n    decision: D-228\n    reason: r\n    until: 2026-10-30\n    rows: [a]\n"
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_respellings(respelling, today=TODAY, decisions=LOG)
+    with pytest.raises(refresh.AcceptedCutError):
+        refresh.parse_accepted_cuts(cut, today=TODAY, decisions=LOG)

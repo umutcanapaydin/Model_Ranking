@@ -85,7 +85,7 @@ def test_a_cut_excuses_an_unlinked_row_by_its_spelling(tmp_path: Path) -> None:
 def test_the_committed_file_holds_no_cut_once_epochs_chess_cut_is_retired() -> None:
     """D-221 clause 1 (#418): the epoch_chess cut is retired once both served artifacts hold Epoch's
     published board (the Mac at `release-55cf42e`, the hosted engine at `release-2a68ca4`)."""
-    assert refresh.load_accepted_cuts() == {}
+    assert refresh.load_accepted_cuts(ACCEPTED_CUTS_FILE) == {}
     assert ACCEPTED_CUTS_FILE.read_text(encoding="utf-8").rstrip().endswith("cuts: []")
 
 
@@ -299,7 +299,7 @@ def test_review_need_reads_the_file_the_refresh_reads() -> None:
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    assert (str(refresh.ACCEPTED_CUTS_PATH.relative_to(root)),) == module.EXCEPTION_FILES
+    assert str(refresh.ACCEPTED_CUTS_PATH.relative_to(root)) in module.EXCEPTION_FILES
 
 
 @pytest.mark.parametrize(("mode", "want"), [("light", "review-need: security"),

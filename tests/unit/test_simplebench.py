@@ -167,14 +167,24 @@ def test_a_model_listed_twice_keeps_its_first_row_and_counts_the_second() -> Non
 def test_a_board_with_no_closing_bracket_fails_in_linear_time() -> None:
     """#412 (the v0.1.0 release security review's M3): `\\n\\s*\\];` let `\\s*` re-scan every later newline at each
     candidate end, so 100k newlines took 12.6 s and a 32 MB file days, past the cycle's alarm. The board now ends at a
-    newline followed by horizontal whitespace only, so a page that never closes it fails at once."""
+    newline followed by horizontal whitespace only, so a page that never closes it fails at once.
+
+    #452 (the release v0.2.0 Tester's M2): timed at 25k and 100k newlines, interleaved, best of three; a linear
+    reading takes about 4 times as long, the quadratic one 16 (12.6 s at 100k), and the floor keeps machine load
+    from deciding the ratio."""
     import time
 
     from app.clients.protocols import SourceError
     from app.clients.simplebench import parse_simplebench
 
-    raw = "const leaderboardData = [ {" + "\n" * 200_000 + "x"
-    started = time.perf_counter()
-    with pytest.raises(SourceError):
-        parse_simplebench(raw)
-    assert time.perf_counter() - started < 1.0
+    def once(newlines: int) -> float:
+        raw = "const leaderboardData = [ {" + "\n" * newlines + "x"
+        started = time.perf_counter()
+        with pytest.raises(SourceError):
+            parse_simplebench(raw)
+        return time.perf_counter() - started
+
+    small = large = float("inf")
+    for _ in range(3):
+        small, large = min(small, once(25_000)), min(large, once(100_000))
+    assert large < max(8 * small, 1.0), f"25k newlines: {small:.4f} s, 100k: {large:.4f} s"
