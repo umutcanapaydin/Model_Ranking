@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from .test_deploy_gate_444 import _upgrade_shipping
+from .test_deploy_gate_444 import _module, _upgrade_shipping
 from .test_deploy_gate_pin import Repo, _installed
 
 WORKFLOW = "name: Ship it\non: workflow_dispatch\njobs:\n  a:\n    steps:\n      - run: echo hi\n"
@@ -98,7 +98,7 @@ def test_a_base_workflow_that_cannot_be_read_exempts_nothing(tmp_path: Path) -> 
     repo = _installed(tmp_path)
     repo.git("checkout", "-q", "main")
     repo.write(".github/workflows/other.yml", "on: push\njobs:\n  a:\n    steps:\n      - run: echo hi\n")
-    _upgrade_shipping(repo, "scripts/tool.py", "VERSION = 2\n", brief=_brief("scripts/deploy_hosted_engine.sh"))
+    _upgrade_shipping(repo, "scripts/tool.py", "VERSION = 2\n", brief=_brief("fly deploy"))
     assert repo.check()[0] == 0, "the control: every workflow readable, the tool is DevFlow's"
     _objects_loose(repo)
     blob = repo.git("rev-parse", "main:.github/workflows/other.yml")
@@ -130,3 +130,13 @@ def test_a_symlink_entry_at_the_pin_is_not_read_as_a_file(tmp_path: Path) -> Non
     code, out = repo.check()
     assert code != 0, out
     assert "scripts/tool.py" in out, out
+
+
+def test_a_tree_git_cannot_list_exempts_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The #494 security review's R1: when git cannot list the tree, the surface is unknown (None), never a crash."""
+    repo = _installed(tmp_path)
+    gate = _module("deploy_gate")
+    assert gate.deploy_surface(repo.root) is not None, "the control: git lists the tree"
+    gate._SURFACES.clear()
+    monkeypatch.setattr(gate, "_files", lambda root: None)
+    assert gate.deploy_surface(repo.root) is None
