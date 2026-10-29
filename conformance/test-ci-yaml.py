@@ -256,6 +256,14 @@ MUST_PASS = ("defaults: &d\n  runs-on: ubuntu-latest\n  timeout-minutes: 5\njobs
              "    # name: a comment\n  c:\n    <<: *d\n    <<: *d\n    args:\n      - |\n"
              "        name: p\n        name: q\n      - z\n", [])
 
+# #457: the fallback parser reads a key nested under one of a step's own keys (`with:`'s `name:` for
+# upload-artifact) as that key's, never as the step's. Proven on a sample of its own on every run, so the
+# fix holds whatever the installed workflows say, and with or without PyYAML.
+NESTED_NAME = ("jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - name: upload\n"
+               "        uses: actions/upload-artifact@v4\n        with:\n          name: hosted-state\n"
+               "          path: build\n      - name: after\n        run: echo 1\n",
+               ["upload", "after"])
+
 # name fragment -> command fragment that MUST appear in that step's run block
 # Anchored on the START of the step name, because a substring matcher is how this file first produced
 # a false positive: the fragment "test (" matched "Validator self-test (conformance fixtures...)" and
@@ -287,6 +295,11 @@ def main() -> int:
                 bad.append(f"the duplicate-key check ({reader}) found {got} in a sample holding "
                            f"{want} -- a checker that cannot tell the two apart says nothing about "
                            "the workflows")
+    sample, names = NESTED_NAME
+    got = [step.get("name") for step in _minimal_parse(sample)["jobs"]["a"]["steps"]]
+    if got != names:
+        bad.append(f"the stdlib fallback parser read the steps of a sample with `name:` nested under `with:` as "
+                   f"{got}, not {names} -- it renames a step after its upload's artifact")
     for wf in wfs:
         # Without PyYAML the fallback parser REFUSES constructs it does not handle -- a test
         # matrix, the most common thing a project adds. A refusal is not a finding: the check
