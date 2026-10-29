@@ -1541,3 +1541,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The 2026-10-27 row is superseded; the new row applies the same patch (sha256 checked) on `owner/guard-version-tags` from main, re-pins, pushes and opens the draft in one command.
 - Checked on an export of main at `4c314a1`: the patch applies (one hunk offset), the guard's bound tests pass 736, its conformance test 0 wrong.
 - Lesson: an owner row that patches a draft's branch says "apply, then merge"; a merge before the apply closes the PR and its issues with nothing landed, so `/post-merge` should check that a merged PR carries the change its owner row names.
+
+## 2026-10-29 · fix/issue-493-verified-head — the deploy gate refuses a comparison it cannot trust
+
+- #493 and #500, fixed together on the owner's direction. Git hashes a loose root tree as it parses a commit, but no tree below it, so a forged subtree under the reviewed head hid a product change from `git diff`. And an index entry with assume-unchanged or skip-worktree hid an uncommitted one. Both made `deploy_gate.py --check` print PASS.
+- `compare_problem` (`scripts/deploy_gate.py`) hashes the reviewed commit and every tree under it through one `git cat-file --batch`, about 0.1 s here, and refuses any flagged index entry. Both fail closed. `changed_since` returns None on either, so `closure_check` agrees with the gate.
+- Security review: round 1 BLOCKING (B1: peeling `<head>^{commit}` parsed a forged commit, failed, and read as "no such head"); round 2 MINOR at `5848127`. M4's test was added after that head. R1 (fsmonitor, a stat-clean index entry, filters, ignore rules) is #505; R2 (rename detection) is #506. Both are escalated.
+- Lesson: a check that asks git to resolve a name before hashing the object has already trusted it; resolve without peeling, then hash what the name points to.

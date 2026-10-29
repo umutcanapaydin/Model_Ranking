@@ -138,3 +138,14 @@ def test_an_index_git_cannot_list_or_objects_it_cannot_read_fail_closed(
 
     monkeypatch.setattr(gate.subprocess, "Popen", no_git)
     assert gate._unhashed(repo.root, head) == "objects cannot be read by git"
+
+
+def test_changed_since_itself_refuses_a_comparison_it_cannot_trust(tmp_path: Path) -> None:
+    """The #493 review's M4: `closure_check` calls `changed_since` directly, so the refusal lives there too."""
+    repo = _installed(tmp_path)
+    gate = _module("deploy_gate")
+    head = _reviewed_head(repo)
+    repo.write("src/app.py", "x = 2  # a product change\n")
+    assert gate.changed_since(repo.root, head) == ["src/app.py"], "the control"
+    repo.git("update-index", "--assume-unchanged", "src/app.py")
+    assert gate.changed_since(repo.root, head) is None
