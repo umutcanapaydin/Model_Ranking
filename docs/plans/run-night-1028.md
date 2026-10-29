@@ -11,7 +11,7 @@ Rulings: D-229
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | edaf1ce | issues | running |
+| 1 | queue | edaf1ce | issues | closed |
 
 ## Waves
 
@@ -27,12 +27,13 @@ Rulings: D-229
 | issue-456 | fix/issue-456-nightly-installed | #491 | none | stacked |
 | issue-457 | fix/issue-456-nightly-installed | #491 | none | stacked |
 | issue-452 | fix/issue-452-tester-minors | #492 | none | stacked |
-| issue-444 | fix/issue-444-deploy-gate-pin | none | none | running |
+| issue-444 | fix/issue-444-deploy-gate-pin | #495 | none | stacked |
 
 ## Stops
 
 | When | Wave | Class | What the owner decides | Continued on |
 |---|---|---|---|---|
+| 2026-10-29 | issue-444 | silent-fault | #493: the deploy gate trusts the reviewed head's trees, so a forged loose tree hides a code change and the gate says PASS (found by #444's security review, predating it); how the gate verifies the reviewed head's objects | the release delta reviews and the run's close |
 
 ## For the owner
 
