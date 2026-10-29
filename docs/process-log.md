@@ -1541,3 +1541,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The 2026-10-27 row is superseded; the new row applies the same patch (sha256 checked) on `owner/guard-version-tags` from main, re-pins, pushes and opens the draft in one command.
 - Checked on an export of main at `4c314a1`: the patch applies (one hunk offset), the guard's bound tests pass 736, its conformance test 0 wrong.
 - Lesson: an owner row that patches a draft's branch says "apply, then merge"; a merge before the apply closes the PR and its issues with nothing landed, so `/post-merge` should check that a merged PR carries the change its owner row names.
+
+## 2026-10-29 · fix/issue-494-deploy-surface — the deploy surface reads every spelling of a declared command
+
+- #494 (the #444 security review's M1-M3, R2): `deploy_surface` matched a declared command only as the exact git path. It now normalises each word to the files git lists (`./x`, `bash ./x`, any case, an absolute path inside the tree), maps a workflow dispatched by its stem or `name:` to its file (`deploy_workflows`, which `deploy_in` shares), and exempts nothing when nothing is declared or a declared command is `make <target>` (`UNREAD_RECIPES`). `verified_blob` accepts only modes 100644 and 100755 at the pin.
+- M2 (a forged pinned root tree) and M3 (an unreadable base workflow) now have tests; each fails with its check removed.
+- Security review: round 1 BLOCKING (B1: the pin fixture's declared command was already safety surface, so two tests could no longer fail); round 2 MINOR at `60afb68`. M1's remaining spellings are #501; R3 is #493.
+- Two fixtures now declare a deploy command (`fly deploy` in the pin fixture, a script path that is not in the throwaway tree in `conformance/test-deploy-shipped.py`), because an empty declaration fails closed.
+- Lesson: a fixture's declared command must name nothing a test proves is code for another reason, or the test that proves it can no longer fail.
