@@ -1506,3 +1506,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #479: `safe_load_bounded(..., unique_keys=True)` refuses a key written twice in one mapping, on the composed node, before PyYAML keeps the last; the policy loader asks for it. Other YAML inputs are unchanged.
 - The security round (`docs/reviews/fix-issue-477-security.md`, MINOR, 0 BLOCKING, reviewed head `c9d6584`) found four MINORs, all fixed here, each with a test that fails without its fix: a merge key (`<<`) still overrode a pair (M1, refused when `unique_keys` is on); `list.count` made the key walk quadratic (M2, 40,000 keys: 9.6 s before, a `Counter` now); a list or mapping as `board:` raised `TypeError` (M3, #479's second clause); a sibling pair that was not itself a re-spelling moved with one that was (M4, every pair of the old model must pass). Its R1 and R2 are written down in the verdict.
 - Lesson: a test suite that reads a dated policy file has a date on which it fails; give the suite its own policy, and keep one test on the committed one.
+
+## 2026-10-28 · fix/issue-456-nightly-installed — a missing nightly workflow fails its test; the fallback parser's nested-name fix proves itself
+
+- #456: `test_the_installed_workflow_is_the_proposal` compared the installed `nightly-hosted.yml` with the proposal only when it existed, so deleting it switched the nightly refresh and deploy off with the suite green (the Tester's F41). Since #454 it is installed on main, so a missing copy now fails; `test_a_missing_installed_workflow_fails` holds the helper to that. The workflow file itself is untouched.
+- #457 (carried on this branch, the same kind of change): `conformance/test-ci-yaml.py` now proves its fallback parser on a sample of its own, a step whose `with:` holds `name:`, on every run, with or without PyYAML. With #454's fix removed the sample fires ("read the steps ... as ['hosted-state', 'after']"); the file was restored from a copy.
+- Both tighten a control under D-229 clause 3; neither loosens one.
+- Lesson: a control proven only by the shape of one installed file is proven only until someone edits that file; give it a sample of its own.

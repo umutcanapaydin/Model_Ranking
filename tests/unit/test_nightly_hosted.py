@@ -473,11 +473,24 @@ def test_every_action_is_pinned_to_a_commit_and_nothing_is_allowed_to_fail() -> 
     assert "continue-on-error" not in text and "pull_request_target" not in text
 
 
+def _installed_is_the_proposal(installed: Path, proposal: Path) -> None:
+    assert proposal.is_file(), f"{proposal} is missing"
+    assert installed.is_file(), (f"{installed} is missing: the hosted engine's nightly refresh and deploy are off "
+                                 "(D-217, D-222)")
+    assert installed.read_bytes() == proposal.read_bytes()
+
+
 def test_the_installed_workflow_is_the_proposal() -> None:
-    """D-217 clause 7: the owner copies the proposal; once copied the two never drift apart."""
-    if INSTALLED.exists():
-        assert INSTALLED.read_bytes() == PROPOSAL.read_bytes()
-    assert PROPOSAL.is_file()
+    """D-217 clause 7: the owner copies the proposal; once copied the two never drift apart. #456: the workflow
+    is installed on main since #454, so a missing installed copy is a failure, never a pass."""
+    _installed_is_the_proposal(INSTALLED, PROPOSAL)
+
+
+def test_a_missing_installed_workflow_fails(tmp_path: Path) -> None:
+    """#456 (the 2026-10-26 Tester's M3, fault F41): deleting the installed workflow switched the nightly refresh
+    off and the suite stayed green."""
+    with pytest.raises(AssertionError, match="missing"):
+        _installed_is_the_proposal(tmp_path / "nightly-hosted.yml", PROPOSAL)
 
 
 def _started_directly() -> dict[str, str]:
