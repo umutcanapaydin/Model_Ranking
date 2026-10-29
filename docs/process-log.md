@@ -1541,3 +1541,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The 2026-10-27 row is superseded; the new row applies the same patch (sha256 checked) on `owner/guard-version-tags` from main, re-pins, pushes and opens the draft in one command.
 - Checked on an export of main at `4c314a1`: the patch applies (one hunk offset), the guard's bound tests pass 736, its conformance test 0 wrong.
 - Lesson: an owner row that patches a draft's branch says "apply, then merge"; a merge before the apply closes the PR and its issues with nothing landed, so `/post-merge` should check that a merged PR carries the change its owner row names.
+
+## 2026-10-29 · fix/issue-484-open-settings — the guide's Open Settings button, through one pinned door
+
+- #484, on the owner's ruling of 2026-10-29 (D-230). The Apple Intelligence guide shows "Open Settings" where `OnDeviceGuide.opensSettings` says so. The button calls `SettingsDoor.showSettings()`, which opens the Settings app at this app's page; iOS has no public link to the Apple Intelligence page.
+- D-126's client controls get one named exception. The compiled gate allows five declarations in `SettingsDoor.swift` only while its bytes hash to `SETTINGS_DOOR_SHA256`. The text gate permits its body as one exact expression. `docs/watchlist.md` carries the relaxation.
+- `wave-check-all` refused D-230 arriving in the same commit as its code (#201). The branch was unpushed, so the commit was split with a soft reset: ADR first, code after.
+- Security review MINOR at `79c513a`. Fixed after that head: M1 (the guard and the open as one expression; two separate ones let `settings` be rebound), M2 and R3 (D-230's wording), M3 (the door's gate logic tested without Xcode; four mutants each fail a test), M4 (a stale comment). R1 is an owner row. R2 and R4 are refused in the PR.
+- Lesson: an exemption made of separate exact expressions does not bind the data between them; permit the expression that makes the value and the one that uses it as a single snippet.

@@ -6306,14 +6306,15 @@ out to need loosening.
 
 **Decision.**
 1. **The guide shows "Open Settings"** where turning Apple Intelligence on is the remedy (`OnDeviceGuide.opensSettings`),
-   as D-229 clause 1 asked. The button opens the system's Settings page for this app, and nothing else.
+   as D-229 clause 1 asked. The button opens the Settings app at this app's own page, and nothing else: iOS offers no
+   public link to the Apple Intelligence page, so the guide's steps go on from there.
 2. **One named exception to D-126's client controls**, which refuse a URL made from a string and every way to open
    one outside `EngineClient.swift`. The exception is one file, `ios/ModelRanking/SettingsDoor.swift`:
    - **The compiled gate** (`scripts/client_decl_gate.py`) allows that file five declarations (`SETTINGS_DOOR_ALLOWED`),
      and only while its bytes hash to `SETTINGS_DOOR_SHA256`. Each declaration must be seen on the shipping client
      (`unseen_permissions`).
-   - **The text gate** (`tests/unit/test_router_hints.py`) permits the file's two expressions exactly (`EGRESS_EXACT`),
-     never a pattern over the file.
+   - **The text gate** (`tests/unit/test_router_hints.py`) permits the file's body as one exact expression
+     (`EGRESS_EXACT`), the guard that makes the URL and the call that opens it, never a pattern over the file.
    - The same declarations anywhere else stay refused, as before.
 3. **D-126 is not edited and not superseded.** Its controls stand for every other file; this ADR names the one door.
 
@@ -6322,7 +6323,9 @@ no text the reader typed or the engine sent can reach it. A pin on the whole fil
 reviewed edit of the gate, not a quiet one. The alternative was a guide of steps only, which leaves the reader to
 find the page by hand.
 
-**Mitigation if violated:** a change to `SettingsDoor.swift`, or a second file given the same declarations, fails
-`make client-decls` and the text gate. Either is refused until a new ADR names it.
+**Mitigation if violated:** a change to `SettingsDoor.swift` fails the pin's test
+(`tests/unit/test_settings_door_484.py`, in every lane) and `make client-decls` (where Xcode runs); a second open call
+or URL in the file also fails the text gate. The same declarations in another file fail both client gates. Each is
+refused until a new ADR names it. The pin is one constant, so a re-pin is the reviewed step.
 
 **Revisit when:** another system page needs opening, or iOS offers a way to open Settings that makes no URL.
