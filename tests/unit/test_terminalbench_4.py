@@ -201,3 +201,17 @@ def test_one_model_run_at_two_efforts_is_two_rows() -> None:
     rows, skipped = _tb().parse_terminalbench_4(_raw({"a.json": high, "b.json": OPUS}),
                                                 source="terminalbench_4", source_url=LISTING)
     assert sorted((r.effort, r.score) for r in rows) == [("high", 58.0), ("max", 64.85)] and skipped == 0
+
+
+@respx.mock
+@pytest.mark.parametrize("body", ["[" * 200_000, "1" * 5_000, "{not json"],
+                         ids=["nested-past-the-recursion-limit", "an-integer-past-the-digit-limit", "not-json"])
+def test_a_listing_that_is_not_json_fails_the_source_and_not_the_night(body: str) -> None:
+    """#452 (the release v0.2.0 Tester's M1): #411's `(ValueError, RecursionError)` catch was held only by an AST
+    scan. A listing nested past the recursion limit, an integer past Python's digit limit, or plain garbage is the
+    source's `SourceError`, which the night carries; a `RecursionError` escaping would end the whole cycle."""
+    from app.clients.protocols import SourceError
+
+    respx.get(LISTING).mock(return_value=httpx.Response(200, text=body))
+    with pytest.raises(SourceError, match="not JSON"):
+        _tb().TerminalBench4Client().fetch_raw()
