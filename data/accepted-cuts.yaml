@@ -10,41 +10,10 @@
 # artifact published that board on 2026-10-23 (`release-55cf42e`) and the hosted engine serves it since the
 # v0.1.0 deploy (`release-2a68ca4`); the entry is in git at `bf278b0`.
 #
-# Re-spellings the owner accepted (D-228, #475): each old raw name -> its new one, on one board. A pair is
-# judged as the row it was only where it is a re-spelling (the old name's model left the board, the new
-# name's model is one the board never had); anything else is judged as before. Same terms as a cut.
-respellings:
-  - board: text_to_image
-    decision: D-228
-    reason: LMArena re-spelled the board from slugs to display names on 2026-10-26 and kept all 82 models;
-      these 27 names derive a new model id
-    until: 2026-11-10
-    pairs:
-      "flux-1-dev-fp8": "FLUX.1 [dev] (FP8)"
-      "flux-1-kontext-dev": "FLUX.1 Kontext [dev]"
-      "flux-1-kontext-max": "FLUX.1 Kontext [max]"
-      "flux-1-kontext-pro": "FLUX.1 Kontext [pro]"
-      "flux-2-dev": "FLUX.2 [dev]"
-      "flux-2-flex": "FLUX.2 [flex]"
-      "flux-2-klein-4b": "FLUX.2 [klein] 4B"
-      "flux-2-klein-9b": "FLUX.2 [klein] 9B"
-      "flux-2-max": "FLUX.2 [max]"
-      "flux-2-pro": "FLUX.2 [pro]"
-      "gemini-3-pro-image-2k (nano-banana-pro)": "Gemini 3 Pro Image (nano-banana-pro, 2K)"
-      "gemini-3.1-flash-image (nano-banana-2) [web-search]": "Gemini 3.1 Flash Image (nano-banana-2, Web Search)"
-      "grok-imagine-image-2.0 (canvas)": "Grok Imagine Image 2.0"
-      "hunyuan-image-3.0": "HunyuanImage 3.0"
-      "ideogram-v2": "Ideogram 2.0"
-      "ideogram-v3-quality": "Ideogram 3.0 (Quality)"
-      "imagen-3.0-generate-002": "Imagen 3 (generate-002)"
-      "imagen-4.0-generate-001": "Imagen 4 (generate-001)"
-      "imagen-ultra-4.0-generate-001": "Imagen 4 Ultra (generate-001)"
-      "photon": "Luma Photon"
-      "seedream-3": "Seedream 3.0"
-      "seedream-4-2k": "Seedream 4.0 (2K)"
-      "seedream-4-fal": "Seedream 4.0 (fal)"
-      "seedream-4-high-res-fal": "Seedream 4.0 (High Res, fal)"
-      "stable-diffusion-v35-large": "Stable Diffusion 3.5 Large"
-      "wan2.5-t2i-preview": "Wan 2.5 Preview"
-      "wan2.6-t2i": "Wan 2.6"
+# Re-spellings the owner accepted (D-228, #475): each old raw name -> its new one, on one board, under a cut's
+# terms; the list is optional, `respellings:` beside `cuts:`. A pair is judged as the row it was only where it is
+# a re-spelling and lists every name its model had on that board (#478).
+#
+# Retired (#477): text_to_image, LMArena's 2026-10-26 re-spelling, 27 pairs (D-228). The hosted nights of
+# 2026-10-27 and 2026-10-28 published the new names, so the entry was inert; the entry is in git at `747b63c`.
 cuts: []

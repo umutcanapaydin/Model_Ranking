@@ -26,6 +26,7 @@ alias limit is the half that matters, because expansion is where a small input b
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 import yaml
@@ -101,11 +102,14 @@ def _expanded_size(node: yaml.Node, memo: dict[yaml.Node, int], in_progress: set
     return total
 
 
-def safe_load_bounded(raw: object, *, what: str) -> Any:
+def safe_load_bounded(raw: object, *, what: str, unique_keys: bool = False) -> Any:
     """`yaml.safe_load` with a size bound and an EXPANSION bound, both fail-closed.
 
     `what` names the input in the error, because "a YAML file was too large" is not actionable and
     this project's rule is that a refusal says which artefact it refused.
+
+    `unique_keys` (#479): PyYAML keeps the last of two equal keys, so a policy file's second entry silently
+    replaces its first. A caller whose file is policy refuses that instead.
     """
     if not isinstance(raw, str):
         msg = f"{what}: expected raw YAML text, got {type(raw).__name__}"
@@ -142,10 +146,36 @@ def safe_load_bounded(raw: object, *, what: str) -> Any:
         )
         raise YamlGuardError(msg)
 
+    if unique_keys:
+        _refuse_repeated_keys(node, what)
+
     try:
         return yaml.safe_load(raw)
     except RecursionError as exc:
         raise _too_deep(what) from exc
+
+
+def _refuse_repeated_keys(node: yaml.Node, what: str) -> None:
+    """Every mapping names each key once (#479). Walked with a stack, as the expansion is bounded already."""
+    stack, seen = [node], set()
+    while stack:
+        current = stack.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, yaml.MappingNode):
+            # The #477 security round's M1: a merge key (`<<: *entry`) copies another mapping's keys in, and the
+            # mapping's own key then silently replaces the copied one; a policy file has no use for it.
+            if any(key.tag == "tag:yaml.org,2002:merge" for key, _ in current.value):
+                raise YamlGuardError(f"{what}: a merge key (`<<`) copies one entry into another")
+            # M2: counted once, not with `list.count` per key, which was quadratic in a mapping's size.
+            counts = Counter(key.value for key, _ in current.value if isinstance(key, yaml.ScalarNode))
+            repeated = sorted(key for key, count in counts.items() if count > 1)
+            if repeated:
+                raise YamlGuardError(f"{what}: the key {repeated[0]!r} is written twice in one mapping")
+            stack.extend(value for _, value in current.value)
+        elif isinstance(current, yaml.SequenceNode):
+            stack.extend(current.value)
 
 
 def _too_deep(what: str) -> YamlGuardError:

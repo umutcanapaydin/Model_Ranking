@@ -305,3 +305,16 @@ def pytest_unconfigure(config: pytest.Config) -> None:
     os.environ.update(_SAVED_PROXIES)
     if _REAL_SYSTEM_PROXIES is not None:
         urllib.request.getproxies_macosx_sysconf = _REAL_SYSTEM_PROXIES
+
+
+# #477: the refresh reads its policy file through its loaders' default paths. A test that runs the refresh reads
+# an empty policy of its own, never the committed `data/accepted-cuts.yaml`, whose `until:` dates would turn the
+# whole suite red on the day they pass. The tests that name `ACCEPTED_CUTS_FILE` read the committed file.
+@pytest.fixture(autouse=True)
+def _no_committed_policy(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.workflows import refresh
+
+    path = tmp_path_factory.mktemp("policy") / "accepted-cuts.yaml"
+    path.write_text("cuts: []\n", encoding="utf-8")
+    monkeypatch.setattr(refresh.load_accepted_cuts, "__defaults__", (path,))
+    monkeypatch.setattr(refresh.load_accepted_respellings, "__defaults__", (path,))

@@ -323,7 +323,7 @@ def parse_accepted_cuts(
 def _accepted_doc(raw: str) -> dict[str, list[object]]:
     """The file: `cuts`, a list, and beside it, optionally, `respellings`, a list (D-228 clause 1)."""
     try:
-        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)")
+        doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)", unique_keys=True)
     except yaml.YAMLError as exc:
         raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
     if (not isinstance(doc, dict) or set(doc) not in ({"cuts"}, {"cuts", "respellings"})
@@ -337,7 +337,7 @@ def _checked_cut(entry: object, known: set[str], today: dt.date, decisions: str)
     if not isinstance(entry, dict) or set(entry) != _CUT_KEYS:
         raise AcceptedCutError(f"accepted cuts: each cut has exactly {sorted(_CUT_KEYS)}")
     board, decision, reason, until, rows = (entry[key] for key in ("board", "decision", "reason", "until", "rows"))
-    if board not in known:
+    if not isinstance(board, str) or board not in known:  # #479: a list or a mapping is no board
         raise AcceptedCutError(f"accepted cuts: {board!r} is not a declared board")
     _check_terms(board, decision, reason, until, today, decisions)
     # The #418 security review's M3: a name with no letter or digit has an empty spelling key, and would
@@ -389,7 +389,7 @@ def _checked_respelling(entry: object, known: set[str], today: dt.date, decision
     if not isinstance(entry, dict) or set(entry) != _RESPELLING_KEYS:
         raise AcceptedCutError(f"accepted cuts: each re-spelling has exactly {sorted(_RESPELLING_KEYS)}")
     board, decision, reason, until, pairs = (entry[key] for key in ("board", "decision", "reason", "until", "pairs"))
-    if board not in known:
+    if not isinstance(board, str) or board not in known:  # #479: a list or a mapping is no board
         raise AcceptedCutError(f"accepted cuts: {board!r} is neither a surface nor a declared board")
     _check_terms(board, decision, reason, until, today, decisions)
     if (not isinstance(pairs, dict) or not pairs
@@ -443,13 +443,25 @@ def respelled(
 
 
 def _respelled_ids(before: Spellings, after: Spellings, pairs: Mapping[str, str]) -> dict[str, str]:
-    """The candidate's model -> the served one, for each pair that is a re-spelling on this board."""
+    """The candidate's model -> the served one, for each pair that is a re-spelling on this board.
+
+    #478: a pair names rows, not models. A model moves only when the pairs list every name it had on the
+    served board, and its new model's names are exactly theirs."""
     was = {raw: model for model, names in before.items() for raw in names}
     now = {raw: model for model, names in after.items() for raw in names}
+
+    def respelling(old: str, new: str) -> bool:
+        return (old in was and new in now and old not in now and new not in was
+                and now[new] not in before and was[old] not in after)
+
+    # The #477 security round's M4: every name of the old model is a pair that is itself a re-spelling, so a
+    # pair whose new name was already served never moves its row along with a sibling that passes.
     found: list[tuple[str, str]] = [
         (now[new], was[old]) for old, new in pairs.items()
-        if old in was and new in now and old not in now and new not in was
-        and now[new] not in before and was[old] not in after]
+        if respelling(old, new)
+        and before[was[old]] <= pairs.keys()
+        and all(respelling(name, pairs[name]) for name in before[was[old]])
+        and after[now[new]] == {pairs[name] for name in before[was[old]]}]
     # One model to one: a candidate model claimed by two served ones, or the reverse, is not a re-spelling.
     targets = Counter(model for _, model in set(found))
     sources = Counter(model for model, _ in set(found))
