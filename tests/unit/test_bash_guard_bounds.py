@@ -1048,6 +1048,37 @@ def test_reading_or_moving_another_branch_is_allowed(guard: ModuleType, repo: Pa
     assert _bash(guard, command, repo) is None, command
 
 
+@pytest.mark.parametrize("command", [
+    "git tag v0.3.0", "git tag v0.3.0 HEAD", "git tag -a v0.3.0 -m release", "git tag -am 'release notes' v0.3.0",
+    "git tag -f v0.2.0", "git tag --force v0.2.0 HEAD~1", "git tag -d v0.2.0", "git tag --delete fix-x v0.2.0",
+    "git tag -s V0.3.0", "git tag --message=x v1", "git tag -m x -- v1", 'git tag "$t"', 'git tag -d "$t"',
+    "git tag `echo v1`", "git update-ref refs/tags/v0.3.0 HEAD", "git update-ref -d refs/tags/v0.2.0",
+    "git update-ref REFS/TAGS/V1 HEAD", "git update-ref refs/replace/0123abc 4567def",
+    "git update-ref -d refs/replace/0123abc", "git fetch /tmp/e 'refs/replace/*:refs/replace/*'",
+    "git fetch origin +x:refs/replace/0123abc", "git pull /tmp/e refs/replace/a:refs/replace/a",
+    "git push origin 'refs/replace/*'", "git push origin refs/replace/0123abc:refs/replace/0123abc",
+    "git push origin :refs/replace/0123abc", "git push --repo=origin refs/replace/0123abc",
+    "bash -c 'git tag -d v0.2.0'",
+])
+def test_a_version_tag_or_a_replace_ref_is_the_owners(guard: ModuleType, repo: Path, command: str) -> None:
+    """#410 (D-223 clause 5): the deploy gate no longer reads local tags and ignores replace refs, so neither
+    exempts a file; refusing their writes keeps DevFlow's version tags honest and closes the review's M1."""
+    why = _bash(guard, command, repo)
+    assert why and "#410" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git tag", "git tag -l", "git tag -l 'v*'", "git tag --list v0.2.0", "git tag -n v0.2.0",
+    "git tag --contains v0.2.0", "git tag --points-at HEAD", "git tag -v v0.2.0", "git tag --sort=-v:refname",
+    "git tag fix-x", "git tag build-6 v0.2.0", "git tag -d fix-x", "git tag -a note -m 'v2 notes'",
+    "git update-ref refs/tags/build-6 HEAD", "git update-ref refs/heads/fix/x HEAD", "git replace -l",
+    "git fetch origin", "git fetch --tags origin", "git push -u origin fix/x", "git show-ref --tags",
+    "git describe --tags", "git rev-parse v0.2.0", "git for-each-ref refs/replace/",
+])
+def test_reading_tags_and_making_other_tags_is_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
 # --- the bundle's security review (B1, M1-M3): a value that MAY be set is judged as each value it may take -------
 
 @pytest.mark.parametrize("command", [

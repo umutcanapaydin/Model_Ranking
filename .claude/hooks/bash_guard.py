@@ -162,6 +162,10 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
   `.fetch`, or `url.<base>.insteadOf` (which rewrites origin's URL), set by `git config`, `-c` or `GIT_CONFIG_*`; `git push` to one of this repository's (`git push .
   HEAD:refs/remotes/origin/main`); `git replace` but its listing, which moves every merge-base with one; and a write
   into `.git/refs/heads/<one>`, `.git/refs/remotes/`, `.git/refs/replace/`, `.git/packed-refs` or `.git/shallow`;
+- a version tag or a replace ref (#410, D-223 clause 5), the owner's: `git tag` making, forcing or deleting a
+  `v*` tag, or one named through an expansion this cannot read, but listing (`-l`, `-n`, `--contains` and the
+  other filters) and `-v`; `git update-ref` naming a ref under `refs/tags/v` or `refs/replace/`; and a `fetch`,
+  `pull` or `push` refspec landing under `refs/replace/` (`git push origin 'refs/replace/*'`);
 - a worktree with uncommitted work (#286): `rm -r`, `find -delete` and `git worktree remove` (forced or not) of a
   `.claude/worktrees/<name>`, a path inside one, or a path holding one in a nested `.claude/worktrees/`, and
   `git worktree remove` of any live worktree, named by its path or by the last part of it that git matches, while
@@ -258,6 +262,12 @@ Not held, by class -- said here so nobody believes otherwise:
 - a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an
   upstream, `push.default`, or a variable set elsewhere naming the ref of a push that does not delete
   (`git push origin "$branch"`; branch protection on the remote is the control there);
+- a remote's tags: a `v*` tag pushed or fetched by name or in bulk (`git push origin v1`, `--tags`,
+  `--follow-tags`, `git fetch --tags`), and a tag file written under `.git/refs/tags/` (#410 holds the local
+  `git tag` and `update-ref` only);
+- the owner's machine changed by a program this does not list: `launchctl` (`bootstrap`, `bootout`, `load`),
+  a write under `~/Library/LaunchAgents`, a script that runs one, or a copy of a guarded script under
+  another name (#471; the launchd deploy and its rules retired with #427, #461 and #470);
 - what the shell expands when the command runs, beyond the program word and git's words: `IFS`, history,
   globs and braces in arguments; syntax beyond POSIX-like shell; a name bound by `read`, `for`, `printf -v`,
   `getopts` or a wrapper's assignment, which is unknown to the scratch rule only (#344 left them read as unset);
@@ -551,6 +561,9 @@ STAMP_WRITE = ("BLOCKED: the gate stamp (devflow-gate-ok) is written only by mak
 PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch's ref, nor `origin/HEAD` or a "
                  "remote's default branch, where the deploy gate reads its base (AGENTS.md S3, #318): the default "
                  "branch is the human's.")
+OWNER_REF = ("BLOCKED: a `v*` tag names a release, and a `refs/replace/` ref moves every merge-base the deploy "
+             "gate measures from; the owner makes, moves and deletes both, in their own terminal (#410, D-223 "
+             "clause 5). Listing them (`git tag -l`, `git replace -l`) is allowed.")
 ENV_EXEMPT = {".env.example", ".env.sample", ".env.template"}
 GH_MERGE = ("BLOCKED: a human marks a pull request ready and merges it, never the agent (AGENTS.md S3). "
             "Leave the draft for the owner.")
@@ -626,6 +639,10 @@ GIT_LONG = {
                 "--merge", "--conflict", "--ignore-unmerged", "--ignore-skip-worktree-bits", "--recurse-submodules",
                 "--overlay", "--no-overlay", "--pathspec-from-file", "--pathspec-file-nul"],
     "clean": ["--force", "--dry-run", "--quiet", "--exclude", "--interactive"],
+    "tag": ["--annotate", "--sign", "--no-sign", "--local-user", "--force", "--delete", "--verify", "--list",
+            "--sort", "--color", "--no-color", "--ignore-case", "--omit-empty", "--column", "--no-column",
+            "--contains", "--no-contains", "--merged", "--no-merged", "--points-at", "--message", "--file",
+            "--trailer", "--edit", "--no-edit", "--cleanup", "--create-reflog", "--format"],
     "checkout": ["--force", "--ours", "--theirs", "--track", "--no-track", "--guess", "--no-guess", "--orphan",
                  "--merge", "--conflict", "--patch", "--detach", "--quiet", "--progress", "--no-progress",
                  "--ignore-skip-worktree-bits", "--ignore-other-worktrees", "--overwrite-ignore",
@@ -3079,6 +3096,52 @@ def _moves_default(sub: str, rest: list[str], letters: str, given: Callable[...,
     return None
 
 
+def _owner_ref(name: str, under: tuple[str, ...] = ("tags/v", "replace/")) -> bool:
+    """A ref under `refs/tags/v` or `refs/replace/` (#410), in any case git may store it in."""
+    return name.lstrip("+").casefold().removeprefix("refs/").startswith(under)
+
+
+#: `git tag` options that take the next word as their value, alone or ending a cluster (`-am <msg>`).
+TAG_VALUED = re.compile(r"^-[A-Za-z]*[mFu]$|^--(message|file|local-user|cleanup|trailer|contains|no-contains|"
+                        r"merged|no-merged|points-at|sort|format)$")
+
+
+def _moves_owner_ref(sub: str, rest: list[str], letters: str, given: Callable[..., bool]) -> str | None:
+    """#410 (D-223 clause 5): `git tag` making, forcing or deleting a `v*` tag, or one it cannot read, but listing
+    and `-v`; `git update-ref` naming a ref under `refs/tags/v` or `refs/replace/`; and a fetch, pull or push
+    refspec landing under `refs/replace/`. A value of an option TAG_VALUED does not name is read as the tag's
+    name, so the rule errs closed there."""
+    if sub == "tag":
+        names: list[str] = []
+        k = 0
+        while k < len(rest):
+            a = rest[k]
+            if a == "--":
+                names += rest[k + 1:]
+                break
+            if a.startswith("-") and len(a) > 1:
+                k += 2 if TAG_VALUED.match(a) else 1
+                continue
+            names.append(a)
+            k += 1
+        deleting = "d" in letters or given("--delete")
+        listing = not names or any(ch in letters for ch in "lnv") or given(
+            "--list", "--verify", "--contains", "--no-contains", "--merged", "--no-merged", "--points-at")
+        if not deleting and listing:
+            return None
+        named = names if deleting else names[:1]
+        return OWNER_REF if any(n.casefold().startswith("v") or "$" in n or "`" in n for n in named) else None
+    if sub == "update-ref":
+        return OWNER_REF if any(_owner_ref(r) for r in _plain(rest, {"-m"})) else None
+    if sub in ("fetch", "pull", "push"):
+        # Every plain word, the remote's too: none is named under `refs/replace/`, and `--repo=<it>` leaves the
+        # first word a refspec.
+        specs = _plain(rest, FETCH_VALUED if sub != "push" else {"--receive-pack", "--exec", "--repo", "-o",
+                                                                   "--push-option"})
+        return OWNER_REF if any(_owner_ref(sp.rsplit(":", 1)[-1], ("replace/",)) for sp in specs) else None
+    return None
+
+
 def _unread_git(args: list[str], at: int, unread: set[int]) -> str | None:
     """#344: a git word this does not read (`_unread_word`) where it may be `--no-verify`, `--force`, `--hard`, the
     protected branch or an owner's path: the subcommand itself, a `-c` setting, or any word of a subcommand in
@@ -3185,6 +3248,9 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         return TEMPLATE
     # #318: the refs the deploy gate reads its base from -- `main`, `origin/main`, `origin/HEAD` -- are not moved.
     if (why := _moves_default(sub, rest, letters, given)):
+        return why
+    # #410: a `v*` tag and a `refs/replace/` ref are the owner's.
+    if (why := _moves_owner_ref(sub, rest, letters, given)):
         return why
     # #317: a worktree with uncommitted work is not moved out from under the rule below (`git worktree move <dirty>
     # /tmp/x && rm -rf /tmp/x`): it is judged as its removal is.
