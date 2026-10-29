@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import plistlib
 import re
-import shutil
 import struct
 import subprocess
 import tomllib
@@ -163,7 +162,6 @@ def _resolved(name: str, config: str) -> str | None:
     return value
 
 
-@pytest.mark.skipif(shutil.which("cc") is None, reason="needs a C preprocessor, which Xcode runs on Info.plist")
 @pytest.mark.parametrize(("config", "allowed"), [("Debug", True), ("Release", False)])
 def test_only_a_debug_build_allows_local_networking(config: str, allowed: bool) -> None:
     """#488 (the night-1028 release security review's R1): `NSAllowsLocalNetworking` was set in every

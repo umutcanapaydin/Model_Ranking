@@ -21,3 +21,10 @@ PRODUCT_BUNDLE_IDENTIFIER = com.ilgar.modelranking
 // matching setting wins, so no local ENGINE_URL can send an archive elsewhere (the M19 security
 // review's S1).
 ENGINE_URL[config=Release] = https:/$()/model-ranking.fly.dev
+// #488: the exception for a loopback engine (`NSAllowsLocalNetworking`) is a Debug build's alone: a Release build
+// talks only to the hosted engine, over HTTPS. Xcode preprocesses Info.plist, whose exception sits inside
+// `#if ENGINE_LOCAL_NETWORKING`; the directives sit inside XML comments, so the source still reads as a plist.
+// After the local file, as the address is, so no local setting can give an archive the exception.
+INFOPLIST_PREPROCESS = YES
+INFOPLIST_PREPROCESSOR_DEFINITIONS[config=Debug] = ENGINE_LOCAL_NETWORKING=1
+INFOPLIST_PREPROCESSOR_DEFINITIONS[config=Release] =
