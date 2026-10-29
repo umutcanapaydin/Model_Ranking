@@ -596,14 +596,14 @@ FORBIDDEN_EXCEPT = {
     ("EngineClient.swift", "HTTPCookie.AcceptPolicy.never"): "#144: the session refuses every cookie",
 }
 
-#: #484 (D-230, the owner's ruling of 2026-10-29): the one door out of the app that is not the engine, the system's
-#: Settings page for this app, where Apple Intelligence is turned on. Its address is the system's constant
-#: (`UIApplication.openSettingsURLString`), never text. These declarations, each as the compiler resolves it (measured on
-#: the shipping client, 2026-10-29), are allowed in that one file and only while its bytes hash to the pin, so a second
-#: address there, or the same call elsewhere, is a reviewed edit of this gate. The text gate permits the file's two
-#: expressions exactly (`tests/unit/test_router_hints.py`, `EGRESS_EXACT`).
+#: #484 (D-230, the owner's ruling of 2026-10-29): the one door out of the app that is not the engine, the Settings
+#: app at this app's own page (iOS has no public link to the Apple Intelligence page). Its address is the system's
+#: constant (`UIApplication.openSettingsURLString`), never text. These declarations, each as the compiler resolves it
+#: (measured on the shipping client, 2026-10-29), are allowed in that one file and only while its bytes hash to the pin,
+#: so a second address there, or the same call elsewhere, is a reviewed edit of this gate. The text gate permits the
+#: file's body as one exact expression (`tests/unit/test_router_hints.py`, `EGRESS_EXACT`).
 SETTINGS_DOOR = "SettingsDoor.swift"
-SETTINGS_DOOR_SHA256 = "c9f7469687b9f05e460f770bd9e2436ec1cc32dda7bf95b072324ea1c0c6ba4c"
+SETTINGS_DOOR_SHA256 = "428154483587723790436eb6a9844e0ee69724b637eafaf50f3d649dc4a0859d"
 SETTINGS_DOOR_ALLOWED = frozenset({
     "Foundation.URL.init(string:", "Foundation.URL.made", "UIKit.UIApplication.openSettingsURLString",
     "UIKit.UIApplication.shared", "UIKit.UIApplication.open(_:options:completionHandler:",

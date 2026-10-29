@@ -773,8 +773,9 @@ EGRESS_EXACT = {
     ("StandingsStore.swift", "public init(url: URL)"): "D-167: the store's own file",
     # #484 (D-230): the one door that is not the engine, the system's Settings page for this app. The compiled gate
     # pins the file whole (`SETTINGS_DOOR_SHA256`).
-    ("SettingsDoor.swift", "URL(string: UIApplication.openSettingsURLString)"): "D-230: the system's Settings address",
-    ("SettingsDoor.swift", "UIApplication.shared.open(settings)"): "D-230: opens that address, and only it",
+    # One expression, so the URL opened is the one the guard made (the #484 review's M1).
+    ("SettingsDoor.swift", "guard let settings = URL(string: UIApplication.openSettingsURLString) else { return }\n"
+                           "        UIApplication.shared.open(settings)"): "D-230: the system's Settings address, opened",
 }
 
 #: The one piece of app storage the client keeps: the language choice, typed as `Language`, so it
