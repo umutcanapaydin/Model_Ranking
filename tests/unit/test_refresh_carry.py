@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from app.adapter import nightly
 from app.workflows import build as build_mod
 from app.workflows.refresh import (
     EXIT_FAILED,
@@ -25,6 +26,8 @@ from app.workflows.refresh import (
     EXIT_REFUSED,
     EXIT_UNCHANGED,
     RefreshOutcome,
+    _another_release_built,
+    _read_last_ok,
     refresh,
     status_path,
     write_status,
@@ -532,6 +535,28 @@ def test_a_previous_record_that_is_not_an_object_is_read_as_none(tmp_path: Path,
     unreadable file already is, and this cycle's record is written."""
     target = tmp_path / "advisor.db"
     status_path(target).write_text(previous, encoding="utf-8")
+    outcome = RefreshOutcome(published=True, reason="r", live_fingerprint=None,
+                             candidate_fingerprint="", surfaces=1, arrived=("arena",))
+    write_status(target, outcome, 0, at=dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp())
+    assert _record(target)["sources_last_ok"]["arena"] == "2026-09-23T00:00:00+00:00"
+
+
+DEEP = "[" * 200_000  # past the recursion limit: `json.loads` raises RecursionError, not ValueError
+
+
+def test_a_previous_record_nested_past_the_recursion_limit_is_read_as_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#496 (the release security round's M8): #466's class by another road. A `.refresh.json` nested
+    past the recursion limit raised out of every reader of the record, so every cycle crashed. Each
+    reader reads it as no previous record, as an unreadable file already is, and the cycle's record
+    is written."""
+    target = tmp_path / "advisor.db"
+    status_path(target).write_text(DEEP, encoding="utf-8")
+    monkeypatch.setenv("APP_BUILD", "release-abc")
+    assert _read_last_ok(target) == {}
+    assert _another_release_built(target) is True
+    assert nightly.read_record(target) is None
     outcome = RefreshOutcome(published=True, reason="r", live_fingerprint=None,
                              candidate_fingerprint="", surfaces=1, arrived=("arena",))
     write_status(target, outcome, 0, at=dt.datetime(2026, 9, 23, tzinfo=dt.UTC).timestamp())
