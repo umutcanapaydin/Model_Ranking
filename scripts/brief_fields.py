@@ -22,14 +22,18 @@ error (`RuntimeError`), not the defaults: a policy read from nowhere would answe
 from __future__ import annotations
 
 import atexit
+import hashlib
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 BRIEF = Path("docs/project-brief.md")
+T = TypeVar("T")
 _PLACEHOLDER = re.compile(r"^<[^>]*>$")
 #: The fields that decide what a change owes (#283): read at the base, and a change to one is a policy edit.
 POLICY_FIELDS = ("Working mode", "Paths that make a change HIGH", "Deploy commands")
@@ -93,22 +97,173 @@ def _git(repo: Path | str, *args: str) -> subprocess.CompletedProcess[str]:
 def root_at(rev: str, repo: Path | str = ".") -> Path:
     """A throwaway root holding `docs/project-brief.md` as commit `rev` of the repository at `repo` held it,
     empty when that commit holds no brief (an absent brief is an answer: the defaults). RuntimeError when
-    `rev` is not a commit git can read there, or its brief cannot be read (#283: fail closed)."""
-    commit = _git(repo, "rev-parse", "--verify", "-q", f"{rev}^{{commit}}")
-    if commit.returncode != 0 or not commit.stdout.strip():
-        raise RuntimeError(f"the commit {rev!r} cannot be read, so the brief's policy fields there cannot be")
-    sha = commit.stdout.strip()
-    text = ""
-    if _git(repo, "cat-file", "-e", f"{sha}:{BRIEF.as_posix()}").returncode == 0:
-        shown = _git(repo, "show", f"{sha}:{BRIEF.as_posix()}")
-        if shown.returncode != 0:
-            raise RuntimeError(f"{BRIEF.as_posix()} at {sha[:7]} cannot be read")
-        text = shown.stdout
+    `rev` is not a commit git can read there, or its brief cannot be read (#283: fail closed); `Unverified` when
+    an object on the way does not hash to its id (#509: `git show` does not hash a loose blob)."""
+    try:
+        body = verified_file(repo, rev, BRIEF.as_posix())
+    except Unverified as error:
+        raise Unverified(f"{BRIEF.as_posix()} at {rev[:12]} cannot be read as that commit holds it: {error}") from error
+    except RuntimeError as error:
+        raise RuntimeError(f"the commit {rev!r} cannot be read, so the brief's policy fields there cannot be "
+                           f"({error})") from error
     tmp = Path(tempfile.mkdtemp())
     atexit.register(shutil.rmtree, tmp, True)
     (tmp / "docs").mkdir()
-    (tmp / BRIEF).write_text(text, encoding="utf-8")
+    (tmp / BRIEF).write_text((body or b"").decode("utf-8", "replace"), encoding="utf-8")
     return tmp
+
+
+# --- verified objects (#509, #511) -------------------------------------------------------------------------
+
+class Unverified(RuntimeError):
+    """#509: an object on the way to a file at a base commit does not hash to its id, is missing, or is not what git
+    writes there, so the bytes read are not that commit's. Every caller fails closed on it."""
+
+
+def open_batch(repo: Path | str) -> subprocess.Popen[bytes]:
+    """#511: the one reader of git objects; each object it serves is checked by `batch_read`."""
+    return subprocess.Popen(["git", "--no-replace-objects", "-C", str(repo), "cat-file", "--batch"],  # noqa: S603, S607
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+
+def close_batch(batch: subprocess.Popen[bytes]) -> None:
+    if batch.stdin is not None:
+        batch.stdin.close()
+    batch.kill()
+    batch.wait()
+
+
+def batch_read(batch: subprocess.Popen[bytes], oid: str, kind: str) -> bytes | str:
+    """One object's bytes from a running `git cat-file --batch`, or why it is not a `kind` that hashes to `oid`."""
+    assert batch.stdin is not None and batch.stdout is not None
+    batch.stdin.write(oid.encode() + b"\n")
+    batch.stdin.flush()
+    header = batch.stdout.readline().split()
+    if len(header) != 3 or header[1].decode() != kind:
+        return f"object {oid} cannot be read as a {kind}"
+    body = batch.stdout.read(int(header[2]) + 1)[:-1]
+    digest = hashlib.sha256 if len(oid) == 64 else hashlib.sha1
+    # The hash git names its objects by: this checks the bytes against the name, nothing more.
+    if digest(b"%s %d\0" % (kind.encode(), len(body)) + body).hexdigest() != oid:
+        return f"object {oid} ({kind}) does not hash to its id"
+    return body
+
+
+def tree_entries(body: bytes, size: int) -> list[tuple[bytes, bytes, str]]:
+    """#511: a tree's entries as (mode as written, name, id), ids `size` bytes long; the one tree parser."""
+    out, at = [], 0
+    while at < len(body):
+        space, nul = body.index(b" ", at), body.index(b"\0", at)
+        out.append((body[at:space], body[space + 1:nul], body[nul + 1:nul + 1 + size].hex()))
+        at = nul + 1 + size
+    return out
+
+
+#: The tree-entry modes a verified read accepts, only as git writes them: a directory on the way, a regular file.
+DIRECTORY, FILES = b"40000", (b"100644", b"100755")
+
+
+def _commit(repo: Path | str, rev: str) -> str:
+    """The commit `rev` names. RuntimeError when git cannot run; `Unverified` when it names no commit git can read."""
+    resolved = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{rev}^{{commit}}")
+    if resolved.returncode == 127:
+        raise RuntimeError(resolved.stderr.strip() or "git cannot run")
+    commit = resolved.stdout.strip()
+    if resolved.returncode != 0 or not commit:
+        raise Unverified(f"the commit {rev[:12]} cannot be read")
+    return commit
+
+
+def _root_tree(batch: subprocess.Popen[bytes], commit: str) -> str:
+    """The root tree the verified commit `commit` names; `Unverified` when the commit does not hash or names none."""
+    body = batch_read(batch, commit, "commit")
+    m = re.match(rb"tree ([0-9a-f]{40,64})\n", body) if isinstance(body, bytes) else None
+    if m is None:
+        raise Unverified(body if isinstance(body, str) else f"commit {commit[:12]} names no tree")
+    return m.group(1).decode()
+
+
+def _verified_read(repo: Path | str, rev: str, rel: str, read: Callable[[subprocess.Popen[bytes], bytes, str], T]) -> T | None:
+    """`read(batch, mode, id)` of the entry `rel` names at commit `rev`, the commit and each tree on the way hashed
+    against its id; None when `rel` names nothing there (every object read hashing). RuntimeError when git cannot
+    run; `Unverified` for an object that does not hash, is missing, or an entry on the way that is not a directory."""
+    commit = _commit(repo, rev)
+    try:
+        batch = open_batch(repo)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError(f"objects cannot be read by git ({error})") from error
+    try:
+        oid, parts = _root_tree(batch, commit), [p for p in rel.split("/") if p]
+        for depth, part in enumerate(parts):
+            tree = batch_read(batch, oid, "tree")
+            if isinstance(tree, str):
+                raise Unverified(tree)
+            found = next(((mode, entry) for mode, name, entry in tree_entries(tree, len(oid) // 2)
+                          if name == part.encode()), None)
+            if found is None:
+                return None
+            if depth == len(parts) - 1:
+                return read(batch, found[0], found[1])
+            if found[0] != DIRECTORY:
+                raise Unverified(f"{'/'.join(parts[:depth + 1])} at {commit[:12]} is not a directory as git writes one")
+            oid = found[1]
+        return None
+    except ValueError as error:
+        raise Unverified(f"an object on the way to {rel} at {commit[:12]} does not parse ({error})") from error
+    except OSError as error:
+        raise RuntimeError(f"objects cannot be read by git ({error})") from error
+    finally:
+        close_batch(batch)
+
+
+def _blob(batch: subprocess.Popen[bytes], mode: bytes, oid: str) -> bytes:
+    if mode not in FILES:
+        raise Unverified(f"{oid[:12]} is not a regular file as git writes one (mode {mode.decode()})")
+    body = batch_read(batch, oid, "blob")
+    if isinstance(body, str):
+        raise Unverified(body)
+    return body
+
+
+def verified_file(repo: Path | str, rev: str, rel: str) -> bytes | None:
+    """The bytes of the regular file `rel` at commit `rev`, every object on the way -- the commit, each tree, the
+    blob -- hashed against its id (#444 R2, #509: git serves a loose object without hashing it); None when `rel`
+    names nothing there. RuntimeError when git cannot run; `Unverified` when an object does not hash or is missing,
+    or `rel` is not a regular file (a link, a submodule, a mode git does not write)."""
+    return _verified_read(repo, rev, rel, _blob)
+
+
+def verified_files(repo: Path | str, rev: str, folder: str,
+                   suffixes: tuple[str, ...] = ("",)) -> tuple[dict[str, bytes], list[str]]:
+    """(every regular file under `folder` at commit `rev` whose name ends in one of `suffixes`, by its path, each read
+    as `verified_file` reads one; the paths that could not be read so) -- ({}, []) when `folder` names nothing there.
+    An entry of another name is not read at all (#509 review R2: a link beside the workflows is none of them). A
+    file that fails, or is not a regular file, is named, not skipped quietly, and the rest are still read (the deploy
+    gate's round 1 N1). A tree on the way that fails is `Unverified` for the whole folder."""
+    def walk(batch: subprocess.Popen[bytes], mode: bytes, oid: str) -> tuple[dict[str, bytes], list[str]]:
+        if mode != DIRECTORY:
+            raise Unverified(f"{folder} at {rev[:12]} is not a directory as git writes one")
+        out: dict[str, bytes] = {}
+        failed: list[str] = []
+        todo = [(folder.strip("/"), oid)]
+        while todo:
+            at, tree_oid = todo.pop()
+            tree = batch_read(batch, tree_oid, "tree")
+            if isinstance(tree, str):
+                raise Unverified(tree)
+            for entry_mode, name, entry in tree_entries(tree, len(tree_oid) // 2):
+                path = f"{at}/{name.decode('utf-8', 'replace')}"
+                if entry_mode == DIRECTORY:
+                    todo.append((path, entry))
+                    continue
+                if not path.endswith(suffixes):
+                    continue
+                try:
+                    out[path] = _blob(batch, entry_mode, entry)
+                except Unverified:
+                    failed.append(path)
+        return out, failed
+    return _verified_read(repo, rev, folder, walk) or ({}, [])
 
 
 def protected_base(repo: Path | str = ".", head: str = "HEAD") -> str | None:

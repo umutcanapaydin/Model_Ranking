@@ -2,7 +2,8 @@
 
 `_unhashed` (#493) and `verified_blob` (#444) each kept their own object reader and their own tree parser, and the two
 disagreed on the hash kind and the tree-mode spelling. One rule in two hand-kept copies is a finding (AGENTS.md §3.5):
-a fix to one copy leaves the other. Both now read through `_batch_read` and parse trees with `_entries`.
+a fix to one copy leaves the other. Both now read through `brief_fields.batch_read` and parse trees with
+`brief_fields.tree_entries` (#509 moved the reader there, so the brief is read verified too).
 """
 
 from __future__ import annotations
@@ -25,19 +26,19 @@ def test_verified_blob_refuses_what_the_shared_reader_refuses(tmp_path: Path, mo
     repo, commit = _pinned(tmp_path)
     gate = _module("deploy_gate")
     assert gate.verified_blob(repo.root, commit, "scripts/tool.py") == b"VERSION = 1\n", "the control"
-    real = gate._batch_read
+    real = gate.brief_fields.batch_read
 
     def forged_blobs(batch, oid: str, kind: str):  # type: ignore[no-untyped-def]
         return f"object {oid} ({kind}) does not hash to its id" if kind == "blob" else real(batch, oid, kind)
 
-    monkeypatch.setattr(gate, "_batch_read", forged_blobs)
+    monkeypatch.setattr(gate.brief_fields, "batch_read", forged_blobs)
     assert gate.verified_blob(repo.root, commit, "scripts/tool.py") is None
 
 
 def test_verified_blob_parses_trees_with_the_shared_parser(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, commit = _pinned(tmp_path)
     gate = _module("deploy_gate")
-    monkeypatch.setattr(gate, "_entries", lambda body, size: [])
+    monkeypatch.setattr(gate.brief_fields, "tree_entries", lambda body, size: [])
     assert gate.verified_blob(repo.root, commit, "scripts/tool.py") is None
 
 
