@@ -1660,3 +1660,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-232 clause 2: every file git lists that the workflow's text names (`_workflow_names`) is on the surface; a recipe runner or `cd`/`pushd` anywhere, or a local `uses: ./`, exempts nothing (`_UNREAD_IN_WORKFLOW`). On this tree the nightly workflow's surface stays readable: its scripts and locks are now on it.
 - Red test `tests/unit/test_deploy_gate_522.py` committed alone first, with a control of setup steps; both mutants fail it. 1146 related tests pass.
 - Lesson: reading a workflow line by line through an allowlist would have ended the exemption on every real workflow; naming what it names, and refusing only what hides a name, keeps the control usable.
+
+## 2026-10-31 · fix/issue-518-reader-tests — tests for the verified reader's paths that fail closed
+
+- #518 (the #511, #509 and #505 security reviews): six mutants of the verified reader survived every test, each failing closed or of low reach.
+- New `tests/unit/test_deploy_gate_518.py`: a SHA-256 repository read and its forgery refused; a `040000` directory on the way refused; a nested tree that does not hash fails the folder; a deeper `.gitignore` takes precedence; a submodule not at its commit is a change. Each fails with its mutant, restored byte for byte. Test only.
+- The sixth, N13b (the commit's second hash in `_commit` and `batch_read`), is equivalent while git's peel refuses a forged commit; removing both fails `test_deploy_gate_494.py` (the run 1030 delta review).
+- Lesson: a mutant that fails closed is still a missing test; the code's safety today is not the next edit's.
