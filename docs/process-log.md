@@ -1623,3 +1623,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Both `FailureScreenTests` still failed. The UI hierarchy at the failure showed the app's kept answer under "the engine could not be reached" (#288, D-202 clause 5): the engine-up pass leaves one, so the failure screen never appeared after it, since #288.
 - `scripts/ui_test.sh` now uninstalls the app from the simulator before the offline pass, so it starts as a first launch does. The existing `FailureScreenTests` are the red test (red on main, `make ui-test` exit 65); green with the change: 23 and 2 of 2.
 - Lesson: a two-pass harness inherits every state the product keeps between launches; a feature that remembers is a feature the next pass meets.
+
+## 2026-10-30 · fix/issue-501-known-programs — the deploy surface reads a declared command only through programs it knows
+
+- #501 (the #494 security review's M1 remainder): `deploy_surface` read a declared command's words as paths, so `cd x && ./y`, `$PWD/y`, `python -m`, a directory, `just`, `bash -c` and a dispatched workflow that runs `make` started a script it never named, which then stayed exemptible.
+- `_command_surface` (D-231 clause 1) reads a command only through a script git lists, `bash`/`sh` with such a script, `gh` dispatching a workflow, or `KNOWN_PROGRAMS` (`fly`, `flyctl`); any other program, a shell's option, or a path-like word that names no file git lists makes the surface None, so nothing is exempt. A deploy workflow whose run line starts an `UNREAD_RECIPES` program (`make`, `gmake`, `just`) does the same. The repository's four declared commands still derive.
+- `_runs_deploy` and the new recipe check share one line reader, `_line_commands`, instead of two copies of the loop.
+- Red test `tests/unit/test_deploy_gate_501.py` committed alone first (one case, a known program given an expansion, added with the fix); three mutants each fail it. Three exemption controls' fixtures now hold the script they declare (`docs/plans/assumptions-1030.md`), their assertions unchanged.
+- Lesson: an allowlist rule over declared text reaches the fixtures too; a control that declares what its tree does not hold was passing on a reading the rule now refuses.

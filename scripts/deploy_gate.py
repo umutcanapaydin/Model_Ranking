@@ -345,10 +345,16 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
 
 _SURFACES: dict[str, frozenset[str] | None] = {}
 
-#: #494: a declared command whose program runs a recipe this gate does not read, so what it starts cannot be derived:
-#: `make <target>` runs whatever the Makefile's recipe names. A named entry, not a derived set, because the reason is
-#: the program's own semantics; any other program is matched by the words it is given.
-UNREAD_RECIPES = {"make", "gmake"}
+#: #494, #501: programs that run a recipe this gate does not read, so what they start cannot be derived: `make
+#: <target>` runs whatever the Makefile's recipe names, `just <recipe>` the justfile's. Named for that reason; a
+#: dispatched deploy workflow whose run line starts one exempts nothing either.
+UNREAD_RECIPES = {"make", "gmake", "just"}
+#: #501 (D-231 clause 1): the external programs a declared command may run whose targets need no deriving here --
+#: `fly` builds and ships the image from the tree, all of which is already code to this gate. A NAMED ENUMERATION
+#: with the ADR as its reason (AGENTS.md section 3.5): a program that is not here, not a shell in SHELLS with a
+#: script, not `gh` dispatching a workflow, and not a script git lists, is one whose targets this cannot read.
+KNOWN_PROGRAMS = {"fly", "flyctl"}
+SHELLS = {"bash", "sh"}
 
 
 def _files(root: Path) -> dict[str, set[str]] | None:
@@ -380,23 +386,78 @@ def _named_files(root: Path, word: str, files: dict[str, set[str]]) -> set[str]:
     return set() if rel.startswith("../") or rel == ".." else files.get(rel, set())
 
 
+def _path_like(word: str) -> bool:
+    """A word the shell may resolve to a file: it has a slash, or starts with `.`, `~` or an expansion."""
+    return "/" in word or word.startswith((".", "~", "$", "`"))
+
+
+def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -> set[str] | None:
+    """#501 (D-231 clause 1): the files a declared command starts, read only through the programs this knows -- a
+    script git lists, a shell in SHELLS given such a script, `gh` dispatching a workflow (its files come from
+    `deploy_workflows`), and KNOWN_PROGRAMS --; None for any other program, a shell's option (`bash -c`), or a
+    path-like word that names no file git lists (`cd x && ./y`, `$PWD/y`, a directory). The #501 review: None as well
+    for a command that is more than one (`a && b`, `a; b`, `a | b`: only the first would be read), for an assignment
+    before the program (`BASH_ENV=x bash y` runs `x` too), and for a dispatch whose workflow is not named (an id)."""
+    if any(any(mark in word for mark in ";&|`\n") or "$(" in word for word in words):
+        return None
+    run = _program_position(words)
+    if not run or any(ASSIGNMENT.match(word) for word in words[:len(words) - len(run)]):
+        return None
+    named = [_named_files(root, word, files) for word in run]
+    if any(_path_like(word) and not found for word, found in zip(run, named, strict=True)):
+        return None
+    program = os.path.basename(run[0])
+    if named[0]:
+        pass  # a script git lists
+    elif program in SHELLS:
+        if len(run) < 2 or run[1].startswith("-") or not named[1]:
+            return None
+    elif program == "gh":
+        started = gh_dispatch(run)
+        if started is None or UNKNOWN in started:
+            return None
+    elif program not in KNOWN_PROGRAMS:
+        return None
+    return {path for found in named for path in found}
+
+
+def _runs_unread(text: str) -> bool:
+    """Whether a line of a workflow file starts a program in UNREAD_RECIPES (read as `_runs_deploy` reads one)."""
+    return any((run := _program_position(words)) and os.path.basename(run[0]).lower() in UNREAD_RECIPES
+               for words in _line_commands(text))
+
+
+def _line_commands(text: str) -> list[list[str]]:
+    """The commands each line of a workflow file runs: a `run:` value, or a line of its block, with a `\\`
+    continuation joined; a line the shell cannot split is read by its words."""
+    out: list[list[str]] = []
+    for line in re.sub(r"\\\n\s*", " ", text).splitlines():
+        line = re.sub(r"^\s*(?:-\s*)?(?:run:\s*)?", "", line)
+        try:
+            out += split_line(line)
+        except ValueError:
+            out.append(line.split())
+    return out
+
+
 def deploy_surface(root: Path) -> frozenset[str] | None:
     """#444 M3: what the brief's deploy commands start, derived rather than listed -- each file a declared command
     names, and each workflow file a declared `gh workflow run` dispatches or whose run line is a declared command.
     None -- nothing is exempt (fail closed) -- when the workflows cannot all be read, when git cannot list the tree,
-    and (#494) when nothing is declared or a declared command runs a recipe this does not read (UNREAD_RECIPES)."""
+    (#494) when nothing is declared, and (#501) when a declared command is not read through a program this knows
+    (`_command_surface`) or a deploy workflow it dispatches runs a recipe this does not read (UNREAD_RECIPES)."""
     key = str(root)
     if key not in _SURFACES:
         decl = declared(root)
         texts, complete = _workflow_texts(root)
         files = _files(root)
-        unread = any(os.path.basename(words[0]) in UNREAD_RECIPES
-                     for words in (_program_position(d) for d in decl) if words)
-        if not decl or unread or not complete or files is None:
+        commands = [_command_surface(root, words, files) for words in decl] if files is not None else [None]
+        starts = set(deploy_workflows(root, decl, texts)) if complete else set()
+        recipe = any(_runs_unread(text) for name in starts for text in texts.get(name, []))
+        if not decl or any(c is None for c in commands) or recipe or not complete or files is None:
             _SURFACES[key] = None
         else:
-            starts = set(deploy_workflows(root, decl, texts))
-            named = {path for words in decl for word in words for path in _named_files(root, word, files)}
+            named = {path for c in commands for path in c or ()}
             workflows = {path for d in WORKFLOW_DIRS for name in starts for path in files.get(f"{d}/{name}", set())}
             _SURFACES[key] = frozenset(named | workflows | {f"{d}/{name}" for d in WORKFLOW_DIRS for name in starts})
     return _SURFACES[key]
@@ -726,19 +787,13 @@ def _runs_deploy(text: str, decl: list[list[str]]) -> bool:
     """Whether a line of a workflow file runs a declared deploy command: a `run:` value, or a line of its block,
     with a `\\` continuation joined. Read wide on purpose: a line that only looks like one makes the workflow a
     deploy, which refuses more."""
-    for line in re.sub(r"\\\n\s*", " ", text).splitlines():
-        line = re.sub(r"^\s*(?:-\s*)?(?:run:\s*)?", "", line)
-        try:
-            commands = split_line(line)
-        except ValueError:
-            commands = [line.split()]
-        for words in commands:
-            at = len(words) - len(_program_position(words))
-            if at < len(words):
-                program = os.path.basename(words[at]).lower()
-                words = [*words[:at], SAME_PROGRAM.get(program, words[at]), *words[at + 1:]]
-            if any(matches(words, d) for d in decl):
-                return True
+    for words in _line_commands(text):
+        at = len(words) - len(_program_position(words))
+        if at < len(words):
+            program = os.path.basename(words[at]).lower()
+            words = [*words[:at], SAME_PROGRAM.get(program, words[at]), *words[at + 1:]]
+        if any(matches(words, d) for d in decl):
+            return True
     return False
 
 
