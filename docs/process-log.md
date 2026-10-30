@@ -1639,3 +1639,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - On this tree the old and the new reading give the same list against three heads (`c29392c`, `2d29b9c`, the branch base). In the main tree two files hidden only by the clone's own exclude list now read as code: an owner-actions row.
 - Red test `tests/unit/test_deploy_gate_505.py` (the six ways and a control) committed alone first; three cases (a staged file, a nested `.gitignore`'s scope, a mode change) were added with the fix after mutants survived without them. Five mutants each fail it.
 - Lesson: to stop trusting a cache, compare against what the cache summarises; every input the cache left out has to come back as an explicit rule, here the committed ignore files.
+
+## 2026-10-31 · integration/run-1030 — run 1030: the deploy gate's integrity queue and the UI tests, in one PR
+
+- The owner's four rulings became D-231; the run worked #510, #506, #511, #509, #503, #501 and #505, each with its red test first and, for every deploy-gate change, its own security review (PASS, PASS, MINOR, MINOR, MINOR; each MINOR fixed on its branch or filed).
+- The reviews found three more bypasses that predate the run. Two were fixed under D-231 clause 2 (an untracked nested checkout, a redirected `core.worktree`); one is #517, escalated. Also filed: #518, #522.
+- One hand resolution: #505's content comparison replaced #506's diff line, and #509's later review fixes were kept beside #505's readers. The delta review of the whole stack is PASS at `91890d6`.
+- Lesson: stacking fixes on one file speeds a run, but a branch cut before its parent's review fixes needs those fixes carried by a merge, and the delta review has to check that each one survived.
