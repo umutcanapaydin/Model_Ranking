@@ -1580,3 +1580,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `wave-check-all` refused D-230 arriving in the same commit as its code (#201). The branch was unpushed, so the commit was split with a soft reset: ADR first, code after.
 - Security review MINOR at `79c513a`. Fixed after that head: M1 (the guard and the open as one expression; two separate ones let `settings` be rebound), M2 and R3 (D-230's wording), M3 (the door's gate logic tested without Xcode; four mutants each fail a test), M4 (a stale comment). R1 is an owner row. R2 and R4 are refused in the PR.
 - Lesson: an exemption made of separate exact expressions does not bind the data between them; permit the expression that makes the value and the one that uses it as a single snippet.
+
+## 2026-10-30 · integration/fixes-1030 — the three open fix drafts in one PR
+
+- The owner asked for the remaining drafts in one PR after #499 and #502 each hit a process-log conflict on merge. Stacked as merge commits, no rebase: #504 (#488), #507 (#493, #500), #508 (#484).
+- Only `docs/process-log.md` conflicted, three times; each resolution keeps both entries. `scripts/deploy_gate.py` merged #507 onto #502's surface change unaided.
+- review-need on the whole range: security. Delta review MINOR at `ac0cd8c` (`docs/reviews/integration-fixes-1030-security.md`): #507's refusals run before every path #502 added; ten mutants on the seam, all killed but M1.
+- M1 (no test on the pinned commit's hash) is #510; R1 (base blobs read unhashed, Escalate NOW) is #509; R2 (two object readers) is #511; R3 (the check runs twice, 0.2 s) is refused: cost only.
+- Lesson: drafts that all append to one log conflict on every merge after the first; when several wait at once, stack them before handing over, not after the first conflict.
