@@ -87,14 +87,22 @@ done
 curl -sf -m 2 -o /dev/null "http://127.0.0.1:$PORT/health" \
   || { echo "ui-test: the engine did not answer on :$PORT; see $OUT/engine.log"; exit 1; }
 
+# #503: since #288 (D-202 clause 5) the app keeps its last answer and shows it, under a note, when the engine
+# cannot be reached. The pass with the engine up leaves one, so the failure screen never appeared after it: the
+# offline pass starts from an app with no data, as a first launch does.
+forget_answers() {
+  xcrun simctl uninstall "$DEVICE" com.ilgar.modelranking >> "$OUT/xcodebuild.log" 2>&1 || true
+}
+
 online=0 offline=0
 if [ -n "$ONLY" ]; then
-  case "$ONLY" in "$OFFLINE"*) stop_engine ;; esac
+  case "$ONLY" in "$OFFLINE"*) stop_engine; forget_answers ;; esac
   xcode test-without-building only -only-testing:"ModelRankingUITests/$ONLY"; online=$?
 else
   xcode test-without-building online -skip-testing:"ModelRankingUITests/$OFFLINE" \
     -skip-testing:ModelRankingUITests/ScreenAuditTests; online=$?
   stop_engine
+  forget_answers
   xcode test-without-building offline -only-testing:"ModelRankingUITests/$OFFLINE"; offline=$?
 fi
 
