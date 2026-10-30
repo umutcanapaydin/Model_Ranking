@@ -1549,3 +1549,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `nightly.read_record` now returns None for a literal `{}` record too; every caller already treats the two alike (falsy checks, `needs_catch_up` true for both).
 - Red test `tests/unit/test_refresh_carry.py::test_a_previous_record_nested_past_the_recursion_limit_is_read_as_none` committed alone first. review-need: none.
 - Lesson: when one file has several readers, a fix to one reader's error class is a fix to one of N; the shared reader is what stops the next class from reaching the rest.
+
+## 2026-10-29 · fix/issue-494-deploy-surface — the deploy surface reads every spelling of a declared command
+
+- #494 (the #444 security review's M1-M3, R2): `deploy_surface` matched a declared command only as the exact git path. It now normalises each word to the files git lists (`./x`, `bash ./x`, any case, an absolute path inside the tree), maps a workflow dispatched by its stem or `name:` to its file (`deploy_workflows`, which `deploy_in` shares), and exempts nothing when nothing is declared or a declared command is `make <target>` (`UNREAD_RECIPES`). `verified_blob` accepts only modes 100644 and 100755 at the pin.
+- M2 (a forged pinned root tree) and M3 (an unreadable base workflow) now have tests; each fails with its check removed.
+- Security review: round 1 BLOCKING (B1: the pin fixture's declared command was already safety surface, so two tests could no longer fail); round 2 MINOR at `60afb68`. M1's remaining spellings are #501; R3 is #493.
+- Two fixtures now declare a deploy command (`fly deploy` in the pin fixture, a script path that is not in the throwaway tree in `conformance/test-deploy-shipped.py`), because an empty declaration fails closed.
+- Lesson: a fixture's declared command must name nothing a test proves is code for another reason, or the test that proves it can no longer fail.

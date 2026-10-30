@@ -265,24 +265,60 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
 
 _SURFACES: dict[str, frozenset[str] | None] = {}
 
+#: #494: a declared command whose program runs a recipe this gate does not read, so what it starts cannot be derived:
+#: `make <target>` runs whatever the Makefile's recipe names. A named entry, not a derived set, because the reason is
+#: the program's own semantics; any other program is matched by the words it is given.
+UNREAD_RECIPES = {"make", "gmake"}
+
+
+def _files(root: Path) -> dict[str, set[str]] | None:
+    """Every file git sees in `root`'s tree, tracked or untracked-not-ignored, by its lower-cased path (the declared
+    words are lower-cased); None when git cannot list them."""
+    try:
+        listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached", "--others",
+                                 "--exclude-standard"], capture_output=True, check=True, timeout=60).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out: dict[str, set[str]] = {}
+    for path in (p.decode("utf-8", "replace") for p in listed.split(b"\0") if p):
+        out.setdefault(path.lower(), set()).add(path)
+    return out
+
+
+def _named_files(root: Path, word: str, files: dict[str, set[str]]) -> set[str]:
+    """#494 M1: the files a declared word names, however it is spelled -- `./x`, `a/../x`, an absolute path inside
+    `root`, any case -- as git spells them."""
+    rel = word
+    if Path(rel).is_absolute():
+        for at in {str(root).lower(), str(root.resolve()).lower()}:
+            if rel.startswith(at.rstrip("/") + "/"):
+                rel = rel[len(at.rstrip("/")) + 1:]
+                break
+        else:
+            return set()
+    rel = os.path.normpath(rel).replace(os.sep, "/")
+    return set() if rel.startswith("../") or rel == ".." else files.get(rel, set())
+
 
 def deploy_surface(root: Path) -> frozenset[str] | None:
-    """#444 M3: what the brief's deploy commands start, derived rather than listed -- each tracked file a declared
-    command names, and each workflow file a declared `gh workflow run` dispatches or whose run line is a declared
-    command. None when the workflows cannot all be read: then nothing is exempt (fail closed)."""
+    """#444 M3: what the brief's deploy commands start, derived rather than listed -- each file a declared command
+    names, and each workflow file a declared `gh workflow run` dispatches or whose run line is a declared command.
+    None -- nothing is exempt (fail closed) -- when the workflows cannot all be read, when git cannot list the tree,
+    and (#494) when nothing is declared or a declared command runs a recipe this does not read (UNREAD_RECIPES)."""
     key = str(root)
     if key not in _SURFACES:
         decl = declared(root)
         texts, complete = _workflow_texts(root)
-        named = {word for words in decl for word in words if "/" in word}
-        files = set(deploy_workflows(root, decl, texts)) if complete else None
-        if files is None:
+        files = _files(root)
+        unread = any(os.path.basename(words[0]) in UNREAD_RECIPES
+                     for words in (_program_position(d) for d in decl) if words)
+        if not decl or unread or not complete or files is None:
             _SURFACES[key] = None
         else:
-            workflows = {f"{d}/{p.name}" for d in WORKFLOW_DIRS if (root / d).is_dir()
-                         for p in (root / d).iterdir() if p.name.lower() in files}
-            _SURFACES[key] = frozenset({word for word in named if (root / word).is_file()} | workflows
-                                       | {f"{d}/{name}" for d in WORKFLOW_DIRS for name in files})
+            starts = set(deploy_workflows(root, decl, texts))
+            named = {path for words in decl for word in words for path in _named_files(root, word, files)}
+            workflows = {path for d in WORKFLOW_DIRS for name in starts for path in files.get(f"{d}/{name}", set())}
+            _SURFACES[key] = frozenset(named | workflows | {f"{d}/{name}" for d in WORKFLOW_DIRS for name in starts})
     return _SURFACES[key]
 
 
@@ -322,7 +358,8 @@ def verified_blob(root: Path, commit: str, rel: str) -> bytes | None:
                 found = (mode, entry)
                 break
         last = depth == len(parts) - 1
-        if found is None or (found[0] == b"40000") == last:
+        # #494 R2: the last entry is a file (100644, 100755), never a link compared by its text or a submodule.
+        if found is None or found[0] not in ((b"100644", b"100755") if last else (b"40000",)):
             return None
         oid = found[1]
     return _object(root, "blob", oid)
@@ -666,7 +703,11 @@ def deploy_workflows(root: Path, decl: list[list[str]],
                      texts: dict[str, list[str]] | None = None) -> dict[str, set[str]]:
     """Each deploy workflow's file name, with every name gh knows it by: the file, its stem, its `name:`."""
     texts = _workflow_texts(root)[0] if texts is None else texts
-    files = {name for d in decl for name in (gh_dispatch(d) or set()) if name != UNKNOWN}
+    dispatched = {name for d in decl for name in (gh_dispatch(d) or set()) if name != UNKNOWN}
+    # #494 M1: a dispatch may name a workflow by its stem or its `name:`; each file it names is a deploy workflow,
+    # and a name no file read here answers to stays, as written.
+    files = {file for file, versions in texts.items() if dispatched & _names(file, versions)}
+    files |= dispatched - {name for file, versions in texts.items() for name in _names(file, versions)}
     files |= {name for name, versions in texts.items() if any(_runs_deploy(t, decl) for t in versions)}
     return {name: _names(name, texts.get(name, [])) for name in files}
 
