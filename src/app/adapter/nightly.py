@@ -33,7 +33,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime as dt
-import json
 import logging
 import math
 import os
@@ -46,6 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.workflows.serving_bounds import BOUND_VARIABLES
+from app.workflows.status_record import read_status
 
 _LOG = logging.getLogger(__name__)
 
@@ -138,12 +138,7 @@ def pick_run_time(after: dt.datetime, rng: random.Random) -> dt.datetime:
 
 def read_record(db: Path) -> dict[str, object] | None:
     """The refresh's own record of its last cycle (REQ-REF-004), or None if there is none."""
-    path = db.with_name(db.name + ".refresh.json")
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return data if isinstance(data, dict) else None
+    return read_status(db.with_name(db.name + ".refresh.json")) or None
 
 
 def needs_catch_up(record: dict[str, object] | None, now: float) -> bool:

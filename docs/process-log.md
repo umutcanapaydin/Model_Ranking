@@ -1542,6 +1542,14 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Checked on an export of main at `4c314a1`: the patch applies (one hunk offset), the guard's bound tests pass 736, its conformance test 0 wrong.
 - Lesson: an owner row that patches a draft's branch says "apply, then merge"; a merge before the apply closes the PR and its issues with nothing landed, so `/post-merge` should check that a merged PR carries the change its owner row names.
 
+## 2026-10-29 · fix/issue-496-status-recursion — one reader of the refresh's status record
+
+- #496 (the release security round's M8): four readers of `<artifact>.refresh.json` caught `ValueError` but not `RecursionError`, so a record nested 200,000 deep crashed every cycle, #466's class by another road.
+- `app.workflows.status_record.read_status` is now the one reader: `{}` for a missing, unreadable, non-object or too-deep record. `write_status`, `_another_release_built`, `_read_last_ok` and `nightly.read_record` call it; it imports no client, so the server may load it (W-125).
+- `nightly.read_record` now returns None for a literal `{}` record too; every caller already treats the two alike (falsy checks, `needs_catch_up` true for both).
+- Red test `tests/unit/test_refresh_carry.py::test_a_previous_record_nested_past_the_recursion_limit_is_read_as_none` committed alone first. review-need: none.
+- Lesson: when one file has several readers, a fix to one reader's error class is a fix to one of N; the shared reader is what stops the next class from reaching the rest.
+
 ## 2026-10-29 · fix/issue-494-deploy-surface — the deploy surface reads every spelling of a declared command
 
 - #494 (the #444 security review's M1-M3, R2): `deploy_surface` matched a declared command only as the exact git path. It now normalises each word to the files git lists (`./x`, `bash ./x`, any case, an absolute path inside the tree), maps a workflow dispatched by its stem or `name:` to its file (`deploy_workflows`, which `deploy_in` shares), and exempts nothing when nothing is declared or a declared command is `make <target>` (`UNREAD_RECIPES`). `verified_blob` accepts only modes 100644 and 100755 at the pin.
