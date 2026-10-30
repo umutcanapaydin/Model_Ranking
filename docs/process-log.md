@@ -1601,3 +1601,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The diff now runs with `--no-renames`, which also wins over a `diff.renames` setting the change could write to its clone's config.
 - Red test `tests/unit/test_deploy_gate_506.py` (committed, uncommitted, and with `diff.renames=copies`) committed alone first. Ruled by D-231 clause 1.
 - Lesson: a path-list gate reads both sides of every change; a default that folds two paths into one is a filter the gate did not choose.
+
+## 2026-10-30 · fix/issue-503-offline-pass — `make ui-test` green: a current artifact, and an offline pass with no kept answer
+
+- #503: five UI tests failed on main. Rerun on main against an artifact built today (D-231 clause 3), the three `ScreenPathTests` passed (19 of 19): their cause was the local `advisor.db` of 2026-10-10, older than the boards and routes since.
+- Both `FailureScreenTests` still failed. The UI hierarchy at the failure showed the app's kept answer under "the engine could not be reached" (#288, D-202 clause 5): the engine-up pass leaves one, so the failure screen never appeared after it, since #288.
+- `scripts/ui_test.sh` now uninstalls the app from the simulator before the offline pass, so it starts as a first launch does. The existing `FailureScreenTests` are the red test (red on main, `make ui-test` exit 65); green with the change: 23 and 2 of 2.
+- Lesson: a two-pass harness inherits every state the product keeps between launches; a feature that remembers is a feature the next pass meets.
