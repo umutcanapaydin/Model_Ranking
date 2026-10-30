@@ -1594,3 +1594,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #510 (the delta review of `integration/fixes-1030`, M1): `_object` hashes the pinned commit before reading its tree, and no test held it. The pinned commit is an ancestor of the reviewed head, outside #493's walk, so that check is its only guard.
 - New `tests/unit/test_deploy_gate_494.py::test_a_forged_pinned_commit_is_not_read_as_the_pinned_tree` forges the pinned commit to name the agent's tree. Green on the code; red with the reviewer's mutant (`kind != "commit" and named != oid`), restored byte for byte. Test only, so there is no separate red commit.
 - Lesson: a check that guards an object no other check reaches needs its own test, whatever the checks around it already hold.
+
+## 2026-10-30 · fix/issue-511-one-object-reader — one verified reader of git objects in the deploy gate
+
+- #511 (the delta review of `integration/fixes-1030`, R2): `_unhashed` (#493) and `verified_blob` (#444) kept two object readers and two tree parsers, which disagreed on the hash kind and the tree-mode spelling.
+- `_object` is gone. Both read through `_open_batch`/`_batch_read` (one hash check, SHA-1 or SHA-256 by the id's length) and parse trees with `_entries`. The walk keeps reading a mode's type bits; the pin keeps reading only the spellings git writes (`40000`, `100644`, `100755`), so neither loosens.
+- Red test `tests/unit/test_deploy_gate_511.py` committed alone first: `verified_blob` refuses what the shared reader refuses, and parses with the shared parser. Every deploy-gate test stays green (157). Ruled by D-231 clause 1.
+- Lesson: when two copies of one check are merged, each caller keeps its own strictness; the shared part is the hash and the parse, not the policy.
