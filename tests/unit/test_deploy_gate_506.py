@@ -14,13 +14,18 @@ import pytest
 from .test_deploy_gate_pin import _installed
 
 
-@pytest.mark.parametrize("staged", [True, False], ids=["committed", "uncommitted"])
-def test_a_code_file_renamed_into_a_record_path_is_still_a_change(tmp_path: Path, staged: bool) -> None:
+@pytest.mark.parametrize("how", ["committed", "uncommitted", "intent-to-add"])
+def test_a_code_file_renamed_into_a_record_path_is_still_a_change(tmp_path: Path, how: str) -> None:
+    """`intent-to-add` (the review's R1): a plain `mv` and `git add -N` of the new name is a rename to git as well."""
     repo = _installed(tmp_path)
     assert repo.check()[0] == 0, "the control: nothing changed since the reviewed head"
     (repo.root / "docs").mkdir(exist_ok=True)
-    repo.git("mv", "src/app.py", "docs/app.md")
-    if staged:
+    if how == "intent-to-add":
+        (repo.root / "src" / "app.py").rename(repo.root / "docs" / "app.md")
+        repo.git("add", "-N", "docs/app.md")
+    else:
+        repo.git("mv", "src/app.py", "docs/app.md")
+    if how == "committed":
         repo.commit("move the app into the records")
     code, out = repo.check()
     assert code != 0, out
