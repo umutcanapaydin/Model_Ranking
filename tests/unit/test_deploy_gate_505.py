@@ -96,3 +96,36 @@ def test_a_gitignore_committed_at_the_reviewed_head_still_counts(tmp_path: Path)
     repo.write("src/run.log", "noise\n")
     code, out = repo.check()
     assert code == 0, out
+
+
+def test_a_staged_new_file_is_seen_though_others_does_not_list_it(tmp_path: Path) -> None:
+    """`--others` leaves out every path the index holds, so an index entry (a plain `git add`, or a forged one) took a
+    new file out of it; each entry the reviewed head's tree does not hold counts on its own."""
+    repo = _installed(tmp_path)
+    repo.write("src/new.py", "x = 3\n")
+    repo.git("add", "src/new.py")
+    _seen(repo, "src/new.py")
+
+
+def test_a_nested_gitignore_at_the_reviewed_head_ignores_only_below_itself(tmp_path: Path) -> None:
+    """A committed `docs/.gitignore` scopes its patterns to `docs/`, as git does: it does not ignore `src/new.py`."""
+    repo = _installed(tmp_path)
+    repo.git("checkout", "-q", "main")
+    repo.write("docs/.gitignore", "new.py\n")
+    repo.commit("a docs-only ignore")
+    head = repo.git("rev-parse", "HEAD")
+    for name in ("release-security.md", "release-tester.md"):
+        repo.write(f"docs/reviews/{name}", f"# R\n\n**Independent:** yes\n**Reviewed head:** {head}\n\n## Verdict\nPASS\n")
+    repo.commit("verdicts at the ignore")
+    repo.git("checkout", "-q", "-b", "after-ignore")
+    repo.write("docs/new.py", "x = 3\n")
+    assert repo.check()[0] == 0, "the control: below docs/ it ignores"
+    repo.write("src/new.py", "x = 3\n")
+    _seen(repo, "src/new.py")
+
+
+def test_a_mode_change_alone_is_seen(tmp_path: Path) -> None:
+    """`git diff` listed a file whose executable bit changed; the content comparison reads the bit from disk too."""
+    repo = _installed(tmp_path)
+    (repo.root / "src" / "app.py").chmod(0o755)
+    _seen(repo, "src/app.py")
