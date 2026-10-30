@@ -1653,3 +1653,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-232 clause 1: `brief_fields.protected_bases` gives the merge-base and the default branch's tip; the gate reads `Deploy commands:` and `Working mode:` at both and takes the union, and reads the base workflows at both. The DevFlow pin stays at the merge-base, where an older pin exempts less.
 - Red test `tests/unit/test_deploy_gate_517.py` committed alone first, after the ADR; two mutants (the tip dropped, only the first policy read) each fail it. 1137 related tests pass.
 - Lesson: "the protected base" has to be a commit the change cannot pick; the merge-base is one only while the branch is cut from the tip.
+
+## 2026-10-31 · fix/issue-522-workflow-lines — what a dispatched deploy workflow names is on the deploy surface
+
+- #522 (the #501 security review's M2): only the workflow file was on the surface, and only a line starting with `make`, `gmake` or `just` refused, so a quoted line, `bash -c`, `xargs`, an expansion, and any line that started a script left that script exemptible.
+- D-232 clause 2: every file git lists that the workflow's text names (`_workflow_names`) is on the surface; a recipe runner or `cd`/`pushd` anywhere, or a local `uses: ./`, exempts nothing (`_UNREAD_IN_WORKFLOW`). On this tree the nightly workflow's surface stays readable: its scripts and locks are now on it.
+- Red test `tests/unit/test_deploy_gate_522.py` committed alone first, with a control of setup steps; both mutants fail it. 1146 related tests pass.
+- Lesson: reading a workflow line by line through an allowlist would have ended the exemption on every real workflow; naming what it names, and refusing only what hides a name, keeps the control usable.

@@ -512,10 +512,25 @@ def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -
     return {path for found in named for path in found}
 
 
+#: #522 (D-232 clause 2): what in a dispatched deploy workflow's text hides what it starts, so nothing is exempt -- a
+#: recipe runner named anywhere (quoted, after `bash -c` or `xargs`, as an expansion's default), a change of
+#: directory (what a relative path after it names cannot be read), and a local action or workflow (`uses: ./`).
+_UNREAD_IN_WORKFLOW = re.compile(
+    r"(?<![\w/.])(?:" + "|".join(sorted(UNREAD_RECIPES | {"cd", "pushd"})) + r")(?![\w/.-])"
+    r"|\buses:\s*[\"']?\./")
+#: A run of characters a path can be written with: every one in a workflow's text is looked up as a file git lists.
+_PATH_WORD = re.compile(r"[A-Za-z0-9_./-]+")
+
+
 def _runs_unread(text: str) -> bool:
-    """Whether a line of a workflow file starts a program in UNREAD_RECIPES (read as `_runs_deploy` reads one)."""
-    return any((run := _program_position(words)) and os.path.basename(run[0]).lower() in UNREAD_RECIPES
-               for words in _line_commands(text))
+    """#501, #522: whether a dispatched deploy workflow's text hides what it starts (`_UNREAD_IN_WORKFLOW`). Read
+    wide on purpose: a word in a comment counts too, which refuses more."""
+    return _UNREAD_IN_WORKFLOW.search(text) is not None
+
+
+def _workflow_names(root: Path, text: str, files: dict[str, set[str]]) -> set[str]:
+    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not."""
+    return {path for word in _PATH_WORD.findall(text.lower()) for path in _named_files(root, word, files)}
 
 
 def _line_commands(text: str) -> list[list[str]]:
@@ -549,6 +564,7 @@ def deploy_surface(root: Path) -> frozenset[str] | None:
             _SURFACES[key] = None
         else:
             named = {path for c in commands for path in c or ()}
+            named |= {path for name in starts for text in texts.get(name, []) for path in _workflow_names(root, text, files)}
             workflows = {path for d in WORKFLOW_DIRS for name in starts for path in files.get(f"{d}/{name}", set())}
             _SURFACES[key] = frozenset(named | workflows | {f"{d}/{name}" for d in WORKFLOW_DIRS for name in starts})
     return _SURFACES[key]
