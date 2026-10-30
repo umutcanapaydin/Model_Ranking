@@ -189,7 +189,10 @@ def verdict_head(text: str) -> str | None:
 
 def changed_since(root: Path, head: str) -> list[str] | None:
     """Every code path that differs from `head` in the working tree of `root`, or None when git cannot
-    compare. Committed, uncommitted and untracked alike; nested checkouts (`dir/`) are not this tree."""
+    compare. Committed, uncommitted and untracked alike; nested checkouts (`dir/`) are not this tree. None as well
+    when the comparison cannot be trusted (#493, #500: `compare_problem`), so `closure_check` agrees with the gate."""
+    if compare_problem(root, head):
+        return None
     try:
         # Against the WORKING TREE, not HEAD: an uncommitted edit deploys as surely as a commit.
         out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", head], capture_output=True,
@@ -202,6 +205,99 @@ def changed_since(root: Path, head: str) -> list[str] | None:
     paths = [p.strip() for p in out if p.strip()]
     code = [p for p in paths if not p.endswith("/") and not is_deploy_record(p)]
     return [p for p in code if not shipped_unchanged(root, p)]
+
+
+def _flagged(root: Path) -> list[str] | None:
+    """#500: each index entry git is told not to look at in the working tree -- assume-unchanged (a lower-case tag in
+    `git ls-files -v`) or skip-worktree (`S`) --, or None when git cannot list the index."""
+    try:
+        listed = subprocess.run(["git", "-C", str(root), "ls-files", "-v", "-z"], capture_output=True, check=True,
+                                timeout=60).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    entries = [e.decode("utf-8", "replace") for e in listed.split(b"\0") if e]
+    return [e[2:] for e in entries if e[:1].islower() or e[:1] == "S"]
+
+
+def _batch_read(batch: subprocess.Popen[bytes], oid: str, kind: str) -> bytes | str:
+    """One object's bytes from a running `git cat-file --batch`, or why it is not a `kind` that hashes to `oid`."""
+    assert batch.stdin is not None and batch.stdout is not None
+    batch.stdin.write(oid.encode() + b"\n")
+    batch.stdin.flush()
+    header = batch.stdout.readline().split()
+    if len(header) != 3 or header[1].decode() != kind:
+        return f"object {oid} cannot be read as a {kind}"
+    body = batch.stdout.read(int(header[2]) + 1)[:-1]
+    digest = hashlib.sha256 if len(oid) == 64 else hashlib.sha1
+    # The hash git names its objects by: this checks the bytes against the name, nothing more.
+    if digest(b"%s %d\0" % (kind.encode(), len(body)) + body).hexdigest() != oid:
+        return f"object {oid} ({kind}) does not hash to its id"
+    return body
+
+
+def _subtrees(body: bytes, size: int) -> list[str]:
+    """The ids of a tree's own subtrees (a mode whose type bits say tree); a blob, a link or a submodule is none."""
+    out, at = [], 0
+    while at < len(body):
+        space, nul = body.index(b" ", at), body.index(b"\0", at)
+        if int(body[at:space], 8) & 0o170000 == 0o040000:  # the review's M2: `040000` is a tree to git too
+            out.append(body[nul + 1:nul + 1 + size].hex())
+        at = nul + 1 + size
+    return out
+
+
+def _unhashed(root: Path, head: str) -> str | None:
+    """#493: the first object on the reviewed head's side of the comparison -- its commit, or a tree under it -- that
+    does not hash to its id, or that git cannot read; None when every one does. Git hashes a loose root tree as it
+    parses a commit, and no tree below it, so a forged subtree hid a change from `git diff`. Blobs need no check: the
+    diff compares their ids. One `git cat-file --batch` reads them all."""
+    try:
+        # The name alone, never `^{commit}`: peeling parses the commit, and a forged one then fails to resolve, which
+        # read as "not in this clone" while `git diff` used it unhashed (the #493 review's B1).
+        commit = subprocess.run(["git", "--no-replace-objects", "-C", str(root), "rev-parse", "--verify", "--quiet",
+                                 "--end-of-options", head], capture_output=True, encoding="utf-8",
+                                timeout=30).stdout.strip()
+        batch = subprocess.Popen(["git", "--no-replace-objects", "-C", str(root), "cat-file", "--batch"],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    except (OSError, subprocess.SubprocessError):
+        return "objects cannot be read by git"
+    try:
+        if not commit:
+            return None  # `changed_since` reports a head this clone does not have
+        body = _batch_read(batch, commit, "commit")
+        m = re.match(rb"tree ([0-9a-f]{40,64})\n", body) if isinstance(body, bytes) else None
+        if m is None:
+            return body if isinstance(body, str) else f"commit {commit} names no tree"
+        todo, seen = [m.group(1).decode()], {m.group(1).decode()}
+        while todo:
+            oid = todo.pop()
+            tree = _batch_read(batch, oid, "tree")
+            if isinstance(tree, str):
+                return tree
+            fresh = [child for child in _subtrees(tree, len(oid) // 2) if child not in seen]
+            seen.update(fresh)
+            todo += fresh
+    except (OSError, ValueError):
+        return "objects cannot be read by git"
+    finally:
+        if batch.stdin is not None:
+            batch.stdin.close()
+        batch.kill()
+        batch.wait()
+    return None
+
+
+def compare_problem(root: Path, head: str) -> str | None:
+    """#493, #500: why `changed_since(root, head)` cannot be trusted, or None. Both fail closed."""
+    flagged = _flagged(root)
+    if flagged is None:
+        return "git cannot list the index"
+    if flagged:
+        return (f"the index tells git not to look at {', '.join(flagged[:5])}{' ...' if len(flagged) > 5 else ''} "
+                "(assume-unchanged or skip-worktree; `git update-index --no-assume-unchanged --no-skip-worktree <path>`, "
+                "or `git sparse-checkout disable`)")
+    unhashed = _unhashed(root, head)
+    return f"the reviewed head's {unhashed}" if unhashed else None
 
 
 #: Where DevFlow's own tooling lives. Only a file here can be "DevFlow's, unchanged": the product scaffold
@@ -384,6 +480,10 @@ def current(root: Path, rel: Path, label: str, independent: bool = False) -> tup
     if not head:
         return (f"{rel.as_posix()} names no `**Reviewed head:** <sha>` ({label})",
                 f"{label}: {rel.as_posix()} names no head")
+    problem = compare_problem(root, head)
+    if problem:
+        return (f"the comparison with the reviewed head {head[:7]} of {rel.as_posix()} cannot be trusted ({label}): "
+                f"{problem}", f"{label}: the comparison with {head[:7]} cannot be trusted")
     code = changed_since(root, head)
     if code is None:
         return (f"git cannot compare the reviewed head {head} of {rel.as_posix()} with the working tree ({label}): "

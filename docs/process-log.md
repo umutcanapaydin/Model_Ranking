@@ -1565,3 +1565,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red test in `tests/unit/test_testflight_ready.py` runs Xcode's own preprocessing command (`cc -E -P -x c -Wno-trigraphs`, read from the build log). Its first form used a raw `skipif`, which #137's rule refused at the fix commit; the skip was dropped.
 - `make ui-test`: the Debug build reached the local engine (20 of 25 pass); the 5 that fail fail the same way on main (#503).
 - Lesson: a test that models a build tool should run the command the tool's own log shows, not a guess at it.
+
+## 2026-10-29 · fix/issue-493-verified-head — the deploy gate refuses a comparison it cannot trust
+
+- #493 and #500, fixed together on the owner's direction. Git hashes a loose root tree as it parses a commit, but no tree below it, so a forged subtree under the reviewed head hid a product change from `git diff`. And an index entry with assume-unchanged or skip-worktree hid an uncommitted one. Both made `deploy_gate.py --check` print PASS.
+- `compare_problem` (`scripts/deploy_gate.py`) hashes the reviewed commit and every tree under it through one `git cat-file --batch`, about 0.1 s here, and refuses any flagged index entry. Both fail closed. `changed_since` returns None on either, so `closure_check` agrees with the gate.
+- Security review: round 1 BLOCKING (B1: peeling `<head>^{commit}` parsed a forged commit, failed, and read as "no such head"); round 2 MINOR at `5848127`. M4's test was added after that head. R1 (fsmonitor, a stat-clean index entry, filters, ignore rules) is #505; R2 (rename detection) is #506. Both are escalated.
+- Lesson: a check that asks git to resolve a name before hashing the object has already trusted it; resolve without peeling, then hash what the name points to.
