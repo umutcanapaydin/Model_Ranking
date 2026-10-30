@@ -1588,3 +1588,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - review-need on the whole range: security. Delta review MINOR at `ac0cd8c` (`docs/reviews/integration-fixes-1030-security.md`): #507's refusals run before every path #502 added; ten mutants on the seam, all killed but M1.
 - M1 (no test on the pinned commit's hash) is #510; R1 (base blobs read unhashed, Escalate NOW) is #509; R2 (two object readers) is #511; R3 (the check runs twice, 0.2 s) is refused: cost only.
 - Lesson: drafts that all append to one log conflict on every merge after the first; when several wait at once, stack them before handing over, not after the first conflict.
+
+## 2026-10-30 · fix/issue-510-pinned-commit-test — a test holds the hash check on the pinned DevFlow commit
+
+- #510 (the delta review of `integration/fixes-1030`, M1): `_object` hashes the pinned commit before reading its tree, and no test held it. The pinned commit is an ancestor of the reviewed head, outside #493's walk, so that check is its only guard.
+- New `tests/unit/test_deploy_gate_494.py::test_a_forged_pinned_commit_is_not_read_as_the_pinned_tree` forges the pinned commit to name the agent's tree. Green on the code; red with the reviewer's mutant (`kind != "commit" and named != oid`), restored byte for byte. Test only, so there is no separate red commit.
+- Lesson: a check that guards an object no other check reaches needs its own test, whatever the checks around it already hold.
