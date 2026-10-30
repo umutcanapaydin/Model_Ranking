@@ -544,7 +544,8 @@ def deploy_in(commands: list[list[str]], root: Path) -> str | None:
     if unverified and commands:
         # #509: the base's brief is what says which commands deploy, and its bytes are not the base's. Which of
         # these deploys cannot be told, so each is judged as one, and the verdicts refuse it (policy unreadable).
-        return f"{' '.join(commands[0])} (any command: {where})"
+        return (f"{' '.join(commands[0])} (any command: {where}; until the base's objects are whole again -- in "
+                "your own terminal, `git fetch origin` then `git fsck --full`)")
     decl = declared(root)
     for d in decl:
         for words in commands:
@@ -710,14 +711,13 @@ def _workflow_texts(root: Path) -> tuple[dict[str, list[str]], bool]:
     for folder in WORKFLOW_DIRS:
         try:
             # #509: each file verified against the ids git names it by, as `git show` never checked.
-            files, failed = brief_fields.verified_files(root, base, folder)
+            files, failed = brief_fields.verified_files(root, base, folder, (".yml", ".yaml"))
         except RuntimeError:
             complete = False
             continue
         complete = complete and not failed
         for path, body in sorted(files.items()):
-            if path.endswith((".yml", ".yaml")):
-                out.setdefault(os.path.basename(path).lower(), []).append(body.decode("utf-8", "replace"))
+            out.setdefault(os.path.basename(path).lower(), []).append(body.decode("utf-8", "replace"))
     return out, complete
 
 

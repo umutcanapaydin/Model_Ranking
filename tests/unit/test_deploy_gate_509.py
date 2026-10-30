@@ -71,3 +71,38 @@ def test_a_forged_base_workflow_does_not_hide_a_deploy_dispatch(tmp_path: Path) 
     _forge_at_main(repo, ".github/workflows/release.yml", harmless)
     code, out = _deploy(repo, "gh workflow run release")
     assert code == 2, out
+
+
+def _with_base_workflow(repo: Repo, rel: str, text: str) -> None:
+    repo.git("checkout", "-q", "main")
+    repo.write(rel, text)
+    repo.commit("a base workflow")
+    repo.git("checkout", "-q", "work")
+    repo.git("merge", "-q", "main")
+
+
+def test_a_forged_base_workflows_tree_makes_every_dispatch_a_deploy(tmp_path: Path) -> None:
+    """The #509 review's M2: a base `.github/workflows` tree that does not hash leaves the read incomplete."""
+    repo = _installed(tmp_path)
+    _with_base_workflow(repo, ".github/workflows/ci.yml", "name: CI\non: workflow_dispatch\njobs: {}\n")
+    repo.write("src/app.py", "x = 2  # a product change\n")
+    repo.commit("a product change")
+    assert _deploy(repo, "gh workflow run ci")[0] == 0, "the control: ci deploys nothing"
+    _objects_loose(repo)
+    tree = repo.git("rev-parse", "main:.github/workflows")
+    _forge(repo, tree, "tree", _cat(repo, "tree", tree).replace(b"ci.yml", b"cx.yml"))
+    code, out = _deploy(repo, "gh workflow run ci")
+    assert code == 2, out
+
+
+def test_a_link_beside_the_base_workflows_is_not_read_as_one(tmp_path: Path) -> None:
+    """The #509 review's R2: only `.yml` and `.yaml` files are read, so a committed link named otherwise beside them
+    does not make every dispatch a deploy."""
+    repo = _installed(tmp_path)
+    (repo.root / ".github" / "workflows").mkdir(parents=True)
+    (repo.root / ".github" / "workflows" / "README").symlink_to("../../docs/project-brief.md")
+    _with_base_workflow(repo, ".github/workflows/ci.yml", "name: CI\non: workflow_dispatch\njobs: {}\n")
+    repo.write("src/app.py", "x = 2  # a product change\n")
+    repo.commit("a product change")
+    code, out = _deploy(repo, "gh workflow run ci")
+    assert code == 0, out

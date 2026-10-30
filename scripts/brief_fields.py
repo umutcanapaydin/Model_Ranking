@@ -233,11 +233,13 @@ def verified_file(repo: Path | str, rev: str, rel: str) -> bytes | None:
     return _verified_read(repo, rev, rel, _blob)
 
 
-def verified_files(repo: Path | str, rev: str, folder: str) -> tuple[dict[str, bytes], list[str]]:
-    """(every regular file under `folder` at commit `rev` by its path, each read as `verified_file` reads one; the
-    paths that could not be read so) -- ({}, []) when `folder` names nothing there. A file that fails is named, not
-    skipped quietly, and the rest are still read (the deploy gate's round 1 N1). A tree on the way that fails, or an
-    entry that is neither a directory nor a regular file, is `Unverified` for the whole folder."""
+def verified_files(repo: Path | str, rev: str, folder: str,
+                   suffixes: tuple[str, ...] = ("",)) -> tuple[dict[str, bytes], list[str]]:
+    """(every regular file under `folder` at commit `rev` whose name ends in one of `suffixes`, by its path, each read
+    as `verified_file` reads one; the paths that could not be read so) -- ({}, []) when `folder` names nothing there.
+    An entry of another name is not read at all (#509 review R2: a link beside the workflows is none of them). A
+    file that fails, or is not a regular file, is named, not skipped quietly, and the rest are still read (the deploy
+    gate's round 1 N1). A tree on the way that fails is `Unverified` for the whole folder."""
     def walk(batch: subprocess.Popen[bytes], mode: bytes, oid: str) -> tuple[dict[str, bytes], list[str]]:
         if mode != DIRECTORY:
             raise Unverified(f"{folder} at {rev[:12]} is not a directory as git writes one")
@@ -253,6 +255,8 @@ def verified_files(repo: Path | str, rev: str, folder: str) -> tuple[dict[str, b
                 path = f"{at}/{name.decode('utf-8', 'replace')}"
                 if entry_mode == DIRECTORY:
                     todo.append((path, entry))
+                    continue
+                if not path.endswith(suffixes):
                     continue
                 try:
                     out[path] = _blob(batch, entry_mode, entry)
