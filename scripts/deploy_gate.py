@@ -471,9 +471,13 @@ def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -
     """#501 (D-231 clause 1): the files a declared command starts, read only through the programs this knows -- a
     script git lists, a shell in SHELLS given such a script, `gh` dispatching a workflow (its files come from
     `deploy_workflows`), and KNOWN_PROGRAMS --; None for any other program, a shell's option (`bash -c`), or a
-    path-like word that names no file git lists (`cd x && ./y`, `$PWD/y`, a directory)."""
+    path-like word that names no file git lists (`cd x && ./y`, `$PWD/y`, a directory). The #501 review: None as well
+    for a command that is more than one (`a && b`, `a; b`, `a | b`: only the first would be read), for an assignment
+    before the program (`BASH_ENV=x bash y` runs `x` too), and for a dispatch whose workflow is not named (an id)."""
+    if any(any(mark in word for mark in ";&|`\n") or "$(" in word for word in words):
+        return None
     run = _program_position(words)
-    if not run:
+    if not run or any(ASSIGNMENT.match(word) for word in words[:len(words) - len(run)]):
         return None
     named = [_named_files(root, word, files) for word in run]
     if any(_path_like(word) and not found for word, found in zip(run, named, strict=True)):
@@ -485,7 +489,8 @@ def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -
         if len(run) < 2 or run[1].startswith("-") or not named[1]:
             return None
     elif program == "gh":
-        if gh_dispatch(run) is None:
+        started = gh_dispatch(run)
+        if started is None or UNKNOWN in started:
             return None
     elif program not in KNOWN_PROGRAMS:
         return None
