@@ -10,8 +10,14 @@
 	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+<!--
+#if ENGINE_LOCAL_NETWORKING
+-->
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+<!--
+#endif
+-->
 	</dict>
 </dict>
 </plist>

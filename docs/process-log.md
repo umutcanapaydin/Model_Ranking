@@ -1557,3 +1557,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Security review: round 1 BLOCKING (B1: the pin fixture's declared command was already safety surface, so two tests could no longer fail); round 2 MINOR at `60afb68`. M1's remaining spellings are #501; R3 is #493.
 - Two fixtures now declare a deploy command (`fly deploy` in the pin fixture, a script path that is not in the throwaway tree in `conformance/test-deploy-shipped.py`), because an empty declaration fails closed.
 - Lesson: a fixture's declared command must name nothing a test proves is code for another reason, or the test that proves it can no longer fail.
+
+## 2026-10-29 · fix/issue-488-local-networking-debug — NSAllowsLocalNetworking in a Debug build only
+
+- #488 (the night-1028 release security review's R1): the ATS exception for a loopback engine was in every configuration. `ios/Config/Engine.xcconfig` now preprocesses Info.plist (`INFOPLIST_PREPROCESS = YES`) and defines `ENGINE_LOCAL_NETWORKING` for Debug alone, after the optional local file, as the Release address is. The plist's `#if` lines sit inside XML comments, so the source still parses as a plist.
+- Built and read with `plutil`: Release (simulator and device) has an empty `NSAppTransportSecurity` and the hosted HTTPS address; Debug has the exception and `http://127.0.0.1:8080`.
+- Red test in `tests/unit/test_testflight_ready.py` runs Xcode's own preprocessing command (`cc -E -P -x c -Wno-trigraphs`, read from the build log). Its first form used a raw `skipif`, which #137's rule refused at the fix commit; the skip was dropped.
+- `make ui-test`: the Debug build reached the local engine (20 of 25 pass); the 5 that fail fail the same way on main (#503).
+- Lesson: a test that models a build tool should run the command the tool's own log shows, not a guess at it.
