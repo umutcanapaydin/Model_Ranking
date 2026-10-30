@@ -247,18 +247,18 @@ def test_a_quoted_name_that_holds_a_hash_is_the_whole_name(tmp_path: Path) -> No
 def test_a_base_file_git_cannot_show_makes_every_dispatch_a_deploy(tmp_path: Path,
                                                                     monkeypatch: pytest.MonkeyPatch) -> None:
     """Round 1's N1: a failed `git show` at the base was swallowed, and the files after it went unread. Now the
-    rest are still read, and the read is marked incomplete, so every dispatch is judged a deploy."""
+    rest are still read, and the read is marked incomplete, so every dispatch is judged a deploy. (#509: the base's
+    files are read through the verified reader, so the failure is injected there, where `git show` was.)"""
     root = _project(tmp_path / "p", deploy="fly deploy", workflows={"a.yml": CI, "z.yml": CI.replace("CI", "Z")})
     gate = _gate()
     assert gate.deploy_in([["gh", "workflow", "run", "a.yml"]], root) is None
-    real = gate.subprocess.run
+    real = gate.brief_fields.batch_read
+    failing = _git(root, "rev-parse", "HEAD:.github/workflows/a.yml")
 
-    def flaky(args: list[str], **kw: object) -> object:
-        if "show" in args and any(str(a).endswith(":.github/workflows/a.yml") for a in args):
-            raise subprocess.CalledProcessError(128, args)
-        return real(args, **kw)
+    def flaky(batch: object, oid: str, kind: str) -> object:
+        return f"object {oid} cannot be read as a {kind}" if oid == failing else real(batch, oid, kind)
 
-    monkeypatch.setattr(gate.subprocess, "run", flaky)
+    monkeypatch.setattr(gate.brief_fields, "batch_read", flaky)
     texts, complete = gate._workflow_texts(root)
     assert not complete
     assert len(texts["z.yml"]) == 2, "the file after the failing one was still read at the base"

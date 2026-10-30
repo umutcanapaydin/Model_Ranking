@@ -78,7 +78,6 @@ refused, or this could not run.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -92,7 +91,8 @@ from urllib.parse import unquote
 # that does not ignore it, and the tree about to ship is what this compares.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from brief_fields import listing, mode, protected_base, root_at  # noqa: E402
+import brief_fields  # noqa: E402
+from brief_fields import Unverified, listing, mode, protected_base, root_at  # noqa: E402
 
 #: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
@@ -150,17 +150,33 @@ def latest_milestone(root: Path, pattern: re.Pattern) -> Path | None:
     return max(found)[1] if found else None
 
 
+_POLICIES: dict[str, tuple[Path | None, str, bool]] = {}
+
+
+def _policy(root: Path) -> tuple[Path | None, str, bool]:
+    """(the policy root, the line that says which, whether the base's brief failed its hash check: #509)."""
+    key = str(root)
+    if key not in _POLICIES:
+        base = protected_base(root)
+        if base is None:
+            _POLICIES[key] = (None, "no merge-base of HEAD with a default branch (origin/HEAD, origin/main, "
+                                    "origin/master, main, master)", False)
+        else:
+            try:
+                _POLICIES[key] = (root_at(base, root), f"the brief at {base[:12]}, the merge-base of HEAD with the "
+                                                       "default branch", False)
+            except Unverified as error:
+                _POLICIES[key] = (None, str(error), True)
+            except RuntimeError as error:
+                _POLICIES[key] = (None, str(error), False)
+    return _POLICIES[key]
+
+
 def policy_root(root: Path) -> tuple[Path | None, str]:
     """(a root holding the brief as the protected base of the repository at `root` holds it, or None when
     that base cannot be read; the line that says which)."""
-    base = protected_base(root)
-    if base is None:
-        return None, ("no merge-base of HEAD with a default branch (origin/HEAD, origin/main, origin/master, "
-                      "main, master)")
-    try:
-        return root_at(base, root), f"the brief at {base[:12]}, the merge-base of HEAD with the default branch"
-    except RuntimeError as error:
-        return None, str(error)
+    policy, where, _ = _policy(root)
+    return policy, where
 
 
 def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
@@ -219,49 +235,10 @@ def _flagged(root: Path) -> list[str] | None:
     return [e[2:] for e in entries if e[:1].islower() or e[:1] == "S"]
 
 
-def _batch_read(batch: subprocess.Popen[bytes], oid: str, kind: str) -> bytes | str:
-    """One object's bytes from a running `git cat-file --batch`, or why it is not a `kind` that hashes to `oid`."""
-    assert batch.stdin is not None and batch.stdout is not None
-    batch.stdin.write(oid.encode() + b"\n")
-    batch.stdin.flush()
-    header = batch.stdout.readline().split()
-    if len(header) != 3 or header[1].decode() != kind:
-        return f"object {oid} cannot be read as a {kind}"
-    body = batch.stdout.read(int(header[2]) + 1)[:-1]
-    digest = hashlib.sha256 if len(oid) == 64 else hashlib.sha1
-    # The hash git names its objects by: this checks the bytes against the name, nothing more.
-    if digest(b"%s %d\0" % (kind.encode(), len(body)) + body).hexdigest() != oid:
-        return f"object {oid} ({kind}) does not hash to its id"
-    return body
-
-
-def _open_batch(root: Path) -> subprocess.Popen[bytes]:
-    """#511: the one reader of git objects; each object it serves is checked by `_batch_read`."""
-    return subprocess.Popen(["git", "--no-replace-objects", "-C", str(root), "cat-file", "--batch"],
-                            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-
-
-def _close_batch(batch: subprocess.Popen[bytes]) -> None:
-    if batch.stdin is not None:
-        batch.stdin.close()
-    batch.kill()
-    batch.wait()
-
-
-def _entries(body: bytes, size: int) -> list[tuple[bytes, bytes, str]]:
-    """#511: a tree's entries as (mode as written, name, id), ids `size` bytes long; the one tree parser."""
-    out, at = [], 0
-    while at < len(body):
-        space, nul = body.index(b" ", at), body.index(b"\0", at)
-        out.append((body[at:space], body[space + 1:nul], body[nul + 1:nul + 1 + size].hex()))
-        at = nul + 1 + size
-    return out
-
-
 def _subtrees(body: bytes, size: int) -> list[str]:
     """The ids of a tree's own subtrees (a mode whose type bits say tree); a blob, a link or a submodule is none."""
     # The review's M2: `040000` is a tree to git too, so the walk reads the type bits, not the spelling.
-    return [oid for mode, _, oid in _entries(body, size) if int(mode, 8) & 0o170000 == 0o040000]
+    return [oid for mode, _, oid in brief_fields.tree_entries(body, size) if int(mode, 8) & 0o170000 == 0o040000]
 
 
 def _unhashed(root: Path, head: str) -> str | None:
@@ -275,20 +252,20 @@ def _unhashed(root: Path, head: str) -> str | None:
         commit = subprocess.run(["git", "--no-replace-objects", "-C", str(root), "rev-parse", "--verify", "--quiet",
                                  "--end-of-options", head], capture_output=True, encoding="utf-8",
                                 timeout=30).stdout.strip()
-        batch = _open_batch(root)
+        batch = brief_fields.open_batch(root)
     except (OSError, subprocess.SubprocessError):
         return "objects cannot be read by git"
     try:
         if not commit:
             return None  # `changed_since` reports a head this clone does not have
-        body = _batch_read(batch, commit, "commit")
+        body = brief_fields.batch_read(batch, commit, "commit")
         m = re.match(rb"tree ([0-9a-f]{40,64})\n", body) if isinstance(body, bytes) else None
         if m is None:
             return body if isinstance(body, str) else f"commit {commit} names no tree"
         todo, seen = [m.group(1).decode()], {m.group(1).decode()}
         while todo:
             oid = todo.pop()
-            tree = _batch_read(batch, oid, "tree")
+            tree = brief_fields.batch_read(batch, oid, "tree")
             if isinstance(tree, str):
                 return tree
             fresh = [child for child in _subtrees(tree, len(oid) // 2) if child not in seen]
@@ -297,7 +274,7 @@ def _unhashed(root: Path, head: str) -> str | None:
     except (OSError, ValueError):
         return "objects cannot be read by git"
     finally:
-        _close_batch(batch)
+        brief_fields.close_batch(batch)
     return None
 
 
@@ -336,19 +313,11 @@ def devflow_pin(root: Path) -> str | None:
     key = str(root)
     if key not in _PINS:
         base = protected_base(root)
-        text = git_show(root, base, DEVFLOW_PIN) if base else None
+        # #509: verified, as the gate reads every base file whose content it trusts; a forged pin exempts nothing.
+        text = (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace") if base else None
         m = re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*", text or "")
         _PINS[key] = m.group(1) if m else None
     return _PINS[key]
-
-
-def git_show(root: Path, rev: str, rel: str) -> str | None:
-    try:
-        done = subprocess.run(["git", "-C", str(root), "show", f"{rev}:{rel}"], capture_output=True,
-                              encoding="utf-8", errors="replace", timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return done.stdout if done.returncode == 0 else None
 
 
 def shipped_unchanged(root: Path, rel: str) -> bool:
@@ -433,37 +402,12 @@ def deploy_surface(root: Path) -> frozenset[str] | None:
 
 
 def verified_blob(root: Path, commit: str, rel: str) -> bytes | None:
-    """The bytes of `rel` at `commit`, every object on the way -- the commit, each tree, the blob -- hashed against
-    its id (#444 R2: git serves a loose object without hashing it). None when one does not hash, or the path is not a
-    file there. #511: read through `_batch_read` and `_entries`, the reader `_unhashed` uses."""
+    """The bytes of `rel` at `commit`, every object on the way hashed against its id (#444 R2; #511, #509: the one
+    verified reader, `brief_fields.verified_file`). None when one does not hash, or the path is not a file there."""
     try:
-        batch = _open_batch(root)
-    except (OSError, subprocess.SubprocessError):
+        return brief_fields.verified_file(root, commit, rel)
+    except RuntimeError:
         return None
-    try:
-        body = _batch_read(batch, commit, "commit")
-        m = re.match(rb"tree ([0-9a-f]{40,64})\n", body) if isinstance(body, bytes) else None
-        if m is None:
-            return None
-        oid, parts = m.group(1).decode(), rel.split("/")
-        for depth, part in enumerate(parts):
-            tree = _batch_read(batch, oid, "tree")
-            if isinstance(tree, str):
-                return None
-            found = next(((mode, entry) for mode, name, entry in _entries(tree, len(oid) // 2)
-                          if name == part.encode()), None)
-            last = depth == len(parts) - 1
-            # #494 R2: the last entry is a file (100644, 100755), never a link compared by its text or a submodule.
-            # Stricter than the walk's type bits on purpose: only the spellings git writes are read as the pin's bytes.
-            if found is None or found[0] not in ((b"100644", b"100755") if last else (b"40000",)):
-                return None
-            oid = found[1]
-        blob = _batch_read(batch, oid, "blob")
-        return blob if isinstance(blob, bytes) else None
-    except (OSError, ValueError):
-        return None
-    finally:
-        _close_batch(batch)
 
 
 def current(root: Path, rel: Path, label: str, independent: bool = False) -> tuple[str | None, str]:
@@ -596,6 +540,11 @@ def matches(words: list[str], declared_words: list[str]) -> bool:
 def deploy_in(commands: list[list[str]], root: Path) -> str | None:
     """The declared deploy command one of these word lists runs, or the `gh` command among them that starts a
     deploy workflow (#390), or None."""
+    _, where, unverified = _policy(root)
+    if unverified and commands:
+        # #509: the base's brief is what says which commands deploy, and its bytes are not the base's. Which of
+        # these deploys cannot be told, so each is judged as one, and the verdicts refuse it (policy unreadable).
+        return f"{' '.join(commands[0])} (any command: {where})"
     decl = declared(root)
     for d in decl:
         for words in commands:
@@ -757,22 +706,18 @@ def _workflow_texts(root: Path) -> tuple[dict[str, list[str]], bool]:
     base = protected_base(root)
     if base is None:
         return out, True
-    try:
-        listed = subprocess.run(["git", "-C", str(root), "ls-tree", "-r", "-z", "--name-only", base, "--",
-                                 *WORKFLOW_DIRS], capture_output=True, check=True, timeout=30).stdout
-    except (OSError, subprocess.SubprocessError):
-        return out, False
     complete = True
-    for path in (p.decode("utf-8", "replace") for p in listed.split(b"\0") if p):
-        if not path.endswith((".yml", ".yaml")):
-            continue
+    for folder in WORKFLOW_DIRS:
         try:
-            shown = subprocess.run(["git", "-C", str(root), "show", f"{base}:{path}"], capture_output=True,
-                                   check=True, timeout=30).stdout.decode("utf-8", "replace")
-        except (OSError, subprocess.SubprocessError):
+            # #509: each file verified against the ids git names it by, as `git show` never checked.
+            files, failed = brief_fields.verified_files(root, base, folder)
+        except RuntimeError:
             complete = False
             continue
-        out.setdefault(os.path.basename(path).lower(), []).append(shown)
+        complete = complete and not failed
+        for path, body in sorted(files.items()):
+            if path.endswith((".yml", ".yaml")):
+                out.setdefault(os.path.basename(path).lower(), []).append(body.decode("utf-8", "replace"))
     return out, complete
 
 

@@ -1601,3 +1601,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `_object` is gone. Both read through `_open_batch`/`_batch_read` (one hash check, SHA-1 or SHA-256 by the id's length) and parse trees with `_entries`. The walk keeps reading a mode's type bits; the pin keeps reading only the spellings git writes (`40000`, `100644`, `100755`), so neither loosens.
 - Red test `tests/unit/test_deploy_gate_511.py` committed alone first: `verified_blob` refuses what the shared reader refuses, and parses with the shared parser. Every deploy-gate test stays green (157). Ruled by D-231 clause 1.
 - Lesson: when two copies of one check are merged, each caller keeps its own strictness; the shared part is the hash and the parse, not the policy.
+
+## 2026-10-30 · fix/issue-509-verified-base — the deploy gate reads the base's pin, brief and workflows verified
+
+- #509 (the delta review of `integration/fixes-1030`, R1, Escalate NOW): the gate read the content of the pin file, the brief and the base workflows with `git show`, which does not hash a loose blob; one forged object exempted a changed tool or hid the deploy commands.
+- The verified reader #511 made now lives in `scripts/brief_fields.py` (already safety surface and a policy module): `verified_file` and `verified_files` hash the commit, each tree and the blob, and say "absent" apart from `Unverified`. `root_at`, `devflow_pin` and `_workflow_texts` read through it.
+- When the base's brief is `Unverified`, the guard judges every command a deploy, so each is refused: the brief is the only record of what deploys (`docs/plans/assumptions-1030.md`). A base git cannot reach keeps today's reading.
+- Red test `tests/unit/test_deploy_gate_509.py` (the review's two probes and a forged base workflow) committed alone first; three mutants (no refusal, a failed workflow ignored, blobs unhashed) each fail it. One existing test's fault injection moved from `git show` to the reader, its assertions unchanged. Ruled by D-231 clause 1.
+- Lesson: "blobs need no check" held for a diff that compares ids, not for a read that trusts content; each read names which of the two it is.
