@@ -59,6 +59,7 @@ from app.workflows.recommend import BUDGETS, eligible_for, round_optional_score,
 from app.workflows.registry import MODEL_RULES
 from app.workflows.schema import open_readonly
 from app.workflows.serving_bounds import bounds_from_env, egress_problems
+from app.workflows.status_record import read_status
 from app.workflows.yaml_guard import safe_load_bounded
 
 # NOTHING IS IMPORTED FROM `app.adapter`, and that is REQ-REF-007 rather than tidiness. D-116 keeps
@@ -1147,11 +1148,7 @@ def _another_release_built(target: Path) -> bool:
     built_by = os.environ.get("APP_BUILD", "").strip()
     if not built_by.startswith("release-"):
         return False
-    try:
-        previous = json.loads(status_path(target).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return True
-    return not isinstance(previous, dict) or previous.get("served_built_by") != built_by
+    return read_status(status_path(target)).get("served_built_by") != built_by
 
 
 def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float) -> Path:
@@ -1181,11 +1178,9 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
     # quietly. Rewriting history is not the answer; carrying two counters forward is. A transient
     # refusal also used to vanish within twelve hours, so an owner reading `runner` the next day
     # saw `published` and never learned a refusal had happened.
-    previous: dict[str, object] = {}
-    with contextlib.suppress(OSError, ValueError):
-        read = json.loads(path.read_text(encoding="utf-8"))
-        # #466: valid JSON that is not an object is no previous record, as an unreadable file is.
-        previous = read if isinstance(read, dict) else {}
+    # #466, #496: valid JSON that is not an object, or one nested past the recursion limit, is no
+    # previous record, as an unreadable file is.
+    previous = read_status(path)
 
     refused_before = previous.get("consecutive_refusals", 0)
     carried = int(refused_before) if isinstance(refused_before, int) else 0
@@ -1460,10 +1455,9 @@ def _replaced_underneath(target: Path, live: ServingSummary) -> str | None:
 
 def _read_last_ok(target: Path) -> dict[str, str]:
     """The per-source arrival record from this artifact's previous cycle (D-156)."""
-    with contextlib.suppress(OSError, ValueError, AttributeError):
-        seen = json.loads(status_path(target).read_text(encoding="utf-8")).get("sources_last_ok")
-        if isinstance(seen, dict):
-            return {str(k): str(v) for k, v in seen.items()}
+    seen = read_status(status_path(target)).get("sources_last_ok")
+    if isinstance(seen, dict):
+        return {str(k): str(v) for k, v in seen.items()}
     return {}
 
 
