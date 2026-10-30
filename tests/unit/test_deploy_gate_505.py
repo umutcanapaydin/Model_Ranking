@@ -129,3 +129,81 @@ def test_a_mode_change_alone_is_seen(tmp_path: Path) -> None:
     repo = _installed(tmp_path)
     (repo.root / "src" / "app.py").chmod(0o755)
     _seen(repo, "src/app.py")
+
+
+def _at_new_head(repo: Repo, files: dict[str, str], links: dict[str, str] | None = None) -> None:
+    """Commit `files` (and `links`) on main, put both verdicts at that head, and branch from it."""
+    repo.git("checkout", "-q", "main")
+    for rel, text in files.items():
+        repo.write(rel, text)
+    for rel, target in (links or {}).items():
+        (repo.root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo.root / rel).symlink_to(target)
+    repo.commit("a new reviewed head")
+    head = repo.git("rev-parse", "HEAD")
+    for name in ("release-security.md", "release-tester.md"):
+        repo.write(f"docs/reviews/{name}", f"# R\n\n**Independent:** yes\n**Reviewed head:** {head}\n\n## Verdict\nPASS\n")
+    repo.commit("verdicts")
+    repo.git("checkout", "-q", "-b", "after")
+
+
+def test_an_untracked_nested_checkout_is_a_change(tmp_path: Path) -> None:
+    """The #505 review's M1: git lists nothing below a folder holding `.git`, so it hid every file there."""
+    repo = _installed(tmp_path)
+    repo.git("init", "-q", "src/sitecustomize")
+    repo.write("src/sitecustomize/__init__.py", "import os\n")
+    code, out = repo.check()
+    assert code != 0, out
+    assert "src/sitecustomize/" in out and "__init__.py" not in out, "the folder is what git lists: " + out
+
+
+def test_a_redirected_core_worktree_does_not_hide_a_new_file(tmp_path: Path) -> None:
+    """The #505 review's M2: `core.worktree` pointed at a clean checkout made git list that tree instead, and the
+    gate judged it; with the setting there, no verdict is current."""
+    repo = _installed(tmp_path)
+    clean = tmp_path / "clean"
+    repo.git("worktree", "add", "-q", "--detach", str(clean), "HEAD")
+    repo.git("config", "core.worktree", str(clean))
+    repo.write("src/new.py", "x = 3\n")
+    code, out = repo.check()
+    assert code != 0, out
+    assert "core.worktree" in out, out
+
+
+def test_a_deleted_file_and_a_retargeted_link_are_seen(tmp_path: Path) -> None:
+    """The #505 review's R1: a tracked file gone from disk, and a link pointed elsewhere, are changes."""
+    repo = _installed(tmp_path)
+    _at_new_head(repo, {"src/other.py": "y = 1\n"}, {"src/current.py": "app.py"})
+    assert repo.check()[0] == 0, "the control"
+    (repo.root / "src" / "other.py").unlink()
+    _seen(repo, "src/other.py")
+    (repo.root / "src" / "current.py").unlink()
+    (repo.root / "src" / "current.py").symlink_to("other.py")
+    _seen(repo, "src/current.py")
+
+
+def test_a_negated_pattern_at_the_reviewed_head_still_shows_a_file(tmp_path: Path) -> None:
+    """The #505 review's R1: `!` re-includes what an earlier pattern ignored, as git reads it."""
+    repo = _installed(tmp_path)
+    _at_new_head(repo, {".gitignore": "src/gen/*\n!src/gen/keep.py\n"})
+    repo.write("src/gen/out.py", "x = 4\n")
+    assert repo.check()[0] == 0, "the control: the ignored one is not a change"
+    repo.write("src/gen/keep.py", "x = 5\n")
+    _seen(repo, "src/gen/keep.py")
+
+
+def test_a_link_written_with_dot_slash_and_a_group_bit_are_not_changes(tmp_path: Path) -> None:
+    """The #505 review's R2: the link's text as written (`./x`), and only the owner's executable bit, as git reads."""
+    repo = _installed(tmp_path)
+    _at_new_head(repo, {}, {"src/current.py": "./app.py"})
+    (repo.root / "src" / "app.py").chmod(0o654)
+    code, out = repo.check()
+    assert code == 0, out
+
+
+def test_a_folder_named_with_glob_characters_scopes_only_itself(tmp_path: Path) -> None:
+    """The #505 review's R3: `we[ir]d/.gitignore` must not also ignore below `weid/`."""
+    repo = _installed(tmp_path)
+    _at_new_head(repo, {"src/we[ir]d/.gitignore": "new.py\n", "src/we[ir]d/a.py": "x = 1\n"})
+    repo.write("src/weid/new.py", "x = 3\n")
+    _seen(repo, "src/weid/new.py")
