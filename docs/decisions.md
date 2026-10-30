@@ -6329,3 +6329,35 @@ or URL in the file also fails the text gate. The same declarations in another fi
 refused until a new ADR names it. The pin is one constant, so a re-pin is the reviewed step.
 
 **Revisit when:** another system page needs opening, or iOS offers a way to open Settings that makes no URL.
+
+## D-231 — Run 1030's rulings: the deploy gate's integrity fixes, #505's content comparison, and #503's rerun
+
+**Status:** proposed
+**Owner ruling:** 2026-10-30, in chat, for run 1030
+
+**Decision.**
+1. **The run may change the deploy gate, and only to tighten it:** #506 (`--no-renames`, so a code file renamed into
+   a record path is still listed), #509 (every base blob whose content the gate trusts -- the pin file, the brief, the
+   base workflows -- is read through a verified path: the base commit, each tree and the blob hashed, failing closed),
+   #510 (a test on the pinned commit's hash), #511 (one verified object reader replaces the two) and #501
+   (`deploy_surface` reads a declared command only through the programs it knows: a script path, `bash`/`sh` with a
+   script, `gh workflow run`, and the named external program `fly`; any other program, and a path-like word that
+   names no file git lists, exempts nothing). The known programs are a named enumeration in the gate with this ADR
+   as its reason. Each change goes through `/writing-a-control`.
+2. **#505 compares content, not git's state.** The gate hashes each tracked and untracked file's content itself and
+   compares it with the reviewed head's tree, without the index's stat data, with `core.fsmonitor` off and no
+   attribute filters. The ignore rules that count are only the `.gitignore` files committed at the reviewed head;
+   `.git/info/exclude` and `core.excludesFile` do not count.
+3. **#503 is rerun first against an artifact built today.** Green: the issue closes as the artifact's age. Red: a
+   small app fix lands in the run; a large one is a stop.
+4. **The run is cut from #512's branch** (`integration/fixes-1030`), so #512 merges first, then the run's PR.
+
+**Rationale.** The owner chose the recommended option on each of the run's four questions. Clause 1 and 2
+pre-answer the Escalate-NOW class `control-change` for #501, #505, #506, #509, #510 and #511 alone, so the run
+does not stop on them.
+
+**Mitigation if violated:** a change under clause 1 or 2 that loosens a control is a stop of class `control-change`,
+never stacked.
+
+**Revisit when:** a declared deploy command needs a program outside clause 1's list, or #505's content comparison
+is too slow for the pre-push gate.
