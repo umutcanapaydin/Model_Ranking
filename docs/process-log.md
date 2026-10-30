@@ -1631,3 +1631,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `_runs_deploy` and the new recipe check share one line reader, `_line_commands`, instead of two copies of the loop.
 - Red test `tests/unit/test_deploy_gate_501.py` committed alone first (one case, a known program given an expansion, added with the fix); three mutants each fail it. Three exemption controls' fixtures now hold the script they declare (`docs/plans/assumptions-1030.md`), their assertions unchanged.
 - Lesson: an allowlist rule over declared text reaches the fixtures too; a control that declares what its tree does not hold was passing on a reading the rule now refuses.
+
+## 2026-10-30 · fix/issue-505-content-compare — the deploy gate compares the working tree with the reviewed head by content
+
+- #505 (the #493 security review's R1, Escalate NOW): `changed_since` asked `git diff` and `git ls-files --exclude-standard`, which an fsmonitor hook, a stat-clean index entry, a clean filter in `.git/info/attributes`, `.git/info/exclude`, `core.excludesFile` and a self-ignoring untracked `.gitignore` each fooled.
+- D-231 clause 2: `brief_fields.verified_tree` lists the reviewed head's tree with every tree hashed; `_differs` hashes each file's bytes, kind and executable bit from disk; `_new_files` lists the rest with only the head's committed `.gitignore` files (scoped to their folders), fsmonitor and the untracked cache off, and counts every index entry the tree does not hold.
+- On this tree the old and the new reading give the same list against three heads (`c29392c`, `2d29b9c`, the branch base). In the main tree two files hidden only by the clone's own exclude list now read as code: an owner-actions row.
+- Red test `tests/unit/test_deploy_gate_505.py` (the six ways and a control) committed alone first; three cases (a staged file, a nested `.gitignore`'s scope, a mode change) were added with the fix after mutants survived without them. Five mutants each fail it.
+- Lesson: to stop trusting a cache, compare against what the cache summarises; every input the cache left out has to come back as an explicit rule, here the committed ignore files.

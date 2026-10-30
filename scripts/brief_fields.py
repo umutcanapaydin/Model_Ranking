@@ -233,6 +233,58 @@ def verified_file(repo: Path | str, rev: str, rel: str) -> bytes | None:
     return _verified_read(repo, rev, rel, _blob)
 
 
+def verified_tree(repo: Path | str, rev: str) -> dict[str, tuple[bytes, str]]:
+    """#505: every entry of commit `rev`'s tree that is not a directory, by its path: (mode as written, id), the
+    commit and every tree hashed against its id. RuntimeError when git cannot run; `Unverified` as `verified_file`."""
+    commit = _commit(repo, rev)
+    try:
+        batch = open_batch(repo)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError(f"objects cannot be read by git ({error})") from error
+    try:
+        out: dict[str, tuple[bytes, str]] = {}
+        todo = [("", _root_tree(batch, commit))]
+        while todo:
+            at, tree_oid = todo.pop()
+            tree = batch_read(batch, tree_oid, "tree")
+            if isinstance(tree, str):
+                raise Unverified(tree)
+            for mode, name, entry in tree_entries(tree, len(tree_oid) // 2):
+                path = f"{at}{name.decode('utf-8', 'surrogateescape')}"
+                if int(mode, 8) & 0o170000 == 0o040000:
+                    todo.append((f"{path}/", entry))
+                else:
+                    out[path] = (mode, entry)
+        return out
+    except ValueError as error:
+        raise Unverified(f"a tree under {commit[:12]} does not parse ({error})") from error
+    except OSError as error:
+        raise RuntimeError(f"objects cannot be read by git ({error})") from error
+    finally:
+        close_batch(batch)
+
+
+def verified_blobs(repo: Path | str, oids: list[str]) -> dict[str, bytes]:
+    """#505: each blob's bytes by its id, hashed against it. RuntimeError when git cannot run; `Unverified` when
+    one does not hash or is missing."""
+    try:
+        batch = open_batch(repo)
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError(f"objects cannot be read by git ({error})") from error
+    try:
+        out: dict[str, bytes] = {}
+        for oid in oids:
+            body = batch_read(batch, oid, "blob")
+            if isinstance(body, str):
+                raise Unverified(body)
+            out[oid] = body
+        return out
+    except (OSError, ValueError) as error:
+        raise RuntimeError(f"objects cannot be read by git ({error})") from error
+    finally:
+        close_batch(batch)
+
+
 def verified_files(repo: Path | str, rev: str, folder: str,
                    suffixes: tuple[str, ...] = ("",)) -> tuple[dict[str, bytes], list[str]]:
     """(every regular file under `folder` at commit `rev` whose name ends in one of `suffixes`, by its path, each read

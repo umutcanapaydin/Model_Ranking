@@ -78,12 +78,14 @@ refused, or this could not run.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -205,30 +207,109 @@ def verdict_head(text: str) -> str | None:
 
 def changed_since(root: Path, head: str) -> list[str] | None:
     """Every code path that differs from `head` in the working tree of `root`, or None when git cannot
-    compare. Committed, uncommitted and untracked alike; nested checkouts (`dir/`) are not this tree. None as well
-    when the comparison cannot be trusted (#493, #500: `compare_problem`), so `closure_check` agrees with the gate."""
+    compare. Committed, uncommitted and untracked alike. None as well
+    when the comparison cannot be trusted (#493, #500: `compare_problem`), so `closure_check` agrees with the gate.
+
+    #505 (D-231 clause 2): by content, never by git's state. Each file the reviewed head's (verified) tree holds is
+    hashed here from the working tree; a file it does not hold is new unless a `.gitignore` committed at that head
+    ignores it. No index stat data, fsmonitor, attribute filter, `.git/info/exclude` or `core.excludesFile` is read,
+    since the change under evaluation can write each of them. A path that leaves or enters is listed by its name,
+    so a rename is both its sides (#506). An untracked nested checkout is listed as its folder (`dir/`), a change,
+    unless a committed `.gitignore` ignores it: git lists nothing below it, so it hid every file there (the #505
+    review's M1)."""
     if compare_problem(root, head):
         return None
     try:
-        # Against the WORKING TREE, not HEAD: an uncommitted edit deploys as surely as a commit. `--no-renames`, over
-        # any `diff.renames` setting: a rename lists only its new name, so code moved into a record path left (#506).
-        out = subprocess.run(["git", "-C", str(root), "diff", "--no-renames", "--name-only", head], capture_output=True,
-                             encoding="utf-8", errors="replace", check=True, timeout=60).stdout.splitlines()
-        out += subprocess.run(["git", "-C", str(root), "ls-files", "--others", "--exclude-standard"],
-                              capture_output=True, encoding="utf-8", errors="replace", check=True,
-                              timeout=60).stdout.splitlines()
-    except (OSError, subprocess.SubprocessError):
+        tree = brief_fields.verified_tree(root, head)
+        ignores = {path: oid for path, (mode, oid) in tree.items()
+                   if os.path.basename(path) == ".gitignore" and mode in brief_fields.FILES}
+        rules = brief_fields.verified_blobs(root, sorted(set(ignores.values())))
+        new = _new_files(root, tree, {path: rules[oid] for path, oid in ignores.items()})
+    except (OSError, subprocess.SubprocessError, RuntimeError):
         return None
-    paths = [p.strip() for p in out if p.strip()]
-    code = [p for p in paths if not p.endswith("/") and not is_deploy_record(p)]
+    paths = sorted({p for p, (mode, oid) in tree.items() if _differs(root / p, mode, oid)} | new)
+    code = [p for p in paths if not is_deploy_record(p)]
     return [p for p in code if not shipped_unchanged(root, p)]
+
+
+#: #505: git as the comparison runs it -- no fsmonitor and no untracked cache, so what is listed is what is on disk.
+_PLAIN_GIT = ["git", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"]
+
+
+def _blob_id(body: bytes, like: str) -> str:
+    """The id git would name `body` by, as a blob, in the hash `like` is written in."""
+    digest = hashlib.sha256 if len(like) == 64 else hashlib.sha1
+    return digest(b"blob %d\0" % len(body) + body).hexdigest()
+
+
+def _differs(path: Path, mode: bytes, oid: str) -> bool:
+    """Whether the working tree's `path` is not the reviewed head's entry (mode as written, id): its bytes, its kind
+    (file or link) and its executable bit, read from disk, never from the index. A submodule differs unless the
+    checkout there is at the recorded commit."""
+    try:
+        if mode == b"120000":
+            # `os.readlink`, not `Path.readlink`: the link's text as written (`./x` stays `./x`), which git hashes.
+            return not path.is_symlink() or _blob_id(os.fsencode(os.readlink(path)), oid) != oid  # noqa: PTH115
+        if mode in brief_fields.FILES:
+            if path.is_symlink() or not path.is_file():
+                return True
+            if bool(path.stat().st_mode & 0o100) != (mode == b"100755"):  # the owner's bit, as git reads it
+                return True
+            return _blob_id(path.read_bytes(), oid) != oid
+        if mode == b"160000":
+            at = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], capture_output=True, encoding="utf-8",
+                                timeout=30)
+            return at.returncode != 0 or at.stdout.strip() != oid
+    except OSError:
+        return True
+    return True  # a mode git does not write
+
+
+def _head_excludes(rules: dict[str, bytes]) -> str:
+    """The reviewed head's committed `.gitignore` files as one exclude list, each pattern made relative to the top
+    of the tree the way git scopes it to its own directory; the deeper files last, since they take precedence."""
+    out: list[str] = []
+    for path in sorted(rules, key=lambda p: (p.count("/"), p)):
+        folder = re.sub(r"([\\*?\[])", r"\\\1", path.rpartition("/")[0])  # a folder's name is literal (R3)
+        for raw in rules[path].decode("utf-8", "replace").splitlines():
+            line = re.sub(r"(?<!\\) +$", "", raw.rstrip("\r"))
+            if not line or line.startswith("#"):
+                continue
+            negate, body = ("!", line[1:]) if line.startswith("!") else ("", line)
+            if folder:
+                trailing = "/" if body.endswith("/") else ""
+                core = body[:-1] if trailing else body
+                body = f"{folder}/{core.lstrip('/')}{trailing}" if "/" in core else f"{folder}/**/{core}{trailing}"
+            out.append(negate + body)
+    return "\n".join(out) + "\n"
+
+
+def _new_files(root: Path, tree: dict[str, tuple[bytes, str]], rules: dict[str, bytes]) -> set[str]:
+    """#505: the files on disk the reviewed head's tree does not hold and its committed `.gitignore` files do not
+    ignore. `--others` reads only the patterns given here; and every index entry the tree does not hold counts too,
+    since an entry forged into the index takes a file out of `--others`."""
+    with tempfile.NamedTemporaryFile("w", suffix=".exclude", delete=False, encoding="utf-8") as excludes:
+        excludes.write(_head_excludes(rules))
+    try:
+        # `--work-tree`: the listing is of `root`, whatever `core.worktree` names (the #505 review's M2).
+        others = subprocess.run([*_PLAIN_GIT, "-C", str(root), f"--work-tree={root}", "ls-files", "-z", "--others",
+                                 f"--exclude-from={excludes.name}"], capture_output=True, check=True, timeout=60).stdout
+        cached = subprocess.run([*_PLAIN_GIT, "-C", str(root), f"--work-tree={root}", "ls-files", "-z", "--cached"],
+                                capture_output=True,
+                                check=True, timeout=60).stdout
+    finally:
+        Path(excludes.name).unlink()
+    listed = {os.fsdecode(p) for p in others.split(b"\0") if p}
+    staged = {p for p in (os.fsdecode(p) for p in cached.split(b"\0") if p)
+              if p not in tree and ((root / p).is_symlink() or (root / p).exists())}
+    return {p for p in listed | staged if p not in tree}
 
 
 def _flagged(root: Path) -> list[str] | None:
     """#500: each index entry git is told not to look at in the working tree -- assume-unchanged (a lower-case tag in
     `git ls-files -v`) or skip-worktree (`S`) --, or None when git cannot list the index."""
     try:
-        listed = subprocess.run(["git", "-C", str(root), "ls-files", "-v", "-z"], capture_output=True, check=True,
+        listed = subprocess.run([*_PLAIN_GIT, "-C", str(root), "ls-files", "-v", "-z"], capture_output=True, check=True,
                                 timeout=60).stdout
     except (OSError, subprocess.SubprocessError):
         return None
@@ -361,7 +442,7 @@ def _files(root: Path) -> dict[str, set[str]] | None:
     """Every file git sees in `root`'s tree, tracked or untracked-not-ignored, by its lower-cased path (the declared
     words are lower-cased); None when git cannot list them."""
     try:
-        listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--cached", "--others",
+        listed = subprocess.run([*_PLAIN_GIT, "-C", str(root), "ls-files", "-z", "--cached", "--others",
                                  "--exclude-standard"], capture_output=True, check=True, timeout=60).stdout
     except (OSError, subprocess.SubprocessError):
         return None
@@ -509,6 +590,18 @@ def current(root: Path, rel: Path, label: str, independent: bool = False) -> tup
     return None, f"{label}: {rel.as_posix()} {v.group(1)} at {head[:7]}, no code changed since (working tree included)"
 
 
+def _redirected(root: Path) -> str | None:
+    """The #505 review's M2: why the tree git reads is not the one here -- `core.worktree` names another folder, so
+    every listing, and the top level this was given, is of that one --, or None."""
+    try:
+        named = subprocess.run(["git", "-C", str(root), "config", "--get", "core.worktree"], capture_output=True,
+                               encoding="utf-8", errors="replace", timeout=30).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "git cannot say whether `core.worktree` is set"
+    return (f"`core.worktree` is set ({named}), so git reads another tree than the one being deployed; unset it "
+            "(`git config --unset core.worktree`)") if named else None
+
+
 def verdicts(root: Path) -> list[tuple[str | None, str]]:
     """The policy's base, then security, then the Tester: each (why not current | None, summary line). In
     heavy mode a current `m<N>-security.md` of the latest milestone stands for `release-security.md` (v7.2);
@@ -516,6 +609,9 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
     verdict stand only when neither says light."""
     policy, where = policy_root(root)
     out: list[tuple[str | None, str]] = []
+    redirected = _redirected(root)
+    if redirected:
+        out.append((redirected, "worktree: redirected"))
     modes = [mode(root)]
     if policy is None:
         out.append((f"the brief's policy fields cannot be read at the protected base ({where}); a deploy is "
@@ -770,10 +866,10 @@ def _workflow_texts(root: Path) -> tuple[dict[str, list[str]], bool]:
     if base is None:
         return out, True
     complete = True
-    for folder in WORKFLOW_DIRS:
+    for place in WORKFLOW_DIRS:
         try:
             # #509: each file verified against the ids git names it by, as `git show` never checked.
-            files, failed = brief_fields.verified_files(root, base, folder, (".yml", ".yaml"))
+            files, failed = brief_fields.verified_files(root, base, place, (".yml", ".yaml"))
         except RuntimeError:
             complete = False
             continue
