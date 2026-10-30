@@ -59,6 +59,9 @@ def _installed(tmp_path: Path) -> Repo:
     repo.write("docs/project-brief.md", "- **Working mode:** `light`\n- **Deploy commands:** `fly deploy`\n")
     repo.write("scripts/tool.py", "VERSION = 1\n")
     repo.write("scripts/deploy_hosted_engine.sh", "echo deploy\n")
+    # #501: a script the other tests' declarations name exists before the reviewed head, since a declared path that
+    # names no file git lists now exempts nothing; an upgrade that ships it changes these bytes.
+    repo.write("scripts/ship_it.sh", "echo installed\n")
     repo.write("src/app.py", "x = 1\n")
     repo.write(".gp/installed", "gp_version: v9.9\n")
     shipped = repo.commit("DevFlow v9.9")

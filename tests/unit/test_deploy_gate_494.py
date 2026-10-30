@@ -29,7 +29,7 @@ def _brief(*commands: str) -> str:
 @pytest.mark.parametrize(("rel", "text", "command"), [
     ("scripts/ship_it.sh", "echo ship\n", "./scripts/ship_it.sh"),
     ("scripts/ship_it.sh", "echo ship\n", "bash ./scripts/ship_it.sh"),
-    ("scripts/Ship_It.sh", "echo ship\n", "scripts/Ship_It.sh"),
+    ("scripts/Ship_Now.sh", "echo ship\n", "scripts/Ship_Now.sh"),  # not ship_it.sh: one file on a case-blind disk
     ("scripts/ship_it.sh", "echo ship\n", "{root}/scripts/ship_it.sh"),
     (".github/workflows/release.yml", WORKFLOW, "gh workflow run release"),
     (".github/workflows/release.yml", WORKFLOW, "gh workflow run 'Ship it'"),
@@ -88,6 +88,27 @@ def test_a_forged_pinned_tree_is_not_read_as_the_pinned_bytes(tmp_path: Path) ->
     loose = repo.root / ".git" / "objects" / root_tree[:2] / root_tree[2:]
     loose.chmod(0o644)
     loose.write_bytes(zlib.compress(b"tree %d\0" % len(forged) + forged))
+    code, out = repo.check()
+    assert code != 0, out
+    assert "scripts/tool.py" in out, out
+
+
+def test_a_forged_pinned_commit_is_not_read_as_the_pinned_tree(tmp_path: Path) -> None:
+    """#510: the pinned commit is an ancestor of the reviewed head, which #493's walk does not reach, so the hash check
+    on it is its only guard. Forge its object to name the agent's tree and the changed tool must not read as DevFlow's."""
+    repo = _installed(tmp_path)
+    pinned = repo.git("show", "main:docs/devflow-pin.txt").split()[1]
+    repo.write("scripts/tool.py", "VERSION = 1  # the agent's change\n")
+    repo.commit("a change")
+    _objects_loose(repo)
+    body = subprocess.run(["git", "cat-file", "commit", pinned], cwd=repo.root, capture_output=True,
+                          check=True).stdout
+    original = repo.git("rev-parse", f"{pinned}^{{tree}}").encode()
+    assert body.startswith(b"tree " + original + b"\n")
+    forged = body.replace(original, repo.git("rev-parse", "HEAD^{tree}").encode(), 1)
+    loose = repo.root / ".git" / "objects" / pinned[:2] / pinned[2:]
+    loose.chmod(0o644)
+    loose.write_bytes(zlib.compress(b"commit %d\0" % len(forged) + forged))
     code, out = repo.check()
     assert code != 0, out
     assert "scripts/tool.py" in out, out

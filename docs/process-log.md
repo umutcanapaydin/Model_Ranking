@@ -1588,3 +1588,61 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - review-need on the whole range: security. Delta review MINOR at `ac0cd8c` (`docs/reviews/integration-fixes-1030-security.md`): #507's refusals run before every path #502 added; ten mutants on the seam, all killed but M1.
 - M1 (no test on the pinned commit's hash) is #510; R1 (base blobs read unhashed, Escalate NOW) is #509; R2 (two object readers) is #511; R3 (the check runs twice, 0.2 s) is refused: cost only.
 - Lesson: drafts that all append to one log conflict on every merge after the first; when several wait at once, stack them before handing over, not after the first conflict.
+
+## 2026-10-30 · fix/issue-510-pinned-commit-test — a test holds the hash check on the pinned DevFlow commit
+
+- #510 (the delta review of `integration/fixes-1030`, M1): `_object` hashes the pinned commit before reading its tree, and no test held it. The pinned commit is an ancestor of the reviewed head, outside #493's walk, so that check is its only guard.
+- New `tests/unit/test_deploy_gate_494.py::test_a_forged_pinned_commit_is_not_read_as_the_pinned_tree` forges the pinned commit to name the agent's tree. Green on the code; red with the reviewer's mutant (`kind != "commit" and named != oid`), restored byte for byte. Test only, so there is no separate red commit.
+- Lesson: a check that guards an object no other check reaches needs its own test, whatever the checks around it already hold.
+
+## 2026-10-30 · fix/issue-506-no-renames — a code file renamed into a record path is still a change
+
+- #506 (the #493 security review's R2): `changed_since` ran `git diff --name-only` with rename detection on, which lists a rename by its new name only; moving a code file to a Markdown file under `docs/` left only the record's name, and the gate said no code changed.
+- The diff now runs with `--no-renames`, which also wins over a `diff.renames` setting the change could write to its clone's config.
+- Red test `tests/unit/test_deploy_gate_506.py` (committed, uncommitted, and with `diff.renames=copies`) committed alone first. Ruled by D-231 clause 1.
+- Lesson: a path-list gate reads both sides of every change; a default that folds two paths into one is a filter the gate did not choose.
+
+## 2026-10-30 · fix/issue-511-one-object-reader — one verified reader of git objects in the deploy gate
+
+- #511 (the delta review of `integration/fixes-1030`, R2): `_unhashed` (#493) and `verified_blob` (#444) kept two object readers and two tree parsers, which disagreed on the hash kind and the tree-mode spelling.
+- `_object` is gone. Both read through `_open_batch`/`_batch_read` (one hash check, SHA-1 or SHA-256 by the id's length) and parse trees with `_entries`. The walk keeps reading a mode's type bits; the pin keeps reading only the spellings git writes (`40000`, `100644`, `100755`), so neither loosens.
+- Red test `tests/unit/test_deploy_gate_511.py` committed alone first: `verified_blob` refuses what the shared reader refuses, and parses with the shared parser. Every deploy-gate test stays green (157). Ruled by D-231 clause 1.
+- Lesson: when two copies of one check are merged, each caller keeps its own strictness; the shared part is the hash and the parse, not the policy.
+
+## 2026-10-30 · fix/issue-509-verified-base — the deploy gate reads the base's pin, brief and workflows verified
+
+- #509 (the delta review of `integration/fixes-1030`, R1, Escalate NOW): the gate read the content of the pin file, the brief and the base workflows with `git show`, which does not hash a loose blob; one forged object exempted a changed tool or hid the deploy commands.
+- The verified reader #511 made now lives in `scripts/brief_fields.py` (already safety surface and a policy module): `verified_file` and `verified_files` hash the commit, each tree and the blob, and say "absent" apart from `Unverified`. `root_at`, `devflow_pin` and `_workflow_texts` read through it.
+- When the base's brief is `Unverified`, the guard judges every command a deploy, so each is refused: the brief is the only record of what deploys (`docs/plans/assumptions-1030.md`). A base git cannot reach keeps today's reading.
+- Red test `tests/unit/test_deploy_gate_509.py` (the review's two probes and a forged base workflow) committed alone first; three mutants (no refusal, a failed workflow ignored, blobs unhashed) each fail it. One existing test's fault injection moved from `git show` to the reader, its assertions unchanged. Ruled by D-231 clause 1.
+- Lesson: "blobs need no check" held for a diff that compares ids, not for a read that trusts content; each read names which of the two it is.
+
+## 2026-10-30 · fix/issue-503-offline-pass — `make ui-test` green: a current artifact, and an offline pass with no kept answer
+
+- #503: five UI tests failed on main. Rerun on main against an artifact built today (D-231 clause 3), the three `ScreenPathTests` passed (19 of 19): their cause was the local `advisor.db` of 2026-10-10, older than the boards and routes since.
+- Both `FailureScreenTests` still failed. The UI hierarchy at the failure showed the app's kept answer under "the engine could not be reached" (#288, D-202 clause 5): the engine-up pass leaves one, so the failure screen never appeared after it, since #288.
+- `scripts/ui_test.sh` now uninstalls the app from the simulator before the offline pass, so it starts as a first launch does. The existing `FailureScreenTests` are the red test (red on main, `make ui-test` exit 65); green with the change: 23 and 2 of 2.
+- Lesson: a two-pass harness inherits every state the product keeps between launches; a feature that remembers is a feature the next pass meets.
+
+## 2026-10-30 · fix/issue-501-known-programs — the deploy surface reads a declared command only through programs it knows
+
+- #501 (the #494 security review's M1 remainder): `deploy_surface` read a declared command's words as paths, so `cd x && ./y`, `$PWD/y`, `python -m`, a directory, `just`, `bash -c` and a dispatched workflow that runs `make` started a script it never named, which then stayed exemptible.
+- `_command_surface` (D-231 clause 1) reads a command only through a script git lists, `bash`/`sh` with such a script, `gh` dispatching a workflow, or `KNOWN_PROGRAMS` (`fly`, `flyctl`); any other program, a shell's option, or a path-like word that names no file git lists makes the surface None, so nothing is exempt. A deploy workflow whose run line starts an `UNREAD_RECIPES` program (`make`, `gmake`, `just`) does the same. The repository's four declared commands still derive.
+- `_runs_deploy` and the new recipe check share one line reader, `_line_commands`, instead of two copies of the loop.
+- Red test `tests/unit/test_deploy_gate_501.py` committed alone first (one case, a known program given an expansion, added with the fix); three mutants each fail it. Three exemption controls' fixtures now hold the script they declare (`docs/plans/assumptions-1030.md`), their assertions unchanged.
+- Lesson: an allowlist rule over declared text reaches the fixtures too; a control that declares what its tree does not hold was passing on a reading the rule now refuses.
+
+## 2026-10-30 · fix/issue-505-content-compare — the deploy gate compares the working tree with the reviewed head by content
+
+- #505 (the #493 security review's R1, Escalate NOW): `changed_since` asked `git diff` and `git ls-files --exclude-standard`, which an fsmonitor hook, a stat-clean index entry, a clean filter in `.git/info/attributes`, `.git/info/exclude`, `core.excludesFile` and a self-ignoring untracked `.gitignore` each fooled.
+- D-231 clause 2: `brief_fields.verified_tree` lists the reviewed head's tree with every tree hashed; `_differs` hashes each file's bytes, kind and executable bit from disk; `_new_files` lists the rest with only the head's committed `.gitignore` files (scoped to their folders), fsmonitor and the untracked cache off, and counts every index entry the tree does not hold.
+- On this tree the old and the new reading give the same list against three heads (`c29392c`, `2d29b9c`, the branch base). In the main tree two files hidden only by the clone's own exclude list now read as code: an owner-actions row.
+- Red test `tests/unit/test_deploy_gate_505.py` (the six ways and a control) committed alone first; three cases (a staged file, a nested `.gitignore`'s scope, a mode change) were added with the fix after mutants survived without them. Five mutants each fail it.
+- Lesson: to stop trusting a cache, compare against what the cache summarises; every input the cache left out has to come back as an explicit rule, here the committed ignore files.
+
+## 2026-10-31 · integration/run-1030 — run 1030: the deploy gate's integrity queue and the UI tests, in one PR
+
+- The owner's four rulings became D-231; the run worked #510, #506, #511, #509, #503, #501 and #505, each with its red test first and, for every deploy-gate change, its own security review (PASS, PASS, MINOR, MINOR, MINOR; each MINOR fixed on its branch or filed).
+- The reviews found three more bypasses that predate the run. Two were fixed under D-231 clause 2 (an untracked nested checkout, a redirected `core.worktree`); one is #517, escalated. Also filed: #518, #522.
+- One hand resolution: #505's content comparison replaced #506's diff line, and #509's later review fixes were kept beside #505's readers. The delta review of the whole stack is PASS at `91890d6`.
+- Lesson: stacking fixes on one file speeds a run, but a branch cut before its parent's review fixes needs those fixes carried by a merge, and the delta review has to check that each one survived.
