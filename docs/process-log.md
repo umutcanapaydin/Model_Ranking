@@ -1572,3 +1572,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `compare_problem` (`scripts/deploy_gate.py`) hashes the reviewed commit and every tree under it through one `git cat-file --batch`, about 0.1 s here, and refuses any flagged index entry. Both fail closed. `changed_since` returns None on either, so `closure_check` agrees with the gate.
 - Security review: round 1 BLOCKING (B1: peeling `<head>^{commit}` parsed a forged commit, failed, and read as "no such head"); round 2 MINOR at `5848127`. M4's test was added after that head. R1 (fsmonitor, a stat-clean index entry, filters, ignore rules) is #505; R2 (rename detection) is #506. Both are escalated.
 - Lesson: a check that asks git to resolve a name before hashing the object has already trusted it; resolve without peeling, then hash what the name points to.
+
+## 2026-10-29 · fix/issue-484-open-settings — the guide's Open Settings button, through one pinned door
+
+- #484, on the owner's ruling of 2026-10-29 (D-230). The Apple Intelligence guide shows "Open Settings" where `OnDeviceGuide.opensSettings` says so. The button calls `SettingsDoor.showSettings()`, which opens the Settings app at this app's page; iOS has no public link to the Apple Intelligence page.
+- D-126's client controls get one named exception. The compiled gate allows five declarations in `SettingsDoor.swift` only while its bytes hash to `SETTINGS_DOOR_SHA256`. The text gate permits its body as one exact expression. `docs/watchlist.md` carries the relaxation.
+- `wave-check-all` refused D-230 arriving in the same commit as its code (#201). The branch was unpushed, so the commit was split with a soft reset: ADR first, code after.
+- Security review MINOR at `79c513a`. Fixed after that head: M1 (the guard and the open as one expression; two separate ones let `settings` be rebound), M2 and R3 (D-230's wording), M3 (the door's gate logic tested without Xcode; four mutants each fail a test), M4 (a stale comment). R1 is an owner row. R2 and R4 are refused in the PR.
+- Lesson: an exemption made of separate exact expressions does not bind the data between them; permit the expression that makes the value and the one that uses it as a single snippet.

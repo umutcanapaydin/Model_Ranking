@@ -224,8 +224,8 @@ public enum OnDeviceState: Equatable {
 ///
 /// The owner's phone said "Apple Intelligence off" and was right, and the reader had no way to
 /// learn how to turn it on (#481). iOS offers no public link to the Apple Intelligence page, so the
-/// path is written out. The screen draws no Settings button yet: opening one makes a URL outside
-/// EngineClient, which D-126's client-decls control refuses; the owner decides that exception.
+/// path is written out. Where the remedy is in Settings, the screen's button opens the Settings app at this
+/// app's page through `SettingsDoor`, the one exception D-230 makes to D-126's client controls (#484).
 public struct OnDeviceGuide: Equatable {
     public let title: String
     public let steps: [String]
