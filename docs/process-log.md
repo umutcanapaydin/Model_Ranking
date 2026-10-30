@@ -1594,3 +1594,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - #510 (the delta review of `integration/fixes-1030`, M1): `_object` hashes the pinned commit before reading its tree, and no test held it. The pinned commit is an ancestor of the reviewed head, outside #493's walk, so that check is its only guard.
 - New `tests/unit/test_deploy_gate_494.py::test_a_forged_pinned_commit_is_not_read_as_the_pinned_tree` forges the pinned commit to name the agent's tree. Green on the code; red with the reviewer's mutant (`kind != "commit" and named != oid`), restored byte for byte. Test only, so there is no separate red commit.
 - Lesson: a check that guards an object no other check reaches needs its own test, whatever the checks around it already hold.
+
+## 2026-10-30 · fix/issue-506-no-renames — a code file renamed into a record path is still a change
+
+- #506 (the #493 security review's R2): `changed_since` ran `git diff --name-only` with rename detection on, which lists a rename by its new name only; moving a code file to a Markdown file under `docs/` left only the record's name, and the gate said no code changed.
+- The diff now runs with `--no-renames`, which also wins over a `diff.renames` setting the change could write to its clone's config.
+- Red test `tests/unit/test_deploy_gate_506.py` (committed, uncommitted, and with `diff.renames=copies`) committed alone first. Ruled by D-231 clause 1.
+- Lesson: a path-list gate reads both sides of every change; a default that folds two paths into one is a filter the gate did not choose.

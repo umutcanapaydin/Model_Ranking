@@ -194,8 +194,9 @@ def changed_since(root: Path, head: str) -> list[str] | None:
     if compare_problem(root, head):
         return None
     try:
-        # Against the WORKING TREE, not HEAD: an uncommitted edit deploys as surely as a commit.
-        out = subprocess.run(["git", "-C", str(root), "diff", "--name-only", head], capture_output=True,
+        # Against the WORKING TREE, not HEAD: an uncommitted edit deploys as surely as a commit. `--no-renames`, over
+        # any `diff.renames` setting: a rename lists only its new name, so code moved into a record path left (#506).
+        out = subprocess.run(["git", "-C", str(root), "diff", "--no-renames", "--name-only", head], capture_output=True,
                              encoding="utf-8", errors="replace", check=True, timeout=60).stdout.splitlines()
         out += subprocess.run(["git", "-C", str(root), "ls-files", "--others", "--exclude-standard"],
                               capture_output=True, encoding="utf-8", errors="replace", check=True,
