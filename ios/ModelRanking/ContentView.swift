@@ -797,6 +797,12 @@ struct ContentView: View {
                             }
                         }
                     }
+                    // #484 (D-230): where Settings holds the remedy, the one door to it.
+                    if guide.opensSettings {
+                        Section {
+                            Button(UIText.openSettings(language)) { SettingsDoor.showSettings() }
+                        }
+                    }
                     Section {
                         Text(guide.stillWorks).font(.footnote).foregroundStyle(.secondary)
                     }

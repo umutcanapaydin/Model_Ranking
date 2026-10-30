@@ -1557,3 +1557,34 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Security review: round 1 BLOCKING (B1: the pin fixture's declared command was already safety surface, so two tests could no longer fail); round 2 MINOR at `60afb68`. M1's remaining spellings are #501; R3 is #493.
 - Two fixtures now declare a deploy command (`fly deploy` in the pin fixture, a script path that is not in the throwaway tree in `conformance/test-deploy-shipped.py`), because an empty declaration fails closed.
 - Lesson: a fixture's declared command must name nothing a test proves is code for another reason, or the test that proves it can no longer fail.
+
+## 2026-10-29 · fix/issue-488-local-networking-debug — NSAllowsLocalNetworking in a Debug build only
+
+- #488 (the night-1028 release security review's R1): the ATS exception for a loopback engine was in every configuration. `ios/Config/Engine.xcconfig` now preprocesses Info.plist (`INFOPLIST_PREPROCESS = YES`) and defines `ENGINE_LOCAL_NETWORKING` for Debug alone, after the optional local file, as the Release address is. The plist's `#if` lines sit inside XML comments, so the source still parses as a plist.
+- Built and read with `plutil`: Release (simulator and device) has an empty `NSAppTransportSecurity` and the hosted HTTPS address; Debug has the exception and `http://127.0.0.1:8080`.
+- Red test in `tests/unit/test_testflight_ready.py` runs Xcode's own preprocessing command (`cc -E -P -x c -Wno-trigraphs`, read from the build log). Its first form used a raw `skipif`, which #137's rule refused at the fix commit; the skip was dropped.
+- `make ui-test`: the Debug build reached the local engine (20 of 25 pass); the 5 that fail fail the same way on main (#503).
+- Lesson: a test that models a build tool should run the command the tool's own log shows, not a guess at it.
+
+## 2026-10-29 · fix/issue-493-verified-head — the deploy gate refuses a comparison it cannot trust
+
+- #493 and #500, fixed together on the owner's direction. Git hashes a loose root tree as it parses a commit, but no tree below it, so a forged subtree under the reviewed head hid a product change from `git diff`. And an index entry with assume-unchanged or skip-worktree hid an uncommitted one. Both made `deploy_gate.py --check` print PASS.
+- `compare_problem` (`scripts/deploy_gate.py`) hashes the reviewed commit and every tree under it through one `git cat-file --batch`, about 0.1 s here, and refuses any flagged index entry. Both fail closed. `changed_since` returns None on either, so `closure_check` agrees with the gate.
+- Security review: round 1 BLOCKING (B1: peeling `<head>^{commit}` parsed a forged commit, failed, and read as "no such head"); round 2 MINOR at `5848127`. M4's test was added after that head. R1 (fsmonitor, a stat-clean index entry, filters, ignore rules) is #505; R2 (rename detection) is #506. Both are escalated.
+- Lesson: a check that asks git to resolve a name before hashing the object has already trusted it; resolve without peeling, then hash what the name points to.
+
+## 2026-10-29 · fix/issue-484-open-settings — the guide's Open Settings button, through one pinned door
+
+- #484, on the owner's ruling of 2026-10-29 (D-230). The Apple Intelligence guide shows "Open Settings" where `OnDeviceGuide.opensSettings` says so. The button calls `SettingsDoor.showSettings()`, which opens the Settings app at this app's page; iOS has no public link to the Apple Intelligence page.
+- D-126's client controls get one named exception. The compiled gate allows five declarations in `SettingsDoor.swift` only while its bytes hash to `SETTINGS_DOOR_SHA256`. The text gate permits its body as one exact expression. `docs/watchlist.md` carries the relaxation.
+- `wave-check-all` refused D-230 arriving in the same commit as its code (#201). The branch was unpushed, so the commit was split with a soft reset: ADR first, code after.
+- Security review MINOR at `79c513a`. Fixed after that head: M1 (the guard and the open as one expression; two separate ones let `settings` be rebound), M2 and R3 (D-230's wording), M3 (the door's gate logic tested without Xcode; four mutants each fail a test), M4 (a stale comment). R1 is an owner row. R2 and R4 are refused in the PR.
+- Lesson: an exemption made of separate exact expressions does not bind the data between them; permit the expression that makes the value and the one that uses it as a single snippet.
+
+## 2026-10-30 · integration/fixes-1030 — the three open fix drafts in one PR
+
+- The owner asked for the remaining drafts in one PR after #499 and #502 each hit a process-log conflict on merge. Stacked as merge commits, no rebase: #504 (#488), #507 (#493, #500), #508 (#484).
+- Only `docs/process-log.md` conflicted, three times; each resolution keeps both entries. `scripts/deploy_gate.py` merged #507 onto #502's surface change unaided.
+- review-need on the whole range: security. Delta review MINOR at `ac0cd8c` (`docs/reviews/integration-fixes-1030-security.md`): #507's refusals run before every path #502 added; ten mutants on the seam, all killed but M1.
+- M1 (no test on the pinned commit's hash) is #510; R1 (base blobs read unhashed, Escalate NOW) is #509; R2 (two object readers) is #511; R3 (the check runs twice, 0.2 s) is refused: cost only.
+- Lesson: drafts that all append to one log conflict on every merge after the first; when several wait at once, stack them before handing over, not after the first conflict.
