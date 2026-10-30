@@ -94,7 +94,14 @@ from urllib.parse import unquote
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
-from brief_fields import Unverified, listing, mode, protected_base, root_at  # noqa: E402
+from brief_fields import (  # noqa: E402
+    Unverified,
+    listing,
+    mode,
+    protected_base,
+    protected_bases,
+    root_at,
+)
 
 #: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
@@ -152,21 +159,24 @@ def latest_milestone(root: Path, pattern: re.Pattern) -> Path | None:
     return max(found)[1] if found else None
 
 
-_POLICIES: dict[str, tuple[Path | None, str, bool]] = {}
+_POLICIES: dict[str, tuple[list[Path] | None, str, bool]] = {}
 
 
-def _policy(root: Path) -> tuple[Path | None, str, bool]:
-    """(the policy root, the line that says which, whether the base's brief failed its hash check: #509)."""
+def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
+    """(the policy roots -- the brief at the merge-base, and at the default branch's tip when it differs (#517,
+    D-232 clause 1) --, or None when one cannot be read; the line that says which; whether a base's brief failed its
+    hash check: #509)."""
     key = str(root)
     if key not in _POLICIES:
-        base = protected_base(root)
-        if base is None:
+        bases = protected_bases(root)
+        if not bases:
             _POLICIES[key] = (None, "no merge-base of HEAD with a default branch (origin/HEAD, origin/main, "
                                     "origin/master, main, master)", False)
         else:
+            where = (f"the brief at {bases[0][:12]}, the merge-base of HEAD with the default branch"
+                     + (f", and at {bases[1][:12]}, its tip" if len(bases) > 1 else ""))
             try:
-                _POLICIES[key] = (root_at(base, root), f"the brief at {base[:12]}, the merge-base of HEAD with the "
-                                                       "default branch", False)
+                _POLICIES[key] = ([root_at(base, root) for base in bases], where, False)
             except Unverified as error:
                 _POLICIES[key] = (None, str(error), True)
             except RuntimeError as error:
@@ -175,10 +185,10 @@ def _policy(root: Path) -> tuple[Path | None, str, bool]:
 
 
 def policy_root(root: Path) -> tuple[Path | None, str]:
-    """(a root holding the brief as the protected base of the repository at `root` holds it, or None when
-    that base cannot be read; the line that says which)."""
-    policy, where, _ = _policy(root)
-    return policy, where
+    """(a root holding the brief as the protected base -- the merge-base -- of the repository at `root` holds it, or
+    None when a base cannot be read; the line that says which). The gate itself reads every root `_policy` gives."""
+    policies, where, _ = _policy(root)
+    return (policies[0] if policies else None), where
 
 
 def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
@@ -607,24 +617,24 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
     heavy mode a current `m<N>-security.md` of the latest milestone stands for `release-security.md` (v7.2);
     model_ranking (#283) reads the mode at the protected base as well as in the tree, and lets the milestone
     verdict stand only when neither says light."""
-    policy, where = policy_root(root)
+    policies, where, _ = _policy(root)
     out: list[tuple[str | None, str]] = []
     redirected = _redirected(root)
     if redirected:
         out.append((redirected, "worktree: redirected"))
     modes = [mode(root)]
-    if policy is None:
+    if policies is None:
         out.append((f"the brief's policy fields cannot be read at the protected base ({where}); a deploy is "
                     "judged by the base's brief, never by the change's (#283)", f"policy: unreadable ({where})"))
     else:
-        modes = list(dict.fromkeys([mode(policy), *modes]))
+        modes = list(dict.fromkeys([*(mode(p) for p in policies), *modes]))
         out.append((None, f"policy: {where}, working mode {modes[0]}"
-                          + (f"; the tree's brief says {modes[1]}, so both modes' Tester verdicts" if len(modes) > 1
-                             else "")))
+                          + (f"; the bases and the tree's brief also say {', '.join(modes[1:])}, so each mode's Tester "
+                             "verdict" if len(modes) > 1 else "")))
     security = current(root, SECURITY, "security")
     # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
     blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
-    if security[0] and not blocking and policy is not None and "light" not in modes:
+    if security[0] and not blocking and policies is not None and "light" not in modes:
         milestone = latest_milestone(root, MILESTONE_SECURITY)
         if milestone is not None:
             alternative = current(root, milestone, "security (heavy mode: the milestone's)", independent=True)
@@ -647,9 +657,9 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
 def declared(root: Path) -> list[list[str]]:
     """The deploy commands the protected base's brief or the tree's declares (#283), each as lower-cased
     words. One the shell cannot split is skipped loudly: a declaration nobody can match is not a declaration."""
-    policy, _ = policy_root(root)
+    policies, _, _ = _policy(root)
     texts = listing("Deploy commands", root)
-    if policy is not None:
+    for policy in policies or []:
         texts += [t for t in listing("Deploy commands", policy) if t not in texts]
     out: list[list[str]] = []
     for text in texts:
@@ -862,11 +872,9 @@ def _workflow_texts(root: Path) -> tuple[dict[str, list[str]], bool]:
         for p in sorted(folder.iterdir()) if folder.is_dir() else []:
             if p.suffix in (".yml", ".yaml") and p.is_file():
                 out.setdefault(p.name.lower(), []).append(p.read_text(encoding="utf-8", errors="replace"))
-    base = protected_base(root)
-    if base is None:
-        return out, True
+    bases = protected_bases(root)
     complete = True
-    for place in WORKFLOW_DIRS:
+    for base, place in ((base, place) for base in bases for place in WORKFLOW_DIRS):  # #517: the tip's copies too
         try:
             # #509: each file verified against the ids git names it by, as `git show` never checked.
             files, failed = brief_fields.verified_files(root, base, place, (".yml", ".yaml"))
