@@ -55,8 +55,9 @@ def main() -> int:
             if (got[0] == 0) != ok:
                 bad.append(f"  {name}: exit {got[0]}\n" + "\n".join(f"    {ln}" for ln in got[1].splitlines()[-5:]))
 
-        # #494: a declaration the gate can read to its files; with none, nothing is exempt.
-        write("docs/project-brief.md", "- **Working mode:** `light`\n- **Deploy commands:** `scripts/deploy.sh`\n")
+        # #494: a declaration the gate can read to its files; with none, nothing is exempt. #501: a program the gate
+        # knows, naming no path, since a declared path that names no file git lists exempts nothing either.
+        write("docs/project-brief.md", "- **Working mode:** `light`\n- **Deploy commands:** `fly deploy`\n")
         write("scripts/tool.py", "VERSION = 1\n")
         write(".claude/settings.json", "{}\n")
         write("src/app.py", "x = 1\n")

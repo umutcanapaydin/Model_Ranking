@@ -27,7 +27,8 @@ MAKES = "name: Release\non: workflow_dispatch\njobs:\n  a:\n    steps:\n      - 
     ("scripts/ship/__main__.py", "python3 scripts/ship"),
     ("scripts/ship_it.sh", "just ship"),
     ("scripts/ship_it.sh", "bash -c 'make ship'"),
-], ids=["cd-then-relative", "expansion", "python-module", "directory", "just-recipe", "bash-c"])
+    ("scripts/ship_it.sh", "fly deploy --build-secret run=$PWD/scripts/ship_it.sh"),
+], ids=["cd-then-relative", "expansion", "python-module", "directory", "just-recipe", "bash-c", "known-program-expansion"])
 def test_a_command_read_through_no_known_program_exempts_nothing(tmp_path: Path, rel: str, command: str) -> None:
     repo = _installed(tmp_path)
     _upgrade_shipping(repo, rel, "echo ship\n", brief=_brief(command))

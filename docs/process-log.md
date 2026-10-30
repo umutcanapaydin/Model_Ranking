@@ -1609,3 +1609,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - When the base's brief is `Unverified`, the guard judges every command a deploy, so each is refused: the brief is the only record of what deploys (`docs/plans/assumptions-1030.md`). A base git cannot reach keeps today's reading.
 - Red test `tests/unit/test_deploy_gate_509.py` (the review's two probes and a forged base workflow) committed alone first; three mutants (no refusal, a failed workflow ignored, blobs unhashed) each fail it. One existing test's fault injection moved from `git show` to the reader, its assertions unchanged. Ruled by D-231 clause 1.
 - Lesson: "blobs need no check" held for a diff that compares ids, not for a read that trusts content; each read names which of the two it is.
+
+## 2026-10-30 · fix/issue-501-known-programs — the deploy surface reads a declared command only through programs it knows
+
+- #501 (the #494 security review's M1 remainder): `deploy_surface` read a declared command's words as paths, so `cd x && ./y`, `$PWD/y`, `python -m`, a directory, `just`, `bash -c` and a dispatched workflow that runs `make` started a script it never named, which then stayed exemptible.
+- `_command_surface` (D-231 clause 1) reads a command only through a script git lists, `bash`/`sh` with such a script, `gh` dispatching a workflow, or `KNOWN_PROGRAMS` (`fly`, `flyctl`); any other program, a shell's option, or a path-like word that names no file git lists makes the surface None, so nothing is exempt. A deploy workflow whose run line starts an `UNREAD_RECIPES` program (`make`, `gmake`, `just`) does the same. The repository's four declared commands still derive.
+- `_runs_deploy` and the new recipe check share one line reader, `_line_commands`, instead of two copies of the loop.
+- Red test `tests/unit/test_deploy_gate_501.py` committed alone first (one case, a known program given an expansion, added with the fix); three mutants each fail it. Three exemption controls' fixtures now hold the script they declare (`docs/plans/assumptions-1030.md`), their assertions unchanged.
+- Lesson: an allowlist rule over declared text reaches the fixtures too; a control that declares what its tree does not hold was passing on a reading the rule now refuses.

@@ -29,7 +29,7 @@ def _brief(*commands: str) -> str:
 @pytest.mark.parametrize(("rel", "text", "command"), [
     ("scripts/ship_it.sh", "echo ship\n", "./scripts/ship_it.sh"),
     ("scripts/ship_it.sh", "echo ship\n", "bash ./scripts/ship_it.sh"),
-    ("scripts/Ship_It.sh", "echo ship\n", "scripts/Ship_It.sh"),
+    ("scripts/Ship_Now.sh", "echo ship\n", "scripts/Ship_Now.sh"),  # not ship_it.sh: one file on a case-blind disk
     ("scripts/ship_it.sh", "echo ship\n", "{root}/scripts/ship_it.sh"),
     (".github/workflows/release.yml", WORKFLOW, "gh workflow run release"),
     (".github/workflows/release.yml", WORKFLOW, "gh workflow run 'Ship it'"),
