@@ -236,15 +236,33 @@ def _batch_read(batch: subprocess.Popen[bytes], oid: str, kind: str) -> bytes | 
     return body
 
 
-def _subtrees(body: bytes, size: int) -> list[str]:
-    """The ids of a tree's own subtrees (a mode whose type bits say tree); a blob, a link or a submodule is none."""
+def _open_batch(root: Path) -> subprocess.Popen[bytes]:
+    """#511: the one reader of git objects; each object it serves is checked by `_batch_read`."""
+    return subprocess.Popen(["git", "--no-replace-objects", "-C", str(root), "cat-file", "--batch"],
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+
+def _close_batch(batch: subprocess.Popen[bytes]) -> None:
+    if batch.stdin is not None:
+        batch.stdin.close()
+    batch.kill()
+    batch.wait()
+
+
+def _entries(body: bytes, size: int) -> list[tuple[bytes, bytes, str]]:
+    """#511: a tree's entries as (mode as written, name, id), ids `size` bytes long; the one tree parser."""
     out, at = [], 0
     while at < len(body):
         space, nul = body.index(b" ", at), body.index(b"\0", at)
-        if int(body[at:space], 8) & 0o170000 == 0o040000:  # the review's M2: `040000` is a tree to git too
-            out.append(body[nul + 1:nul + 1 + size].hex())
+        out.append((body[at:space], body[space + 1:nul], body[nul + 1:nul + 1 + size].hex()))
         at = nul + 1 + size
     return out
+
+
+def _subtrees(body: bytes, size: int) -> list[str]:
+    """The ids of a tree's own subtrees (a mode whose type bits say tree); a blob, a link or a submodule is none."""
+    # The review's M2: `040000` is a tree to git too, so the walk reads the type bits, not the spelling.
+    return [oid for mode, _, oid in _entries(body, size) if int(mode, 8) & 0o170000 == 0o040000]
 
 
 def _unhashed(root: Path, head: str) -> str | None:
@@ -258,8 +276,7 @@ def _unhashed(root: Path, head: str) -> str | None:
         commit = subprocess.run(["git", "--no-replace-objects", "-C", str(root), "rev-parse", "--verify", "--quiet",
                                  "--end-of-options", head], capture_output=True, encoding="utf-8",
                                 timeout=30).stdout.strip()
-        batch = subprocess.Popen(["git", "--no-replace-objects", "-C", str(root), "cat-file", "--batch"],
-                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        batch = _open_batch(root)
     except (OSError, subprocess.SubprocessError):
         return "objects cannot be read by git"
     try:
@@ -281,10 +298,7 @@ def _unhashed(root: Path, head: str) -> str | None:
     except (OSError, ValueError):
         return "objects cannot be read by git"
     finally:
-        if batch.stdin is not None:
-            batch.stdin.close()
-        batch.kill()
-        batch.wait()
+        _close_batch(batch)
     return None
 
 
@@ -419,47 +433,38 @@ def deploy_surface(root: Path) -> frozenset[str] | None:
     return _SURFACES[key]
 
 
-def _object(root: Path, kind: str, oid: str) -> bytes | None:
-    """An object's bytes, only when they hash to its id (#444 R2: git serves a loose object without hashing it)."""
-    try:
-        done = subprocess.run(["git", "-C", str(root), "cat-file", kind, oid], capture_output=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    body = done.stdout
-    # SHA-1 because git names its objects by it: this checks the bytes against the name, nothing more.
-    named = hashlib.sha1(b"%s %d\0" % (kind.encode(), len(body)) + body).hexdigest()  # noqa: S324
-    if done.returncode != 0 or named != oid:
-        return None
-    return body
-
-
 def verified_blob(root: Path, commit: str, rel: str) -> bytes | None:
     """The bytes of `rel` at `commit`, every object on the way -- the commit, each tree, the blob -- hashed against
-    its id. None when one does not hash, or the path is not a file there."""
-    body = _object(root, "commit", commit)
-    m = re.match(rb"tree ([0-9a-f]{40})\n", body or b"")
-    if m is None:
+    its id (#444 R2: git serves a loose object without hashing it). None when one does not hash, or the path is not a
+    file there. #511: read through `_batch_read` and `_entries`, the reader `_unhashed` uses."""
+    try:
+        batch = _open_batch(root)
+    except (OSError, subprocess.SubprocessError):
         return None
-    oid, parts = m.group(1).decode(), rel.split("/")
-    for depth, part in enumerate(parts):
-        tree = _object(root, "tree", oid)
-        if tree is None:
+    try:
+        body = _batch_read(batch, commit, "commit")
+        m = re.match(rb"tree ([0-9a-f]{40,64})\n", body) if isinstance(body, bytes) else None
+        if m is None:
             return None
-        found = None
-        at = 0
-        while at < len(tree):
-            space, nul = tree.index(b" ", at), tree.index(b"\0", at)
-            mode, name, entry = tree[at:space], tree[space + 1:nul], tree[nul + 1:nul + 21].hex()
-            at = nul + 21
-            if name == part.encode():
-                found = (mode, entry)
-                break
-        last = depth == len(parts) - 1
-        # #494 R2: the last entry is a file (100644, 100755), never a link compared by its text or a submodule.
-        if found is None or found[0] not in ((b"100644", b"100755") if last else (b"40000",)):
-            return None
-        oid = found[1]
-    return _object(root, "blob", oid)
+        oid, parts = m.group(1).decode(), rel.split("/")
+        for depth, part in enumerate(parts):
+            tree = _batch_read(batch, oid, "tree")
+            if isinstance(tree, str):
+                return None
+            found = next(((mode, entry) for mode, name, entry in _entries(tree, len(oid) // 2)
+                          if name == part.encode()), None)
+            last = depth == len(parts) - 1
+            # #494 R2: the last entry is a file (100644, 100755), never a link compared by its text or a submodule.
+            # Stricter than the walk's type bits on purpose: only the spellings git writes are read as the pin's bytes.
+            if found is None or found[0] not in ((b"100644", b"100755") if last else (b"40000",)):
+                return None
+            oid = found[1]
+        blob = _batch_read(batch, oid, "blob")
+        return blob if isinstance(blob, bytes) else None
+    except (OSError, ValueError):
+        return None
+    finally:
+        _close_batch(batch)
 
 
 def current(root: Path, rel: Path, label: str, independent: bool = False) -> tuple[str | None, str]:

@@ -1601,3 +1601,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The diff now runs with `--no-renames`, which also wins over a `diff.renames` setting the change could write to its clone's config.
 - Red test `tests/unit/test_deploy_gate_506.py` (committed, uncommitted, and with `diff.renames=copies`) committed alone first. Ruled by D-231 clause 1.
 - Lesson: a path-list gate reads both sides of every change; a default that folds two paths into one is a filter the gate did not choose.
+
+## 2026-10-30 · fix/issue-511-one-object-reader — one verified reader of git objects in the deploy gate
+
+- #511 (the delta review of `integration/fixes-1030`, R2): `_unhashed` (#493) and `verified_blob` (#444) kept two object readers and two tree parsers, which disagreed on the hash kind and the tree-mode spelling.
+- `_object` is gone. Both read through `_open_batch`/`_batch_read` (one hash check, SHA-1 or SHA-256 by the id's length) and parse trees with `_entries`. The walk keeps reading a mode's type bits; the pin keeps reading only the spellings git writes (`40000`, `100644`, `100755`), so neither loosens.
+- Red test `tests/unit/test_deploy_gate_511.py` committed alone first: `verified_blob` refuses what the shared reader refuses, and parses with the shared parser. Every deploy-gate test stays green (157). Ruled by D-231 clause 1.
+- Lesson: when two copies of one check are merged, each caller keeps its own strictness; the shared part is the hash and the parse, not the policy.
