@@ -1646,3 +1646,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The reviews found three more bypasses that predate the run. Two were fixed under D-231 clause 2 (an untracked nested checkout, a redirected `core.worktree`); one is #517, escalated. Also filed: #518, #522.
 - One hand resolution: #505's content comparison replaced #506's diff line, and #509's later review fixes were kept beside #505's readers. The delta review of the whole stack is PASS at `91890d6`.
 - Lesson: stacking fixes on one file speeds a run, but a branch cut before its parent's review fixes needs those fixes carried by a merge, and the delta review has to check that each one survived.
+
+## 2026-10-31 · review/release-delta-1031 — the release delta reviews after run 1030
+
+- Both release verdicts were stale (security at `c29392c`, Tester at `3cddbdd`; 32 code files since); the owner deploys tonight. The Tester first, at main `290557c`, then the Security-Reviewer at the Tester's head.
+- Tester: MINOR. Every acceptance criterion of the 13 closed issues has a citing test; `make check` green; `make ui-test` 23/23 and 2/2 on a booted simulator. Its two new tests are committed at `ed18de5`, the verdict's head. M10 #525, M11 #526 (Escalate NOW), M12 #527; a timing test that failed once under load is #528.
+- Security-Reviewer: MINOR at `ed18de5`. M9 confirms #526 (`GIT_WORK_TREE` fakes a deploy-check PASS; deploy from a shell with no `GIT_*` set); M10 #529 (the owner's guard file), M11 #530, R10 #531. No dependency, `/v1`, Dockerfile or workflow change in the range.
+- Lesson: a delta review's head moves with the tests it adds; the verdict names the commit that holds them, or the gate reads its own tests as unreviewed code.
