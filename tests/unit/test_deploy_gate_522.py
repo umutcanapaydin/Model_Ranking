@@ -39,7 +39,19 @@ def _reviewed_workflow(repo: Repo, text: str) -> None:
     "      - run: python scripts/ship_it.sh\n",
     "      - run: |\n          cd scripts\n          ./ship_it.sh\n",
     "      - uses: ./.github/actions/ship\n",
-], ids=["quoted", "bash-c", "xargs", "expansion", "a-script", "an-interpreter", "cd-then-relative", "local-uses"])
+    # The #522 review's B1 (each refused before #522, so a regression), and its M1.
+    "      - run: /usr/bin/make ship\n",
+    "      - run: ./make ship\n",
+    "      - run: Make ship\n",
+    "      - run: ~/.cargo/bin/just ship\n",
+    "      - run: /usr/local/bin/gmake ship\n",
+    "      - run: ./ship_it.sh\n        working-directory: scripts\n",
+    "      - run: env -C scripts ./ship_it.sh\n",
+    "      - run: $GITHUB_WORKSPACE/scripts/ship_it.sh\n",
+    "      - run: ${{ github.workspace }}/scripts/ship_it.sh\n",
+], ids=["quoted", "bash-c", "xargs", "expansion", "a-script", "an-interpreter", "cd-then-relative", "local-uses",
+        "make-by-path", "make-dot-slash", "make-capital", "just-by-path", "gmake-by-path", "working-directory", "env-C",
+        "workspace-variable", "workspace-expression"])
 def test_what_a_dispatched_workflow_starts_is_not_exempt(tmp_path: Path, step: str) -> None:
     repo = _installed(tmp_path)
     _reviewed_workflow(repo, STEP.format(step))

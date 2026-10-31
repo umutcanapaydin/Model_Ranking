@@ -518,22 +518,33 @@ def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -
 #: #522 (D-232 clause 2): what in a dispatched deploy workflow's text hides what it starts, so nothing is exempt -- a
 #: recipe runner named anywhere (quoted, after `bash -c` or `xargs`, as an expansion's default), a change of
 #: directory (what a relative path after it names cannot be read), and a local action or workflow (`uses: ./`).
+#: The #522 review's B1: a runner written with its path (`/usr/bin/make`, `./make`) or in another case is one too, and
+#: its M1: `working-directory:` and `env -C` change directory as `cd` does.
 _UNREAD_IN_WORKFLOW = re.compile(
-    r"(?<![\w/.])(?:" + "|".join(sorted(UNREAD_RECIPES | {"cd", "pushd"})) + r")(?![\w/.-])"
-    r"|\buses:\s*[\"']?\./")
+    r"(?<![\w.-])(?:" + "|".join(sorted(UNREAD_RECIPES | {"cd", "pushd"})) + r")(?![\w/.-])"
+    r"|\buses\s*:\s*[\"']?\./|\bworking-directory\s*:|\benv\b[^\n]*\s(?:-C|--chdir)\b",
+    re.IGNORECASE)
 #: A run of characters a path can be written with: every one in a workflow's text is looked up as a file git lists.
 _PATH_WORD = re.compile(r"[A-Za-z0-9_./-]+")
+#: A variable or an expression (`$X`, `${X}`, `${{ x }}`): taken out, what follows it is read from the checkout's top.
+_EXPANSION = re.compile(r"\$\{\{[^}]*\}\}|\$\{?[A-Za-z_][A-Za-z0-9_]*\}?")
 
 
 def _runs_unread(text: str) -> bool:
     """#501, #522: whether a dispatched deploy workflow's text hides what it starts (`_UNREAD_IN_WORKFLOW`). Read
     wide on purpose: a word in a comment counts too, which refuses more."""
-    return _UNREAD_IN_WORKFLOW.search(text) is not None
+    return _UNREAD_IN_WORKFLOW.search(text) is not None or any(
+        (run := _program_position(words)) and os.path.basename(run[0]).lower() in UNREAD_RECIPES
+        for words in _line_commands(text))
 
 
 def _workflow_names(root: Path, text: str, files: dict[str, set[str]]) -> set[str]:
     """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not."""
-    return {path for word in _PATH_WORD.findall(text.lower()) for path in _named_files(root, word, files)}
+    # The #522 review's M1: `$GITHUB_WORKSPACE/x`, `${{ github.workspace }}/x` and `$PWD/x` reach here as `/x`, a
+    # path from the checkout's top, so each word is looked up as written and without its leading slash.
+    bare = _EXPANSION.sub("", text)
+    return {path for source in (text, bare) for word in _PATH_WORD.findall(source.lower())
+            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)}
 
 
 def _line_commands(text: str) -> list[list[str]]:
