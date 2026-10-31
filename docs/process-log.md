@@ -1660,3 +1660,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-232 clause 2: every file git lists that the workflow's text names (`_workflow_names`) is on the surface; a recipe runner or `cd`/`pushd` anywhere, or a local `uses: ./`, exempts nothing (`_UNREAD_IN_WORKFLOW`). On this tree the nightly workflow's surface stays readable: its scripts and locks are now on it.
 - Red test `tests/unit/test_deploy_gate_522.py` committed alone first, with a control of setup steps; both mutants fail it. 1146 related tests pass.
 - Lesson: reading a workflow line by line through an allowlist would have ended the exemption on every real workflow; naming what it names, and refusing only what hides a name, keeps the control usable.
+
+## 2026-10-31 · fix/issue-535-date-compare — client-decls green again: the toolchain binds a date comparison to Foundation
+
+- #535: `make client-decls` turned red on main at `290557c` with no code change, refusing every local commit: the toolchain (Swift 6.4.2) now binds `fetchedAt <= now` in `StandingsStore.swift` (unchanged since #288 and #314) to Foundation's `Date.<=`, where it bound the standard library's `Comparable` one. CI does not run this gate.
+- The owner's ruling: a reviewed edit under D-180, as #363 did for `Data.append`. `Date.<=` is added to the standings sink's own list in `SINK_FOUNDATION_ALLOWED`, with its reason (two dates compared; nothing read or written). It is seen on the shipping client, so `unseen_permissions` holds it.
+- The red check is `make client-decls` itself (red on main, all four configurations); green with the entry: 23 files, 4 configurations.
+- Lesson: a gate that names declarations by the module the compiler resolves them to moves with the toolchain; each such move is a reviewed one-line edit, and the session that meets it is blocked until it lands.

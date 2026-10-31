@@ -98,7 +98,6 @@ from brief_fields import (  # noqa: E402
     Unverified,
     listing,
     mode,
-    protected_base,
     protected_bases,
     root_at,
 )
@@ -397,18 +396,20 @@ SAFETY_SURFACE_DIRS = ("scripts/ci/",)
 #: at the protected base only: an agent's branch can neither move it nor forge it, and an upgrade the owner merges
 #: moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
 DEVFLOW_PIN = "docs/devflow-pin.txt"
-_PINS: dict[str, str | None] = {}
+_PINS: dict[str, list[str] | None] = {}
 
 
-def devflow_pin(root: Path) -> str | None:
-    """The DevFlow commit pinned at the protected base of `root`, or None (no base, no pin, or not a commit)."""
+def devflow_pins(root: Path) -> list[str] | None:
+    """The DevFlow commit pinned at each protected base of `root` -- the merge-base and the default branch's tip
+    (D-233) --, or None when there is no base, or one has no pin or not a commit."""
     key = str(root)
     if key not in _PINS:
-        base = protected_base(root)
+        bases = protected_bases(root)
         # #509: verified, as the gate reads every base file whose content it trusts; a forged pin exempts nothing.
-        text = (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace") if base else None
-        m = re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*", text or "")
-        _PINS[key] = m.group(1) if m else None
+        found = [re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*",
+                              (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace"))
+                 for base in bases]
+        _PINS[key] = [m.group(1) for m in found if m] if bases and all(found) else None
     return _PINS[key]
 
 
@@ -423,15 +424,17 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
     if rel in SAFETY_SURFACE or rel.startswith(SAFETY_SURFACE_DIRS) \
             or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
         return False
-    pinned = devflow_pin(root)
+    pins = devflow_pins(root)
     target = root / rel
-    if pinned is None or target.is_symlink() or not target.is_file():
+    if pins is None or target.is_symlink() or not target.is_file():
         return False
     surface = deploy_surface(root)
     if surface is None or rel in surface:
         return False
-    shipped = verified_blob(root, pinned, rel)
-    return shipped is not None and shipped == target.read_bytes()
+    # D-233 (the #517 review's M2): the bytes every pin holds -- an older pin at the merge-base alone let a branch cut
+    # before an upgrade put the older bytes back unreviewed.
+    here = target.read_bytes()
+    return all(verified_blob(root, pinned, rel) == here for pinned in pins)
 
 
 _SURFACES: dict[str, frozenset[str] | None] = {}
