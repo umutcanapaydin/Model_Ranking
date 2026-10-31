@@ -6361,3 +6361,48 @@ never stacked.
 
 **Revisit when:** a declared deploy command needs a program outside clause 1's list, or #505's content comparison
 is too slow for the pre-push gate.
+
+## D-232 — The deploy gate reads the policy at the default branch's tip too, and what a deploy workflow's lines name
+
+**Status:** proposed; clause 1's DevFlow-pin sentence superseded by D-233
+**Owner ruling:** 2026-10-31, in chat: fix #517 now (the priority), and work #522 and #518; the designs below are the agent's, taken where the owner left the choice open
+
+**Decision.**
+1. **#517: the protected base is two commits, not one.** The brief's policy fields (`Deploy commands:`, `Working
+   mode:`) are read at the merge-base of HEAD with the default branch AND at that branch's tip, and the gate takes
+   the union: every command either declares is guarded, and both modes' Tester verdicts are owed when they differ.
+   The base workflows are read at both. The merge-base alone is chosen by the change (its history), so a branch cut
+   from a commit before a command was declared deployed it unguarded. The DevFlow pin stays read at the merge-base:
+   an older pin there exempts less, never more.
+2. **#522: a dispatched deploy workflow's text puts what it names on the surface.** Every word of the workflow
+   (whitespace-split, quotes and `-c` strings included) that names a file git lists is on the deploy surface; and
+   the surface is None (nothing exempt) when the text names a recipe runner (`make`, `gmake`, `just`) anywhere, or
+   uses a local action or workflow (`uses: ./`). A line that names no file is not read further: reading every line
+   only through D-231 clause 1's programs would leave nothing exemptible on the real nightly workflow.
+3. **#518: tests only**, for the reader paths that fail closed but no test holds.
+
+**Rationale.** Each only tightens what the gate exempts or guards. Clause 2 is the reading that keeps the exemption
+working on this repository's workflows while closing the spellings the #501 review listed.
+
+**Mitigation if violated:** a change under this ADR that loosens the gate is refused at review, never merged.
+
+**Revisit when:** a deploy workflow runs a script only through a path it builds at run time, or the default branch's
+tip and the merge-base disagree often enough that the union refuses work the owner meant to allow.
+
+## D-233 — The DevFlow pin is read at both protected bases, and a file is DevFlow's only when both pins hold its bytes
+
+**Status:** proposed
+**Supersedes:** D-232 clause 1, its last sentence ("The DevFlow pin stays read at the merge-base: an older pin there
+exempts less, never more")
+
+**Decision.** `shipped_unchanged` exempts a DevFlow tooling file only when its bytes equal the file at the commit
+pinned at the merge-base AND at the commit pinned at the default branch's tip (D-232's two bases). A base with no
+pin, or a pin that does not read, exempts nothing.
+
+**Rationale.** D-232's sentence was false (the #517 security review's M2): a branch cut before an upgrade can put a
+tooling file back to the older pin's bytes, carry the newer verdict files (records, not code), and the merge-base's
+older pin then exempts the downgrade. Requiring both pins is the tightening clause 1 meant.
+
+**Mitigation if violated:** a change to the exemption that reads one pin only is refused at review.
+
+**Revisit when:** an upgrade is merged while branches cut before it must still deploy their tooling unreviewed.
