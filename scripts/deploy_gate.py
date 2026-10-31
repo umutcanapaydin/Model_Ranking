@@ -94,7 +94,13 @@ from urllib.parse import unquote
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
-from brief_fields import Unverified, listing, mode, protected_base, root_at  # noqa: E402
+from brief_fields import (  # noqa: E402
+    Unverified,
+    listing,
+    mode,
+    protected_bases,
+    root_at,
+)
 
 #: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
@@ -152,21 +158,24 @@ def latest_milestone(root: Path, pattern: re.Pattern) -> Path | None:
     return max(found)[1] if found else None
 
 
-_POLICIES: dict[str, tuple[Path | None, str, bool]] = {}
+_POLICIES: dict[str, tuple[list[Path] | None, str, bool]] = {}
 
 
-def _policy(root: Path) -> tuple[Path | None, str, bool]:
-    """(the policy root, the line that says which, whether the base's brief failed its hash check: #509)."""
+def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
+    """(the policy roots -- the brief at the merge-base, and at the default branch's tip when it differs (#517,
+    D-232 clause 1) --, or None when one cannot be read; the line that says which; whether a base's brief failed its
+    hash check: #509)."""
     key = str(root)
     if key not in _POLICIES:
-        base = protected_base(root)
-        if base is None:
+        bases = protected_bases(root)
+        if not bases:
             _POLICIES[key] = (None, "no merge-base of HEAD with a default branch (origin/HEAD, origin/main, "
                                     "origin/master, main, master)", False)
         else:
+            where = (f"the brief at {bases[0][:12]}, the merge-base of HEAD with the default branch"
+                     + (f", and at {bases[1][:12]}, its tip" if len(bases) > 1 else ""))
             try:
-                _POLICIES[key] = (root_at(base, root), f"the brief at {base[:12]}, the merge-base of HEAD with the "
-                                                       "default branch", False)
+                _POLICIES[key] = ([root_at(base, root) for base in bases], where, False)
             except Unverified as error:
                 _POLICIES[key] = (None, str(error), True)
             except RuntimeError as error:
@@ -175,10 +184,10 @@ def _policy(root: Path) -> tuple[Path | None, str, bool]:
 
 
 def policy_root(root: Path) -> tuple[Path | None, str]:
-    """(a root holding the brief as the protected base of the repository at `root` holds it, or None when
-    that base cannot be read; the line that says which)."""
-    policy, where, _ = _policy(root)
-    return policy, where
+    """(a root holding the brief as the protected base -- the merge-base -- of the repository at `root` holds it, or
+    None when a base cannot be read; the line that says which). The gate itself reads every root `_policy` gives."""
+    policies, where, _ = _policy(root)
+    return (policies[0] if policies else None), where
 
 
 def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
@@ -387,18 +396,20 @@ SAFETY_SURFACE_DIRS = ("scripts/ci/",)
 #: at the protected base only: an agent's branch can neither move it nor forge it, and an upgrade the owner merges
 #: moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
 DEVFLOW_PIN = "docs/devflow-pin.txt"
-_PINS: dict[str, str | None] = {}
+_PINS: dict[str, list[str] | None] = {}
 
 
-def devflow_pin(root: Path) -> str | None:
-    """The DevFlow commit pinned at the protected base of `root`, or None (no base, no pin, or not a commit)."""
+def devflow_pins(root: Path) -> list[str] | None:
+    """The DevFlow commit pinned at each protected base of `root` -- the merge-base and the default branch's tip
+    (D-233) --, or None when there is no base, or one has no pin or not a commit."""
     key = str(root)
     if key not in _PINS:
-        base = protected_base(root)
+        bases = protected_bases(root)
         # #509: verified, as the gate reads every base file whose content it trusts; a forged pin exempts nothing.
-        text = (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace") if base else None
-        m = re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*", text or "")
-        _PINS[key] = m.group(1) if m else None
+        found = [re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*",
+                              (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace"))
+                 for base in bases]
+        _PINS[key] = [m.group(1) for m in found if m] if bases and all(found) else None
     return _PINS[key]
 
 
@@ -413,15 +424,17 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
     if rel in SAFETY_SURFACE or rel.startswith(SAFETY_SURFACE_DIRS) \
             or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
         return False
-    pinned = devflow_pin(root)
+    pins = devflow_pins(root)
     target = root / rel
-    if pinned is None or target.is_symlink() or not target.is_file():
+    if pins is None or target.is_symlink() or not target.is_file():
         return False
     surface = deploy_surface(root)
     if surface is None or rel in surface:
         return False
-    shipped = verified_blob(root, pinned, rel)
-    return shipped is not None and shipped == target.read_bytes()
+    # D-233 (the #517 review's M2): the bytes every pin holds -- an older pin at the merge-base alone let a branch cut
+    # before an upgrade put the older bytes back unreviewed.
+    here = target.read_bytes()
+    return all(verified_blob(root, pinned, rel) == here for pinned in pins)
 
 
 _SURFACES: dict[str, frozenset[str] | None] = {}
@@ -607,24 +620,24 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
     heavy mode a current `m<N>-security.md` of the latest milestone stands for `release-security.md` (v7.2);
     model_ranking (#283) reads the mode at the protected base as well as in the tree, and lets the milestone
     verdict stand only when neither says light."""
-    policy, where = policy_root(root)
+    policies, where, _ = _policy(root)
     out: list[tuple[str | None, str]] = []
     redirected = _redirected(root)
     if redirected:
         out.append((redirected, "worktree: redirected"))
     modes = [mode(root)]
-    if policy is None:
+    if policies is None:
         out.append((f"the brief's policy fields cannot be read at the protected base ({where}); a deploy is "
                     "judged by the base's brief, never by the change's (#283)", f"policy: unreadable ({where})"))
     else:
-        modes = list(dict.fromkeys([mode(policy), *modes]))
+        modes = list(dict.fromkeys([*(mode(p) for p in policies), *modes]))
         out.append((None, f"policy: {where}, working mode {modes[0]}"
-                          + (f"; the tree's brief says {modes[1]}, so both modes' Tester verdicts" if len(modes) > 1
-                             else "")))
+                          + (f"; the bases and the tree's brief also say {', '.join(modes[1:])}, so each mode's Tester "
+                             "verdict" if len(modes) > 1 else "")))
     security = current(root, SECURITY, "security")
     # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
     blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
-    if security[0] and not blocking and policy is not None and "light" not in modes:
+    if security[0] and not blocking and policies is not None and "light" not in modes:
         milestone = latest_milestone(root, MILESTONE_SECURITY)
         if milestone is not None:
             alternative = current(root, milestone, "security (heavy mode: the milestone's)", independent=True)
@@ -647,9 +660,9 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
 def declared(root: Path) -> list[list[str]]:
     """The deploy commands the protected base's brief or the tree's declares (#283), each as lower-cased
     words. One the shell cannot split is skipped loudly: a declaration nobody can match is not a declaration."""
-    policy, _ = policy_root(root)
+    policies, _, _ = _policy(root)
     texts = listing("Deploy commands", root)
-    if policy is not None:
+    for policy in policies or []:
         texts += [t for t in listing("Deploy commands", policy) if t not in texts]
     out: list[list[str]] = []
     for text in texts:
@@ -862,11 +875,9 @@ def _workflow_texts(root: Path) -> tuple[dict[str, list[str]], bool]:
         for p in sorted(folder.iterdir()) if folder.is_dir() else []:
             if p.suffix in (".yml", ".yaml") and p.is_file():
                 out.setdefault(p.name.lower(), []).append(p.read_text(encoding="utf-8", errors="replace"))
-    base = protected_base(root)
-    if base is None:
-        return out, True
+    bases = protected_bases(root)
     complete = True
-    for place in WORKFLOW_DIRS:
+    for base, place in ((base, place) for base in bases for place in WORKFLOW_DIRS):  # #517: the tip's copies too
         try:
             # #509: each file verified against the ids git names it by, as `git show` never checked.
             files, failed = brief_fields.verified_files(root, base, place, (".yml", ".yaml"))

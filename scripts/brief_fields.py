@@ -327,6 +327,19 @@ def protected_base(repo: Path | str = ".", head: str = "HEAD") -> str | None:
     return None
 
 
+def protected_bases(repo: Path | str = ".", head: str = "HEAD") -> list[str]:
+    """#517 (D-232 clause 1): the protected base (`protected_base`) and the tip of the same default branch when it
+    differs, or [] with no default branch. HEAD's history is the change's own, so the merge-base alone is a commit
+    the change chose: a branch cut before a deploy command was declared read no declaration at all."""
+    for ref in DEFAULT_BRANCHES:
+        found = _git(repo, "merge-base", ref, head)
+        if found.returncode == 0 and found.stdout.strip():
+            base = found.stdout.strip()
+            tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}").stdout.strip()
+            return [base, *([tip] if tip and tip != base else [])]
+    return []
+
+
 def policy(root: Path | str = ".") -> dict[str, str | None]:
     """Each policy field's raw answer in the brief under `root` (None: absent or a placeholder)."""
     return {name: field(name, root) for name in POLICY_FIELDS}
