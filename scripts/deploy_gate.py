@@ -393,8 +393,8 @@ SAFETY_SURFACE = {".claude/hooks/bash_guard.py", ".claude/settings.json", "scrip
                   "scripts/brief_fields.py", "scripts/deploy_hosted_engine.sh", "scripts/nightly_hosted.sh"}
 SAFETY_SURFACE_DIRS = ("scripts/ci/",)
 #: #410 (D-223 clause 5): `<version> <commit>`, the DevFlow commit whose bytes the exemption compares with. Read
-#: at the protected base only: an agent's branch can neither move it nor forge it, and an upgrade the owner merges
-#: moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
+#: at the protected bases only (D-233: the merge-base and the default branch's tip, both must hold the bytes): an
+#: agent's branch can neither move it nor forge it, and an upgrade the owner merges moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
 DEVFLOW_PIN = "docs/devflow-pin.txt"
 _PINS: dict[str, list[str] | None] = {}
 
@@ -522,7 +522,7 @@ def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -
 #: its M1: `working-directory:` and `env -C` change directory as `cd` does.
 _UNREAD_IN_WORKFLOW = re.compile(
     r"(?<![\w.-])(?:" + "|".join(sorted(UNREAD_RECIPES | {"cd", "pushd"})) + r")(?![\w/.-])"
-    r"|\buses\s*:\s*[\"']?\./|\bworking-directory\s*:|\benv\b[^\n]*\s(?:-C|--chdir)\b",
+    r"|\buses\s*:\s*[\"']?\./|\bworking-directory\s*:|\benv\b[^\n]*\s(?-i:-[A-Za-z]*C|--chdir)",
     re.IGNORECASE)
 #: A run of characters a path can be written with: every one in a workflow's text is looked up as a file git lists.
 _PATH_WORD = re.compile(r"[A-Za-z0-9_./-]+")

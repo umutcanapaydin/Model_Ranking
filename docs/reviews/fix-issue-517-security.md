@@ -12,14 +12,17 @@ date: 2026-10-31
 **Independent:** yes. I wrote neither the red test nor the fix, and I have not reviewed this code before.
 **Date:** 2026-10-31
 **Release range:** 290557c..bf3f0af (`01c0d53` D-232, `8545e53` red test alone, `bf3f0af` fix)
-**Reviewed head:** bf3f0af246442c95ebfb8ef67ac6f1b8b1a5afe6
+**Reviewed head:** 9ca56c4d9ba05444e8df2c409d09cad8a3e079e5
 **Risk tier:** HIGH (the deploy gate's base-pinned policy; the brief's `Paths that make a change HIGH:` is `none`, and
 the tier comes from the control class)
 
 ## Verdict
 MINOR
 
-The fix does what D-232 clause 1 says and only tightens. `Deploy commands:` and `Working mode:` are read at the
+Round 2 (9ca56c4): MINOR. M2 and R2 are fixed and held by tests. M1 is open as #533 (the owner's guard), R3 is filed as #534,
+and R1 is refused as advisory. Round 1's text follows unchanged; round 2 is at the end.
+
+Round 1 (bf3f0af): MINOR. The fix does what D-232 clause 1 says and only tightens. `Deploy commands:` and `Working mode:` are read at the
 merge-base and at the default branch's tip, and the gate takes the union. The workflows are read at both. The issue's
 probe is closed, and so is the case where the tip says heavy. Nothing that the old gate refused is now allowed: the tip
 is always a descendant of the merge-base, and each consumer takes the union (declared commands, modes, workflow texts).
@@ -128,3 +131,34 @@ on the shared refs. Both trees were left clean.
 - **R3** scripts/brief_fields.py:334: the first ref that has a merge-base wins. If `origin/HEAD` names a stale branch
   (for example after a default-branch rename), `origin/main`'s tip is never read. A union over every existing
   DEFAULT_BRANCHES tip would hold. This is pre-existing and not reachable in this repository today.
+
+## Round 2 — re-verification at 9ca56c4 (fix diff bf3f0af..9ca56c4)
+
+**Reviewed head:** 9ca56c4d9ba05444e8df2c409d09cad8a3e079e5 (the code is identical in `scripts/deploy_gate.py`'s pin
+and base paths at 6d2e10d, where I re-ran everything; `git diff 9ca56c4 6d2e10d -- scripts/deploy_gate.py` touches
+only #522's lines 515-578)
+
+Round-2 verdict: MINOR. M2 and R2 are fixed and held by tests. M1 stays open: the defect is in the guard, which
+is the owner's to change, and it is filed as #533. R3 is filed as #534, and the dispatcher refused R1 as advisory
+(as I rated it). Nothing in this round loosens the gate.
+
+- **M2 — fixed.** scripts/deploy_gate.py:402-413 (`devflow_pins`) reads the pin at every protected base, and is None
+  (nothing exempt) when any base has no pin or an unreadable one. :433-437 (`shipped_unchanged`) exempts a file only
+  when every pin holds its bytes. The pin list cannot be empty, because a non-empty `bases` and `all(found)` give one
+  pin per base, so `all(...)` is never vacuous. My round-1 probe now refuses (`branch cut before the upgrade: 1 ...
+  1 code file(s) changed since`), and the control still refuses (1). Mutant `for pinned in pins[:1]` (the merge-base
+  pin alone) is KILLED by `tests/unit/test_deploy_gate_517.py::test_a_branch_cut_before_an_upgrade_cannot_restore_the_older_pins_bytes`.
+  D-233 (docs/decisions.md, `c013b53`) supersedes the false sentence and marks D-232 accordingly. One stale comment
+  remains: scripts/deploy_gate.py:396-397 still says the pin is "Read at the protected base only". That is cosmetic.
+- **R2 — fixed.** `::test_a_deploy_workflow_only_the_tip_holds_is_still_one`. Mutant `bases = protected_bases(root)[:1]`
+  at :905 (`_workflow_texts`) is KILLED (1 failed, 3 passed).
+- **M1 — open, filed as #533** (the Bash guard's ref moves; `.claude/` is the owner's). Unchanged by this round.
+- **R1** refused as advisory by the dispatcher; **R3** filed as #534.
+- The merge also carries #535 (`scripts/client_decl_gate.py`, one allowlisted `Date.<=`), which was reviewed
+  separately. It is no security surface for this verdict.
+- Tests: all 223 tests in `tests/unit/test_deploy_gate*.py` pass at 6d2e10d. Gates at 6d2e10d, run by me: `make secrets` "no leaks found"; `make deps` "No known vulnerabilities found"; `make slopsquat` "slopsquat PASS: 20 declared dependency(ies), 0 suspect"; conformance "conformance PASS: 33 test(s) derived from conformance/, 0 failing, 0 caller-liveness finding(s)".
+
+Round-2 acceptance criteria evidence:
+- #517 M2 (D-233): a file is DevFlow's only when both pins hold its bytes → scripts/deploy_gate.py:402-413, :433-437;
+  tests/unit/test_deploy_gate_517.py:67-86
+- #517 R2: the tip's workflow copies are read → scripts/deploy_gate.py:905-907; tests/unit/test_deploy_gate_517.py:89-101
