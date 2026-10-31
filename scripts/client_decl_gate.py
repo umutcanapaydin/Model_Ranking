@@ -1388,6 +1388,9 @@ SINK_FOUNDATION_ALLOWED: dict[str, frozenset[str]] = {
     "StandingsStore.swift": frozenset({
         "Data.count", "Data.init(contentsOf:options:", "Data.write(to:options:", "NSData.WritingOptions.atomic",
         "Date.init(", "Date.timeIntervalSince",
+        # #535 (owner, 2026-10-31): `fetchedAt <= now` (#288, #314), unchanged; the toolchain of 2026-10-31 binds it
+        # to Foundation's `Date.<=`, where it bound the standard library's `Comparable` one. Two dates compared.
+        "Date.<=",
         "FileManager.SearchPathDirectory.cachesDirectory", "FileManager.SearchPathDomainMask.userDomainMask",
         "FileManager.createDirectory(at:withIntermediateDirectories:attributes:", "FileManager.default",
         "FileManager.temporaryDirectory", "FileManager.urls(for:in:",
