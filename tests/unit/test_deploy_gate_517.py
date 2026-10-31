@@ -12,7 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .test_deploy_gate_pin import GATE, Repo, _env
+from .test_deploy_gate_444 import _upgrade_shipping
+from .test_deploy_gate_pin import GATE, Repo, _env, _installed
 
 UNDECLARED = "- **Working mode:** `light`\n"
 DECLARED = "- **Working mode:** `light`\n- **Deploy commands:** `fly deploy`\n"
@@ -61,3 +62,40 @@ def test_the_tips_mode_is_read_too(tmp_path: Path) -> None:
     code, out = repo.check()
     assert code != 0, out
     assert "heavy" in out, out
+
+
+def test_a_branch_cut_before_an_upgrade_cannot_restore_the_older_pins_bytes(tmp_path: Path) -> None:
+    """The #517 review's M2 (D-233): the older pin at the merge-base held the tool's old bytes, so a branch cut before
+    the upgrade, carrying the newer verdict files, reverted the tool unreviewed."""
+    repo = _installed(tmp_path)
+    before = repo.git("rev-parse", "main")
+    _upgrade_shipping(repo, "scripts/tool.py", "VERSION = 2  # DevFlow's fix\n")
+    repo.git("checkout", "-q", "main")
+    head = repo.git("rev-parse", "HEAD")
+    for name in ("release-security.md", "release-tester.md"):
+        repo.write(f"docs/reviews/{name}", f"# R\n\n**Independent:** yes\n**Reviewed head:** {head}\n\n## Verdict\nPASS\n")
+    repo.commit("verdicts after the upgrade")
+    verdicts = {name: (repo.root / "docs" / "reviews" / name).read_text(encoding="utf-8")
+                for name in ("release-security.md", "release-tester.md")}
+    repo.git("checkout", "-q", "-b", "old", before)
+    for name, text in verdicts.items():
+        repo.write(f"docs/reviews/{name}", text)
+    repo.commit("the newer verdicts on the older tool")
+    code, out = repo.check()
+    assert code != 0, out
+    assert "scripts/tool.py" in out, out
+
+
+def test_a_deploy_workflow_only_the_tip_holds_is_still_one(tmp_path: Path) -> None:
+    """The #517 review's R2: the tip's workflow copies are read too, so a dispatch of a workflow added on the default
+    branch after the change's fork point is judged a deploy."""
+    repo, before = _history(tmp_path)
+    repo.write(".github/workflows/release.yml", "name: Release\non: workflow_dispatch\njobs:\n  a:\n    steps:\n"
+                                                "      - run: fly deploy\n")
+    repo.commit("a deploy workflow on the tip")
+    repo.git("checkout", "-q", "-b", "old", before)
+    repo.write("docs/project-brief.md", DECLARED)
+    repo.write("src/app.py", "x = 2  # a product change\n")
+    repo.commit("a product change on old history")
+    code, out = _deploy(repo, "gh workflow run release")
+    assert code == 2, out
