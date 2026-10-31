@@ -1694,3 +1694,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Tester: MINOR. Every acceptance criterion of the 13 closed issues has a citing test; `make check` green; `make ui-test` 23/23 and 2/2 on a booted simulator. Its two new tests are committed at `ed18de5`, the verdict's head. M10 #525, M11 #526 (Escalate NOW), M12 #527; a timing test that failed once under load is #528.
 - Security-Reviewer: MINOR at `ed18de5`. M9 confirms #526 (`GIT_WORK_TREE` fakes a deploy-check PASS; deploy from a shell with no `GIT_*` set); M10 #529 (the owner's guard file), M11 #530, R10 #531. No dependency, `/v1`, Dockerfile or workflow change in the range.
 - Lesson: a delta review's head moves with the tests it adds; the verdict names the commit that holds them, or the gate reads its own tests as unreviewed code.
+
+## 2026-10-31 · integration/fixes-1031 — one PR for the owner, the release delta at its head
+
+- The owner asked for one PR instead of six: #532's release verdicts are merged into the integration branch, and the release delta is run again at this head instead of a merge-deploy-merge order.
+- Tester: PASS at `6e6f5be`. The range's own tests went red against `ed18de5`'s gate (18 of 30) and green at the head; 26 faults injected, and the 4 that stayed green (F7, F9, F14, F20) now have tests, plus #535's allowlist in the unit suite, since CI does not run client-decls.
+- Security-Reviewer: MINOR at `6e6f5be`; nothing loosens the gate. M12 adds three spellings to #541; R11 (dead `policy_root`) is #543.
+- Lesson: stacking the verdict PR into the integration PR costs one more delta review, and saves the owner a merge order that has to be followed exactly.

@@ -18,17 +18,20 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-31 (the delta round of run 1030 and the fixes before it; the night-1028 delta round was 2026-10-29,
+**Date:** 2026-10-31 (the delta round 2026-10-31b, `ed18de5..243d115`, and before it the delta round of run 1030 and
+the fixes before it; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9..290557c39d6e672877cf6399b9d21eab2403ffbf`
+**Commit range:** this round `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115` (`integration/fixes-1031`: #517,
+#522, #518, #535; D-232, D-233); the round before it `3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9..290557c39d6e672877cf6399b9d21eab2403ffbf`
 (#496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501, #505, the guard patch #497/#498; D-230,
 D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** ed18de5bef8ad54d501b8a268db9900073ab903f (the 2026-10-31 delta round, `3cddbdd..290557c`,
-`main` after #514, plus this round's two tests committed at `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
+**Reviewed head:** 6e6f5beb81fc12d29d51540fc132be230d8d880b (the delta round 2026-10-31b, `ed18de5..243d115`, the
+head of `integration/fixes-1031`, plus this round's three tests committed at `6e6f5be` on `review/release-delta-1031b`;
+the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
 round's `50c4764`, the B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
@@ -47,7 +50,16 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 3 MINOR open (M10, M11, M12, all new). The 2026-10-31 delta round (below,
+PASS -- 0 BLOCKING open, 0 MINOR open in this file. The delta round 2026-10-31b (below, `ed18de5..243d115`: #517,
+#522, #518, #535; D-232, D-233) found every acceptance criterion proven by a citing test through the real entry point
+(`scripts/deploy_gate.py` run as a program on a git fixture; `make client-decls` for #535), each red on the code
+before its fix where the issue fixes code; `make check-fast` is green at `6e6f5be` (pytest 4919 passed, 37 skipped;
+client-decls PASS in 4 configurations). 26 faults: 22 killed by the range's own tests or gate; the 4 that stayed
+green (F7: `all(found)` weakened to `any` in `devflow_pins`; F9: `pushd` dropped; F14: `--chdir` dropped; F20: `/`
+added to the runner's look-behind) are closed by this round's tests at `6e6f5be`. M10, M11 and M12 of the round before are filed
+as #525, #526 and #527 and are tracked there, not here.
+
+The 2026-10-31 delta round, as it read when it closed: MINOR -- 0 BLOCKING open, 3 MINOR open (M10, M11, M12, all new). The 2026-10-31 delta round (below,
 `3cddbdd..290557c`) found every acceptance criterion of the thirteen issues closed in the range, and of the owner's
 guard patch, proven by a citing test, each red on its reproduce commit where the issue fixes code; `make check` is
 green at `290557c`, and `make ui-test` against an artifact built today is green (23 of 23 with the engine up, 2 of 2
@@ -1263,3 +1275,151 @@ None.
     engine up 24 executed, 0 failures, the draft skipped; engine down 2 of 2; exit 0.
 - **This review's tests**, each in `tester-fi` at `290557c`: `test_deploy_gate_505_tester.py` 1 passed,
   `test_deploy_gate_510_tester.py` 1 passed, ruff clean; each red under its fault (F19b, F12d).
+
+## Delta round 2026-10-31b (ed18de5..243d115)
+
+**Range:** `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115`, the head of `integration/fixes-1031` (#532, #537,
+#540, #538, #539): #517 (the policy, the workflows and the DevFlow pin at the merge-base AND the default branch's tip;
+D-232 clause 1, D-233), #522 (a dispatched deploy workflow's text puts what it names on the deploy surface; D-232
+clause 2), #518 (tests only, the verified reader's fail-closed paths), #535 (`Date.<=` on the standings sink's
+Foundation list). Code: `scripts/deploy_gate.py`, `scripts/brief_fields.py`, `scripts/client_decl_gate.py`; tests:
+three new files. Acceptance criteria read from `gh issue view 517/522/518/535` and `docs/decisions.md:6365`
+(D-232), `:6392` (D-233).
+**Risk tier:** HIGH. Every code change is to the deploy gate or a privacy gate (D-180).
+**Seat:** my own worktree on `review/release-delta-1031b` at `243d115`, its own `.venv` (`make install`) and its own
+copy of `advisor.db`, under this session's scratchpad. Red runs were done in the same tree by writing the pre-range
+files with `git show ed18de5:<path> >` and writing HEAD's back; every fault was reverted by exact string replacement
+and md5-checked against its pre-injection hash (`9c6737f89b08` `deploy_gate.py`, `bb009a5cd391` `brief_fields.py`,
+`88e92f954bf2` `client_decl_gate.py`; every revert matched, `git status` clean after each). No launchd service, owner
+data directory, Fly or GitHub write was touched; nothing was pushed.
+**Fresh eyes:** I wrote none of the range. My only code is the three test files at `6e6f5be`.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: the diff, the four issues, D-232, D-233 and the tests, not the implementers' sessions.
+
+### Acceptance-criterion coverage
+
+- **#517 / D-232 clause 1: `Deploy commands:` read at the merge-base and the tip, the union guarded** ->
+  `tests/unit/test_deploy_gate_517.py:42` runs `deploy_gate.py "fly deploy"` on a branch cut before the declaration,
+  its own brief without it: exit 2. RED at `ed18de5`'s code, GREEN at `243d115`; red under F1 (`protected_bases`
+  returns the merge-base only, `scripts/brief_fields.py:339`) and F2 (`declared` reads the first base only,
+  `scripts/deploy_gate.py:692`).
+- **#517 / D-232 clause 1: `Working mode:` read at both, each mode's Tester owed** -> `test_deploy_gate_517.py:55`
+  (the tip says heavy, the merge-base and the tree light: `--check` refuses and names heavy). RED pre-fix; red under
+  F1, F3 (`scripts/deploy_gate.py:660` reads the first base's mode only).
+- **#517 / D-232 clause 1: the base workflows read at both** -> `test_deploy_gate_517.py:89` (a deploy workflow only
+  the tip holds: `gh workflow run release` exit 2). RED pre-fix; red under F4 (`scripts/deploy_gate.py:907`, the first
+  base only).
+- **D-233: a tooling file is DevFlow's only when both pins hold its bytes** -> `test_deploy_gate_517.py:67` (a branch
+  cut before an upgrade restoring the older pin's bytes, carrying the newer verdicts: refused, names
+  `scripts/tool.py`). RED pre-fix; red under F5 (`devflow_pins` reads the first base, `scripts/deploy_gate.py:412`)
+  and F6 (`all` to `any`, `:437`).
+- **D-233: "a base with no pin, or a pin that does not read, exempts nothing"** -> no test held it: F7 (`all(found)`
+  to `any(found)`, `scripts/deploy_gate.py:412`) stayed green on all 284 deploy-gate tests. Closed by
+  `tests/unit/test_deploy_gate_517_tester.py:33` (the tip's pin removed, garbled, emptied after the branch was cut;
+  the control first passes with both pins) and `:45` (the merge-base's pin garbled, the tip pinning the upgrade): each
+  red under F7, GREEN at `6e6f5be`.
+- **#522 / D-232 clause 2: every file the workflow's text names is on the surface; a recipe runner anywhere, a change
+  of directory, or a local `uses: ./` exempts nothing** -> `tests/unit/test_deploy_gate_522.py:58`, 19 spellings
+  through `deploy_gate.py --check` (the issue's eight, the #522 review's B1 five and M1/R4 six). 14 RED at
+  `ed18de5`'s code; the 5 path/case runner spellings were refused before #522 and are held as regressions, as the
+  test says. Red under F8 (`named |=` dropped, `scripts/deploy_gate.py:581`), F10 (`cd` dropped), F11 (`uses: ./`),
+  F12 (`working-directory:`), F13 (`env -C`), F15 (`re.IGNORECASE`), F17 (`$X` expansions kept), F18 (no leading-`/`
+  strip), F19 (the whole `_UNREAD_IN_WORKFLOW` search dropped, `:536`). Three parts no test held: F9 (`pushd`
+  dropped), F14 (`--chdir` dropped), F20 (`/` added to the runner's look-behind at `:524`, which hides `bash -c
+  '/usr/bin/make ship'`). Closed by `tests/unit/test_deploy_gate_522_tester.py:30` (`pushd`, `env --chdir`, `env
+  --chdir=`, `bash -c '/usr/bin/make ship'`, `sh -c "./make ship"`): each red under its fault, GREEN at `6e6f5be`.
+- **#522: the issue's setup-line decision (checkout, `pip install` must not empty the surface)** ->
+  `test_deploy_gate_522.py:67` (a workflow of setup steps and the declared deploy script leaves a plain tooling file
+  DevFlow's: exit 0) and `:78` (`env FOO=1 bash -c` is no `env -C`); red under F16 (the `(?-i:` guard dropped).
+- **#518: one test per surviving mutant, or a sentence why it is equivalent** -> SHA-256 ids (#511 R1, #509 N14):
+  `tests/unit/test_deploy_gate_518.py:31`, red under F21 (sha1 always, `scripts/brief_fields.py:145`), F22 (the
+  commit's `tree` regex narrowed to 40, `:180`) and F25 (the walk's id size fixed at 20 bytes); `40000` on the way
+  (#511 R2, #509 N7): `:54`, red under F23 (the type bits instead of the spelling at `:207`); a nested tree error
+  (#509 N12): `:69`, red under F24 (`continue` for `raise` at `:305`); N13b: the equivalence sentence is
+  `docs/process-log.md:1668`. Tests only, so no red commit: each test passes on `ed18de5`'s code, as it should.
+- **#535: a reviewed edit adds `Foundation.Date.<=` to `SINK_FOUNDATION_ALLOWED` with its reason** ->
+  `scripts/client_decl_gate.py:1391-1393` (the entry and its reason). Proven through the real gate: `make
+  client-decls` PASS at `243d115` (23 client files, 4 configurations, 83 s); with the entry removed (F26) it fails in
+  all four with the issue's exact message ("`Foundation.Date.<=` is not on the list ..."), then PASS again after the
+  in-place restore. CI does not run client-decls, so `tests/unit/test_client_decl_gate_535_tester.py:41` holds the
+  allowance in the unit suite (red under F26), `:48` holds that `<`, `>`, `>=` and `==` stay refused in the same sink,
+  and `:54` that the engine client's sink did not gain it. The gate reported `<=` only, so the narrow edit matches
+  the issue's "if the same resolution now applies" clause.
+
+### Red to green
+The range's own tests run against `ed18de5`'s `scripts/deploy_gate.py` and `scripts/brief_fields.py`: 18 failed, 12
+passed. Failed: all four of `test_deploy_gate_517.py`, 14 of the 19 spellings of `test_deploy_gate_522.py:58`. The
+twelve green: the five runner spellings refused before #522, the two #522 controls, the five #518 tests (tests only).
+All 30 GREEN at `243d115`. #535: `make client-decls` red with the entry removed (F26), green with it.
+
+### Fault injection
+Each fault injected in this tree, the deploy-gate tests run (`tests/unit` and `conformance`, `-k "deploy_gate or
+brief_fields or deploy_shipped"`, `-n 8 -x`), reverted by exact string replacement, md5 compared.
+
+| # | fault | result |
+|---|---|---|
+| F1 | `protected_bases` returns the merge-base only | RED `test_deploy_gate_517.py:42`, `:55` |
+| F2 | `declared` reads the first base only | RED `:42` |
+| F3 | the verdicts read the first base's mode only | RED `:55` |
+| F4 | `_workflow_texts` reads the first base only | RED `:89`, `test_deploy_gate_494.py` |
+| F5 | `devflow_pins` reads the first base only | RED `:67` |
+| F6 | `shipped_unchanged` `all` to `any` | RED `:67` |
+| F7 | `devflow_pins` `all(found)` to `any(found)` | GREEN; RED `test_deploy_gate_517_tester.py:33`, `:45` |
+| F8 | the workflow's named files not added to the surface | RED `test_deploy_gate_522.py:58[a-script]` |
+| F9 | `pushd` dropped | GREEN; RED `test_deploy_gate_522_tester.py:30[pushd-then-relative]` |
+| F10 | `cd` dropped | RED `:58[cd-then-relative]` |
+| F11 | `uses: ./` dropped | RED `:58[local-uses]` |
+| F12 | `working-directory:` dropped | RED `:58[working-directory]` |
+| F13 | the `env -C` alternative dropped | RED `:58[env-C]` |
+| F14 | `--chdir` dropped | GREEN; RED `test_deploy_gate_522_tester.py:30[env-chdir]`, `[env-chdir-equals]` |
+| F15 | `re.IGNORECASE` dropped | RED `:58[expansion]` |
+| F16 | `(?-i:` dropped (a lower-case `-c` read as `-C`) | RED `:78` |
+| F17 | expansions not taken out | RED `:58[workspace-variable]` |
+| F18 | no leading-`/` strip | RED `:58[workspace-variable]` |
+| F19 | `_UNREAD_IN_WORKFLOW` not searched | RED `:58[quoted]`, `[local-uses]`, `[env-C]` |
+| F20 | `/` in the runner's look-behind | GREEN; RED `test_deploy_gate_522_tester.py:30[make-by-path-in-bash-c]` |
+| F21 | sha1 for every id | RED `test_deploy_gate_518.py:31` |
+| F22 | the commit's `tree` regex at 40 hex | RED `:31` |
+| F23 | a directory on the way by its type bits | RED `:54` |
+| F24 | a nested tree error skipped in `verified_files` | RED `:69` |
+| F25 | the reader's id size fixed at 20 bytes | RED `:31` |
+| F26 | `Date.<=` removed from the standings sink's list | RED `make client-decls` (4 of 4); RED `test_client_decl_gate_535_tester.py:41` |
+
+**Mutation kill-rate (advisory):** no mutation runner is wired for this stack. Hand faults: 26, 22 killed by the
+range's own tests or gate, 4 green (F7, F9, F14, F20); 26 of 26 killed after this round's tests.
+
+### Test integrity
+`git diff --name-status ed18de5..243d115 -- tests conformance`: three files added, none modified or deleted. No
+assertion weakened, no test skipped; no security-invariant test touched. The range's tests cite their issue and ADR
+in the module docstring (`#517:`, `#522:`, `#518:`) rather than a `# covers` comment, as the deploy-gate tests have
+since #410; this round's tests carry `# covers`.
+
+### Observations (no finding)
+- `scripts/deploy_gate.py:353` (`_unhashed`, #493) has its own `{40,64}` tree regex that no SHA-256 test reaches.
+  Pre-existing, not on #518's list, and it fails closed (a SHA-256 repository would refuse, not pass).
+- The stale-entry rule (`tests/unit/test_client_decl_gate.py:1113`) means a toolchain that binds `<=` to the standard
+  library again makes `Date.<=` an unseen entry and client-decls red; #536 (print the toolchain it read) is the
+  existing issue for tracing that.
+- The Security-Reviewer's open items on this range are filed: #541 (four more `env`/`PATH` spellings), #534 (a stale
+  `origin/HEAD`), #533 (the guard lets the change move the default branch's refs).
+
+### Delta BLOCKING
+None.
+
+### Delta MINOR
+None. The four faults that stayed green are closed by this round's tests (`6e6f5be`).
+
+### Delta suite result
+- `make check-fast` in this tree with the three tests: PASS in 221.8 s -- lint, typecheck, records (session-check,
+  check-records, its self-test, install-check, harvest-context-check, shell-dialect, wave-check-all, conformance),
+  swift-test, client-decls (4 configurations), test (pytest 4919 passed, 37 skipped; coverage 93.16%). The commit's
+  own commit-msg hook ran it again: PASS in 202.2 s.
+- `ruff check` on the three new files: all checks passed.
+
+### Tests added this round
+- `tests/unit/test_deploy_gate_517_tester.py:33`, `:45` -- D-233's "a base with no pin, or a pin that does not read,
+  exempts nothing" (F7).
+- `tests/unit/test_deploy_gate_522_tester.py:30` -- D-232 clause 2's `pushd`, `env --chdir`, and a runner by path or
+  `./` inside a `-c` string (F9, F14, F20).
+- `tests/unit/test_client_decl_gate_535_tester.py:41`, `:48`, `:54` -- #535's allowance, its narrowness, and its sink
+  (F26), in the suite CI runs.
