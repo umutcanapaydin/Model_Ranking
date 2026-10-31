@@ -1653,3 +1653,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-232 clause 1: `brief_fields.protected_bases` gives the merge-base and the default branch's tip; the gate reads `Deploy commands:` and `Working mode:` at both and takes the union, and reads the base workflows at both. The DevFlow pin stays at the merge-base, where an older pin exempts less.
 - Red test `tests/unit/test_deploy_gate_517.py` committed alone first, after the ADR; two mutants (the tip dropped, only the first policy read) each fail it. 1137 related tests pass.
 - Lesson: "the protected base" has to be a commit the change cannot pick; the merge-base is one only while the branch is cut from the tip.
+
+## 2026-10-31 · fix/issue-535-date-compare — client-decls green again: the toolchain binds a date comparison to Foundation
+
+- #535: `make client-decls` turned red on main at `290557c` with no code change, refusing every local commit: the toolchain (Swift 6.4.2) now binds `fetchedAt <= now` in `StandingsStore.swift` (unchanged since #288 and #314) to Foundation's `Date.<=`, where it bound the standard library's `Comparable` one. CI does not run this gate.
+- The owner's ruling: a reviewed edit under D-180, as #363 did for `Data.append`. `Date.<=` is added to the standings sink's own list in `SINK_FOUNDATION_ALLOWED`, with its reason (two dates compared; nothing read or written). It is seen on the shipping client, so `unseen_permissions` holds it.
+- The red check is `make client-decls` itself (red on main, all four configurations); green with the entry: 23 files, 4 configurations.
+- Lesson: a gate that names declarations by the module the compiler resolves them to moves with the toolchain; each such move is a reviewed one-line edit, and the session that meets it is blocked until it lands.
