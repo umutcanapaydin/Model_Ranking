@@ -1646,3 +1646,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The reviews found three more bypasses that predate the run. Two were fixed under D-231 clause 2 (an untracked nested checkout, a redirected `core.worktree`); one is #517, escalated. Also filed: #518, #522.
 - One hand resolution: #505's content comparison replaced #506's diff line, and #509's later review fixes were kept beside #505's readers. The delta review of the whole stack is PASS at `91890d6`.
 - Lesson: stacking fixes on one file speeds a run, but a branch cut before its parent's review fixes needs those fixes carried by a merge, and the delta review has to check that each one survived.
+
+## 2026-10-31 · fix/issue-535-date-compare — client-decls green again: the toolchain binds a date comparison to Foundation
+
+- #535: `make client-decls` turned red on main at `290557c` with no code change, refusing every local commit: the toolchain (Swift 6.4.2) now binds `fetchedAt <= now` in `StandingsStore.swift` (unchanged since #288 and #314) to Foundation's `Date.<=`, where it bound the standard library's `Comparable` one. CI does not run this gate.
+- The owner's ruling: a reviewed edit under D-180, as #363 did for `Data.append`. `Date.<=` is added to the standings sink's own list in `SINK_FOUNDATION_ALLOWED`, with its reason (two dates compared; nothing read or written). It is seen on the shipping client, so `unseen_permissions` holds it.
+- The red check is `make client-decls` itself (red on main, all four configurations); green with the entry: 23 files, 4 configurations.
+- Lesson: a gate that names declarations by the module the compiler resolves them to moves with the toolchain; each such move is a reviewed one-line edit, and the session that meets it is blocked until it lands.
