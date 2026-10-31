@@ -1667,3 +1667,17 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - New `tests/unit/test_deploy_gate_518.py`: a SHA-256 repository read and its forgery refused; a `040000` directory on the way refused; a nested tree that does not hash fails the folder; a deeper `.gitignore` takes precedence; a submodule not at its commit is a change. Each fails with its mutant, restored byte for byte. Test only.
 - The sixth, N13b (the commit's second hash in `_commit` and `batch_read`), is equivalent while git's peel refuses a forged commit; removing both fails `test_deploy_gate_494.py` (the run 1030 delta review).
 - Lesson: a mutant that fails closed is still a missing test; the code's safety today is not the next edit's.
+
+## 2026-10-31 · fix/issue-535-date-compare — client-decls green again: the toolchain binds a date comparison to Foundation
+
+- #535: `make client-decls` turned red on main at `290557c` with no code change, refusing every local commit: the toolchain (Swift 6.4.2) now binds `fetchedAt <= now` in `StandingsStore.swift` (unchanged since #288 and #314) to Foundation's `Date.<=`, where it bound the standard library's `Comparable` one. CI does not run this gate.
+- The owner's ruling: a reviewed edit under D-180, as #363 did for `Data.append`. `Date.<=` is added to the standings sink's own list in `SINK_FOUNDATION_ALLOWED`, with its reason (two dates compared; nothing read or written). It is seen on the shipping client, so `unseen_permissions` holds it.
+- The red check is `make client-decls` itself (red on main, all four configurations); green with the entry: 23 files, 4 configurations.
+- Lesson: a gate that names declarations by the module the compiler resolves them to moves with the toolchain; each such move is a reviewed one-line edit, and the session that meets it is blocked until it lands.
+
+## 2026-10-31 · fix/issue-522-workflow-lines — the #522 and #517 review rounds
+
+- #517: MINOR. M2 (D-232's "an older pin exempts less" was false: a branch cut before an upgrade could restore the older bytes) is fixed by D-233, both pins hold the bytes; R2's tip-workflow test added. M1 (the guard lets the change move the default branch's refs) is the owner's file: #533. R3 is #534; R1 (review-need's caller-chosen base) is refused as advisory.
+- #522: round 1 BLOCKING (B1: the new regex let `/usr/bin/make`, `./make`, `Make` through, which the old first-word check refused); round 2 PASS. The first-word check is kept beside the regex, which now reads a runner by path and in any case, `working-directory:`, `env -C` in every spelling, and paths from the checkout's top.
+- #535 rode in on #517's branch: client-decls was red on every tree without it, and #517's red M2 test on every tree without its fix, so one merge carried both.
+- Lesson: a regex that replaces a check reads more than the check did in some places and less in others; keep the old check beside it until a test holds each spelling the old one refused.

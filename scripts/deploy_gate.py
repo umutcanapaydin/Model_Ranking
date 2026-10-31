@@ -98,7 +98,6 @@ from brief_fields import (  # noqa: E402
     Unverified,
     listing,
     mode,
-    protected_base,
     protected_bases,
     root_at,
 )
@@ -394,21 +393,23 @@ SAFETY_SURFACE = {".claude/hooks/bash_guard.py", ".claude/settings.json", "scrip
                   "scripts/brief_fields.py", "scripts/deploy_hosted_engine.sh", "scripts/nightly_hosted.sh"}
 SAFETY_SURFACE_DIRS = ("scripts/ci/",)
 #: #410 (D-223 clause 5): `<version> <commit>`, the DevFlow commit whose bytes the exemption compares with. Read
-#: at the protected base only: an agent's branch can neither move it nor forge it, and an upgrade the owner merges
-#: moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
+#: at the protected bases only (D-233: the merge-base and the default branch's tip, both must hold the bytes): an
+#: agent's branch can neither move it nor forge it, and an upgrade the owner merges moves it. `.gp/installed` and the local tags are not read: both are writable by the change under evaluation.
 DEVFLOW_PIN = "docs/devflow-pin.txt"
-_PINS: dict[str, str | None] = {}
+_PINS: dict[str, list[str] | None] = {}
 
 
-def devflow_pin(root: Path) -> str | None:
-    """The DevFlow commit pinned at the protected base of `root`, or None (no base, no pin, or not a commit)."""
+def devflow_pins(root: Path) -> list[str] | None:
+    """The DevFlow commit pinned at each protected base of `root` -- the merge-base and the default branch's tip
+    (D-233) --, or None when there is no base, or one has no pin or not a commit."""
     key = str(root)
     if key not in _PINS:
-        base = protected_base(root)
+        bases = protected_bases(root)
         # #509: verified, as the gate reads every base file whose content it trusts; a forged pin exempts nothing.
-        text = (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace") if base else None
-        m = re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*", text or "")
-        _PINS[key] = m.group(1) if m else None
+        found = [re.fullmatch(r"\s*v\S+\s+([0-9a-f]{40})\s*",
+                              (verified_blob(root, base, DEVFLOW_PIN) or b"").decode("utf-8", "replace"))
+                 for base in bases]
+        _PINS[key] = [m.group(1) for m in found if m] if bases and all(found) else None
     return _PINS[key]
 
 
@@ -423,15 +424,17 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
     if rel in SAFETY_SURFACE or rel.startswith(SAFETY_SURFACE_DIRS) \
             or not (rel in DEVFLOW_TOOLING_FILES or rel.startswith(DEVFLOW_TOOLING)):
         return False
-    pinned = devflow_pin(root)
+    pins = devflow_pins(root)
     target = root / rel
-    if pinned is None or target.is_symlink() or not target.is_file():
+    if pins is None or target.is_symlink() or not target.is_file():
         return False
     surface = deploy_surface(root)
     if surface is None or rel in surface:
         return False
-    shipped = verified_blob(root, pinned, rel)
-    return shipped is not None and shipped == target.read_bytes()
+    # D-233 (the #517 review's M2): the bytes every pin holds -- an older pin at the merge-base alone let a branch cut
+    # before an upgrade put the older bytes back unreviewed.
+    here = target.read_bytes()
+    return all(verified_blob(root, pinned, rel) == here for pinned in pins)
 
 
 _SURFACES: dict[str, frozenset[str] | None] = {}
@@ -515,22 +518,33 @@ def _command_surface(root: Path, words: list[str], files: dict[str, set[str]]) -
 #: #522 (D-232 clause 2): what in a dispatched deploy workflow's text hides what it starts, so nothing is exempt -- a
 #: recipe runner named anywhere (quoted, after `bash -c` or `xargs`, as an expansion's default), a change of
 #: directory (what a relative path after it names cannot be read), and a local action or workflow (`uses: ./`).
+#: The #522 review's B1: a runner written with its path (`/usr/bin/make`, `./make`) or in another case is one too, and
+#: its M1: `working-directory:` and `env -C` change directory as `cd` does.
 _UNREAD_IN_WORKFLOW = re.compile(
-    r"(?<![\w/.])(?:" + "|".join(sorted(UNREAD_RECIPES | {"cd", "pushd"})) + r")(?![\w/.-])"
-    r"|\buses:\s*[\"']?\./")
+    r"(?<![\w.-])(?:" + "|".join(sorted(UNREAD_RECIPES | {"cd", "pushd"})) + r")(?![\w/.-])"
+    r"|\buses\s*:\s*[\"']?\./|\bworking-directory\s*:|\benv\b[^\n]*\s(?-i:-[A-Za-z]*C|--chdir)",
+    re.IGNORECASE)
 #: A run of characters a path can be written with: every one in a workflow's text is looked up as a file git lists.
 _PATH_WORD = re.compile(r"[A-Za-z0-9_./-]+")
+#: A variable or an expression (`$X`, `${X}`, `${{ x }}`): taken out, what follows it is read from the checkout's top.
+_EXPANSION = re.compile(r"\$\{\{[^}]*\}\}|\$\{?[A-Za-z_][A-Za-z0-9_]*\}?")
 
 
 def _runs_unread(text: str) -> bool:
     """#501, #522: whether a dispatched deploy workflow's text hides what it starts (`_UNREAD_IN_WORKFLOW`). Read
     wide on purpose: a word in a comment counts too, which refuses more."""
-    return _UNREAD_IN_WORKFLOW.search(text) is not None
+    return _UNREAD_IN_WORKFLOW.search(text) is not None or any(
+        (run := _program_position(words)) and os.path.basename(run[0]).lower() in UNREAD_RECIPES
+        for words in _line_commands(text))
 
 
 def _workflow_names(root: Path, text: str, files: dict[str, set[str]]) -> set[str]:
     """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not."""
-    return {path for word in _PATH_WORD.findall(text.lower()) for path in _named_files(root, word, files)}
+    # The #522 review's M1: `$GITHUB_WORKSPACE/x`, `${{ github.workspace }}/x` and `$PWD/x` reach here as `/x`, a
+    # path from the checkout's top, so each word is looked up as written and without its leading slash.
+    bare = _EXPANSION.sub("", text)
+    return {path for source in (text, bare) for word in _PATH_WORD.findall(source.lower())
+            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)}
 
 
 def _line_commands(text: str) -> list[list[str]]:

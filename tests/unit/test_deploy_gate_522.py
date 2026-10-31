@@ -39,7 +39,22 @@ def _reviewed_workflow(repo: Repo, text: str) -> None:
     "      - run: python scripts/ship_it.sh\n",
     "      - run: |\n          cd scripts\n          ./ship_it.sh\n",
     "      - uses: ./.github/actions/ship\n",
-], ids=["quoted", "bash-c", "xargs", "expansion", "a-script", "an-interpreter", "cd-then-relative", "local-uses"])
+    # The #522 review's B1 (each refused before #522, so a regression), and its M1.
+    "      - run: /usr/bin/make ship\n",
+    "      - run: ./make ship\n",
+    "      - run: Make ship\n",
+    "      - run: ~/.cargo/bin/just ship\n",
+    "      - run: /usr/local/bin/gmake ship\n",
+    "      - run: ./ship_it.sh\n        working-directory: scripts\n",
+    "      - run: env -C scripts ./ship_it.sh\n",
+    "      - run: env -Cscripts ./ship_it.sh\n",
+    "      - run: env -iC scripts ./ship_it.sh\n",
+    "      - run: $GITHUB_WORKSPACE/scripts/ship_it.sh\n",
+    "      - run: ${{ github.workspace }}/scripts/ship_it.sh\n",
+], ids=["quoted", "bash-c", "xargs", "expansion", "a-script", "an-interpreter", "cd-then-relative", "local-uses",
+        "make-by-path", "make-dot-slash", "make-capital", "just-by-path", "gmake-by-path", "working-directory", "env-C",
+        "env-C-attached", "env-C-in-a-cluster",
+        "workspace-variable", "workspace-expression"])
 def test_what_a_dispatched_workflow_starts_is_not_exempt(tmp_path: Path, step: str) -> None:
     repo = _installed(tmp_path)
     _reviewed_workflow(repo, STEP.format(step))
@@ -55,6 +70,15 @@ def test_a_workflow_of_setup_steps_still_leaves_a_plain_tooling_file_devflows(tm
     steps = ("      - run: python -m venv .venv\n      - run: .venv/bin/python -m pip install -q -e .\n"
              "      - run: scripts/deploy_hosted_engine.sh \"$RUNNER_TEMP/state\"\n")
     _reviewed_workflow(repo, STEP.format(steps))
+    _upgrade_shipping(repo, "scripts/tool.py", "VERSION = 2\n", brief=_brief("gh workflow run release"))
+    code, out = repo.check()
+    assert code == 0, out
+
+
+def test_a_lower_case_c_after_env_is_not_a_change_of_directory(tmp_path: Path) -> None:
+    """The #522 review's R5: `bash -c` after an `env` on the same line is no `env -C`, so it does not empty the surface."""
+    repo = _installed(tmp_path)
+    _reviewed_workflow(repo, STEP.format("      - run: env FOO=1 bash -c 'echo hi'\n"))
     _upgrade_shipping(repo, "scripts/tool.py", "VERSION = 2\n", brief=_brief("gh workflow run release"))
     code, out = repo.check()
     assert code == 0, out
