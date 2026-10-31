@@ -6364,7 +6364,7 @@ is too slow for the pre-push gate.
 
 ## D-232 — The deploy gate reads the policy at the default branch's tip too, and what a deploy workflow's lines name
 
-**Status:** proposed
+**Status:** proposed; clause 1's DevFlow-pin sentence superseded by D-233
 **Owner ruling:** 2026-10-31, in chat: fix #517 now (the priority), and work #522 and #518; the designs below are the agent's, taken where the owner left the choice open
 
 **Decision.**
@@ -6388,3 +6388,21 @@ working on this repository's workflows while closing the spellings the #501 revi
 
 **Revisit when:** a deploy workflow runs a script only through a path it builds at run time, or the default branch's
 tip and the merge-base disagree often enough that the union refuses work the owner meant to allow.
+
+## D-233 — The DevFlow pin is read at both protected bases, and a file is DevFlow's only when both pins hold its bytes
+
+**Status:** proposed
+**Supersedes:** D-232 clause 1, its last sentence ("The DevFlow pin stays read at the merge-base: an older pin there
+exempts less, never more")
+
+**Decision.** `shipped_unchanged` exempts a DevFlow tooling file only when its bytes equal the file at the commit
+pinned at the merge-base AND at the commit pinned at the default branch's tip (D-232's two bases). A base with no
+pin, or a pin that does not read, exempts nothing.
+
+**Rationale.** D-232's sentence was false (the #517 security review's M2): a branch cut before an upgrade can put a
+tooling file back to the older pin's bytes, carry the newer verdict files (records, not code), and the merge-base's
+older pin then exempts the downgrade. Requiring both pins is the tightening clause 1 meant.
+
+**Mitigation if violated:** a change to the exemption that reads one pin only is refused at review.
+
+**Revisit when:** an upgrade is merged while branches cut before it must still deploy their tooling unreviewed.
