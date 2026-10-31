@@ -1646,3 +1646,58 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The reviews found three more bypasses that predate the run. Two were fixed under D-231 clause 2 (an untracked nested checkout, a redirected `core.worktree`); one is #517, escalated. Also filed: #518, #522.
 - One hand resolution: #505's content comparison replaced #506's diff line, and #509's later review fixes were kept beside #505's readers. The delta review of the whole stack is PASS at `91890d6`.
 - Lesson: stacking fixes on one file speeds a run, but a branch cut before its parent's review fixes needs those fixes carried by a merge, and the delta review has to check that each one survived.
+
+## 2026-10-31 · fix/issue-517-base-tip — the deploy gate reads the policy at the default branch's tip too
+
+- #517 (the #509 security review's R1, Escalate NOW): the protected base was the merge-base of HEAD, whose history the change chooses; a branch cut before `Deploy commands:` was declared, with the line gone from its own brief, deployed unguarded with no forged object.
+- D-232 clause 1: `brief_fields.protected_bases` gives the merge-base and the default branch's tip; the gate reads `Deploy commands:` and `Working mode:` at both and takes the union, and reads the base workflows at both. The DevFlow pin stays at the merge-base, where an older pin exempts less.
+- Red test `tests/unit/test_deploy_gate_517.py` committed alone first, after the ADR; two mutants (the tip dropped, only the first policy read) each fail it. 1137 related tests pass.
+- Lesson: "the protected base" has to be a commit the change cannot pick; the merge-base is one only while the branch is cut from the tip.
+
+## 2026-10-31 · fix/issue-522-workflow-lines — what a dispatched deploy workflow names is on the deploy surface
+
+- #522 (the #501 security review's M2): only the workflow file was on the surface, and only a line starting with `make`, `gmake` or `just` refused, so a quoted line, `bash -c`, `xargs`, an expansion, and any line that started a script left that script exemptible.
+- D-232 clause 2: every file git lists that the workflow's text names (`_workflow_names`) is on the surface; a recipe runner or `cd`/`pushd` anywhere, or a local `uses: ./`, exempts nothing (`_UNREAD_IN_WORKFLOW`). On this tree the nightly workflow's surface stays readable: its scripts and locks are now on it.
+- Red test `tests/unit/test_deploy_gate_522.py` committed alone first, with a control of setup steps; both mutants fail it. 1146 related tests pass.
+- Lesson: reading a workflow line by line through an allowlist would have ended the exemption on every real workflow; naming what it names, and refusing only what hides a name, keeps the control usable.
+
+## 2026-10-31 · fix/issue-518-reader-tests — tests for the verified reader's paths that fail closed
+
+- #518 (the #511, #509 and #505 security reviews): six mutants of the verified reader survived every test, each failing closed or of low reach.
+- New `tests/unit/test_deploy_gate_518.py`: a SHA-256 repository read and its forgery refused; a `040000` directory on the way refused; a nested tree that does not hash fails the folder; a deeper `.gitignore` takes precedence; a submodule not at its commit is a change. Each fails with its mutant, restored byte for byte. Test only.
+- The sixth, N13b (the commit's second hash in `_commit` and `batch_read`), is equivalent while git's peel refuses a forged commit; removing both fails `test_deploy_gate_494.py` (the run 1030 delta review).
+- Lesson: a mutant that fails closed is still a missing test; the code's safety today is not the next edit's.
+
+## 2026-10-31 · fix/issue-535-date-compare — client-decls green again: the toolchain binds a date comparison to Foundation
+
+- #535: `make client-decls` turned red on main at `290557c` with no code change, refusing every local commit: the toolchain (Swift 6.4.2) now binds `fetchedAt <= now` in `StandingsStore.swift` (unchanged since #288 and #314) to Foundation's `Date.<=`, where it bound the standard library's `Comparable` one. CI does not run this gate.
+- The owner's ruling: a reviewed edit under D-180, as #363 did for `Data.append`. `Date.<=` is added to the standings sink's own list in `SINK_FOUNDATION_ALLOWED`, with its reason (two dates compared; nothing read or written). It is seen on the shipping client, so `unseen_permissions` holds it.
+- The red check is `make client-decls` itself (red on main, all four configurations); green with the entry: 23 files, 4 configurations.
+- Lesson: a gate that names declarations by the module the compiler resolves them to moves with the toolchain; each such move is a reviewed one-line edit, and the session that meets it is blocked until it lands.
+
+## 2026-10-31 · fix/issue-522-workflow-lines — the #522 and #517 review rounds
+
+- #517: MINOR. M2 (D-232's "an older pin exempts less" was false: a branch cut before an upgrade could restore the older bytes) is fixed by D-233, both pins hold the bytes; R2's tip-workflow test added. M1 (the guard lets the change move the default branch's refs) is the owner's file: #533. R3 is #534; R1 (review-need's caller-chosen base) is refused as advisory.
+- #522: round 1 BLOCKING (B1: the new regex let `/usr/bin/make`, `./make`, `Make` through, which the old first-word check refused); round 2 PASS. The first-word check is kept beside the regex, which now reads a runner by path and in any case, `working-directory:`, `env -C` in every spelling, and paths from the checkout's top.
+- #535 rode in on #517's branch: client-decls was red on every tree without it, and #517's red M2 test on every tree without its fix, so one merge carried both.
+- Lesson: a regex that replaces a check reads more than the check did in some places and less in others; keep the old check beside it until a test holds each spelling the old one refused.
+
+## 2026-10-31 · integration/fixes-1031 — #535, #517, #522 and #518 in one PR
+
+- The owner's rulings of 2026-10-31: fix #517 now, then #522 and #518 (D-232, D-233), and #535 the same day (a reviewed edit under D-180). The four branches are linear (#535 inside #517's, each next one cut from the last), so one merge of #518's branch carries all of them.
+- Reviews: #535 PASS, #517 MINOR (its open M1 is #533, in the owner's guard), #522 BLOCKING then PASS, #518 none (tests only). The one hand resolution is `9ca56c4`, where #535 and #517's review fix had to land in one commit: neither tree passed the commit hook alone.
+- Lesson: when a gate goes red on main for a reason outside the code, fix it on its own branch first; every other branch then needs it merged in before it can commit at all.
+
+## 2026-10-31 · review/release-delta-1031 — the release delta reviews after run 1030
+
+- Both release verdicts were stale (security at `c29392c`, Tester at `3cddbdd`; 32 code files since); the owner deploys tonight. The Tester first, at main `290557c`, then the Security-Reviewer at the Tester's head.
+- Tester: MINOR. Every acceptance criterion of the 13 closed issues has a citing test; `make check` green; `make ui-test` 23/23 and 2/2 on a booted simulator. Its two new tests are committed at `ed18de5`, the verdict's head. M10 #525, M11 #526 (Escalate NOW), M12 #527; a timing test that failed once under load is #528.
+- Security-Reviewer: MINOR at `ed18de5`. M9 confirms #526 (`GIT_WORK_TREE` fakes a deploy-check PASS; deploy from a shell with no `GIT_*` set); M10 #529 (the owner's guard file), M11 #530, R10 #531. No dependency, `/v1`, Dockerfile or workflow change in the range.
+- Lesson: a delta review's head moves with the tests it adds; the verdict names the commit that holds them, or the gate reads its own tests as unreviewed code.
+
+## 2026-10-31 · integration/fixes-1031 — one PR for the owner, the release delta at its head
+
+- The owner asked for one PR instead of six: #532's release verdicts are merged into the integration branch, and the release delta is run again at this head instead of a merge-deploy-merge order.
+- Tester: PASS at `6e6f5be`. The range's own tests went red against `ed18de5`'s gate (18 of 30) and green at the head; 26 faults injected, and the 4 that stayed green (F7, F9, F14, F20) now have tests, plus #535's allowlist in the unit suite, since CI does not run client-decls.
+- Security-Reviewer: MINOR at `6e6f5be`; nothing loosens the gate. M12 adds three spellings to #541; R11 (dead `policy_root`) is #543.
+- Lesson: stacking the verdict PR into the integration PR costs one more delta review, and saves the owner a merge order that has to be followed exactly.

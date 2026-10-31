@@ -4,7 +4,7 @@ id: release-tester
 status: draft
 seat: independent
 process_version: v7.2
-date: 2026-10-29
+date: 2026-10-31
 ---
 # Release Tester Review
 
@@ -18,16 +18,21 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-29 (the night-1028 delta round; the night-1027 and the launchd-guard and build-6 delta rounds were
+**Date:** 2026-10-31 (the delta round 2026-10-31b, `ed18de5..243d115`, and before it the delta round of run 1030 and
+the fixes before it; the night-1028 delta round was 2026-10-29,
+the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
+**Commit range:** this round `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115` (`integration/fixes-1031`: #517,
+#522, #518, #535; D-232, D-233); the round before it `3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9..290557c39d6e672877cf6399b9d21eab2403ffbf`
+(#496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501, #505, the guard patch #497/#498; D-230,
+D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9 (the night-1028 delta round's re-check: `0f1837f`
-carries this round's tests and the fixes for M8 and M9, `3cddbdd` this verdict; the round itself reviewed `e00c516`,
-the tip of `integration/run-night-1028` (draft PR #483) with #485, #490, #487, #489, #486, #491, #492, #495 and build
-7; the night-1027 delta round's head was `07a7fc6`, the 2026-10-27 delta
+**Reviewed head:** 6e6f5beb81fc12d29d51540fc132be230d8d880b (the delta round 2026-10-31b, `ed18de5..243d115`, the
+head of `integration/fixes-1031`, plus this round's three tests committed at `6e6f5be` on `review/release-delta-1031b`;
+the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
+the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
 round's `50c4764`, the B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
 **Risk tier:** HIGH. The range moves the deploy gate's exemption (#410), the refresh cycle's child build and its kill
@@ -45,7 +50,28 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 0 MINOR open. M8 and M9, the night-1028 round's two, are fixed at `0f1837f` and re-checked
+PASS -- 0 BLOCKING open, 0 MINOR open in this file. The delta round 2026-10-31b (below, `ed18de5..243d115`: #517,
+#522, #518, #535; D-232, D-233) found every acceptance criterion proven by a citing test through the real entry point
+(`scripts/deploy_gate.py` run as a program on a git fixture; `make client-decls` for #535), each red on the code
+before its fix where the issue fixes code; `make check-fast` is green at `6e6f5be` (pytest 4919 passed, 37 skipped;
+client-decls PASS in 4 configurations). 26 faults: 22 killed by the range's own tests or gate; the 4 that stayed
+green (F7: `all(found)` weakened to `any` in `devflow_pins`; F9: `pushd` dropped; F14: `--chdir` dropped; F20: `/`
+added to the runner's look-behind) are closed by this round's tests at `6e6f5be`. M10, M11 and M12 of the round before are filed
+as #525, #526 and #527 and are tracked there, not here.
+
+The 2026-10-31 delta round, as it read when it closed: MINOR -- 0 BLOCKING open, 3 MINOR open (M10, M11, M12, all new). The 2026-10-31 delta round (below,
+`3cddbdd..290557c`) found every acceptance criterion of the thirteen issues closed in the range, and of the owner's
+guard patch, proven by a citing test, each red on its reproduce commit where the issue fixes code; `make check` is
+green at `290557c`, and `make ui-test` against an artifact built today is green (23 of 23 with the engine up, 2 of 2
+with it down) once the simulator is booted. 49 faults: 43 killed by the range's own tests; two that stayed green
+(F12b, #510's check in the one verified reader; F19, `--work-tree` on the untracked listing) are closed by this
+round's two tests, which the run's session applies; the other four are equivalent or harmless. M10: #503's fix in
+`scripts/ui_test.sh` fails quietly when the simulator was shut down before the run. M11: `GIT_WORK_TREE` in the
+environment makes `make deploy-check` judge another tree and PASS (handed to the Security-Reviewer, Escalate-NOW
+class; the guard's `--judge` is not fooled and `fly deploy` stays the owner's). M12: #484's button runs in no UI
+test. None blocks tonight's deploy as far as the tests go.
+
+The night-1028 re-check, as it read when it closed: MINOR -- 0 BLOCKING open, 0 MINOR open. M8 and M9, the night-1028 round's two, are fixed at `0f1837f` and re-checked
 (below, "Night-1028 re-check"); M9's UI test is the owner's run on the simulator before the build 7 upload. As the
 night-1028 round read when it closed: MINOR -- 0 BLOCKING open, 2 MINOR open (M8 and M9, both new); M1, M2, M3
 (#456), M4 (#457), M6 (#466) and M7 (#477) are closed in this range. The night-1028 delta round (below, `07a7fc6..e00c516`) found every acceptance criterion of
@@ -291,6 +317,8 @@ None open. Found and closed in this review, each by a test on this branch:
   `tests/unit/test_nightly_hosted.py:497` (`0222150`).
 
 ## MINOR (the author fixes each in this wave or files it as an issue)
+- **M10**, **M11**, **M12**: from the 2026-10-31 delta round, set out under "Delta MINOR" of that round below; each
+  open, to be fixed or filed as an issue (M11 through the Security-Reviewer first).
 - **M8**, **M9**: from the night-1028 delta round, set out under "Night-1028 delta MINOR" below; both fixed at
   `0f1837f` and re-checked. M1-M4, M6 and M7 are closed there, by #452, #463, #456, #457, #466 and #477.
 - **M7**: from the night-1027 delta round, set out under "Night-1027 delta MINOR" below.
@@ -306,6 +334,13 @@ None open. Found and closed in this review, each by a test on this branch:
   this Mac): a much faster runner could pass the quadratic form. A step counter would not depend on the machine.
 
 ## Tests added this review
+- 2026-10-31 round, as files for the run's session to apply (not committed by this seat), under
+  `tester-1031/` in this session's scratchpad, mirroring their repository paths:
+  `tests/unit/test_deploy_gate_505_tester.py:20` (#505, the #505 review's M2 by the environment: a new code file is
+  a change to the guard's `--judge` whatever `GIT_WORK_TREE` names; red under F19b) and
+  `tests/unit/test_deploy_gate_510_tester.py:20` (#510, #511: the one verified reader refuses a commit that does not
+  hash, on its own; red under F12d). Once they are committed, the commit that carries them is the head this verdict
+  covers: the session sets `**Reviewed head:**` to it, since the gate counts tests as code.
 - Night-1028 round, as working-tree changes on `e00c516` for the run's session to commit (the seat has no
   `advisor.db`, so its commit hook cannot pass): `tests/unit/test_refresh_build_child.py:182` (#453 M2: `_Limits`,
   the alarm `main` sets, is the clock `build_in_child` reads, and a closed cycle leaves none; red under F83, F84),
@@ -998,3 +1033,393 @@ fixes below; the rest is this verdict and `docs/plans/run-night-1028.md`. Seat: 
   build 7 upload stays the owner's.
 - This round's tests at `3cddbdd`: the three Python files and the arena test, 196 passed; `swift test --filter
   OnDeviceGuideTests` 7 of 7.
+
+## Delta round 2026-10-31 (3cddbdd..290557c)
+
+**Range:** `3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9..290557c39d6e672877cf6399b9d21eab2403ffbf`, `main` after #514
+(`integration/run-1030`), #513, #512 (`integration/fixes-1030`), #502, #499, #498 and #497. 30 code files, 49 files in
+all, 67 commits. Issues closed in the range: #496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501,
+#505, and the owner's guard patch (#497 docs, #498 `f5b9395`). Rulings: D-230, D-231.
+**Risk tier:** HIGH. Twelve of the range's issues change or test the deploy gate (`scripts/deploy_gate.py`,
+`scripts/brief_fields.py`), two the client's egress controls (#484, D-230) and its transport exception (#488), one
+the Bash guard (#498), one the refresh's status-record readers (#496).
+**Seat:** my own worktree `tester-wt`, detached at `290557c`, with its own `.venv` (`make install`, editable to this
+tree's `src`) and a copy of the main clone's `advisor.db`; `make check` and `make ui-test` ran there. A second
+detached worktree `tester-rg` ran the red commits; a third, `tester-fi`, the fault injection, each with this seat's
+venv and the tree's own `src` (`pythonpath`). All three under this session's scratchpad, removed after. A fresh
+artifact for `make ui-test` was built into the scratchpad (`app.workflows.refresh --fetch-epoch`: 19 surfaces
+answering, scores 14,666 rows). No launchd service, owner data directory, Fly or GitHub write was touched; the only
+simulator used was `iPhone 17`, shut down when this round started; nothing was committed or pushed.
+**Fresh eyes:** I wrote none of the range. My only code is the two test files under "Tests added this review", left
+uncommitted for the run's session to apply.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: the diff, the issues with their comments, D-230, D-231 and the tests, not the implementers' sessions.
+
+### Acceptance-criterion coverage
+
+- **#496** (one reader of the status record; a record nested past the recursion limit reads as none, for all four
+  readers) -> `tests/unit/test_refresh_carry.py:547` drives `_read_last_ok`, `_another_release_built`,
+  `nightly.read_record` and `write_status` over a 200,000-deep `.refresh.json`. RED at `2bba8cf`, GREEN at `290557c`;
+  red under F1 (RecursionError dropped from `status_record.read_status`) and F49 (`nightly.read_record` reading the
+  file itself). `src/app/workflows/status_record.py` 100% covered. Behaviour note: `read_record` now returns None for
+  a record of `{}` where it returned `{}`; `built_by_another` then answers False instead of True, but the only caller
+  that reads it (`src/app/adapter/nightly.py:374`) ORs it with `needs_catch_up`, which is True for both, so the
+  catch-up is unchanged.
+- **#494** M1 (every spelling of a declared command: `./x`, `bash ./x`, mixed case, absolute, a workflow by its stem
+  and by its `name:`) -> `tests/unit/test_deploy_gate_494.py:37` (six cases); M1's fail-closed declarations (none,
+  `make <target>`) -> `:48`; the control -> `:58`; M2 (a forged pinned tree) -> `:72`; M3 (an unreadable base
+  workflow) -> `:117`; R2 (a link at the pin) -> `:132`; R1 (git cannot list) -> `:156`. RED at `ec5d662`: 9 of 12
+  (the three green there are the control and the two test gaps M2 and M3, which tested code already in place). Red
+  under F2-F5, F25, F30, F31, F36.
+- **#493** (the reviewed head's commit and every tree under it hashed) -> `tests/unit/test_deploy_gate_493.py:26`
+  (a forged subtree), `:78` (a forged reviewed commit, the review's B1), `:100` (two levels down), `:110` (a
+  zero-padded `040000` tree), `:126` (fail closed with no index listing or no git). RED at `6846467`. Red under F6,
+  F7, F10, F12, F14, F37.
+- **#500** (the gate refuses an index entry flagged assume-unchanged or skip-worktree) ->
+  `tests/unit/test_deploy_gate_493.py:49` end to end (RED at `6846467`) and `:143`, which is what holds the refusal
+  itself: since #505 the comparison reads content, so the end-to-end case stays green without `_flagged` (F8), and
+  only `:143` (`changed_since` returns None with the flag set) goes red. `closure_check` reads the same
+  `changed_since` (`scripts/closure_check.py:86`).
+- **#506** (a code file renamed into a record path is both its sides) -> `tests/unit/test_deploy_gate_506.py:18`
+  (committed, uncommitted, intent-to-add) and `:35` (a rename-detection setting). RED at `aab6906`, 3 of 3. Since
+  #505 the old side is a tree entry missing on disk (`_differs`), red under F15.
+- **#509** (every base blob the gate trusts read through a verified path; one test per probe) ->
+  `tests/unit/test_deploy_gate_509.py:31` (probe 1, the pin), `:43` (probe 2, the brief), `:55` (a forged base
+  workflow), `:84` (a forged workflows tree), `:98` (a link beside the workflows). RED at `025e407`, 3 of 3. Red under
+  F11, F13, F32, F36.
+- **#510** (a forged pinned commit does not exempt a changed tool) -> `tests/unit/test_deploy_gate_494.py:96`. GREEN
+  at `290557c`, but see "Fault injection" F12b: #510's mutant was in `_object`, which #511 removed; the analogue in
+  the one verified reader (`scripts/brief_fields.py`, `batch_read`'s hash comparison for a commit) stays green there,
+  because `_commit` peels the pinned commit and git refuses the forged object first. The test is red only with both
+  gone (F12c). This review's `tests/unit/test_deploy_gate_510_tester.py:20` holds the reader's check alone (red under
+  F12d).
+- **#511** (one verified reader for `_unhashed`, `verified_blob` and #509's reads) ->
+  `tests/unit/test_deploy_gate_511.py:25`, `:38` (both route through the shared reader and parser), `:45` (the
+  control). RED at `d59244d`, 2 of 3 (the control green). `grep -n 'def _object\|20-byte' scripts/deploy_gate.py`:
+  no second reader left.
+- **#501** (a declared command is read only through the programs the gate knows; every listed spelling refuses, a
+  control still exempts) -> `tests/unit/test_deploy_gate_501.py:41` (cd-then-relative, `$PWD`, `python -m`, a
+  directory, `just`, `bash -c`, and the review's semicolon, assignment-first, workflow-id and known-program-expansion
+  cases), `:50` (a dispatched workflow that runs `make` or `just`), `:63` (the controls: `fly deploy`, a script,
+  `bash` with a script, `gh workflow run`). RED at `bde8f45`, 7 of 11 (the four controls green). Red under F23-F25,
+  F27-F29. D-231 clause 1's named enumeration: `KNOWN_PROGRAMS = {"fly", "flyctl"}` (`scripts/deploy_gate.py:437`).
+- **#505** (content, not git's state: fsmonitor, a stat-clean entry, an attributes filter, `info/exclude`,
+  `core.excludesFile`, a self-ignoring `.gitignore`) -> `tests/unit/test_deploy_gate_505.py:25`, `:37`, `:51`, `:60`,
+  `:68`, `:77`, one per bypass; the committed `.gitignore` still counts `:84`; the review's M1 to M3 and R1 to R3 at
+  `:101`, `:110`, `:127`, `:150`, `:160`, `:173`, `:185`, `:195`, `:204`. RED at `5ce756f`, 6 of 7 (the control
+  green). Red under F16, F18, F21, F22, F33, F34, F38. F19 (`--work-tree` dropped from the untracked listing)
+  stayed green; this review's `tests/unit/test_deploy_gate_505_tester.py:20` closes it (below).
+- **#484** (D-230: the guide shows "Open Settings" where the remedy is in Settings, through one door pinned by both
+  client gates) -> `tests/unit/test_settings_door_484.py:27` (the sheet's button sits under `guide.opensSettings`, a
+  source-text test), `:37`, `:46`, `:66` (the compiled gate grants the door only while its bytes hash to the pin),
+  `:54` (the text gate's one exact expression), `:83` (each declaration seen on the shipping client);
+  `ios/EngineTests/FrontDoorTests.swift:936` (which states open Settings, both languages). RED at `78c0ef0`, 4 of 4.
+  Red under F40-F45. `make client-decls` PASS in `make check` (23 client files, 4 configurations). No run taps the
+  button: M12.
+- **#488** (Done when: the Release `.app`'s Info.plist has no `NSAllowsLocalNetworking`, the Debug one has it, and a
+  Debug simulator build still reaches a local engine) -> `tests/unit/test_testflight_ready.py:166` (Info.plist
+  preprocessed per configuration as Xcode does), `:183` (no local file can give Release the key). RED at `66a49f5`,
+  2 of 3 (Debug-True green there, as it should be). Red under F46-F48. Beyond the test, the built bundles, read with
+  `plutil -p`: a Release build for the simulator (`xcodebuild -configuration Release`, this seat's derived data) has
+  `NSAppTransportSecurity => {}` and `EngineURL => https://model-ranking.fly.dev`; the Debug build `make ui-test`
+  made has `NSAllowsLocalNetworking => true` and reached the engine on `127.0.0.1:8090` (19 of 19 ScreenPathTests).
+- **#503** (`make ui-test` green on main) -> `make ui-test` against a fresh artifact, run 3 below: engine up 23 of 23,
+  engine down 2 of 2, `ios/UITests/FailureScreenTests.swift:21,40` green. Run 1 on the same tree was red in the
+  engine-down pass, both FailureScreenTests, #503's exact symptom: M10.
+- **The guard patch** (#498, `f5b9395`: `v*` tags and replace refs are the owner's; reading tags and making other
+  tags stay allowed) -> `tests/unit/test_bash_guard_bounds.py:1063` (27 refusals), `:1078` (23 allowed). The patch's
+  test file run against the guard of `f5b9395~1`: 27 failed (every refusal), 23 passed (every allowed case). The
+  pin: `.claude/settings.json` names sha256 `9d1faaf6bf7f`, the hash this session's own guard checks on every Bash
+  call. #497 is a docs row (`docs/owner-actions.md`) with nothing to test.
+
+### Red to green
+Each "reproduce" commit, its new test file run against its own tree (the code before the fix), with this seat's
+venv: `2bba8cf` 1 failed; `ec5d662` 9 failed, 3 passed; `66a49f5` 2 failed, 1 passed; `6846467` 3 failed, 1
+passed; `78c0ef0` 4 failed; `aab6906` 3 failed; `d59244d` 2 failed, 1 passed; `025e407` 3 failed; `bde8f45` 7
+failed, 4 passed; `5ce756f` 6 failed, 1 passed. Every green case at a red commit is a control or a test of code
+already in place (named per issue above). All green at `290557c` (`make check`). #510 is test-only (its red is F12c);
+#503 is red in run 1 and green in runs 2 and 3 below.
+
+### Fault injection
+Each fault injected in `tester-fi` at `290557c`, the deploy gate's eleven test files run (`-n 6 -x`), then the exact
+string replaced back and the file's md5 compared with its pre-injection hash (`f34f0281ae13` for `deploy_gate.py`,
+`f816b0a7e85f` for `brief_fields.py`; every revert matched, `git status` clean after). One revert by my harness's
+first version replaced the wrong occurrence (F2: the injected text occurred earlier in the file); I repaired it by
+exact replacement, the md5 matched the committed blob, and the harness then reverted by position.
+
+| # | Fault | Result |
+|---|---|---|
+| F1 | `read_status` without RecursionError | RED `test_refresh_carry.py:547` |
+| F2 | `_named_files` without `normpath` | RED `test_deploy_gate_494.py:58` |
+| F3 | an empty declaration not failing closed | RED `:48[no-deploy-command]` |
+| F4 | `_files` not lower-casing | RED `test_deploy_gate_444.py` (workflow not in lower case) |
+| F5 | `_blob` accepting any mode | RED `test_deploy_gate_494.py:132` |
+| F6 | `compare_problem` ignoring `_unhashed` | RED `test_deploy_gate_493.py:26` |
+| F7 | `_unhashed` not walking below the root | RED `:26` |
+| F8 | `_flagged` returning none | RED `:143` only (see #500) |
+| F10 | `_subtrees` by spelling `40000` | RED `:110` |
+| F11 | `devflow_pin` by `git show` | RED `test_deploy_gate_509.py:31` |
+| F12 | `batch_read` skipping a commit's hash | RED `test_deploy_gate_493.py:78` |
+| F12b | the same, #510's test alone | GREEN `test_deploy_gate_494.py:96` -- closed by this review's test |
+| F12c | F12 and `_commit` without the peel | RED `:96` |
+| F12d | F12 against this review's test | RED `test_deploy_gate_510_tester.py:20` |
+| F13 | `batch_read` skipping a blob's hash | RED `test_deploy_gate_444.py` (forged pinned blob) |
+| F14 | `batch_read` skipping a tree's hash | RED `test_deploy_gate_493.py:26` |
+| F15 | `_differs`: a missing file is no change | RED `test_deploy_gate_444.py` (symlink) |
+| F16 | `_differs` ignoring the executable bit | RED `test_deploy_gate_505.py:127` |
+| F17 | `_differs`: a 120000 entry not required to be a link | GREEN, equivalent: `os.readlink` on a regular file raises, which `_differs` reads as a change |
+| F18 | `_new_files` without the index's extra entries | RED (three cases) |
+| F19 | `--work-tree` dropped from the untracked listing | GREEN -- closed by this review's test (F19b RED) |
+| F19c | `--work-tree` dropped from the cached listing | GREEN, equivalent: staged paths are kept only when they exist under `root` |
+| F20 | `_PLAIN_GIT` without `core.fsmonitor=false` and `core.untrackedCache=false` | GREEN, equivalent on git 2.54 (measured: with a quiet fsmonitor and the untracked cache on, `git status` hides a new file, `git ls-files --others` lists it) |
+| F21 | a folder's glob characters not escaped | RED `test_deploy_gate_505.py:204` |
+| F22 | a nested `.gitignore` not scoped to its folder | RED `:110` |
+| F23 | a compound command read as one | RED `test_deploy_gate_501.py:41[semicolon]` |
+| F24 | an assignment before the program | RED `:41[assignment-first]` |
+| F25 | an unknown program read as known | RED `test_deploy_gate_494.py:48[make-target]` |
+| F26 | `bash -<option>` not refused by its dash | GREEN, equivalent unless a tracked file is named like an option: the option names no file, which refuses |
+| F27 | a path-like word naming no file | RED `test_deploy_gate_501.py:41[known-program-expansion]` |
+| F28 | a dispatch by id | RED `:41[workflow-id]` |
+| F29 | a dispatched workflow running `make` | RED `:50[make]` |
+| F30 | an incomplete workflow read not failing closed | RED `test_deploy_gate_494.py:117` |
+| F31 | a failed base workflow file ignored | RED `:117` |
+| F32 | an unreadable base workflows folder ignored | RED `test_deploy_gate_509.py:84` |
+| F33 | `changed_since` ignoring `compare_problem` | RED `test_deploy_gate_493.py:143` |
+| F34 | `_redirected` never set | RED `test_deploy_gate_505.py:160` |
+| F35 | a non-directory entry on the way not refused | GREEN; `batch_read`'s kind check refuses every such entry but a zero-padded `040000` directory, which then reads its own hashed content: stricter than needed, no safety effect |
+| F36 | the brief at the base by `git show` | RED `test_deploy_gate_494.py:72` and the #509 brief probe |
+| F37 | a commit naming no tree passed | RED `test_deploy_gate_493.py:78` |
+| F38 | a link entry compared as a file | RED `test_deploy_gate_505.py:173` |
+| F40 | the door's pin not checked | RED `test_settings_door_484.py:46` |
+| F41 | the door's grant not tied to the pin | RED `:66` |
+| F42 | the door's declarations not required to be seen | RED `:83` |
+| F43 | a changed door not reported | RED `:66` |
+| F44 | the button outside `opensSettings` | RED `:27` |
+| F45 | a second address in the door | RED `:37` |
+| F46 | Info.plist's exception unconditional | RED `test_testflight_ready.py:166[Release-False]` |
+| F47 | Release defining `ENGINE_LOCAL_NETWORKING` | RED `:166[Release-False]` |
+| F48 | Debug not defining it | RED `:166[Debug-True]` |
+| F49 | `nightly.read_record` reading the file itself | RED `test_refresh_carry.py:547` |
+
+**Mutation kill-rate (advisory):** no mutation runner is wired for this stack. Hand faults: 49 run (F9 was a
+mistyped target and is not counted), 43 killed by the range's own tests, 6 green: F12b and F19 are closed by this
+review's two tests; F17, F19c, F20 and F26 are equivalent as measured above; F35 is a strictness with no safety
+effect. 45 of 49 killed after this review's tests.
+
+### Interactions checked
+- **The content comparison on a real tree.** With both verdicts' `**Reviewed head:**` set to `290557c` in
+  `tester-wt` (after `make check` and three `make ui-test` builds, so `.venv`, `build/`, `advisor.db`, `.gp/`,
+  `coverage.json` and the caches are all there), `scripts/deploy_gate.py --check` printed "no code changed since"
+  for both and PASS, in about 4 s; the two files were restored byte for byte (md5) after. No ignored file reads as a
+  change.
+- **The pin fixture's change** (`tests/unit/test_deploy_gate_pin.py:59`, `conformance/test-deploy-shipped.py`): the
+  fixture now declares `fly deploy`. With #494's fail-closed empty declaration, a fixture with none would make every
+  refusal test pass vacuously (the #494 review's B1); declaring one makes them able to fail again. A strengthening.
+- **`test_deploy_gate_dispatch.py`'s injected failure** moved from `subprocess.run` (`git show`) to
+  `brief_fields.batch_read`, the reader #509 put in its place; the same case (a base workflow unreadable, so every
+  dispatch is a deploy) is asserted.
+
+### Test integrity
+`git diff --diff-filter=D --name-only 3cddbdd..290557c`: nothing deleted. The four modified test files only add a
+declaration to a fixture (above), add a table name to a list the client-decls test empties, and re-point one
+injected failure; no assertion is removed or weakened. No security-invariant test was modified or deleted.
+
+### Delta BLOCKING
+None.
+
+### Delta MINOR
+- **M10** `scripts/ui_test.sh:93-95,99,105` -- #503's fix holds only while the simulator is already booted. Run 1 used
+  `UI_TEST_DEVICE="iPhone 17"`, shut down at the start: xcodebuild boots it for the online pass and shuts it after,
+  so `forget_answers`'s `xcrun simctl uninstall` fails ("Unable to lookup in current state: Shutdown", in
+  `xcodebuild.log`), `|| true` hides it, the app keeps its answer, and both FailureScreenTests fail ("the failure
+  screen never appeared", `FailureScreenTests.swift:23`; `:42`), engine down exit 65: #503's symptom. With the
+  device booted first, run 2 (`UI_TEST_ONLY=FailureScreenTests`) and run 3 (all) are green. On the owner's Mac the
+  default `iPhone 17 Pro` is usually booted, which is why #519's run passed. Remedy: boot the device before the
+  uninstall (`xcrun simctl boot "$DEVICE" 2>/dev/null || true`, or `simctl bootstatus "$DEVICE" -b`), and fail the
+  run when the uninstall fails for any reason but "not installed". Not a deploy blocker: the harness only.
+- **M11** `scripts/deploy_gate.py:940-947` (`toplevel`), `:593-602` (`_redirected`) -- the #505 review's M2 by the
+  environment. With `GIT_WORK_TREE` naming a clean checkout of the reviewed head, `deploy_gate.py --check` (what `make
+  deploy-check` runs) and the argv form (`deploy_gate.py "fly deploy"`) both judge that checkout: a product change to
+  `src/app.py` in the tree being deployed printed "no code changed since" and PASS, exit 0 (probed on the `_installed`
+  fixture). `toplevel` honours the variable, and `_redirected` reads only `core.worktree`. The Bash guard's `--judge`
+  path is not fooled (it judges the folder it runs in; this review's test), and the guard allows
+  `GIT_WORK_TREE=... make deploy-check` (probed through `judge_call`). `fly deploy` stays the owner's (D-185), so no
+  agent deploy passes through this; what can be forged is the PASS of `make deploy-check` that `/going-live` and the
+  owner read. A gate result that stays green with no test, so the Escalate-NOW class: handed to the
+  Security-Reviewer. Remedy: run the gate's git calls with the `GIT_*` environment removed, or refuse while any of
+  `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES` or
+  `GIT_CONFIG_*` is set; with one test per variable. Tonight's deploy is the owner's, by hand, from the owner's own
+  shell, where none is set.
+- **M12** `ios/ModelRanking/ContentView.swift:800-805` -- #484's button is proven by a source-text test
+  (`tests/unit/test_settings_door_484.py:27`, red under F44) and the door by the two pins; no run taps it. A UI test
+  cannot reach the guide on this Mac: the simulator's caption is "Apple Intelligence enhanced" (no guide). The draft
+  UI test I wrote (`IntelligenceGuideTests`, kept outside the proposed tests because it skips here) compiled and
+  skipped in run 3. Remedy: a launch argument that scripts `OnDeviceState` for UI tests, as `-UITestRouting` scripts
+  the model tier, then that test; until then the button on a device is the owner's check before the TestFlight build.
+
+### Delta suite result
+- **`make check`** in `tester-wt` at `290557c`, serial, the merge gate: exit 0. session-check; lint (ruff: all checks
+  passed); typecheck (mypy: no issues in 55 source files); pytest 4872 passed, 37 skipped (the contract and Epoch
+  skips the budget names), offline sandbox, artifact required, 450 s; coverage 93% (refresh.py 97%, nightly.py 99%,
+  status_record.py 100%); coverage-floor PASS (55 modules); `coverage_floor --derive`: CI will skip 96 of 4909, the
+  budget 96; check-records and its self-test PASS; install-check; shell-dialect (12 scripts); wave-check-all (68
+  records); conformance PASS (33); swift-test PASS (734, each in the manifest; SlowTierTests 7 of 7); client-decls
+  PASS (23 client files, 4 configurations).
+- **`make ui-test`** (D-175; not in check) against the fresh artifact, `UI_TEST_DEVICE="iPhone 17"`, engine on
+  `127.0.0.1:8090`:
+  - run 1 (the device shut down at start): engine up exit 0 (19 ScreenPathTests and 4 ScrollStepTests, 23 of 23,
+    including #503's three: `testCodingGetsTwoFamilyLists...`, `testCodingShowsBothAnswers...`,
+    `testFindAModelAnswersTheQuestionAsRouted`); engine down exit 65, both FailureScreenTests red (M10).
+  - run 2 (the device booted, `UI_TEST_ONLY=FailureScreenTests`): exit 0, 2 of 2.
+  - run 3 (the device booted, every class, with the draft guide test added for that run only and removed after):
+    engine up 24 executed, 0 failures, the draft skipped; engine down 2 of 2; exit 0.
+- **This review's tests**, each in `tester-fi` at `290557c`: `test_deploy_gate_505_tester.py` 1 passed,
+  `test_deploy_gate_510_tester.py` 1 passed, ruff clean; each red under its fault (F19b, F12d).
+
+## Delta round 2026-10-31b (ed18de5..243d115)
+
+**Range:** `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115`, the head of `integration/fixes-1031` (#532, #537,
+#540, #538, #539): #517 (the policy, the workflows and the DevFlow pin at the merge-base AND the default branch's tip;
+D-232 clause 1, D-233), #522 (a dispatched deploy workflow's text puts what it names on the deploy surface; D-232
+clause 2), #518 (tests only, the verified reader's fail-closed paths), #535 (`Date.<=` on the standings sink's
+Foundation list). Code: `scripts/deploy_gate.py`, `scripts/brief_fields.py`, `scripts/client_decl_gate.py`; tests:
+three new files. Acceptance criteria read from `gh issue view 517/522/518/535` and `docs/decisions.md:6365`
+(D-232), `:6392` (D-233).
+**Risk tier:** HIGH. Every code change is to the deploy gate or a privacy gate (D-180).
+**Seat:** my own worktree on `review/release-delta-1031b` at `243d115`, its own `.venv` (`make install`) and its own
+copy of `advisor.db`, under this session's scratchpad. Red runs were done in the same tree by writing the pre-range
+files with `git show ed18de5:<path> >` and writing HEAD's back; every fault was reverted by exact string replacement
+and md5-checked against its pre-injection hash (`9c6737f89b08` `deploy_gate.py`, `bb009a5cd391` `brief_fields.py`,
+`88e92f954bf2` `client_decl_gate.py`; every revert matched, `git status` clean after each). No launchd service, owner
+data directory, Fly or GitHub write was touched; nothing was pushed.
+**Fresh eyes:** I wrote none of the range. My only code is the three test files at `6e6f5be`.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: the diff, the four issues, D-232, D-233 and the tests, not the implementers' sessions.
+
+### Acceptance-criterion coverage
+
+- **#517 / D-232 clause 1: `Deploy commands:` read at the merge-base and the tip, the union guarded** ->
+  `tests/unit/test_deploy_gate_517.py:42` runs `deploy_gate.py "fly deploy"` on a branch cut before the declaration,
+  its own brief without it: exit 2. RED at `ed18de5`'s code, GREEN at `243d115`; red under F1 (`protected_bases`
+  returns the merge-base only, `scripts/brief_fields.py:339`) and F2 (`declared` reads the first base only,
+  `scripts/deploy_gate.py:692`).
+- **#517 / D-232 clause 1: `Working mode:` read at both, each mode's Tester owed** -> `test_deploy_gate_517.py:55`
+  (the tip says heavy, the merge-base and the tree light: `--check` refuses and names heavy). RED pre-fix; red under
+  F1, F3 (`scripts/deploy_gate.py:660` reads the first base's mode only).
+- **#517 / D-232 clause 1: the base workflows read at both** -> `test_deploy_gate_517.py:89` (a deploy workflow only
+  the tip holds: `gh workflow run release` exit 2). RED pre-fix; red under F4 (`scripts/deploy_gate.py:907`, the first
+  base only).
+- **D-233: a tooling file is DevFlow's only when both pins hold its bytes** -> `test_deploy_gate_517.py:67` (a branch
+  cut before an upgrade restoring the older pin's bytes, carrying the newer verdicts: refused, names
+  `scripts/tool.py`). RED pre-fix; red under F5 (`devflow_pins` reads the first base, `scripts/deploy_gate.py:412`)
+  and F6 (`all` to `any`, `:437`).
+- **D-233: "a base with no pin, or a pin that does not read, exempts nothing"** -> no test held it: F7 (`all(found)`
+  to `any(found)`, `scripts/deploy_gate.py:412`) stayed green on all 284 deploy-gate tests. Closed by
+  `tests/unit/test_deploy_gate_517_tester.py:33` (the tip's pin removed, garbled, emptied after the branch was cut;
+  the control first passes with both pins) and `:45` (the merge-base's pin garbled, the tip pinning the upgrade): each
+  red under F7, GREEN at `6e6f5be`.
+- **#522 / D-232 clause 2: every file the workflow's text names is on the surface; a recipe runner anywhere, a change
+  of directory, or a local `uses: ./` exempts nothing** -> `tests/unit/test_deploy_gate_522.py:58`, 19 spellings
+  through `deploy_gate.py --check` (the issue's eight, the #522 review's B1 five and M1/R4 six). 14 RED at
+  `ed18de5`'s code; the 5 path/case runner spellings were refused before #522 and are held as regressions, as the
+  test says. Red under F8 (`named |=` dropped, `scripts/deploy_gate.py:581`), F10 (`cd` dropped), F11 (`uses: ./`),
+  F12 (`working-directory:`), F13 (`env -C`), F15 (`re.IGNORECASE`), F17 (`$X` expansions kept), F18 (no leading-`/`
+  strip), F19 (the whole `_UNREAD_IN_WORKFLOW` search dropped, `:536`). Three parts no test held: F9 (`pushd`
+  dropped), F14 (`--chdir` dropped), F20 (`/` added to the runner's look-behind at `:524`, which hides `bash -c
+  '/usr/bin/make ship'`). Closed by `tests/unit/test_deploy_gate_522_tester.py:30` (`pushd`, `env --chdir`, `env
+  --chdir=`, `bash -c '/usr/bin/make ship'`, `sh -c "./make ship"`): each red under its fault, GREEN at `6e6f5be`.
+- **#522: the issue's setup-line decision (checkout, `pip install` must not empty the surface)** ->
+  `test_deploy_gate_522.py:67` (a workflow of setup steps and the declared deploy script leaves a plain tooling file
+  DevFlow's: exit 0) and `:78` (`env FOO=1 bash -c` is no `env -C`); red under F16 (the `(?-i:` guard dropped).
+- **#518: one test per surviving mutant, or a sentence why it is equivalent** -> SHA-256 ids (#511 R1, #509 N14):
+  `tests/unit/test_deploy_gate_518.py:31`, red under F21 (sha1 always, `scripts/brief_fields.py:145`), F22 (the
+  commit's `tree` regex narrowed to 40, `:180`) and F25 (the walk's id size fixed at 20 bytes); `40000` on the way
+  (#511 R2, #509 N7): `:54`, red under F23 (the type bits instead of the spelling at `:207`); a nested tree error
+  (#509 N12): `:69`, red under F24 (`continue` for `raise` at `:305`); N13b: the equivalence sentence is
+  `docs/process-log.md:1668`. Tests only, so no red commit: each test passes on `ed18de5`'s code, as it should.
+- **#535: a reviewed edit adds `Foundation.Date.<=` to `SINK_FOUNDATION_ALLOWED` with its reason** ->
+  `scripts/client_decl_gate.py:1391-1393` (the entry and its reason). Proven through the real gate: `make
+  client-decls` PASS at `243d115` (23 client files, 4 configurations, 83 s); with the entry removed (F26) it fails in
+  all four with the issue's exact message ("`Foundation.Date.<=` is not on the list ..."), then PASS again after the
+  in-place restore. CI does not run client-decls, so `tests/unit/test_client_decl_gate_535_tester.py:41` holds the
+  allowance in the unit suite (red under F26), `:48` holds that `<`, `>`, `>=` and `==` stay refused in the same sink,
+  and `:54` that the engine client's sink did not gain it. The gate reported `<=` only, so the narrow edit matches
+  the issue's "if the same resolution now applies" clause.
+
+### Red to green
+The range's own tests run against `ed18de5`'s `scripts/deploy_gate.py` and `scripts/brief_fields.py`: 18 failed, 12
+passed. Failed: all four of `test_deploy_gate_517.py`, 14 of the 19 spellings of `test_deploy_gate_522.py:58`. The
+twelve green: the five runner spellings refused before #522, the two #522 controls, the five #518 tests (tests only).
+All 30 GREEN at `243d115`. #535: `make client-decls` red with the entry removed (F26), green with it.
+
+### Fault injection
+Each fault injected in this tree, the deploy-gate tests run (`tests/unit` and `conformance`, `-k "deploy_gate or
+brief_fields or deploy_shipped"`, `-n 8 -x`), reverted by exact string replacement, md5 compared.
+
+| # | fault | result |
+|---|---|---|
+| F1 | `protected_bases` returns the merge-base only | RED `test_deploy_gate_517.py:42`, `:55` |
+| F2 | `declared` reads the first base only | RED `:42` |
+| F3 | the verdicts read the first base's mode only | RED `:55` |
+| F4 | `_workflow_texts` reads the first base only | RED `:89`, `test_deploy_gate_494.py` |
+| F5 | `devflow_pins` reads the first base only | RED `:67` |
+| F6 | `shipped_unchanged` `all` to `any` | RED `:67` |
+| F7 | `devflow_pins` `all(found)` to `any(found)` | GREEN; RED `test_deploy_gate_517_tester.py:33`, `:45` |
+| F8 | the workflow's named files not added to the surface | RED `test_deploy_gate_522.py:58[a-script]` |
+| F9 | `pushd` dropped | GREEN; RED `test_deploy_gate_522_tester.py:30[pushd-then-relative]` |
+| F10 | `cd` dropped | RED `:58[cd-then-relative]` |
+| F11 | `uses: ./` dropped | RED `:58[local-uses]` |
+| F12 | `working-directory:` dropped | RED `:58[working-directory]` |
+| F13 | the `env -C` alternative dropped | RED `:58[env-C]` |
+| F14 | `--chdir` dropped | GREEN; RED `test_deploy_gate_522_tester.py:30[env-chdir]`, `[env-chdir-equals]` |
+| F15 | `re.IGNORECASE` dropped | RED `:58[expansion]` |
+| F16 | `(?-i:` dropped (a lower-case `-c` read as `-C`) | RED `:78` |
+| F17 | expansions not taken out | RED `:58[workspace-variable]` |
+| F18 | no leading-`/` strip | RED `:58[workspace-variable]` |
+| F19 | `_UNREAD_IN_WORKFLOW` not searched | RED `:58[quoted]`, `[local-uses]`, `[env-C]` |
+| F20 | `/` in the runner's look-behind | GREEN; RED `test_deploy_gate_522_tester.py:30[make-by-path-in-bash-c]` |
+| F21 | sha1 for every id | RED `test_deploy_gate_518.py:31` |
+| F22 | the commit's `tree` regex at 40 hex | RED `:31` |
+| F23 | a directory on the way by its type bits | RED `:54` |
+| F24 | a nested tree error skipped in `verified_files` | RED `:69` |
+| F25 | the reader's id size fixed at 20 bytes | RED `:31` |
+| F26 | `Date.<=` removed from the standings sink's list | RED `make client-decls` (4 of 4); RED `test_client_decl_gate_535_tester.py:41` |
+
+**Mutation kill-rate (advisory):** no mutation runner is wired for this stack. Hand faults: 26, 22 killed by the
+range's own tests or gate, 4 green (F7, F9, F14, F20); 26 of 26 killed after this round's tests.
+
+### Test integrity
+`git diff --name-status ed18de5..243d115 -- tests conformance`: three files added, none modified or deleted. No
+assertion weakened, no test skipped; no security-invariant test touched. The range's tests cite their issue and ADR
+in the module docstring (`#517:`, `#522:`, `#518:`) rather than a `# covers` comment, as the deploy-gate tests have
+since #410; this round's tests carry `# covers`.
+
+### Observations (no finding)
+- `scripts/deploy_gate.py:353` (`_unhashed`, #493) has its own `{40,64}` tree regex that no SHA-256 test reaches.
+  Pre-existing, not on #518's list, and it fails closed (a SHA-256 repository would refuse, not pass).
+- The stale-entry rule (`tests/unit/test_client_decl_gate.py:1113`) means a toolchain that binds `<=` to the standard
+  library again makes `Date.<=` an unseen entry and client-decls red; #536 (print the toolchain it read) is the
+  existing issue for tracing that.
+- The Security-Reviewer's open items on this range are filed: #541 (four more `env`/`PATH` spellings), #534 (a stale
+  `origin/HEAD`), #533 (the guard lets the change move the default branch's refs).
+
+### Delta BLOCKING
+None.
+
+### Delta MINOR
+None. The four faults that stayed green are closed by this round's tests (`6e6f5be`).
+
+### Delta suite result
+- `make check-fast` in this tree with the three tests: PASS in 221.8 s -- lint, typecheck, records (session-check,
+  check-records, its self-test, install-check, harvest-context-check, shell-dialect, wave-check-all, conformance),
+  swift-test, client-decls (4 configurations), test (pytest 4919 passed, 37 skipped; coverage 93.16%). The commit's
+  own commit-msg hook ran it again: PASS in 202.2 s.
+- `ruff check` on the three new files: all checks passed.
+
+### Tests added this round
+- `tests/unit/test_deploy_gate_517_tester.py:33`, `:45` -- D-233's "a base with no pin, or a pin that does not read,
+  exempts nothing" (F7).
+- `tests/unit/test_deploy_gate_522_tester.py:30` -- D-232 clause 2's `pushd`, `env --chdir`, and a runner by path or
+  `./` inside a `-c` string (F9, F14, F20).
+- `tests/unit/test_client_decl_gate_535_tester.py:41`, `:48`, `:54` -- #535's allowance, its narrowness, and its sink
+  (F26), in the suite CI runs.
