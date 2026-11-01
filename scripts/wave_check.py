@@ -459,8 +459,10 @@ def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str |
     candidates = [next((b for tip in _default_tips(root) if (b := _git(root, "merge-base", end, tip))), None)]
     if ids:
         milestone, wave = int(ids.group(1)), int(ids.group(2))
-        candidates.append(next((b for ref in (f"origin/closure/m{milestone - 1}", f"closure/m{milestone - 1}")
-                                if (b := _git(root, "merge-base", end, ref))), None))
+        # #548: read by full ref, as `_default_tips` does: a short name let a planted tag choose the closure
+        closures = (f"refs/remotes/origin/closure/m{milestone - 1}", f"refs/heads/closure/m{milestone - 1}")
+        candidates.append(next((b for ref in closures if (sha := brief_fields.exact_ref(root, ref))
+                                and (b := _git(root, "merge-base", end, sha))), None))
         if wave > 1:
             rel = f"docs/plans/m{milestone}-wave-{wave - 1}-close.md"
             added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()
