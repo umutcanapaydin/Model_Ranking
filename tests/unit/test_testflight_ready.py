@@ -180,11 +180,31 @@ def test_only_a_debug_build_allows_local_networking(config: str, allowed: bool) 
     assert ("NSAllowsLocalNetworking" in info.get("NSAppTransportSecurity", {})) is allowed, info
 
 
-def test_no_local_file_can_give_a_release_build_local_networking() -> None:
+#: #530: the settings Xcode's Info.plist step hands its preprocessor (`cc -E` over `Info.plist`), each with the one
+#: value a Release build may resolve it to. A named enumeration, not derived here: Xcode reads them in compiled code,
+#: and its specifications declare them only as Packaging settings beside others that feed the preprocessor nothing.
+#: `test_release_plist_preprocessor.py` holds this list to every Info.plist setting the active Xcode declares.
+INFOPLIST_PREPROCESSOR = {
+    "INFOPLIST_PREPROCESS": "YES",  # NO leaves the exception's `#if` inside XML comments, so the plist keeps the key
+    "INFOPLIST_PREPROCESSOR_DEFINITIONS": "",
+    "INFOPLIST_OTHER_PREPROCESSOR_FLAGS": "",  # #530: `-DENGINE_LOCAL_NETWORKING=1` here gave Release the exception
+    "INFOPLIST_PREFIX_HEADER": "",  # a header that defines ENGINE_LOCAL_NETWORKING would do the same
+}
+
+
+@pytest.mark.parametrize("name", sorted(INFOPLIST_PREPROCESSOR))
+def test_no_local_file_can_give_a_release_build_local_networking(name: str) -> None:
     """#488, as the M19 review's S1 for the address: the last matching setting wins, so the lines that decide a
-    Release build's Info.plist come after the optional `Engine.local.xcconfig`, which may set anything."""
+    Release build's Info.plist come after the optional `Engine.local.xcconfig`, which may set anything. #530: every
+    setting that feeds Info.plist's preprocessor, not only the definitions: the last line that can apply to Release
+    comes after the include and holds the one safe value."""
     lines = (CONFIG / "Engine.xcconfig").read_text(encoding="utf-8").splitlines()  # raw: not Swift
     include = next(i for i, line in enumerate(lines) if line.startswith('#include? "Engine.local.xcconfig"'))
-    for name in ("INFOPLIST_PREPROCESS", "INFOPLIST_PREPROCESSOR_DEFINITIONS[config=Release]"):
-        at = [i for i, line in enumerate(lines) if (m := SETTING.match(line)) and m.group(1) == name]
-        assert at and min(at) > include, (name, at, include)
+    setting = re.compile(rf"{name}((?:\[[^\]]*\])*)")
+    applies = [(i, condition, m.group(2)) for i, line in enumerate(lines)
+               if (m := SETTING.match(line)) and (c := setting.fullmatch(m.group(1)))
+               and "config=Debug" not in (condition := c.group(1))]
+    assert applies, f"{name}: no line decides a Release build's value"
+    at, condition, value = applies[-1]
+    assert at > include and condition in ("", "[config=Release]") and value == INFOPLIST_PREPROCESSOR[name], (
+        name, applies, include)
