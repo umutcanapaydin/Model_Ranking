@@ -205,8 +205,10 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
             _POLICIES[key] = (None, "no merge-base of HEAD with a default branch "
                                     f"({', '.join(brief_fields.DEFAULT_BRANCHES)})", False)
         else:
+            # #534: every default-branch ref's merge-base and tip, the first one a merge-base.
             where = (f"the brief at {bases[0][:12]}, the merge-base of HEAD with the default branch"
-                     + (f", and at {bases[1][:12]}, its tip" if len(bases) > 1 else ""))
+                     + (f", and at {', '.join(b[:12] for b in bases[1:])}, the default branch refs' merge-bases and "
+                        "tips" if len(bases) > 1 else ""))
             try:
                 _POLICIES[key] = ([root_at(base, root) for base in bases], where, False)
             except Unverified as error:

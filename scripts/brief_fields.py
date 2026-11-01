@@ -345,16 +345,22 @@ def protected_base(repo: Path | str = ".", head: str = "HEAD") -> str | None:
 def protected_bases(repo: Path | str = ".", head: str = "HEAD") -> list[str]:
     """#517 (D-232 clause 1): the protected base (`protected_base`) and the tip of the same default branch when it
     differs, or [] with no default branch. HEAD's history is the change's own, so the merge-base alone is a commit
-    the change chose: a branch cut before a deploy command was declared read no declaration at all."""
+    the change chose: a branch cut before a deploy command was declared read no declaration at all.
+
+    #534: for EVERY ref of DEFAULT_BRANCHES that exists and has a merge-base with `head`, its merge-base and its tip,
+    each once, the first ref's merge-base first. The first such ref alone let an `origin/HEAD` left at an old commit
+    stand for the default branch and hide `origin/main`'s tip; the gate reads the union, so more bases refuse more."""
+    out: list[str] = []
     for ref in DEFAULT_BRANCHES:
         if (sha := exact_ref(repo, ref)) is None:
             continue
         found = _git(repo, "merge-base", sha, head)
         if found.returncode == 0 and found.stdout.strip():
-            base = found.stdout.strip()
             tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{sha}^{{commit}}").stdout.strip()
-            return [base, *([tip] if tip and tip != base else [])]
-    return []
+            for commit in (found.stdout.strip(), tip):
+                if commit and commit not in out:
+                    out.append(commit)
+    return out
 
 
 def policy(root: Path | str = ".") -> dict[str, str | None]:
