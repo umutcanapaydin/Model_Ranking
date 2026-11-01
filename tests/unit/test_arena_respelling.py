@@ -75,15 +75,16 @@ def test_a_name_that_resolved_before_resolves_as_before(name: str, model_id: str
 
 
 def _reading_cost(name: str) -> float:
-    """The seconds one bracket reading of ``name`` takes (#528: see the linear test)."""
+    """The CPU seconds one bracket reading of ``name`` takes: this process's own, so the time it waits for a
+    core under load is not counted (#528)."""
     import time
 
     from app.workflows.registry import canonicalize_with_reason
 
-    started = time.perf_counter()
+    started = time.process_time()
     canonicalize_with_reason(name)
     derive_identity(name)
-    return time.perf_counter() - started
+    return time.process_time() - started
 
 
 def test_the_reading_cost_does_not_count_time_the_process_waits(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -104,6 +105,7 @@ def test_the_reading_cost_does_not_count_time_the_process_waits(monkeypatch: pyt
     assert _reading_cost("x (" + " " * 100 + "y") < 0.1
 
 
+@pytest.mark.xdist_group("serial")
 @pytest.mark.parametrize("shape", [lambda n: "x (" + " " * n + "y", lambda n: "x" + " " * n + "(y)"],
                          ids=["unclosed-after-a-run", "a-run-before-the-bracket"])
 def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[[int], str]) -> None:
@@ -114,7 +116,10 @@ def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[
     timed at n and at 4n spaces, interleaved, the best of five each: a linear reading takes about 4 times as long,
     the quadratic one 16 times. The floor keeps load from deciding the ratio: alone the linear reading takes
     0.033 s at 40k spaces, while the quadratic one takes about 6 s there (the night-1028 release Tester's M8: at
-    20k the floor sat only 2x under the regression's own time)."""
+    20k the floor sat only 2x under the regression's own time).
+
+    #528: the wall clock still counted the time the process waited for a core, so the readings cost CPU time
+    (`_reading_cost`), and the test runs in the serial group beside the other timed ones."""
     names = shape(10_000), shape(40_000)
     small = large = float("inf")
     for _ in range(5):
