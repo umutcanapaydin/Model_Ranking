@@ -6552,3 +6552,60 @@ beside a Budget Pick that refuses it; the artifact check fails on the owner's ma
 
 **Revisit when:** a percentage or Elo surface's window is sized from its leader's distance to the floor, or a
 surface's leader falls toward its floor so that the two forms disagree on a percentage or Elo scale.
+
+## D-239 — A dispatched deploy workflow that can start a file without writing its name refuses every deploy
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #549: *"reject: if a step in the nightly deploy workflow runs a file without writing its name, the gate refuses the deploy"* *(translated)*
+
+**Context.** D-237 (#541) puts on the deploy surface every tree file whose name a dispatched deploy workflow writes,
+under any prefix. Its mitigation named the class it left open: a file a run step starts without writing its name --
+by a pattern (`scripts/*.sh`), by a name built at run time (`$X`, `$(...)`), or through a symlink git lists whose
+target is the file -- stays exemptible from the staleness check (#549).
+
+**Decision.**
+1. **What is read.** The `run:` values of every dispatched deploy workflow (`deploy_workflows`: the tree's copy and
+   each protected base's, the texts `deploy_surface` reads), a block scalar's lines included and a `\` continuation
+   joined, split into simple commands at the operators `split_line` splits at (`;`, `&&`, `||`, `|`, `&`, `(`, `)`).
+   Set aside, since none is the program a command starts: a redirection's target (a starter's `<` target excepted,
+   clause 3), a here-document's body, a `case` subject and its patterns, a `for` or `select` header, and the shell's
+   reserved words before a command (`if`, `then`, `do`, `!`, `{`, ...). Then assignments and the `WRAPPERS` are
+   skipped as `_program_position` skips them. A line the shell cannot split is read by its words, as
+   `_line_commands` reads it.
+2. **The shapes that refuse.** In such a command:
+   - **a pattern:** the program word, or the file a starter is given (clause 3), holds `*`, `?`, a bracket
+     expression `[...]` or a brace expansion (`{a,b}`, `{1..3}`);
+   - **a name built at run time:** the program word, or the file a starter is given, holds an expansion or a
+     substitution (`$X`, `${X}`, `$(...)`, a backtick, `${{ ... }}`, `<(...)`); the text `eval` is given and a shell's
+     `-c` string are read as run text in turn; and a program that runs names it reads at run time starts one too
+     (`xargs`, `parallel`, `find` with `-exec`, `-execdir`, `-ok` or `-okdir`);
+   - **a symlink:** a file the workflow names (D-232 clause 2, D-237) is a symlink git lists whose target lies inside
+     the tree.
+3. **A starter** is a program that runs the file its first operand names: a shell (`sh`, `bash`, `dash`, `zsh`,
+   `ksh`, ...), `source`, `.`, and an interpreter (`python*`, `pypy*`, `node`, `deno`, `bun`, `perl*`, `ruby*`,
+   `php*`, `lua*`, `pwsh`, `rscript`, `tclsh`). Its file is its first operand that is not an option or an option's
+   value, or the module `-m` names; with none, its `<` redirection's target. A NAMED ENUMERATION (AGENTS.md section
+   3.5), kept for this reason: which program reads its operand as a script is the program's own behaviour, which no
+   text this gate reads says. A program not on it that starts a file it is given is the residual risk below.
+4. **Every deploy is refused**, `fly deploy` included, and `make deploy-check` fails, while any dispatched deploy
+   workflow holds such a command, whatever the verdicts say; the refusal names the workflow, the line, the shape and
+   the word, and says what to write instead: the file's name (the symlink's target). The surface is not widened to
+   directories. When the workflows cannot all be read, or git cannot list the tree, it refuses too (fail closed).
+5. `_UNREAD_IN_WORKFLOW`, `_named_by_name` and `_workflow_names` stay as they are.
+
+**Rationale.** A list of the files such a step may start is unknowable from the text: a pattern's matches, a
+variable's value and a link's target are decided on the runner. The owner chose refusal over widening the surface
+to every file under a directory such a step names. The shapes are read where the shell acts -- a program word, a
+starter's file -- so an expansion in an operand (`mkdir -p "$STATE"`, `rm -f "$RUNNER_TEMP/x"`) and a pattern in a
+`case` or a `jq` filter refuse nothing. Measured on this repository's nightly workflow (`nightly-hosted.yml`, both
+copies): no command refuses; reading every line, as `_line_commands` does, would refuse its `path:` block
+(`${{ runner.temp }}/state/advisor.db`) and its redirections (`>> "$GITHUB_PATH"`), which is why only `run:`
+values are read.
+
+**Mitigation if violated:** a file started by a program not in clause 3's list, by the code inside an interpreter's
+own language (`python -c`, a heredoc fed to `python -`), by a script fed on standard input (`cat x | bash`), by a
+step's `shell:` other than a POSIX shell, or by what a started script itself runs, stays exemptible, as before #549;
+each is a different class, left open here.
+
+**Revisit when:** a deploy workflow needs one of the refused shapes to work, or a field run starts a tree file in one
+of the ways the mitigation names.
