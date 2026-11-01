@@ -18,12 +18,15 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-01 (the delta round 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
+**Date:** 2026-11-01 (the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b` (`integration/fixes-1101`, draft PR
-#547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
+**Commit range:** this round `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+(`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
+`7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
+(`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
 D-240); the round 2026-10-31b `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115` (`integration/fixes-1031`: #517,
 #522, #518, #535; D-232, D-233); the round before it `3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9..290557c39d6e672877cf6399b9d21eab2403ffbf`
 (#496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501, #505, the guard patch #497/#498; D-230,
@@ -31,9 +34,9 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 918c227fdb6d3910bd750d74b43c0f571d4d16c0 (the delta round 2026-11-01, `6e6f5be..eaee56b`, the
-head of `integration/fixes-1101`, plus this round's seven tests committed at `918c227` on `review/release-delta-1101`;
-the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
+**Reviewed head:** 1a5fec01cfe562b10f7a6040d45b121a60426bb7 (the upgrade delta round 2026-11-01b, `918c227..7fad073`,
+the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
+`review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
 round's `50c4764`, the B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
@@ -52,7 +55,22 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 2 MINOR open (M1, M2, both new). The delta round 2026-11-01 (below,
+MINOR -- 0 BLOCKING open, 1 MINOR open (M3, new, fixed at `1a5fec0` but not yet on PR #559's branch). The upgrade
+delta round 2026-11-01b (below, `918c227..7fad073`, DevFlow v7.2 to v7.3.1, D-241) found every project rule D-241
+clause 2 keeps -- #526/D-234, #534, #541/D-237, #543, #545, #546, #548, #549/D-239, #283, the pin at every protected
+base (#410/D-233), #390, D-236 (#533, #529) and D-207 clause 3 -- still held by its citing tests, all green at
+`7fad073` and each red when its rule's code is reverted; and v7.3's new deploy-gate behaviour (target classes, word
+order, `--opt=value`, the variable-staging rule, the reviewer-profile `model:` exemption) proven through the real
+entry point by `conformance/test-deploy-classes.py` and `conformance/test-deploy-shipped.py`. 51 faults: 44 killed by
+the range's own tests or gates; of the 7 that stayed green, 5 are closed by this round's tests at `1a5fec0` (the
+#283 port onto the two new brief lines, D-233 on the `model:` exemption, the two new policy fields, CI green on
+every run) and 2 are equivalent or harmless. M3: CI is red on `7fad073` -- `conformance/test-prune-merged.py`, new in
+v7.3, squash-merges with no git identity, which the CI runner lacks (run 41340844390, install-and-governance);
+reproduced and fixed at `1a5fec0`, which must go onto PR #559. `make check` green at `1a5fec0` (pytest 5245 passed,
+37 skipped), `pytest -m artifact` 50 passed, `make doctor` 0 fail; `make ui-test` not run (the range touches neither
+`ios/` nor `scripts/ui_test.sh`). The previous round's M1 is #557 and M2 is tracked at #553.
+
+The delta round 2026-11-01, as it read when it closed: MINOR -- 0 BLOCKING open, 2 MINOR open (M1, M2, both new). The delta round 2026-11-01 (below,
 `6e6f5be..eaee56b`: seventeen issues; D-234 to D-240) found every acceptance criterion proven by a citing test through
 the real entry point, each red on the code before its fix; `make check` is green at `eaee56b` (pytest 5201 passed, 37
 skipped; client-decls PASS with #536's toolchain line), `pytest -m artifact` on the fresh 2026-10-30 artifact 50
@@ -1664,3 +1682,182 @@ None.
 - `tests/unit/test_client_decl_gate_536_tester.py:21`, `:32` -- #536's two unreached FAIL lines (F-C4, F-C5).
 - `tests/unit/test_ui_test_script_525_tester.py:26` -- #525's "tolerating already booted" (F-S3).
 - `tests/unit/test_display_names_544_tester.py:17` -- #544's "one way only" (F-R9).
+
+## Upgrade delta round 2026-11-01b (918c227..7fad073)
+
+**Range:** `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`, the head of
+`upgrade/devflow-7.3.1` (draft PR #559), 116 files, 85 of them code to `make deploy-check`: `e147b71` (D-241,
+`docs/decisions.md:6649`), `ae37759` (the owner's half: `.claude/`, `.githooks/`, `.codex/`, v7.3.1's guard with the
+project's rules ported, its pin `c085b476` in `.claude/settings.json` and `.codex/hooks.json`, both matching the
+file), `bc5d9b8` (DevFlow's `v7.2..v7.3.1` diff applied three-way, nineteen conflicts resolved), `7fad073` (main merged
+in, `GIT_REFLOG_ACTION` scrubbed in `conformance/lib_record.py:48`). The upgrade adds no product feature; the
+criteria are D-241 clause 2 (no project rule lost) and v7.3's new deploy-gate behaviour working here.
+**Risk tier:** HIGH. The deploy gate, `brief_fields`, `review_need`, `wave_check` and the owner's guard.
+**Seat:** my own worktree on `review/upgrade-731-tester`, cut from `7fad073`, its own `.venv` (`make install`) and the
+fresh 2026-10-30 `advisor.db` (sha256 `a0362a7a5b73`). Three detached worktrees under one `mktemp` directory: one at
+`918c227` (the base suite, for the skip comparison), two at `7fad073` for the faults. The owner's guard was faulted
+only in a copy under that `mktemp` directory, with `scripts/` beside it so the copy's own-project gate resolves, and the
+guard tests of the fault worktree (`test_bash_guard_bounds.py`, `test_bash_guard_env_split.py`,
+`test_deploy_gate_dispatch.py`, `conformance/test-bash-guard.py`) edited there to read that copy; nothing under any
+`.claude/`, `.githooks/` or `.codex/` was written. Every fault was an exact string replacement, checked unique, md5
+taken before, reverted by replacing the injected text at its recorded offset, md5 compared after: all 51 matched, and
+`git status` was clean after each batch. (A first guard run reverted by the first occurrence of the injected text, hit
+another `return None` and was caught by the md5 check at GD2; the copy was rewritten from `git show HEAD:` -- it is a
+throwaway copy -- and the driver changed to revert by offset before any further fault ran. One run of the gate batch
+was stopped mid-fault; that fault was reverted in place by its exact reverse string and its md5 matched.) No launchd
+service, owner data directory, hosted engine or Fly was touched; GitHub was only read (`gh run list`, `gh run view`,
+`gh issue view`, `make doctor`); nothing was pushed or deployed.
+**Fresh eyes:** I wrote none of the range. My only code is this round's commit `1a5fec0`.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: the diff, the three commit messages, D-241, UPGRADING.md and the tests, not the upgrade's session.
+
+### Project rules kept (D-241 clause 2): citing tests, green at `7fad073`, red when the rule is reverted
+`git diff --name-status 918c227..7fad073 -- tests` is empty: every unit test of the rules below is the same file it
+was at `918c227`, and each passed at `7fad073` (pytest 5231 passed, 39 skipped, the same counts as `918c227` in this
+seat; the previous round's 37 skips were its own environment's). The fault column names the rule's code reverted in
+`7fad073`'s copy and what went red.
+- **#526 / D-234** (a caller's `GIT_*` refuses the deploy) -> `tests/unit/test_deploy_gate_526.py:53`, `:61`, `:116`.
+  F-P1 (`CALLER_GIT = ()`, `scripts/deploy_gate.py:155`): RED.
+- **#534** (every default-branch ref's base) -> `tests/unit/test_deploy_gate_534.py:39`, `:46`. F-P2 (the first ref
+  only, `scripts/brief_fields.py:366`-`:369`): RED.
+- **#541 / D-237** (`_named_by_name`) -> `tests/unit/test_deploy_gate_541.py:45`, `:58`,
+  `test_deploy_gate_541_tester.py:27`. F-P4 (no name found, `scripts/deploy_gate.py:786`): RED.
+- **#543** (no single-base policy reader) -> `tests/unit/test_deploy_gate_543.py:71`, `:81`; v7.3 added none
+  (`policy_root` absent, `brief_fields.protected_base` still uncalled by the gate).
+- **#545** (full ref names, `exact_ref`) -> `tests/unit/test_deploy_gate_545.py:38`, `:73`. F-P3 (`rev-parse` for
+  `show-ref --verify`, `scripts/brief_fields.py:335`): RED.
+- **#546, #548** (`wave_check` by full ref) -> `tests/unit/test_wave_check_546.py:38`, `:47`, `:58`;
+  `test_wave_check_548.py:30`. F-P17 (`_default_tips` by short name, `scripts/wave_check.py:447`), F-P18 (the closure
+  refs short, `:464`): both RED.
+- **#549 / D-239** (`unnamed_starts`) -> `tests/unit/test_deploy_gate_549.py:92`-`:192`, `_549_tester.py:49`-`:76`.
+  F-P5 (`return []` after the fail-closed read, `scripts/deploy_gate.py:1082`-`:1085`): RED.
+- **#283** (base-pinned policy) -> `tests/unit/test_deploy_gate_base_policy.py:87`, `:97`, `:103`;
+  `test_review_need_base_policy.py`. F-P8 (`Deploy commands`/`Deploy targets` read from the tree alone,
+  `scripts/deploy_gate.py:1303`): RED. **On v7.3's two new brief lines** (`bc5d9b8`: a team-only `Deploy targets:`
+  entry counts only when every protected base holds it, `:1310`; `Security-invariant tests:` only when every base and
+  the tree carry it, `:255`): no test held either. F-P9 and F-P10a stayed green on every test of the range (the v7.3
+  fixtures' only base is HEAD's own branch); closed by `tests/unit/test_deploy_gate_731_tester.py:101`, `:147`,
+  `:157`, with their controls `:114` and `:168`. F-P10b (the line taken from whichever brief has it) was killed by
+  `conformance/test-deploy-classes.py`'s first fixture.
+- **The pin at every protected base (#410 / D-233)** -> `tests/unit/test_deploy_gate_517.py:67`,
+  `test_deploy_gate_517_tester.py:32`, `:45`, `test_deploy_gate_pin.py`, `conformance/test-deploy-shipped.py`.
+  F-P7a (`any` pin's bytes), F-P7b (`any(found)` in `devflow_pins`): RED. **On v7.3's reviewer-profile path**
+  (`scripts/deploy_gate.py:609`-`:613`, the bytes less the `model:` line compared with every pin): F-P7c (the first pin
+  only) stayed green; closed by `tests/unit/test_deploy_gate_731_tester.py:196` (with its control in the same test).
+- **#390** (a `gh` command is read by what it starts; a rerun is a deploy) -> `tests/unit/test_deploy_gate_dispatch.py`,
+  `conformance/test-bash-guard.py:637`-`:646` (kept by D-241 clause 2, v7.3 A4 beside it). F-P12 (`gh run rerun` read
+  as starting nothing, `scripts/deploy_gate.py:1574`): RED.
+- **D-236 (#533, #529) and the guard's other project rules** (D-185 fly and the deploy script, #410 tags and replace
+  refs) in v7.3.1's guard -> `tests/unit/test_bash_guard_bounds.py:1246`, `:1270`, `:1282`, `:1294`, `:1299`;
+  `test_bash_guard_533_tester.py:28`; `conformance/test-bash-guard.py:141`. Eleven faults in the copy, all RED:
+  GD1 `GATE_UNDER` empty, GD2 the fetch/pull refspec rule off, GD3 `branch -d/-D/-m` unread, GD4 `TAG_SHORT_VALUED`
+  empty, GD5 the `refs/replace/` pattern rule off, GD6 the `v*` tag rule off, GD7 every `fly` subcommand allowed, GD8
+  `deploy_hosted_engine.sh` allowed without `--dry-run`, GD9 `worktree add -b` unread, GD10 `remote set-url origin`
+  unread, GD11 `_lands` without `casefold()`.
+- **D-207 clause 3** -> the deploy gate's milestone verdict only when no brief read says light
+  (`scripts/deploy_gate.py:1279`): F-P11 green on the gate's unit tests, RED on `conformance/test-milestone-security.py:224`
+  (part of `make check`'s conformance leg). `make closes` stays out of `check:` (`Makefile:56`); `deps` audits every
+  lock (`Makefile:425`); the schema and its generator stay.
+- **A policy edit is never record-only** (`scripts/review_need.py:274`, `bc5d9b8`) and **the two new policy fields**
+  (`scripts/brief_fields.py:43`-`:45`): F-P13 was killed by the range's own tests; F-P15 (the two fields dropped
+  from `POLICY_FIELDS`) stayed green -- a range that edits only `Deploy targets:` or `Security-invariant tests:` went
+  to `none`. Closed by `tests/unit/test_review_need_731_tester.py:27` (four edits), control `:38`.
+- **`.codex/` as gate code and as safety surface** (`scripts/review_need.py:96`, `scripts/deploy_gate.py:564`): F-P14,
+  F-P16 RED (`conformance/test-review-need-mode.py:97`, `conformance/test-deploy-shipped.py:112`).
+
+### v7.3's new deploy-gate behaviour, through the real entry point
+Each case runs `scripts/deploy_gate.py` as a program (`--check [--target]` or the by-hand command form) in a
+throwaway repository with its own `gh` on PATH.
+- **Target classes** -> `conformance/test-deploy-classes.py:137` (each class owes its verdicts, `--target`, an unknown
+  class guarded as production, a team-only build's `unreleased` line), `:265` (the per-change security review-need
+  asks), `:340`-`:390` (the bundle review, the range start). F-V5, F-V11, F-V12, F-V13: RED.
+- **Word order** -> `:229`, `:280` (production in any order; a team-only declaration decides only when it refines),
+  `:257`. F-V1 (`any_order=False`), F-V6 (`<` to `<=`), F-V7 (the tie to the laxer class), F-V16: RED.
+- **`--opt=value`** -> `:293`, `:316`. F-V2 (`_split` off), F-V15: RED.
+- **The variable-staging rule** (an unread word may be production's option) -> `:304`, `:328`. F-V3a (`_unread`
+  false), F-V3b (refining kept past an unread word): RED.
+- **The `model:` exemption** -> `conformance/test-deploy-shipped.py:171`, `:255`. F-V4a (no exemption), F-V4b (every
+  `model:` line stripped, the body's too): RED. On the real tree it holds: of the 85 changed code files,
+  `.claude/agents/Tester.md` (`7fad073` adds only `model: sonnet`) is the one `shipped_unchanged` exempts.
+- **Change classes and CI green** -> `conformance/test-deploy-classes.py:137`, `:406`. F-V9, F-V10, F-V17: RED.
+  F-V8 (a failed run counted beside a passing one) stayed green -- every fixture's `gh` answers one run; closed by
+  `tests/unit/test_deploy_gate_731_tester.py:181`.
+- On this project's real tree (no `Deploy targets:` line, D-241 clause 7) the gate refuses `fly deploy
+  --app=model-ranking`, `fly --remote-only deploy`, `fly -a model-ranking deploy`, `gh workflow run --ref=main
+  nightly-hosted.yml` and `gh run rerun 123` (exit 2), and lets `fly status` through (exit 0).
+
+### Fault injection
+51 faults: 20 on the project rules in the gate and its readers, 11 in the guard copy, 20 on v7.3's new gate code.
+Killed by the range's own tests or gates: 44. Stayed green: 7 -- 5 closed by this round's tests (each RED under its
+fault, GREEN at `1a5fec0`), 2 equivalent or harmless.
+
+| # | fault | result |
+|---|---|---|
+| P1-P5, P7a, P7b, P8, P12-P14, P16-P18 | the project rules above, reverted | all RED, the range's tests |
+| P10b, P11 | the invariant line from whichever brief has it; the milestone verdict in light mode | RED, `test-deploy-classes.py`, `test-milestone-security.py:224` |
+| P7c | the `model:` exemption against the first pin only | GREEN; RED `test_deploy_gate_731_tester.py:196` |
+| P9 | a team-only `Deploy targets:` entry read from the tree alone | GREEN; RED `test_deploy_gate_731_tester.py:101` |
+| P10a | `Security-invariant tests:` read in the tree alone | GREEN; RED `test_deploy_gate_731_tester.py:147`, `:157` |
+| P15 | `Deploy targets` and `Security-invariant tests` dropped from `POLICY_FIELDS` | GREEN; RED `test_review_need_731_tester.py:27` (4 of 4) |
+| V1-V7, V9-V13, V15-V17 | v7.3's classes, order, `--opt=value`, staging, `model:`, change classes | all RED, `test-deploy-classes.py`, `test-deploy-shipped.py` |
+| V8 | `ci_green` counts a `failure` run | GREEN; RED `test_deploy_gate_731_tester.py:181` |
+| V14 | a misspelled class (`stagin`) accepted as a class | GREEN; equivalent: only `internal` and `staging` lower what a deploy owes, so any other name owes production's verdicts either way, as the refusal shows |
+| V18 | `.install-lock` read as a record | GREEN; harmless: it holds the install's file counts for `make install-check`, ships nothing and starts no deploy |
+| GD1-GD11 | the guard's project rules, in the copy | all RED, the guard tests |
+
+**Mutation kill-rate (advisory):** no mutation runner is wired for this stack. Hand faults: 51, 44 killed by the
+range's own tests or gates; 49 of 51 killed after this round's tests, the other 2 equivalent or harmless.
+
+### Test integrity
+`git diff --name-status 918c227..7fad073 -- tests conformance`: nothing under `tests/` changed; in `conformance/`,
+twenty files added and fourteen modified, none deleted. The modified files' 85 removed lines are rewritten lines or
+v7.3's replacements, each read: `test-bash-guard.py` widens case lists (`ls -la` gains `make prune-merged`, the
+gate-stamp list gains `cd scripts && python3 ./*.py write`) and moves its runner into a pool; `test-ci-diff.py` is
+v7.3's ci-diff test and keeps #331's marker case (`:62`-`:66`); `test-deploy-shipped.py`, `test-review-need-mode.py`
+and `test-session-check.py` only add cases (their PASS lines' counts rise: 18, 23); `lib_record.py` keeps the
+project's identity scrub (#258) and adds `GIT_REFLOG_ACTION` to `_CALLER_ONLY` (`:48`), an environment fix. No test
+skipped, no assertion weakened, no security-invariant test touched.
+
+### Observations (no finding)
+- `docs/devflow-pin.txt` still pins `v7.2 49f6634` (D-233: only the owner's merge moves it). So none of v7.3.1's
+  shipped bytes is exempt: all 85 code files owe this delta (stricter, as #410 intends). A pin to the `v7.3.1` commit,
+  merged, would let the next delta exempt them.
+- D-241's clauses run 1, 2, 3, 4, 6, 7: there is no clause 5 (`docs/decisions.md:6649`-`:6697`); cosmetic.
+- `make doctor`'s `ci` line said `pass -- the latest run executed steps (CI, failure)`: it reads CI liveness (did
+  steps start), not green, as its help says; the failure itself is M3.
+- The post-edit hook of this session runs in the main checkout (`74f8c07`), which is red on #544's three artifact
+  tests until its own update lands (as the previous round noted); this seat's tree is green.
+
+### Upgrade delta BLOCKING
+None.
+
+### Upgrade delta MINOR
+- **M3** `conformance/test-prune-merged.py:83` (v7.3) -- `git merge -q --squash` ran without `-c user.name/email`.
+  The CI runner has no git identity and `scrubbed_env` drops `GIT_COMMITTER_*` (#258), so CI's install-and-governance
+  job failed on `7fad073` (run 41340844390: `Committer identity unknown`); a session on the owner's Mac guesses an
+  identity and passes. Reproduced here with a global config of `user.useConfigOnly = true` (RED), then GREEN after the
+  squash takes `*ID` as every commit of the file does; with that config every other conformance test passed too (the
+  four that refused were the deploy gate refusing the probe's own `GIT_CONFIG_GLOBAL`, D-234, as it must). Fixed at
+  `1a5fec0`; it reaches PR #559 only when that commit is merged onto `upgrade/devflow-7.3.1`, and CI must then be
+  green there before the merge.
+
+### Upgrade delta suite result
+- `make check` at `1a5fec0` in this seat: PASS -- session-check, check-records and its self-test, install-check,
+  harvest-context-check, shell-dialect, wave-check-all, conformance (51, 0 failing), lint, typecheck, test (pytest
+  5245 passed, 37 skipped; coverage 93.15%), coverage-floor (55 modules), swift-test (734, SlowTierTests 7 of 7),
+  client-decls (4 configurations, the toolchain line). `1a5fec0`'s commit-msg hook ran `make check-fast`: PASS in
+  302.9 s.
+- `pytest -m artifact` on the fresh artifact (sha256 `a0362a7a5b73`): 50 passed.
+- `make doctor`: 9 checks, 3 warn, 0 fail (no `environment.md` in this seat; `deploy`, the stale verdicts this round
+  closes; `prs`, merged branches not pruned).
+- `make ui-test`: not run. `git diff --name-only 918c227..7fad073 -- ios scripts/ui_test.sh src` is empty, and the
+  Makefile's `ui-test` recipe is unchanged.
+
+### Tests added this round
+- `tests/unit/test_deploy_gate_731_tester.py:101`, `:114` -- #283 on `Deploy targets:` (F-P9), and its control.
+- `tests/unit/test_deploy_gate_731_tester.py:147`, `:157`, `:168` -- #283 on `Security-invariant tests:` (F-P10a),
+  and its control.
+- `tests/unit/test_deploy_gate_731_tester.py:181` -- CI green means every run (F-V8).
+- `tests/unit/test_deploy_gate_731_tester.py:196` -- D-233 on the `model:` exemption (F-P7c).
+- `tests/unit/test_review_need_731_tester.py:27`, `:38` -- the two v7.3 policy fields are policy edits (F-P15).
+- `conformance/test-prune-merged.py:83` -- the squash merge's identity (M3).
