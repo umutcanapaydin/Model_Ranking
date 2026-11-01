@@ -321,10 +321,22 @@ def verified_files(repo: Path | str, rev: str, folder: str,
     return _verified_read(repo, rev, folder, walk) or ({}, [])
 
 
+def exact_ref(repo: Path | str, ref: str) -> str | None:
+    """The commit the full ref `ref` names in `repo`, read exactly, or None when that ref does not exist. #545 (the
+    fixes-1101 security review's M2): a full name given to `merge-base` or `rev-parse` still goes through git's name
+    lookup, so with the ref missing a tag spelled like it (`refs/tags/refs/remotes/origin/HEAD`) stood in for it;
+    `show-ref --verify` reads only that ref, and follows a symbolic one (`refs/remotes/origin/HEAD`)."""
+    found = _git(repo, "show-ref", "--verify", "--hash", ref)
+    sha = found.stdout.strip()
+    return sha if found.returncode == 0 and sha else None
+
+
 def protected_base(repo: Path | str = ".", head: str = "HEAD") -> str | None:
-    """The merge-base of `head` with the first of DEFAULT_BRANCHES git knows in `repo`, or None."""
+    """The merge-base of `head` with the first of DEFAULT_BRANCHES that exists in `repo`, or None."""
     for ref in DEFAULT_BRANCHES:
-        found = _git(repo, "merge-base", ref, head)
+        if (sha := exact_ref(repo, ref)) is None:
+            continue
+        found = _git(repo, "merge-base", sha, head)
         if found.returncode == 0 and found.stdout.strip():
             return found.stdout.strip()
     return None
@@ -335,10 +347,12 @@ def protected_bases(repo: Path | str = ".", head: str = "HEAD") -> list[str]:
     differs, or [] with no default branch. HEAD's history is the change's own, so the merge-base alone is a commit
     the change chose: a branch cut before a deploy command was declared read no declaration at all."""
     for ref in DEFAULT_BRANCHES:
-        found = _git(repo, "merge-base", ref, head)
+        if (sha := exact_ref(repo, ref)) is None:
+            continue
+        found = _git(repo, "merge-base", sha, head)
         if found.returncode == 0 and found.stdout.strip():
             base = found.stdout.strip()
-            tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}").stdout.strip()
+            tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{sha}^{{commit}}").stdout.strip()
             return [base, *([tip] if tip and tip != base else [])]
     return []
 
