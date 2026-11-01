@@ -6490,3 +6490,29 @@ a flag.
 and checks that `git rev-parse origin/main` matches GitHub's `main`.
 
 **Revisit when:** the deploy gate reads the default branch from GitHub rather than from a local ref.
+
+## D-237 — A dispatched deploy workflow names a tree file by its name, under any prefix
+
+**Status:** proposed
+
+**Decision.** Added to D-232 clause 2 (#541), which stays as it is: every file git lists whose name, or whose name
+less its last suffix (a module: `python -m scripts.x`, `import x`), is written in a dispatched deploy workflow's
+text, not inside a longer name (letters, digits and `_` on neither side), is on the deploy surface wherever it lies.
+The text is read as written, and again with quotes, backslashes and expansions (`$X`, `${X}`, `${{ x }}`) taken
+out. `_UNREAD_IN_WORKFLOW` keeps every word it has, so nothing it refused before becomes exemptible.
+
+**Rationale.** The spellings the fixes-1031 reviews found (`env --chd`, `env --c=`, `env -S`, `sudo -D`, `sudo
+--chdir=`, a PATH entry or `$GITHUB_PATH`, a checkout's `path:`, `os.chdir` in `python -c`) are one class: each
+changes the directory or the prefix a file is started under, and none of them changes the file's name, which the
+shell, `exec` or an interpreter still needs written. A list of the ways to change directory grows with every review
+and is never complete (AGENTS.md section 3.5); the name is the invariant of all of them. Refusing every workflow that
+writes `$GITHUB_PATH` instead, as #541 proposed, would leave nothing exemptible on the real nightly workflow, which
+writes one to put `fly` on the PATH. Measured on this repository's nightly workflow, the rule adds one tooling file
+(`.github/workflows/ci.yml`, by the word `ci`) to the surface; the gate only refuses more.
+
+**Mitigation if violated:** a tree file a dispatched deploy workflow starts without writing its name -- a glob
+(`scripts/ship*.sh`), a name built at run time (`printf`, base64, a file's content), a tracked symlink to it -- stays
+exemptible; each is a different class, left open by this decision and reported with #541's fix.
+
+**Revisit when:** a deploy workflow starts a tree file by a name it builds at run time, or the rule puts so much on
+the surface that a DevFlow upgrade again makes both release verdicts stale.
