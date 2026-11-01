@@ -82,12 +82,14 @@ def test_a_command_that_is_not_a_deploy_is_not_refused_for_a_git_variable(tmp_pa
     assert _run(repo, ["--judge"], {"GIT_DIR": str(repo.root / ".git")}, payload)[0] == 0
 
 
-@pytest.mark.parametrize("name", ["GIT_EDITOR", "GIT_EXEC_PATH"])
+@pytest.mark.parametrize("name", ["GIT_EDITOR", "GIT_EXEC_PATH", "GIT_REFLOG_ACTION"])
 def test_the_two_named_exceptions_pass_and_are_not_passed_on(tmp_path: Path, name: str) -> None:
-    """D-234's exceptions: Claude Code sets `GIT_EDITOR` in every session and git sets it and `GIT_EXEC_PATH` in its
-    hooks, so refusing them would fail every agent session. The gate removes them from its own environment."""
+    """D-234's exceptions: Claude Code sets `GIT_EDITOR` in every session, and git sets it, `GIT_EXEC_PATH` and
+    `GIT_REFLOG_ACTION` in its hooks, so refusing them would fail every agent session and every hook. The gate removes
+    them from its own environment."""
     repo = _installed(tmp_path)
-    value = "true" if name == "GIT_EDITOR" else str(tmp_path / "no-such-exec-path")
+    value = {"GIT_EDITOR": "true", "GIT_EXEC_PATH": str(tmp_path / "no-such-exec-path"),
+             "GIT_REFLOG_ACTION": "merge x"}[name]
     assert _run(repo, ["--check"], {name: value})[0] == 0
     assert _run(repo, ["fly deploy"], {name: value})[0] == 0
     probe = (f"import os, runpy; runpy.run_path({str(GATE)!r}, run_name='not_main'); "
@@ -95,3 +97,16 @@ def test_the_two_named_exceptions_pass_and_are_not_passed_on(tmp_path: Path, nam
     seen = subprocess.run([sys.executable, "-c", probe], cwd=repo.root, capture_output=True, text=True,
                           env={**_env(), name: value}, timeout=60)
     assert seen.stdout.strip() == "None", seen.stdout + seen.stderr
+
+
+def test_the_exceptions_are_exactly_the_three_d234_names() -> None:
+    """D-234: a new exception is a named entry in the ADR with its reason; the code's list and the ADR's agree."""
+    import re
+
+    from scripts import deploy_gate
+
+    adr = (Path(__file__).resolve().parents[2] / "docs" / "decisions.md").read_text(encoding="utf-8")
+    section = adr.split("## D-234", 1)[1].split("\n## D-", 1)[0]
+    exceptions = section.split("named exceptions", 1)[1].split("Refusing them", 1)[0]
+    named = set(re.findall(r"`(GIT_[A-Z_]+)`\s*\(", exceptions))
+    assert named == set(deploy_gate.HARMLESS_GIT) == {"GIT_EDITOR", "GIT_EXEC_PATH", "GIT_REFLOG_ACTION"}, named

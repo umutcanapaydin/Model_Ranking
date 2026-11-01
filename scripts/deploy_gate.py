@@ -116,6 +116,9 @@ HARMLESS_GIT = {
     # git sets it in every hook it runs (measured 2026-11-01): where git finds its own programs, and every command
     # this gate runs is built into git.
     "GIT_EXEC_PATH": "where git finds its own programs",
+    # git merge, pull and rebase set it for their hooks (measured 2026-11-01): the label of the reflog line they
+    # write, which this gate writes none of.
+    "GIT_REFLOG_ACTION": "the label of the reflog line a command writes",
 }
 CALLER_GIT = tuple(sorted(name for name in os.environ if name.startswith("GIT_") and name not in HARMLESS_GIT))
 for _name in HARMLESS_GIT:
