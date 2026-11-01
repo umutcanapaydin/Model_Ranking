@@ -136,6 +136,14 @@ def main() -> int:
         "git push --no-verify -u origin fix/x", "git commit -n -m x", "git commit --no-verify -m x",
         "git -c core.hooksPath=/dev/null push -u origin fix/x", "git merge --no-verify fix/x",
         "git update-ref -d refs/heads/main", "git update-ref refs/heads/main HEAD~3",
+        # D-236 (#533): the default branch's refs move only by a plain fetch or pull of origin -- `git branch -D main`
+        # was allowed here until the owner's ruling; deleted, then made again by a worktree, it moved the gate's base
+        "git branch -D main", "git branch -rd origin/HEAD origin/main", "git worktree add -b main /tmp/w 0123abc",
+        "git -c remote.evil.fetch=+refs/heads/stale:refs/remotes/origin/main fetch evil",
+        "git config remote.evil.fetch '+refs/heads/stale:refs/remotes/origin/main'", "git fetch origin 'refs/*:refs/*'",
+        "git update-ref refs/remotes/origin/feature HEAD",
+        # D-236 (#529): a tag option's value is not read as `-l`, `--list` or `-n`
+        "git tag -m -l v1.0", "git tag -a -m -n v1.0", "git tag -m=-l v1",
         "echo X=1 > .env", "echo X=1 >> .env", "cat > .env <<'EOF'\nA=1\nEOF", "cp other .env", "mv tmp .env",
         "tee .env.production < x", "printf 'A=1' > config/.env.local", "echo x > .envrc", "echo x > prod.env",
         "find . -name '*.pyc' -delete", "find src -type f -delete",
@@ -164,7 +172,12 @@ def main() -> int:
         # ordinary git and gh
         "git status", "git push", "git push -u origin fix/issue-3", "git push origin fix/main-page", "git push origin main-2",
         "git reset HEAD~1", "git checkout main", "git checkout -b feature/x", "git checkout HEAD~1", "git restore --staged a",
-        "git stash", "git log --oneline -5 main", "git diff main..HEAD", "git branch -D main",
+        "git stash", "git log --oneline -5 main", "git diff main..HEAD", "git branch -D fix/x",
+        # D-236: what a session needs of its refs
+        "git fetch origin", "git fetch origin -q", "git fetch origin main", "git pull --ff-only", "git push -u origin HEAD",
+        "git push origin fix/x", "git branch -d fix/x", "git worktree add -b fix/x /tmp/w 0123abc",
+        "git worktree add --detach /tmp/w 0123abc", "git merge --no-ff x", "git tag -l", "git tag -l 'v*'", "git tag -v v1",
+        "git config user.name x",
         "git commit -am 'x' && git push -u origin feat/x",
         "gh pr view 12", "gh pr create --draft --title t", "gh pr list --state open",
         "gh api repos/o/r/branches/main/protection",
