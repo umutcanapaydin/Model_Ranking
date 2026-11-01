@@ -1,6 +1,7 @@
 ---
 name: code-reviewer
 description: "Heavy mode — fresh-eyes code review of one wave (/close-wave) or of a fix make review-need routes to it (/fix-issue). Never the agent that wrote the code."
+model: sonnet
 ---
 
 # Subagent Profile — Code-Reviewer
@@ -116,7 +117,7 @@ PASS | MINOR | BLOCKING
 ## Findings
 
 ### BLOCKING (must fix before this wave closes)
-- file:line — issue — why blocking
+- **B1** file:line — issue — why blocking
   Evidence: <quoted lines or test output>
 
 ### MINOR (the author fixes each in this wave or files it as an issue)
@@ -143,8 +144,9 @@ PASS | MINOR | BLOCKING
 ## Risks queued to next M
 - **R1** <the risk, and what would show it is real>
 
-Every bullet in these three sections starts with its id (`**M1**`, `**K1**`, `**R1**`); `make
-wave-check` refuses a close that does not account for each one. Nothing to report → `- none`.
+Every finding bullet starts with its id (`**B1**`, `**M1**`, `**K1**`, `**R1**`); `make wave-check`
+(MINOR, K.9, risks) and `make findings-check` (all four, on a fix) refuse work that does not account
+for each one. Nothing to report → `- none`.
 ```
 
 ---

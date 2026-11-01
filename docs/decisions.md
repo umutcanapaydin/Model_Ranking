@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-08-11
 ---
 # Decisions
@@ -12,16 +12,15 @@ date: 2026-08-11
 > **ADR-ID convention (v2.2, seed B.6 / FB-2):** to avoid colliding with an inherited project's own ADR history, **process/universal ADRs use the `P-00x` namespace; project ADRs start at `D-100`** (the `D-001..D-099` band is reserved). The existing universal `D-001..D-007` are grandfathered (supersede-don't-edit, B.2) and are equivalently addressable as their `P-00x` mirror (see P-001). **Your project starts at D-100.** For an inherited project that already numbered low D-ids, run the Stage-0 reconciliation recipe in P-001.
 >
 > **Discipline:**
-> - When an assumption ossifies under uncertainty, add a new ADR with status `proposed` via the
->   `/log-decision` skill (seed B.1).
+> - When an assumption ossifies under uncertainty, add a new ADR via the `/log-decision` skill
+>   (seed B.1).
 > - To reverse: mark the old one `superseded by D-NNN`. Never edit in place (seed B.2).
 > - IDs are immutable; deletion leaves a gap (seed B.5).
 >
-> **Status legend** (the `**Status:**` line of an ADR, not the frontmatter above):
-> `proposed` — captured, not yet ratified: on its branch until the owner merges the PR that carries it.
-> That merge ratifies it — an ADR on the default branch is accepted, and no status line is edited for it.
-> `accepted` — locked. Changing requires `superseded by`.
-> `superseded by D-NNN` — old; do not follow.
+> **Status is derived, not written** (from `v7.3`): an ADR is accepted when the commit that added it is on
+> the default branch — the owner's merge of the PR that carries it — and proposed until then (`make standup`
+> lists those). A new ADR carries no `**Status:**` line. An older one keeps its line as written; the default
+> branch decides, whatever it says. A `superseded by D-NNN` line, appended later: old; do not follow.
 
 ---
 
@@ -50,6 +49,8 @@ date: 2026-08-11
 **Mitigation:** None — this is the format.
 
 **Revisit when:** Project crosses ≥3 teams and needs a richer audit format.
+
+**Amended at `v7.3`** (the format above is kept as written): a new ADR has no Status field — it is accepted when the commit that added it is on the default branch (the owner's ruling of 2026-10-28; `/log-decision`).
 
 ---
 
@@ -5466,6 +5467,8 @@ The three PRs are stacked on the integration PR (#291), so the owner merges #281
 
 **Revisit when:** the next DevFlow release.
 
+**Amended by D-241 (2026-11-01)**: the project runs on DevFlow v7.3.1, in light mode; its reviewers run on sonnet but the Security-Reviewer, and merges do not wait.
+
 ## D-209 — Run bug-night: what it does, and the owner's answers
 
 **Status:** proposed
@@ -6642,3 +6645,43 @@ saying what is missing; the owner, not the code, decides whether a source that s
 nightly's own summary and the artifact check are where it shows today.
 
 **Revisit when:** #552 ships, or a required source (D-121) goes silent.
+
+## D-241 — The project runs on DevFlow v7.3.1, light mode, reviewers on sonnet, merges do not wait
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat: *"DevFlow will be upgraded to 7.3.1"*; question 12 *"the journeyman (Sonnet)"*;
+`Merges:` *"turn it on"* (all translated).
+**Date:** 2026-11-01 · **Amends:** D-207.
+
+**Context.** v7.3.1 is the stable release (v7.2.1 and v7.2.2: guard spellings and post-edit fixes; v7.3: the guard on
+Codex, deploy targets, owner rows, finding ids on a fix, new `make` commands; v7.3.1: reviewers on `sonnet` by
+default, shorter texts, the conformance pool). No record changes shape. The project's shipped files diverge from
+v7.2 in 43 of the 110 files the release touches, among them `.claude/hooks/bash_guard.py` (D-236 and earlier
+project rules), `scripts/deploy_gate.py`, `scripts/brief_fields.py` and `scripts/wave_check.py` (#526 to #549).
+
+**Decision.**
+1. **`git diff v7.2 v7.3.1` is applied three-way on `upgrade/devflow-7.3.1`, from main.** The owner's files
+   (`.claude/`, `.githooks/`, `.codex/`, `.github/workflows/`) are left out of the agent's half and go to the owner as
+   one patch, the guard among them: v7.3.1's guard is taken and the project's rules ported onto it (UPGRADING §0
+   item 10), and the owner re-pins it. `docs/owner-actions.md` stays the project's; v7.3's two `at install` rows
+   are appended by hand.
+2. **The project's own rules are kept where the release meets them**, as D-207 clause 3 kept them, and the deploy
+   gate's, `brief_fields`'s and `wave_check`'s project changes (D-234 to D-239) survive the merge.
+3. **Reviewer model:** `sonnet` for the Code-Reviewer and the Tester (`model: sonnet` in their profiles, in the
+   owner's patch); the Security-Reviewer stays on the session's model (P-004).
+4. **`Merges: do not wait`**: the owner's standing preference (one PR at the end of the work) becomes the brief's
+   setting, read by `make doctor`.
+6. **Lint suppressions for the scripts v7.3 ships** (`pyproject.toml`'s per-file ignores, among them the bandit-class
+   S603, S607 and S310 for git, gh and PyPI's https address with literal arguments): kept as shipped so the next sync
+   stays a three-way merge, as D-199 and D-207 did. **Owner ruling:** 2026-11-01, in chat, *"I approve"* (translated),
+   asked because AGENTS.md escalates every scanner suppression. None is added for the product or the deploy gate.
+7. **The other v7.3 brief lines** (`Deploy targets:`, `Security-invariant tests:`, `Sibling repositories:`) are not
+   written: without them the project behaves as today.
+
+**Rationale.** The owner asked for the stable release; v7.3.1 lowers the reviewer cost and makes the owner's
+one-PR preference the default.
+
+**Mitigation if violated:** a project rule lost in the merge loosens a gate; the upgrade's security delta compares
+the deploy gate, `brief_fields`, `wave_check` and the guard with their pre-upgrade copies.
+
+**Revisit when:** the next DevFlow release, or a `sonnet` Tester misses what the session's model catches.

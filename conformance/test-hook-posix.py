@@ -7,9 +7,10 @@ The v7.0 post-edit hook used two of those, so on every Linux box each Write and 
 `set: Illegal option -o pipefail` before `make check-fast` ever ran -- and `test-hook-claims.py`
 and `test-bash-guard.py` run every hook through `bash -c`, so neither could see it.
 
-DERIVED: the hooks are read from `.claude/settings.json`, every `command` of every event. Two
-assertions on each: (1) no token from the bashism list below; (2) when `dash` is on PATH, `dash -n`
-parses it (the hooks never run here -- `-n` only parses). An empty hook set is a failure.
+DERIVED: the hooks are read from `.claude/settings.json`, every `command` of every event, and the
+`statusLine` command (v7.3), which Claude Code hands to a shell the same way. Two assertions on each:
+(1) no token from the bashism list below; (2) when `dash` is on PATH, `dash -n` parses it (the hooks
+never run here -- `-n` only parses). An empty hook set is a failure.
 
 Exit: 0 clean - 1 findings.
 """
@@ -46,6 +47,9 @@ def hooks() -> list[tuple[str, str]]:
             for i, h in enumerate(g.get("hooks", [])):
                 if h.get("type") == "command" and h.get("command"):
                     out.append((f"{event}[{g.get('matcher', '*')}][{i}]", h["command"]))
+    line = cfg.get("statusLine")
+    if isinstance(line, dict) and line.get("command"):
+        out.append(("statusLine", line["command"]))
     return out
 
 

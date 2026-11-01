@@ -9,6 +9,12 @@ and two projects answered that with skip rows, one of them into the three-skips 
 line now says to start a new session instead, and says what a session started outside the
 repository root is missing (no profile, skill or hook is registered in it).
 
+v7.3 (#49): an agent work tree whose `core.hooksPath` names the main work tree's `.githooks` by its absolute
+path failed every check in it (Project-K: 21 false post-edit blocks and a night run that could not push),
+and a session started in one repository of a product could never push its sibling. The main work tree's
+hooks under the same common dir now pass, and so does the marker of a sibling the brief's `Sibling
+repositories:` line declares; a foreign hooks path and an undeclared sibling still fail.
+
 Each case runs the script in a throwaway directory with a probe session id in the environment --
 the run-all runner strips the real one, so these cases set their own.
 
@@ -25,6 +31,7 @@ from lib_record import missing_tool, scrubbed_env  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts" / "session_check.py"
 SID = "0000aaaa-probe-session"
+CASES = [0]
 
 
 def run(cwd: pathlib.Path, sid: str | None = SID, ci: bool = False) -> tuple[int, str]:
@@ -50,6 +57,7 @@ def main() -> int:
     bad: list[str] = []
 
     def case(name: str, got: tuple[int, str], rc: int, *want: str, absent: tuple[str, ...] = ()) -> None:
+        CASES[0] += 1
         code, out = got
         if code != rc or any(w not in out for w in want) or any(a in out for a in absent):
             bad.append(f"  {name}: exit {code} (wanted {rc}); wanted {list(want)}, forbidden {list(absent)}\n"
@@ -79,12 +87,77 @@ def main() -> int:
              run(d), 0, "session-check PASS", "checked the SessionStart marker", "core.hooksPath",
              "Not checked: what .githooks/pre-push runs", absent=("pre-push runs make gate",))
 
+    # Issue #43: git prints --git-common-dir relative to the CURRENT directory (`../.git` from a
+    # subdirectory), and the SessionStart hook resolves it from there. Resolved against the toplevel,
+    # it lands one level above the repository -- found only when a `.git` sits there, as it did.
+    with tempfile.TemporaryDirectory() as tmp:
+        outer = pathlib.Path(tmp)
+        (outer / ".git").mkdir()
+        d = outer / "repo"
+        d.mkdir()
+        git(d, "init", "-q")
+        (d / ".githooks").mkdir()
+        (d / "pkg").mkdir()
+        (d / ".git" / "devflow-sessions").mkdir()
+        (d / ".git" / "devflow-sessions" / SID).write_text("", encoding="utf-8")
+        git(d, "config", "core.hooksPath", ".githooks")
+        case("started in a subdirectory, a .git above the repository: the marker is read from this "
+             "repository (#43)", run(d / "pkg"), 0, "session-check PASS")
+
+    # v7.3 A15 (#49): an agent work tree whose shared config names the main work tree's `.githooks` by its
+    # absolute path passes; a foreign repository's `.githooks` still fails. A session started in a sibling
+    # repository the brief declares has its marker there, and only a declared one counts.
+    with tempfile.TemporaryDirectory() as tmp:
+        base = pathlib.Path(tmp).resolve()
+        main_wt, foreign = base / "main", base / "foreign"
+        for r in (main_wt, foreign):
+            (r / ".githooks").mkdir(parents=True)
+            (r / ".githooks" / "pre-push").write_text("#!/bin/sh\n", encoding="utf-8")
+            git(r, "init", "-q")
+            git(r, "add", "-A")
+            git(r, "-c", "user.name=f", "-c", "user.email=f@x", "commit", "-qm", "base")
+        (main_wt / ".git" / "devflow-sessions").mkdir()
+        (main_wt / ".git" / "devflow-sessions" / SID).write_text("", encoding="utf-8")
+        git(main_wt, "worktree", "add", "-q", str(base / "agent-wt"), "-b", "work")
+        git(main_wt, "config", "core.hooksPath", str(main_wt / ".githooks"))
+        case("an agent work tree, core.hooksPath the main work tree's .githooks by absolute path: PASS (#49)",
+             run(base / "agent-wt"), 0, "session-check PASS", "the main work tree's .githooks")
+        case("the main work tree itself, the same absolute path: PASS, the line unchanged", run(main_wt), 0,
+             "session-check PASS", "resolves to this clone's .githooks")
+        git(main_wt, "config", "core.hooksPath", str(foreign / ".githooks"))
+        case("an agent work tree, core.hooksPath another repository's .githooks: FAIL", run(base / "agent-wt"), 1,
+             "not this clone's `.githooks`", "make hooks")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = pathlib.Path(tmp).resolve()
+        app, backend = base / "app", base / "backend"
+        for r in (app, backend):
+            (r / ".githooks").mkdir(parents=True)
+            git(r, "init", "-q")
+            git(r, "config", "core.hooksPath", ".githooks")
+        (app / ".git" / "devflow-sessions").mkdir()
+        (app / ".git" / "devflow-sessions" / SID).write_text("", encoding="utf-8")
+        case("a session started in a sibling the brief does not declare: FAIL", run(backend), 1,
+             "no SessionStart marker", "Sibling repositories:")
+        (backend / "docs").mkdir()
+        brief = backend / "docs" / "project-brief.md"
+        brief.write_text("- **Sibling repositories:** `<none | comma-separated paths>`\n", encoding="utf-8")
+        case("the brief's line still a placeholder: FAIL", run(backend), 1, "no SessionStart marker")
+        brief.write_text("- **Sibling repositories:** `../app`\n", encoding="utf-8")
+        case("a session started in the declared sibling `../app`: PASS, and the line names it (#49)", run(backend), 0,
+             "session-check PASS", "declared sibling", "app")
+        (app / ".git" / "devflow-sessions" / SID).unlink()
+        case("the declared sibling holds no marker for this session either: FAIL", run(backend), 1,
+             "no SessionStart marker")
+        brief.write_text("- **Sibling repositories:** `../missing`\n", encoding="utf-8")
+        case("a declared sibling that is not a repository: FAIL, closed", run(backend), 1, "no SessionStart marker")
+
     if bad:
         print("test-session-check FAIL (scripts/session_check.py in throwaway directories):")
         print("\n".join(bad))
         return 1
-    print("test-session-check PASS: 6 cases of scripts/session_check.py -- fail closed, both causes named, "
-          "the PASS line says what it checked")
+    print(f"test-session-check PASS: {CASES[0]} cases of scripts/session_check.py -- fail closed, both causes "
+          "named, the PASS line says what it checked, a work tree's main hooks and a declared sibling's marker")
     return 0
 
 

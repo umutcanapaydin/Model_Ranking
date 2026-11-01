@@ -18,11 +18,11 @@ sure unmerged work is never lost to a cleanup that ran too early.
 
 ```bash
 git checkout <default-branch> && git pull
-git branch -d <branch>
-git push origin --delete <branch>
+make prune-merged PR=<pr>
 ```
-`-d` refuses a branch that was **squash-merged**, because its commits never reached the default
-branch. Step 1 already proved the PR MERGED, so then — and only then — `git branch -D <branch>`.
+It deletes local branches only: the PR's own while its tip is the PR's head (a squash too), and every
+merged one whose upstream GitHub deleted. A branch it keeps stays: it says why. The remote branch is
+the owner's (the delete-branch-on-merge row).
 A squash also drops the head a review verdict names: the milestone Tester's `**Reviewed head:**` on
 the plan's last wave is now unreachable, and `make deploy-check` fails closed until the Tester
 runs again. Tell the owner; `docs/branch-protection.md` asks for merge commits for this reason.
@@ -45,7 +45,7 @@ A merge commit lands every stacked branch's commits, and GitHub marks each stack
 itself. One still OPEN means the integration PR was squashed, or that branch was left out of the
 stack: close it with one comment naming the integration PR and the commit that carries its change.
 The stacked draft is the record of that change, open or closed; it is never deleted. Then step 2
-for the integration branch and every stacked branch, and steps 3–6 once per stacked PR's issues:
+for the integration PR and every stacked PR, and steps 3–6 once per stacked PR's issues:
 the integration PR's `Closes` lines are what closed them. A PR the run file lists as `stopped`
 is not left out of the stack by mistake: it stays open for the next run or `/fix-issue`, and is
 not closed here.

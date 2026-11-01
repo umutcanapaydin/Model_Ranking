@@ -14,8 +14,13 @@ Without `gh` it cannot create anything, so it prints the vocabulary as a table t
 on the repository's Labels page, and exits 2: the labels are still missing, and saying so is the
 point.
 
+A backticked file path in a Labels cell (#84: `.agents/rules/ci-traps.md` was created as a label) is refused,
+never created: a span ending in a file extension, or starting with `.` and holding a `/`. A label a project adds,
+`priority/high` or `v1.2`, is not one.
+
 Usage: python3 scripts/create_labels.py [--dry-run]
-Exit: 0 done (or nothing missing) · 1 a `gh` call failed · 2 cannot run (no gh, no vocabulary).
+Exit: 0 done (or nothing missing) · 1 a `gh` call failed · 2 cannot run (no gh, no vocabulary, a file path in
+a Labels cell).
 """
 import json
 import pathlib
@@ -26,6 +31,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 RULES = ROOT / ".agents" / "rules" / "issues.md"
+PATH = re.compile(r"\.(?:md|py|sh|json|ya?ml|toml|txt|csv|html?)$|^\..*/")
 
 
 def vocabulary() -> list[tuple[str, str]]:
@@ -56,6 +62,11 @@ def main(argv: list[str]) -> int:
     if not want:
         print("create_labels CANNOT RUN: no label table found in .agents/rules/issues.md. An empty "
               "vocabulary is not a clean result.")
+        return 2
+    paths = [name for name in want if PATH.search(name)]
+    if paths:
+        print(f"create_labels CANNOT RUN: a file path, not a label, in a Labels cell of {RULES.relative_to(ROOT)}: "
+              f"{', '.join(paths)}. Cite it outside the table's Labels cells.")
         return 2
     if not shutil.which("gh"):
         print("create_labels CANNOT RUN: gh not installed: cannot create the labels on GitHub.")

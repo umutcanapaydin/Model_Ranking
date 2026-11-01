@@ -31,3 +31,24 @@ Useful behaviors captured from source tests (not the test code itself):
 ## 5. Path A vs Path B reversal log
 
 Record any "considered patching forward but reversed to regenerate" decisions here (B.2 + B.3).
+
+## 6. Conventions in force, and conflicts
+
+What the repository already does, read from it — `git log`, `.github/workflows/`, its hook and lint settings.
+Each convention that conflicts with a DevFlow rule is an ADR (`/log-decision`), never settled silently.
+
+| Convention | In force here | Conflict → ADR |
+|---|---|---|
+| Base branch | `<main / develop / …>` | `<none / D-1NN>` |
+| Branch prefixes | `<feature/ … / none>` | |
+| Commit style | `<conventional / free>` | |
+| CHANGELOG | `<by hand / generated / none>` | |
+| CI jobs | `<their names>` | |
+| Hook manager | `<husky / pre-commit / none>` (`make hooks` runs the gate beside it) | |
+
+## 7. Leak scan — report only
+
+`make leak-scan`'s lines, as printed: tracked files that look like data. No gate reads them. Each line is the
+owner's to decide — keep it (why), or take it out of the tree and the history — never a list that silences it.
+
+- `<line>` → `<the owner's decision>`

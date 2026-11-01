@@ -1,6 +1,7 @@
 ---
 name: tester
 description: "Tests a whole milestone once, at its close, in either mode — heavy on the plan's last wave (/close-wave), light before a release (/going-live). Never the agent that wrote the code."
+model: sonnet
 ---
 
 # Subagent Profile — Tester

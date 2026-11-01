@@ -2,7 +2,7 @@
 record_type: closure
 id: closure-report-template
 status: draft
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -43,6 +43,7 @@ date: 2026-09-23
 ## 2. Git record (annotated)
 
 - Commit range: `<start>..<closure-tag>` · diffstat: `<files/+/->` · waves: `<K>`
+- Cost: `<the Cost: line make cost FROM=<the plan's merge> prints -- tokens, advisory>`
 - Notable commits, one line each (no AI attribution in any commit — identity is the git author):
   - `<sha>` — `<what and why, one line>`
 

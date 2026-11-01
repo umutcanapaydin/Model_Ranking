@@ -5,17 +5,19 @@ Three ways in, one question -- is the release verdict current for THIS tree?
 
     python3 scripts/deploy_gate.py --judge          # the Bash guard: program words as JSON on stdin
     python3 scripts/deploy_gate.py "<command>"      # by hand: one command line
-    python3 scripts/deploy_gate.py --check          # `make deploy-check`: no command, the verdicts only
+    python3 scripts/deploy_gate.py --check [--target <class>]   # `make deploy-check [TARGET=<class>]`
 
 The Bash guard (`.claude/hooks/bash_guard.py`) lexes every Bash tool call into simple commands and hands
 this script, with `--judge`, the words of each one in program position: `{"commands": [["fly",
 "deploy", "--remote-only"], ...]}` -- only when this file carries the line `JUDGE_PROTOCOL = <n>` (below),
 so an older gate is refused rather than asked a question it would answer with exit 0. A command is a deploy when one the brief lists as `Deploy commands:`
+or `Deploy targets:` (below)
 (`docs/project-brief.md`; `/setup-project` asks for them; none listed, nothing is a deploy) matches it
 word for word from the first word: the program by its basename (`/usr/local/bin/fly` is `fly`), the
 rest exactly, all case-insensitive, with the invoked command's own options ignored unless the declared
 command carries options itself (`fly deploy` matches `fly --verbose deploy` and `fly deploy -a app`;
-`./deploy.sh --prod` matches `./deploy.sh --prod` only). A commit message, an echo or a heredoc that
+a team-only `./deploy.sh --stage` matches `./deploy.sh --stage` only; a production declaration matches its
+words in any order, below). A commit message, an echo or a heredoc that
 mentions the command is not a deploy, because the guard never hands those words over.
 
 A `gh` COMMAND IS READ BY WHAT IT STARTS (#390), not word for word: `gh workflow run <workflow>`, `gh api` on
@@ -46,12 +48,30 @@ For a deploy, and for `--check`, two verdicts must be current, each read the sam
 A verdict is current when it exists, says PASS or MINOR under `## Verdict`, names a `**Reviewed
 head:** <sha>`, declares `**Independent:** yes` (the Tester's, as every review verdict does), and NO
 CODE differs from that head in the working tree -- committed, uncommitted or untracked: the code about
-to ship must be the code that was reviewed. What is code is one function, `is_deploy_record`: records
-are `docs/` and `*.md` anywhere else; everything under `.claude/`, `.githooks/`, `scripts/`,
+to ship must be the code that was reviewed. What is code is one function, `change_class` (v7.3, harvest
+Q2): a `record` is `docs/` and `*.md` anywhere else; everything under `.claude/`, `.githooks/`, `scripts/`,
 `conformance/`, `.github/` and the `Makefile` IS code whatever its extension, because a reviewer
-profile, a skill, a hook or a gate changes what ships and what guards it. A nested checkout (a
+profile, a skill, a hook or a gate changes what ships and what guards it. Once the brief carries a
+`Security-invariant tests:` line -- at every protected base and in the tree (model_ranking, #283: a change
+cannot opt itself in) --, `test-and-ci` -- a test, or `conformance/` -- ships nothing and re-opens
+neither verdict while CI is green on HEAD (one `gh run list --commit` call; no answer is not green), except a
+security-invariant test a line names (a glob without `/` also names a file); a brief without the line keeps
+v7.2's reading, every test code. A nested checkout (a
 worktree under `.claude/worktrees/`, which git lists as `dir/`) is another tree's business. What git cannot see -- a gitignored config file -- no
 git-based check can see either; `/going-live` reads the brief's declared runtime config files by hand.
+
+TARGET CLASSES (v7.3, harvest Q1). `Deploy commands:` are production deploys. `Deploy targets:` gives each
+command a class, `<class>: <command>`: `production` and `external-test` (real users run the build) owe both
+verdicts; `internal` and `staging` (the team runs it) owe the Tester's verdict, the per-change security verdict
+`make review-need` asks for over what is not released yet (a `docs/reviews/*-security.md` current for this
+tree), and a line in `docs/releases/` marked `unreleased` that names a commit with no code changed since -- the
+build going out -- and no release security delta. A class this gate cannot read is production, and so is a
+team-only entry that some protected base's brief does not hold too (model_ranking, #283: a change can add a
+deploy but cannot lower what one owes). A production or
+external-test declaration matches in any word order (`vercel --prod deploy`), and `--opt=value` is two words.
+A team-only declaration decides only when it holds every word of each production one the command also
+matches, and more; otherwise, a tie included, the stricter class decides, and one such command in a call
+decides the call. `--check --target <class>` asks one class.
 
 A delta review closes a stale verdict: the reviewer reads `<reviewed head>..HEAD` and writes the new
 head into the same file.
@@ -72,8 +92,9 @@ a file, runs `eval`, `xargs` or `find -exec`, or names a symlink to a tree file,
 fails, whatever the verdicts say: the file it starts cannot be put on the surface. The refusal names the workflow,
 the line and the shape; write the file's name instead.
 
-`--check` prints one line per verdict (security, tester) so the closure checklist and `/going-live`
-can paste them, then `deploy-check PASS` or `deploy-check FAIL: <why>`.
+`--check` prints one line per verdict (security, tester; for a team-only class, the release note) so the
+closure checklist and `/going-live` can paste them, then any note, then `deploy-check PASS` or
+`deploy-check FAIL: <why>`.
 
 WHY. Three field projects, four real deploys in two weeks: three were run by the owner outside any
 command guard and two of those had no current security verdict; one went through the guard and
@@ -84,6 +105,7 @@ refused, or this could not run.
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import itertools
 import json
@@ -103,6 +125,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
 from brief_fields import (  # noqa: E402
     Unverified,
+    field,
     listing,
     mode,
     protected_bases,
@@ -137,6 +160,10 @@ for _name in [name for name in os.environ if name.startswith("GIT_")]:
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
 #: `brief_fields`, ignores them.
 os.environ["GIT_NO_REPLACE_OBJECTS"] = "1"
+#: v7.3 (doctor's B2): a read-only check takes no optional lock, so it never holds `.git/index.lock` while the
+#: session's own `git add` runs. Set here, after the caller's `GIT_*` are removed: a caller that sets it is still
+#: refused (D-234), and `make doctor` runs this gate without it.
+os.environ["GIT_OPTIONAL_LOCKS"] = "0"
 
 #: The Bash guard calls `--judge` only in a gate that carries this line, at the start of a line, exactly:
 #: a gate written before `--judge` existed reads the flag as the command, finds no deploy and exits 0, so
@@ -154,6 +181,27 @@ MILESTONE_SECURITY = re.compile(r"^m(\d+)-security\.md$")
 #: Code whatever the extension: what guards and gates the tree is part of what ships.
 CODE_DIRS = (".claude/", ".githooks/", "scripts/", "conformance/", ".github/")
 CODE_FILES = {"Makefile"}
+#: The test-path set, ONE definition: `change_class` reads it here, and `make review-need` as git pathspecs for
+#: its parser scan (`*` crosses `/`, so each pair covers the top level and any depth).
+TEST_PATH = re.compile(r"(^|/)(tests/|test_[^/]*$|[^/]*_test\.[^/]+$|[^/]*Tests/)")
+TEST_PATHSPECS = [":(exclude)tests/*", ":(exclude)*/tests/*", ":(exclude)test_*", ":(exclude)*/test_*",
+                  ":(exclude)*_test.*", ":(exclude)*Tests/*"]
+#: The brief line naming the security-invariant tests, which stay code (harvest Q2).
+INVARIANT_TESTS = "Security-invariant tests"
+#: The deploy target classes (harvest Q1): real users run the first two, only the team the last two.
+CLASSES = ("production", "external-test", "internal", "staging")
+TEAM_ONLY = {"internal", "staging"}
+RELEASES = Path("docs/releases")
+SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
+#: A verdict's answer and its independence, as every gate reads them (`make owner-bundle`'s apply too).
+VERDICT = re.compile(r"^##\s*Verdict\s*\n+\s*\W*(PASS|MINOR|BLOCKING)\b(.*)$", re.M)
+INDEPENDENT = re.compile(r"^\s*\*\*Independent:\*\*\s*yes\b", re.M | re.I)
+#: An owner-bundle review names the patch it read (`make owner-bundle`); it read no tree, so the per-change
+#: security question never counts it (the Security-Reviewer's M5, round 3).
+REVIEWED_PATCH = re.compile(r"^\s*\*\*Reviewed patch:\*\*\s*`?([0-9a-f]*)`?", re.M)
+#: What the brief's deploy lines could not say clearly, printed after the answer and never before it: the Bash
+#: guard reads a refusal that does not start with `BLOCKED:` as the gate itself failing.
+NOTES: list[str] = []
 #: Words that run the command after them, skipped with their own options to reach the program.
 WRAPPERS = {"env", "command", "builtin", "time", "exec", "nohup", "nice", "sudo", "doas", "timeout",
             "gtimeout", "caffeinate", "noglob", "nocorrect", "stdbuf", "setsid", "unbuffer", "chronic", "ionice"}
@@ -171,8 +219,8 @@ def _git_variables(names: tuple[str, ...]) -> str | None:
             f"(#526); run it from a shell with none set (`unset {' '.join(names)}`)")
 
 
-def refuse(why: str) -> int:
-    print(f"BLOCKED: deploy gate -- {why}. {HOW_TO_CLOSE}", file=sys.stderr)
+def refuse(why: str, how: str = HOW_TO_CLOSE) -> int:
+    print(f"BLOCKED: deploy gate -- {why}.{' ' + how if how else ''}", file=sys.stderr)
     return 2
 
 
@@ -182,12 +230,57 @@ def is_deploy_record(path: str) -> bool:
     """Whether a repository-relative path (POSIX, as `git diff --name-only` prints it) is a RECORD the
     deploy gate ignores, as opposed to CODE that must have been reviewed. A record is anything under
     `docs/` and any `.md` file -- except under `.claude/`, `.githooks/`, `scripts/`, `conformance/`,
-    `.github/` or the `Makefile` itself, which are code whatever their extension. The one place this
-    classification lives; `closure_check.py` reads the same rule."""
+    `.github/` or the `Makefile` itself, which are code whatever their extension. `change_class` reads it."""
     if path in CODE_FILES or path.startswith(CODE_DIRS):
         return False
-    # `.gp/installed` is the install's measurement (`make install` writes it), not the product.
-    return path.startswith("docs/") or path.endswith(".md") or path == ".gp/installed"
+    # `.gp/installed` is the install's measurement (`make install` writes it), not the product. `.deps-accept`
+    # is the owner's waiver list: the owner's merge reviews it, and it routes to no review (v7.3 A20, the trim).
+    return path.startswith("docs/") or path.endswith(".md") or path in (".gp/installed", ".deps-accept")
+
+
+def invariant_tests(root: Path | str) -> list[str] | None:
+    """The globs on the brief's `Security-invariant tests:` line (`none`: no glob). None when the brief has no
+    such line: it predates the change classes, and every test stays code to it."""
+    return None if field(INVARIANT_TESTS, root) is None else listing(INVARIANT_TESTS, root)
+
+
+def policy_invariant_tests(root: Path) -> list[str] | None:
+    """model_ranking (#283, base-pinned policy): the security-invariant globs the deploy gate reads -- None (every
+    test is code) unless the tree's brief AND every protected base's carry the line, which no change can then add
+    for itself; else every glob any of them names, so a change can name one more but cannot drop one."""
+    policies, _, _ = _policy(root)
+    if policies is None:
+        return None
+    globs: list[str] = []
+    for brief_root in (root, *policies):
+        named = invariant_tests(brief_root)
+        if named is None:
+            return None
+        globs += [g for g in named if g not in globs]
+    return globs
+
+
+def invariant_hit(path: str, globs: list[str]) -> bool:
+    """Whether a path is one of the brief's security-invariant tests: a glob with a `/` matches the whole path,
+    one without matches the file name too, as .gitignore reads it (`test_scope.py` names tests/test_scope.py)."""
+    name = path.rsplit("/", 1)[-1]
+    return any(fnmatch.fnmatch(path, g) or ("/" not in g and fnmatch.fnmatch(name, g)) for g in globs)
+
+
+def change_class(path: str, invariants: list[str] | None = None) -> str:
+    """`record`, `test-and-ci` or `code` -- the ONE classification of a changed path (harvest Q2, the owner's
+    ruling of 2026-10-28) that the deploy gate, `closure_check.py` and `make review-need` read. A record is
+    `is_deploy_record`'s. Test-and-CI is a test outside the tooling directories, or `conformance/`: the checks
+    CI runs that the agent may edit (a workflow is the owner's and stays code). A security-invariant test the
+    brief names is code, and so is every test while `invariants` is None (a brief without the line)."""
+    if is_deploy_record(path):
+        return "record"
+    if invariants is None or invariant_hit(path, invariants):
+        return "code"
+    if path.startswith("conformance/") or (
+            TEST_PATH.search(path) and not (path in CODE_FILES or path.startswith(CODE_DIRS))):
+        return "test-and-ci"
+    return "code"
 
 
 def latest_milestone(root: Path, pattern: re.Pattern) -> Path | None:
@@ -249,9 +342,9 @@ def verdict_head(text: str) -> str | None:
     return m.group(1) if m else None
 
 
-def changed_since(root: Path, head: str) -> list[str] | None:
-    """Every code path that differs from `head` in the working tree of `root`, or None when git cannot
-    compare. Committed, uncommitted and untracked alike. None as well
+def changed_since(root: Path, head: str, ask_ci: bool = True) -> list[str] | None:
+    """Every code path (`change_class`) that differs from `head` in the working tree of `root`, or None when git
+    cannot compare. Committed, uncommitted and untracked alike. None as well
     when the comparison cannot be trusted (#493, #500: `compare_problem`), so `closure_check` agrees with the gate.
 
     #505 (D-231 clause 2): by content, never by git's state. Each file the reviewed head's (verified) tree holds is
@@ -272,8 +365,49 @@ def changed_since(root: Path, head: str) -> list[str] | None:
     except (OSError, subprocess.SubprocessError, RuntimeError):
         return None
     paths = sorted({p for p, (mode, oid) in tree.items() if _differs(root / p, mode, oid)} | new)
-    code = [p for p in paths if not is_deploy_record(p)]
+    invariants = policy_invariant_tests(root)
+    classes = {p: change_class(p, invariants) for p in paths}
+    # Harvest Q2(b): test-and-CI re-opens neither verdict only "when CI is green on the head". Asked once, and
+    # only when such a change exists; an offline caller (`closure_check.py` in `make check`) never asks, so
+    # there a test stays code. No answer, a run unfinished or not green: not green.
+    tests = [p for p, c in classes.items() if c == "test-and-ci"]
+    green = bool(tests) and ask_ci and ci_green(root)
+    note = ("test-and-CI changes count as code here: CI is not green on HEAD (`gh run list --commit`), so they "
+            "re-open the verdicts")
+    if tests and not green and ask_ci and note not in NOTES:
+        NOTES.append(note)
+    code = [p for p, c in classes.items() if c == "code" or (c == "test-and-ci" and not green)]
     return [p for p in code if not shipped_unchanged(root, p)]
+
+
+_CI: dict[str, bool] = {}
+
+
+#: Under the Bash guard's 10 s budget, so a slow `gh` reads as not green, not as the budget's refusal (run v73 R2).
+GH_TIMEOUT_S = 8
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, timeout=30)
+
+
+def ci_green(root: Path) -> bool:
+    """Whether CI is green on HEAD: one `gh run list --commit <HEAD>` call, remembered for this process. Green
+    means at least one run, every run finished, and each a success (a skipped run aside); no `gh`, no answer,
+    or anything else is not green."""
+    key = str(root)
+    if key not in _CI:
+        try:
+            head = _git(root, "rev-parse", "HEAD").stdout.decode().strip()
+            r = subprocess.run(["gh", "run", "list", "--commit", head, "--json", "status,conclusion", "--limit", "50"],
+                               cwd=root, capture_output=True, timeout=GH_TIMEOUT_S)
+            runs = json.loads(r.stdout.decode("utf-8", "replace")) if r.returncode == 0 and head else []
+            _CI[key] = (isinstance(runs, list) and bool(runs) and all(
+                isinstance(x, dict) and x.get("status") == "completed" and x.get("conclusion") in ("success", "skipped")
+                for x in runs) and any(x.get("conclusion") == "success" for x in runs))
+        except (OSError, subprocess.SubprocessError, ValueError):
+            _CI[key] = False
+    return _CI[key]
 
 
 #: #505: git as the comparison runs it -- no fsmonitor and no untracked cache, so what is listed is what is on disk.
@@ -419,12 +553,15 @@ def compare_problem(root: Path, head: str) -> str | None:
 
 #: Where DevFlow's own tooling lives. Only a file here can be "DevFlow's, unchanged": the product scaffold
 #: the package also ships (`src/`, `tests/`, `pyproject.toml`) is the product's code from the first commit.
-DEVFLOW_TOOLING = (".claude/", ".githooks/", "scripts/", "conformance/", ".agents/", ".github/")
-DEVFLOW_TOOLING_FILES = {"Makefile"}
+DEVFLOW_TOOLING = (".claude/", ".codex/", ".githooks/", "scripts/", "conformance/", ".agents/", ".github/")
+# Not `.gitattributes`: a project's LFS filters and export-ignore rules change what deploys (v7.2.1, review).
+DEVFLOW_TOOLING_FILES = {"Makefile", ".install-lock", "pipeline-schema.html", ".path-refs-allow", ".placeholder-allow"}
 
 #: Always code, even byte-identical to DevFlow's commit: the guard, its settings and the gate are the safety surface
-#: the verdicts stand on, and the product's deploy scripts decide what ships where (#410, D-223 clause 5).
-SAFETY_SURFACE = {".claude/hooks/bash_guard.py", ".claude/settings.json", "scripts/deploy_gate.py",
+#: the verdicts stand on, and the product's deploy scripts decide what ships where (#410, D-223 clause 5). v7.3 lets
+#: these count as DevFlow's when byte for byte the release's (harvest Q3); model_ranking keeps them code always
+#: (D-223 clause 5, kept by D-241 clause 2), `.codex/hooks.json` (v7.3) among them.
+SAFETY_SURFACE = {".claude/hooks/bash_guard.py", ".claude/settings.json", ".codex/hooks.json", "scripts/deploy_gate.py",
                   "scripts/brief_fields.py", "scripts/deploy_hosted_engine.sh", "scripts/nightly_hosted.sh"}
 SAFETY_SURFACE_DIRS = ("scripts/ci/",)
 #: #410 (D-223 clause 5): `<version> <commit>`, the DevFlow commit whose bytes the exemption compares with. Read
@@ -469,7 +606,62 @@ def shipped_unchanged(root: Path, rel: str) -> bool:
     # D-233 (the #517 review's M2): the bytes every pin holds -- an older pin at the merge-base alone let a branch cut
     # before an upgrade put the older bytes back unreviewed.
     here = target.read_bytes()
+    if rel.startswith(".claude/agents/") and rel.endswith(".md"):
+        # v7.2.1: a reviewer profile's frontmatter `model:` line is the project's answer to `/setup-project`
+        # question 12, not a change to what the profile reviews.
+        return all((pinned_bytes := verified_blob(root, pinned, rel)) is not None
+                   and _without_model(pinned_bytes) == _without_model(here) for pinned in pins)
     return all(verified_blob(root, pinned, rel) == here for pinned in pins)
+
+
+VERSION_LINE = re.compile(r"^process_version:\s*`?([^\s`]+)", re.M)
+#: The one line a project writes into a shipped reviewer profile (`/setup-project` question 12).
+MODEL_LINE = re.compile(rb"^model:[^\r\n]*\r?\n", re.M)
+_HISTORY: dict[str, list[str]] = {}
+
+
+def _without_model(text: bytes) -> bytes:
+    """A reviewer profile without the `model:` line of its FRONTMATTER, and only that one: a `model:` line
+    in the body is the profile's instructions (v7.2.1, review)."""
+    if not text.startswith(b"---\n"):
+        return text
+    end = text.find(b"\n---\n", 3)
+    if end < 0:
+        return text
+    return text[:4] + MODEL_LINE.sub(b"", text[4:end + 1], count=1) + text[end + 1:]
+
+
+def devflow_history(root: Path) -> list[str]:
+    """The DevFlow versions this tree has run, newest first: the brief's `process_version:` now, then each
+    different one in its committed history (`make ci-diff` reads it). The exemption above never reads it:
+    model_ranking compares with the commit pinned at the protected bases (#410, D-233), never a local tag."""
+    key = str(root)
+    if key in _HISTORY:
+        return _HISTORY[key]
+    brief = root / "docs" / "project-brief.md"
+    m = VERSION_LINE.search(brief.read_text(encoding="utf-8", errors="replace")) if brief.is_file() else None
+    if not m:
+        marker = root / ".gp" / "installed"
+        m = re.search(r"^gp_version:\s*(\S+)", marker.read_text(encoding="utf-8", errors="replace"), re.M) \
+            if marker.is_file() else None
+    seen = [m.group(1)] if m else []
+    try:
+        log = _git(root, "log", "--format=%H", "-n", "200", "--", "docs/project-brief.md")
+        for sha in log.stdout.decode().split() if log.returncode == 0 else []:
+            shown = _git(root, "show", f"{sha}:docs/project-brief.md")
+            v = VERSION_LINE.search(shown.stdout.decode("utf-8", "replace")) if shown.returncode == 0 else None
+            if v and v.group(1) not in seen:
+                seen.append(v.group(1))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    _HISTORY[key] = seen
+    return seen
+
+
+def devflow_versions(root: Path) -> tuple[str | None, str | None]:
+    """(the DevFlow version this tree came from, the one it runs), from `devflow_history`."""
+    history = devflow_history(root)
+    return (history[1] if len(history) > 1 else None, history[0] if history else None)
 
 
 _SURFACES: dict[str, frozenset[str] | None] = {}
@@ -965,11 +1157,100 @@ def _redirected(root: Path) -> str | None:
             "(`git config --unset core.worktree`)") if named else None
 
 
-def verdicts(root: Path) -> list[tuple[str | None, str]]:
-    """The policy's base, then security, then the Tester: each (why not current | None, summary line). In
-    heavy mode a current `m<N>-security.md` of the latest milestone stands for `release-security.md` (v7.2);
-    model_ranking (#283) reads the mode at the protected base as well as in the tree, and lets the milestone
-    verdict stand only when neither says light."""
+def release_note(root: Path, target: str) -> tuple[str | None, str]:
+    """A team-only build's record: a line in `docs/releases/*.md` marked `unreleased` that names a commit with
+    no code changed since it -- the build going out. The newest five such lines are read, last first."""
+    lines: list[tuple[str, list[str]]] = []
+    for p in sorted((root / RELEASES).glob("*.md")) if (root / RELEASES).is_dir() else []:
+        for n, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if re.search(r"\bunreleased\b", line, re.I):
+                lines.append((f"{RELEASES.as_posix()}/{p.name}:{n}", SHA.findall(line)))
+    for where, shas in reversed(lines[-5:]):
+        for sha in shas:
+            if changed_since(root, sha) == []:
+                return None, f"release note: {where} names {sha[:7]} (unreleased), no code changed since"
+    return (f"no line marked `unreleased` in {RELEASES.as_posix()}/ names this build -- the `{target}` target owes "
+            f"one: add `- <date>, {target}, <git rev-parse --short HEAD>: <what changed> (unreleased)` to "
+            f"{RELEASES.as_posix()}/unreleased.md", "release note: no unreleased line names this build")
+
+
+def reviewed_since(root: Path) -> str:
+    """Where the per-change question starts: the head of the newest security verdict -- PASS or MINOR, independent,
+    current or not -- that HEAD descends from, so a HIGH change reviewed once is not asked again by every later
+    team-only build (the Security-Reviewer's M4); else the release verdict's head; else the first commit."""
+    heads = []
+    for p in (root / "docs" / "reviews").glob("*-security.md") if (root / "docs" / "reviews").is_dir() else []:
+        text = p.read_text(encoding="utf-8", errors="replace")
+        v, head = VERDICT.search(text), verdict_head(text)
+        if v and v.group(1) != "BLOCKING" and "|" not in v.group(2) and INDEPENDENT.search(text) and head \
+                and not REVIEWED_PATCH.search(text) \
+                and _git(root, "merge-base", "--is-ancestor", head, "HEAD").returncode == 0:
+            count = _git(root, "rev-list", "--count", f"{head}..HEAD").stdout.decode().strip()
+            heads.append((int(count) if count.isdigit() else 1 << 30, head))
+    if heads:
+        return min(heads)[1]
+    release = verdict_head((root / SECURITY).read_text(encoding="utf-8", errors="replace")) \
+        if (root / SECURITY).is_file() else None
+    if release and not _git(root, "rev-parse", "-q", "--verify", f"{release}^{{commit}}").returncode:
+        return release
+    firsts = _git(root, "rev-list", "--max-parents=0", "HEAD").stdout.decode().split()
+    return firsts[-1] if firsts else "HEAD"
+
+
+def per_change_security(root: Path, target: str) -> tuple[str | None, str]:
+    """Harvest Q1(b): an `internal` or `staging` target owes "the per-change verdicts `make review-need` asked
+    for" -- no release security delta. Over what no security verdict has read yet (`reviewed_since`), when
+    review-need asks for security, one `docs/reviews/*-security.md` must be current for this tree. Its run is
+    isolated and writes no bytecode (`-I -B`): this gate reads the tree it would write into."""
+    rng = f"{reviewed_since(root)[:12]}..HEAD"
+    try:
+        r = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve().parent / "review_need.py"),
+                            "--range", rng], cwd=root, capture_output=True, encoding="utf-8", errors="replace",
+                           timeout=60)
+        last = (r.stdout.strip().splitlines() or [""])[-1]
+        answer = last.split(":", 1)[1].strip() if r.returncode == 0 and last.startswith("review-need:") else None
+        failed = f"exit {r.returncode}: {(last or r.stderr.strip()[-120:] or 'no output')[:120]}"
+    except (OSError, subprocess.SubprocessError) as error:
+        answer, failed = None, f"{type(error).__name__}: {error}"
+    if answer is None:
+        return (f"review-need could not answer over {rng} ({failed}) -- an `{target}` target owes the per-change "
+                "security verdict it asks for, so mend scripts/review_need.py and ask again",
+                "security (per change): review-need could not answer")
+    if "security" not in answer:
+        return None, f"security: not asked of a `{target}` target -- review-need over {rng} asks none"
+    for p in sorted((root / "docs" / "reviews").glob("*-security.md")):
+        if REVIEWED_PATCH.search(p.read_text(encoding="utf-8", errors="replace")):
+            continue
+        why, summary = current(root, Path("docs/reviews") / p.name, "security (per change)", independent=True)
+        if why is None:
+            return None, summary
+    return (f"review-need over {rng} asks for security (a declared HIGH path or a named security-invariant test "
+            "changed) and no docs/reviews/*-security.md is current for this tree -- the Security-Reviewer on that "
+            "range, its verdict with `**Reviewed head:**`", "security (per change): none current, review-need asks it")
+
+
+def _release_security(root: Path, heavy: bool) -> tuple[str | None, str]:
+    """The release security verdict; in heavy mode (`heavy`: every brief read says heavy) a current
+    `m<N>-security.md` of the latest milestone stands for it (v7.2)."""
+    security = current(root, SECURITY, "security")
+    # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
+    blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
+    if security[0] and not blocking and heavy:
+        milestone = latest_milestone(root, MILESTONE_SECURITY)
+        if milestone is not None:
+            alternative = current(root, milestone, "security (heavy mode: the milestone's)", independent=True)
+            security = alternative if alternative[0] is None else (
+                f"{security[0]}; and the latest milestone verdict does not stand for it: {alternative[0]}",
+                security[1])
+    return security
+
+
+def verdicts(root: Path, target: str = "production") -> list[tuple[str | None, str]]:
+    """The policy's base, then security, then the Tester, then a team-only target's release note: each (why not
+    current | None, summary line). In heavy mode a current `m<N>-security.md` of the latest milestone stands for
+    `release-security.md` (v7.2); model_ranking (#283) reads the mode at the protected base as well as in the
+    tree, and lets the milestone verdict stand only when neither says light. An `internal` or `staging` target
+    owes no release security delta, only the per-change one review-need asks for (harvest Q1, v7.3)."""
     policies, where, _ = _policy(root)
     out: list[tuple[str | None, str]] = []
     redirected = _redirected(root)
@@ -994,17 +1275,8 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
                     f"{'; '.join(unnamed[:5])}{' ...' if len(unnamed) > 5 else ''}; write the file's name there "
                     "instead (a symlink's: its target's), so the file it starts is on the deploy surface",
                     f"workflows: {len(unnamed)} start(s) of a file without its name"))
-    security = current(root, SECURITY, "security")
-    # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
-    blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
-    if security[0] and not blocking and policies is not None and "light" not in modes:
-        milestone = latest_milestone(root, MILESTONE_SECURITY)
-        if milestone is not None:
-            alternative = current(root, milestone, "security (heavy mode: the milestone's)", independent=True)
-            security = alternative if alternative[0] is None else (
-                f"{security[0]}; and the latest milestone verdict does not stand for it: {alternative[0]}",
-                security[1])
-    out.append(security)
+    out.append(per_change_security(root, target) if target in TEAM_ONLY
+               else _release_security(root, policies is not None and "light" not in modes))
     for working_mode in modes:
         tester, label = tester_path(root, working_mode)
         if tester is None:
@@ -1012,27 +1284,67 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
                         f"{label}: no docs/reviews/m<N>-tester.md"))
         else:
             out.append(current(root, tester, label, independent=True))
+    if target in TEAM_ONLY:
+        out.append(release_note(root, target))
     return out
 
 
 # --- matching -------------------------------------------------------------------------------------------
 
-def declared(root: Path) -> list[list[str]]:
-    """The deploy commands the protected base's brief or the tree's declares (#283), each as lower-cased
-    words. One the shell cannot split is skipped loudly: a declaration nobody can match is not a declaration."""
+def _note(text: str) -> None:
+    if text not in NOTES:
+        NOTES.append(text)
+
+
+def _target_entries(root: Path) -> list[tuple[str, str]]:
+    """(the text of each deploy command the tree's or a protected base's brief declares, its class), as
+    `declared_targets` reads them, before they are split into words."""
     policies, _, _ = _policy(root)
-    texts = listing("Deploy commands", root)
-    for policy in policies or []:
-        texts += [t for t in listing("Deploy commands", policy) if t not in texts]
-    out: list[list[str]] = []
-    for text in texts:
+    briefs = [root, *(policies or [])]
+    entries: list[tuple[str, str]] = [(text, "production") for brief in briefs
+                                      for text in listing("Deploy commands", brief)]
+    for text in [text for brief in briefs for text in listing("Deploy targets", brief)]:
+        name, colon, command = text.partition(":")
+        target = name.strip().lower()
+        if colon and target in CLASSES:
+            if target in TEAM_ONLY and not (policies and all(text in listing("Deploy targets", p) for p in policies)):
+                _note(f"the deploy target {text!r} is not declared at every protected base, so it is guarded as "
+                      "production until a merge puts it there (#283)")
+                target = "production"
+            entries.append((command, target))
+            continue
+        _note(f"the brief's deploy target {text!r} names no class ({', '.join(CLASSES)}); it is guarded as "
+              "production")
+        entries += [(text, "production")] + ([(command, "production")] if colon else [])
+    return list(dict.fromkeys(entries))
+
+
+def declared_targets(root: Path) -> list[tuple[list[str], str]]:
+    """The deploy commands the protected base's brief or the tree's declares (#283), each as (lower-cased words,
+    its target class): `Deploy commands:` are production; a `Deploy targets:` entry is `<class>: <command>`, and one
+    whose class is not in CLASSES is production, read whole and after its first colon, loudly (v7.3). A team-only
+    entry is that class only when every protected base's brief holds it too: one the change under evaluation adds
+    is production, so no change lowers what a deploy owes (model_ranking, #283). One the shell cannot split is
+    skipped loudly: a declaration nobody can match is not a declaration."""
+    entries = _target_entries(root)
+    out: list[tuple[list[str], str]] = []
+    for text, target in entries:
         try:
             words = [w.lower() for w in shlex.split(text)]
         except ValueError:
-            print(f"deploy gate: the brief's deploy command {text!r} cannot be split as the shell would; "
-                  "it is not matched", file=sys.stderr)
+            _note(f"the brief's deploy command {text!r} cannot be split as the shell would; it is not matched")
             continue
-        if words:
+        if words and (words, target) not in out:
+            out.append((words, target))
+    return out
+
+
+def declared(root: Path) -> list[list[str]]:
+    """The words of every deploy command `declared_targets` reads, whatever its class: each one's files and
+    workflows are on the deploy surface (#444, #501), and each one's workflow a deploy workflow (#390)."""
+    out: list[list[str]] = []
+    for words, _ in declared_targets(root):
+        if words not in out:
             out.append(words)
     return out
 
@@ -1055,36 +1367,93 @@ def _program_position(words: list[str]) -> list[str]:
     return words[i:]
 
 
-def matches(words: list[str], declared_words: list[str]) -> bool:
-    """Whether the declared command is the command these words run."""
+def _split(words: list[str]) -> list[str]:
+    """`--opt=value` and `-o=value` as the option followed by its value: `fly deploy -a=prod-app` is
+    `fly deploy -a prod-app` (the Code-Reviewer's M8 on this package)."""
+    out: list[str] = []
+    for w in words:
+        m = re.match(r"^(-{1,2}[^-=\s][^=\s]*)=(.*)$", w)
+        out += [m.group(1), m.group(2)] if m else [w]
+    return out
+
+
+def _unread(words: list[str]) -> bool:
+    """A word holding an expansion the Bash guard left unread (`$p`, `$(...)`, a backtick): it may be any option."""
+    return any("$" in w or "`" in w for w in words)
+
+
+def matches(words: list[str], declared_words: list[str], any_order: bool = False) -> bool:
+    """Whether the declared command is the command these words run, both read through `_split`. With
+    `any_order` (a production or external-test declaration, v7.3) every declared word after the program need
+    only appear among the command's words: `vercel deploy --prod` is `vercel --prod deploy` and
+    `vercel deploy --prebuilt --prod` (the Security-Reviewer's B1 on this package). There a word left unread may
+    stand for every missing option and its value, so `p=--prod; netlify deploy $p` is production (run v73 M1)."""
     words = _program_position(words)
     if not words or not declared_words:
         return False
     if os.path.basename(words[0]).lower() != os.path.basename(declared_words[0]):
         return False
-    rest = [w.lower() for w in words[1:]]
-    if not any(d.startswith("-") for d in declared_words[1:]):
-        rest = [w for w in rest if not w.startswith("-")]
-    return rest[:len(declared_words) - 1] == declared_words[1:]
+    raw, want = [w.lower() for w in words[1:]], _split(declared_words[1:])
+    if any_order:
+        missing = [i for i, d in enumerate(want) if d not in _split(raw)]
+        return not missing or (_unread(raw) and all(want[i].startswith("-") or (i and want[i - 1].startswith("-"))
+                                                    for i in missing))
+    if not any(d.startswith("-") for d in want):
+        # A declaration with no option drops each option word whole, `--opt=value` with its value, before any
+        # split (the Security-Reviewer's M6, round 3): `npm --loglevel=warn run deploy:staging` stays that deploy.
+        return [w for w in raw if not w.startswith("-")][:len(want)] == want
+    return _split(raw)[:len(want)] == want
+
+
+def _declared_hit(commands: list[list[str]], decl: list[tuple[list[str], str]]) -> tuple[str, str] | None:
+    """v7.3: (the declared deploy command these word lists run, its class), or None. For each command a declaration
+    of a class only the team runs decides only when it refines every production or external-test declaration the
+    command also matches -- it holds all of their words and more, as `fly deploy -c fly.staging.toml` holds
+    `fly deploy` and `netlify deploy --dir dist` does not hold `netlify deploy --prod` (the Security-Reviewer's B1,
+    round 2); otherwise, a tie included, the stricter class decides. Of those left, the one with the most words.
+    Across the commands of one call, one that real users run makes the call theirs."""
+    found = []
+    for words in commands:
+        hits = [(d, t) for d, t in decl if matches(words, d, any_order=t not in TEAM_ONLY)]
+        strict = [d for d, t in hits if t not in TEAM_ONLY]
+        # An unread word may undo what refines (`fly deploy -c fly.staging.toml $X`): the strictest class decides --
+        # when a stricter one matched at all; a program declared for staging only stays that deploy (re-verification M4).
+        refining = [] if strict and _unread(_program_position(words)[1:]) else [
+            (d, t) for d, t in hits if t in TEAM_ONLY and all(set(_split(p[1:])) < set(_split(d[1:])) for p in strict)]
+        pool = refining or [(d, t) for d, t in hits if t not in TEAM_ONLY]
+        if pool:
+            d, t = max(pool, key=lambda hit: len(_split(hit[0])))
+            found.append((t not in TEAM_ONLY, len(_split(d)), " ".join(d), t))
+    if not found:
+        return None
+    best = max(found)
+    return best[2], best[3]
 
 
 def deploy_in(commands: list[list[str]], root: Path) -> str | None:
     """The declared deploy command one of these word lists runs, or the `gh` command among them that starts a
-    deploy workflow (#390), or None."""
+    deploy workflow (#390), or None (`deploy_target` without the class)."""
+    found = deploy_target(commands, root)
+    return found[0] if found else None
+
+
+def deploy_target(commands: list[list[str]], root: Path) -> tuple[str, str] | None:
+    """(what `deploy_in` names, its target class), or None. A `gh` command that starts a deploy workflow is
+    production, and makes a call that also runs a team-only deploy production too."""
     _, where, unverified = _policy(root)
     if unverified and commands:
         # #509: the base's brief is what says which commands deploy, and its bytes are not the base's. Which of
         # these deploys cannot be told, so each is judged as one, and the verdicts refuse it (policy unreadable).
         return (f"{' '.join(commands[0])} (any command: {where}; until the base's objects are whole again -- in "
-                "your own terminal, `git fetch origin` then `git fsck --full`)")
+                "your own terminal, `git fetch origin` then `git fsck --full`)", "production")
+    targets = declared_targets(root)
+    hit = _declared_hit(commands, targets)
+    if hit and hit[1] not in TEAM_ONLY:
+        return hit
     decl = declared(root)
-    for d in decl:
-        for words in commands:
-            if matches(words, d):
-                return " ".join(d)
     starts = [(words, start) for words in commands if (start := gh_dispatch(words)) is not None]
     if not starts:
-        return None
+        return hit
     texts, complete = _workflow_texts(root)
     workflows = deploy_workflows(root, decl, texts)
     deploys = {name for known in workflows.values() for name in known}
@@ -1097,8 +1466,8 @@ def deploy_in(commands: list[list[str]], root: Path) -> str | None:
             what = ("a workflow, and a workflow file at the protected base could not be read" if not complete else
                     "a workflow it does not name" if UNKNOWN in start else "a deploy workflow")
             return (f"{' '.join(_program_position(words))} (it starts {what}; "
-                    f"{', '.join(sorted(workflows)) or 'which workflow deploys is not known'} deploys)")
-    return None
+                    f"{', '.join(sorted(workflows)) or 'which workflow deploys is not known'} deploys)", "production")
+    return hit
 
 
 # --- gh: what a command starts (#390) -------------------------------------------------------------------
@@ -1259,7 +1628,7 @@ def _runs_deploy(text: str, decl: list[list[str]]) -> bool:
         if at < len(words):
             program = os.path.basename(words[at]).lower()
             words = [*words[:at], SAME_PROGRAM.get(program, words[at]), *words[at + 1:]]
-        if any(matches(words, d) for d in decl):
+        if any(matches(words, d, any_order=True) for d in decl):
             return True
     return False
 
@@ -1319,37 +1688,56 @@ def toplevel(cwd: Path) -> Path | None:
 
 
 def judge(commands: list[list[str]], root: Path, foreign: bool = False, caller_git: tuple[str, ...] = ()) -> int:
-    hit = deploy_in(commands, root)
-    if not hit:
+    try:
+        return _judge(commands, root, foreign, caller_git)
+    finally:
+        for note in NOTES:
+            print(f"deploy gate: {note}", file=sys.stderr)
+
+
+def _judge(commands: list[list[str]], root: Path, foreign: bool, caller_git: tuple[str, ...]) -> int:
+    found = deploy_target(commands, root)
+    if not found:
         return 0
+    hit, target = found
     if foreign:  # its verdicts are that repository's word, not this project's: they are not read
         print(f"BLOCKED: deploy gate -- `{hit}` is a deploy declared in {root}, which is not this session's "
               "project: the Bash guard judges no other repository's deploys. Deploy it from a session started "
               "in that repository.", file=sys.stderr)
         return 2
-    for why, _ in verdicts(root):
+    to = "" if target == "production" else f" to a `{target}` target"
+    for why, summary in verdicts(root, target):
         if why:
-            return refuse(f"`{hit}` is a deploy, and {why}")
+            return refuse(f"`{hit}` is a deploy{to}, and {why}",
+                          "" if summary.startswith("release note") else HOW_TO_CLOSE)
     if (why := _git_variables(caller_git)):
-        return refuse(f"`{hit}` is a deploy, and {why}")
+        return refuse(f"`{hit}` is a deploy{to}, and {why}")
     return 0
 
 
-def check(root: Path, caller_git: tuple[str, ...] = ()) -> int:
-    print(f"deploy-check: tree {root} (working tree, nested checkouts excluded)")
-    bad: list[str] = []
-    for why, summary in verdicts(root):
+def check(root: Path, caller_git: tuple[str, ...] = (), target: str = "production", named: bool = False) -> int:
+    print(f"deploy-check: tree {root} (working tree, nested checkouts excluded)"
+          + (f", target class `{target}`" if named else ""))
+    bad: list[tuple[str, str]] = []
+    for why, summary in verdicts(root, target):
         print(f"deploy-check: {summary}")
         if why:
-            bad.append(why)
+            bad.append((why, summary))
     if (why := _git_variables(caller_git)):
-        bad.append(why)
+        bad.append((why, "environment: GIT_* set"))
+    for note in NOTES:
+        print(f"deploy-check: note: {note}")
     if bad:
-        for why in bad:
+        for why, _ in bad:
             print(f"deploy-check FAIL: {why}")
-        print(f"  {HOW_TO_CLOSE}")
+        if any(not summary.startswith("release note") for _, summary in bad):
+            print(f"  {HOW_TO_CLOSE}")
         return 1
-    print("deploy-check PASS: the security verdict and the milestone Tester's verdict are current for this tree")
+    if target in TEAM_ONLY:
+        print(f"deploy-check PASS: the milestone Tester's verdict, the per-change security review-need asks for and "
+              f"an unreleased release-note line are current for this tree (`{target}`)")
+    else:
+        print("deploy-check PASS: the security verdict and the milestone Tester's verdict are current for this tree")
     return 0
 
 
@@ -1370,13 +1758,17 @@ def main(argv: list[str]) -> int:
         return judge(commands, root, foreign, CALLER_GIT)
     cwd = Path.cwd()
     root = toplevel(cwd)
-    if argv == ["--check"]:
+    if argv[:1] == ["--check"] and (len(argv) == 1 or (len(argv) == 3 and argv[1] == "--target")):
+        target = argv[2].strip().lower() if len(argv) == 3 else "production"
+        if target not in CLASSES:
+            print(f"deploy-check CANNOT RUN: TARGET={argv[2]} is not a target class -- {', '.join(CLASSES)}")
+            return 2
         if root is None:
             print(f"deploy-check FAIL: {cwd} is not inside a git work tree, so nothing can be compared")
             return 1
-        return check(root, CALLER_GIT)
+        return check(root, CALLER_GIT, target, named=len(argv) == 3)
     if len(argv) != 1 or argv[0].startswith("--"):
-        print('usage: deploy_gate.py "<command>" | --judge | --check', file=sys.stderr)
+        print('usage: deploy_gate.py "<command>" | --judge | --check [--target <class>]', file=sys.stderr)
         return 2
     try:
         commands = split_line(argv[0])

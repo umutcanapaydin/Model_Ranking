@@ -17,18 +17,19 @@ run once per project, except the ones marked *every clone*.
 **Claude Code 2.1.295 or later.** Every hook in `.claude/settings.json` carries a `timeout` and
 `"onFailure": "block"`. A command hook that times out does not block the call on its own, and a hook
 that cannot start — a missing script, a missing interpreter — is a non-blocking error unless
-`onFailure` says `block`; that field exists from 2.1.295. On an older version the guard still refuses
-what it reads (its own catch-all exits 2), but a hook that hangs or cannot start lets the call through.
-Check with `claude --version`.
+`onFailure` says `block`; that field exists from 2.1.295. An older version ignores the field and loads
+the file (measured on 2.1.294): the guard still refuses what it reads (its own catch-all exits 2), but a
+hook that hangs or cannot start lets the call through. Check with `claude --version`.
 
 **Changing the Bash guard.** The `Bash` hook and the Write/Edit hook run `.claude/hooks/bash_guard.py`
 only when the file's sha256 is the one pinned in `.claude/settings.json`; a changed or missing guard refuses every Bash call and every write
 (`BLOCKED: .claude/hooks/bash_guard.py is not the guard the settings pin`). To change it: edit the
 guard, run `make guard-pin` **from a terminal outside Claude Code**, which writes the new sha256 into both hooks (inside it, the loaded hook hashes
 the guard before any Bash call and refuses the edited one, `make guard-pin` included; it rewrites the
-pin, and `conformance/test-hook-claims.py` fails while the pin is stale), commit both files, and if a
-Claude Code session still refuses every Bash call after that, restart it — Claude Code reloads an
-edited settings file by itself in recent versions, and the refusal line says what to do either way.
+pin, here and in `.codex/hooks.json`, and `conformance/test-hook-claims.py` fails while the pin is stale),
+commit the files, and if a Claude Code session still refuses every Bash call after that, restart it — Claude
+Code reloads an edited settings file by itself in recent versions, and the refusal line says what to do
+either way. Codex skips the changed hook until you trust it again in `/hooks`.
 This is the owner's step: a pull request that changes the guard is a change to the safety floor, and
 the reviewer reads `conformance/test-bash-guard.py` for what it now refuses and allows. Agents cannot make this change: the
 hooks refuse their writes into the `.claude/` and `.githooks/` of every work tree.
@@ -37,7 +38,9 @@ hooks refuse their writes into the `.claude/` and `.githooks/` of every work tre
 in `.claude/settings.json` names the read-only and gate commands that never ask. A session that
 nobody watches — an unattended run (`/plan-run`) — needs a mode that does not prompt: Claude Code's
 auto mode, or `--dangerously-skip-permissions` inside a sandbox. In such a session the hooks are the
-only guard, which is why they fail closed.
+only guard, which is why they fail closed. In Claude Code's macOS sandbox pip cannot reach the system
+trust store (`OSStatus -26276`) and `make deps` fails: set `PIP_USE_DEPRECATED=legacy-certs` in the
+`env` of `.claude/settings.local.json`, and pip checks TLS against its own CA bundle.
 
 **No MCP server ships.** Every skill speaks `gh`, which the Bash guard reads word by word. A project that
 adds an MCP server adds tools no hook sees — a GitHub one can merge as the owner — so it
@@ -243,6 +246,7 @@ For each colliding path, `git show <tag>:<path>` prints DevFlow's copy.
 | `.install-lock` | **Take DevFlow's, unchanged — never regenerate it from your tree.** It records how many files each DevFlow directory shipped with; your own files only add to those counts, and `make install-check` fails only on fewer. A `.install-lock` already in your repository means DevFlow is installed here: this is an upgrade — stop, and follow `UPGRADING.md`. |
 | `docs/decisions.md` | **DevFlow's universal decisions first, yours after them.** `make bootstrap-check` requires D-001..D-007; your own ADRs keep their ids, by the reconciliation recipe in its P-001. |
 | `Makefile`, `pyproject.toml` | **Take DevFlow's, then carry yours over.** They are the gate and its tooling. Your make targets go into `stack.mk` (the Makefile includes it) or into the Makefile; a Python project's `[project]` table and dependencies go into DevFlow's `pyproject.toml`, keeping its `dev` extra and its `[tool.*]` sections. |
+| `.husky/`, `.pre-commit-config.yaml` | **Keep yours.** `make hooks` (step 5) adds DevFlow's pre-push to your hook manager's and leaves `core.hooksPath` as it set it. A pre-push of yours it never edits: it prints the one line to add. |
 | `.github/workflows/` | **A human's part** — an agent never edits workflows. Keep yours; a human adds DevFlow's `ci.yml` and `issue-agent.yml` (which ships switched off: it runs only when started by hand until its secret and label trigger are set) beside them (both are in the manifest, and `make install-check` counts them), under other names if yours are taken. |
 | anything else | Keep yours, read DevFlow's, merge by hand. |
 

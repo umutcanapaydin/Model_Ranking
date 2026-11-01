@@ -497,6 +497,43 @@ def main() -> int:
                 bad.append(f"the sha256 pin in .claude/settings.json ({', '.join(p[:12] for p in sorted(pins))}) is "
                            f"not .claude/hooks/bash_guard.py's ({have[:12]}) -- every Bash call is refused until "
                            "`make guard-pin` rewrites it")
+    # The guard refuses a call it has not judged within its own budget (DEADLINE_S): the hook's timeout must
+    # leave it the room, or the hook times out first and says nothing about splitting the command.
+    budget = re.search(r"^DEADLINE_S = ([0-9.]+)$", guard.read_text(encoding="utf-8"), re.M) if guard.is_file() else None
+    # v7.3 A7: Codex reads `.codex/hooks.json` once the project is trusted. It runs the SAME pinned guard: its
+    # command is the Bash hook's own, so the pin and every fail-closed path graded here hold for it too; its
+    # matcher is a regex on `tool_name` that matches `Bash` and nothing else; and Codex documents no way to
+    # block on a hook that times out, so the guard's own budget must refuse first.
+    codex = root / ".codex" / "hooks.json"
+    codex_hook = None
+    try:
+        codex_groups = json.loads(codex.read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        codex_groups = []
+        bad.append(f"`.codex/hooks.json` cannot be read as a Codex hooks file ({type(error).__name__}: {error}) -- "
+                   "Codex would run no Bash guard")
+    for group in codex_groups if isinstance(codex_groups, list) else []:
+        m = str(group.get("matcher", "")) if isinstance(group, dict) else ""
+        hits = [n for n in ("Bash", "BashOutput", "apply_patch", "Edit", "Write", "mcp__x__y") if re.search(m, n)] if m else []
+        if hits == ["Bash"] and isinstance(group.get("hooks"), list) and group["hooks"]:
+            codex_hook = group["hooks"][0]
+    if codex_groups and codex_hook is None:
+        bad.append("`.codex/hooks.json` has no PreToolUse group whose matcher matches the tool name `Bash` and no "
+                   "other (`^Bash$`) -- Codex would run no Bash guard, or run it on edits")
+    if codex_hook is not None and (codex_hook.get("type") != "command" or codex_hook.get("command") != bash_hook):
+        bad.append("the Codex Bash hook's command is not the PreToolUse Bash hook's of .claude/settings.json -- two "
+                   "copies of the pinned guard's hook drift; `make guard-pin` rewrites both")
+    for where, h in (("the PreToolUse Bash hook", next((g["hooks"][0] for g in hooks.get("PreToolUse", [])
+                                                        if g.get("matcher") == "Bash"), None)),
+                     ("the Codex Bash hook", codex_hook)):
+        if h is None:
+            continue
+        if budget is None:
+            bad.append("`.claude/hooks/bash_guard.py` carries no `DEADLINE_S = <seconds>` line -- no budget refuses a "
+                       "slow call before the hook's timeout")
+        elif not isinstance(h.get("timeout"), int) or h["timeout"] <= float(budget.group(1)):
+            bad.append(f"{where} times out at {h.get('timeout')!r} s, not after the guard's own {budget.group(1)} s budget "
+                       "-- a slow call times the hook out before the guard can refuse it")
     # `permissions.allow`: a `make <target>:*` wildcard lets an argument run anything.
     allow = json.loads(st.read_text(encoding="utf-8")).get("permissions", {}).get("allow", [])
     for rule in allow:
@@ -824,6 +861,22 @@ def main() -> int:
                     bad.append(f"PreToolUse Bash guard took {time.monotonic() - started:.1f} s (exit {r.returncode}) on a "
                                "brace word it would have to enumerate -- it must block within its own bound")
                 entry = next(h for h in hooks.get("PreToolUse", []) if h.get("matcher") == "Bash")["hooks"][0]
+            # Codex runs its hooks from the session's directory with no `CLAUDE_PROJECT_DIR`, and hands them its
+            # own payload (`tool_name`, `tool_input.command`, `cwd`, ...): the same guard must read it.
+            if codex_hook is not None:
+                repo = pathlib.Path(tmp) / "codex-repo"
+                (repo / ".claude" / "hooks").mkdir(parents=True)
+                # model_ranking: `guard` holds the guard's bytes by here (a case above reads them), so the file by its path.
+                shutil.copy(root / ".claude" / "hooks" / "bash_guard.py", repo / ".claude" / "hooks" / "bash_guard.py")
+                subprocess.run(["git", "init", "-q", str(repo)], capture_output=True)
+                for c, want in (("git push origin main", 2), ("rm -rf ~", 2), ("git status", 0)):
+                    payload = json.dumps({"session_id": "s1", "turn_id": "t1", "cwd": str(repo), "model": "m",
+                                          "hook_event_name": "PreToolUse", "permission_mode": "default",
+                                          "tool_name": "Bash", "tool_use_id": "c1", "tool_input": {"command": c}})
+                    r = run_hook(bash, codex_hook["command"], payload, None, {"CLAUDE_PROJECT_DIR": ""}, cwd=repo)
+                    if r.returncode != want or (want == 2 and not _err(r).startswith("BLOCKED:")):
+                        bad.append(f"the Codex Bash hook on `{c}` with a Codex payload: exit {r.returncode}, expected "
+                                   f"{want} ({_err(r)[:90] or 'no message'})")
 
             # Per edit: `make check-fast` -- the offline `make check` legs side by side, seconds.
             # The full `make gate` (network: pip-audit, slopsquat) runs at pre-push and `/pre-merge`.

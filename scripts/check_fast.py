@@ -42,6 +42,16 @@ order. A test that is red only in parallel teaches people to ignore red; mark it
 Each leg writes its own log under `build/check-fast/`. Every leg is reported, a failed one with the
 tail of its log.
 
+ONE RUN AT A TIME PER WORK TREE (#52). Two runs overlapped in one tree -- a commit hook's and the
+post-edit hook's -- and 12 tracked files were gone: a leg that empties files and puts them back,
+racing itself. DevFlow's record checks -- the Makefile's own `check:` line, less the code legs -- move
+nothing; every other target runs the project's own commands, which may: the code legs, a project's own
+legs, and a `check:` prerequisite `stack.mk` adds to the records leg. A run whose plan holds such a target
+holds `build/check-fast/lock`, an flock of its own (no leg inherits it, so a process a leg leaves running
+keeps nothing); a second one waits up to 15 minutes, then says NOT RUNNABLE and exits 2. A records-only
+run of DevFlow's record checks alone takes no lock and never waits; it logs under
+`build/check-fast/only-records/`. `make check` (serial) takes no lock.
+
     python3 scripts/check_fast.py [--make make] [--plan] [--without TARGET...] [--with TARGET...]
 
 `--plan` prints `leg: target target...`, one leg per line, and runs nothing.
@@ -50,10 +60,12 @@ its own: `make check-red` and `make check-docs` are check-fast so changed (`scri
 `--without` finds in no `check:` line, or `--with` finds no target for or finds in `check:` already, FAILS.
 `--plan` prints `leg: target target...`, one leg per line, and runs nothing. `--only-records` runs the
 records leg alone: the post-edit hook passes it after a document edit (`scripts/post_edit_scope.py`).
+`--lock-wait S` waits S seconds for the lock, not 15 minutes.
 Every leg's `make closes` grades only the close records changed since the merge-base
-(`CLOSES_CHANGED=1`); `make check` grades them all.
+(`CLOSES_CHANGED=1`) unless the caller set CLOSES_CHANGED itself: empty grades them all, as `make check`
+does. `/start-session` grades them all with `make closes` beside this run.
 Exit: 0 every leg passed (or the plan was printed) · 1 a leg failed, or the legs cannot be derived
-or the two settings are invalid · 2 cannot run (make not installed).
+or the two settings are invalid · 2 cannot run (make not installed, or another run kept the lock).
 """
 
 from __future__ import annotations
@@ -83,6 +95,8 @@ RECORDS = "records"
 #: Capped at four workers: on a small suite starting eight cost more than the tests (process audit F-12).
 PYTEST_PARALLEL = "-n auto --maxprocesses 4 --dist loadgroup"
 TAIL = 30
+#: How long a run that starts a code leg waits for another one in this work tree (#52, the owner's ruling).
+LOCK_WAIT_S = 15 * 60
 
 
 def check_prerequisites(makefile: str) -> list[str]:
@@ -176,20 +190,49 @@ def legs(prereqs: list[str], own: list[str] | None = None) -> dict[str, list[str
 def leg_env(targets: list[str]) -> dict[str, str]:
     env = dict(os.environ)
     # check-fast grades only the close records this branch changed; `make check`, the gate and CI grade
-    # every one (v7.2: 42 records took 17 s on every edit).
-    env["CLOSES_CHANGED"] = "1"
+    # every one (v7.2: 42 records took 17 s on every edit). A caller's own value stands; empty grades every
+    # close record (v7.3, the review's M1).
+    env.setdefault("CLOSES_CHANGED", "1")
     if "test" in targets:             # the `test` target itself; a form of it brings its own
         env["PYTEST_ADDOPTS"] = f"{env.get('PYTEST_ADDOPTS', '')} {PYTEST_PARALLEL}".strip()
     return env
 
 
-def start(plan: dict[str, list[str]], make: str,
-          forms: dict[str, str]) -> dict[str, subprocess.Popen[bytes] | None]:
+def take_lock(wait_s: float):
+    """This work tree's lock (#52), held by this run alone while the returned file is open: Python opens it
+    non-inheritable, so no leg, and no process a leg leaves running, keeps it. None when another run kept it
+    past `wait_s`."""
+    LOGS.mkdir(parents=True, exist_ok=True)
+    held = (LOGS / "lock").open("a+b")
+    deadline, told = time.monotonic() + wait_s, False
+    while True:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                held.seek(0)
+                msvcrt.locking(held.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(held.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return held
+        except OSError:
+            if time.monotonic() >= deadline:
+                held.close()
+                return None
+            if not told:
+                print(f"check-fast: another run holds this work tree's lock ({LOGS / 'lock'}) -- waiting, up to "
+                      f"{wait_s / 60:g} min", flush=True)
+                told = True
+            time.sleep(0.25)
+
+
+def start(plan: dict[str, list[str]], make: str, forms: dict[str, str],
+          logs: Path) -> dict[str, subprocess.Popen[bytes] | None]:
     """Every leg at once, each writing its own log; `None` for a leg that could not start."""
     running: dict[str, subprocess.Popen[bytes] | None] = {}
     for name, prereqs in plan.items():
         targets = [forms.get(t, t) for t in prereqs]
-        with (LOGS / f"{name}.log").open("wb") as log:
+        with (logs / f"{name}.log").open("wb") as log:
             try:
                 # `make` and target names read from this repository's own Makefile.
                 # Each leg in its own process group, so stopping it stops what it started.
@@ -233,16 +276,16 @@ def shown(targets: list[str], forms: dict[str, str]) -> str:
     return " ".join(f"{t}={forms[t]}" if t in forms else t for t in targets)
 
 
-def run_legs(plan: dict[str, list[str]], make: str, forms: dict[str, str]) -> int:
+def run_legs(plan: dict[str, list[str]], make: str, forms: dict[str, str], logs: Path = LOGS) -> int:
     """Start every leg at once, each to its own log; 0 only if every one exits 0."""
-    LOGS.mkdir(parents=True, exist_ok=True)
-    for stale in LOGS.glob("*.log"):
+    logs.mkdir(parents=True, exist_ok=True)
+    for stale in logs.glob("*.log"):
         stale.unlink()
-    print(f"check-fast: {len(plan)} leg(s) from `check:` in {MAKEFILE}, logs in {LOGS}", flush=True)
+    print(f"check-fast: {len(plan)} leg(s) from `check:` in {MAKEFILE}, logs in {logs}", flush=True)
     started = time.monotonic()
     # Stopped from outside -- Ctrl-C, or a hook's timeout -- leaves no leg running behind it.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(128 + signal.SIGTERM))
-    running = start(plan, make, forms)
+    running = start(plan, make, forms, logs)
     try:
         finished = wait(running, started)
     finally:
@@ -257,7 +300,7 @@ def run_legs(plan: dict[str, list[str]], make: str, forms: dict[str, str]) -> in
         if code != 0:
             failed.append(name)
     for name in failed:
-        log = LOGS / f"{name}.log"
+        log = logs / f"{name}.log"
         text = log.read_text(encoding="utf-8", errors="replace").splitlines()
         print(f"\n--- {name}: last {min(TAIL, len(text))} line(s) of {log} ---")
         print("\n".join(text[-TAIL:]))
@@ -282,6 +325,8 @@ def main(argv: list[str]) -> int:  # noqa: C901
                         help="make targets outside `check:`, each run as a leg of its own (`make check-red`)")
     parser.add_argument("--only-records", action="store_true",
                         help="only the records leg: the post-edit hook after a document edit")
+    parser.add_argument("--lock-wait", type=float, default=LOCK_WAIT_S, metavar="S",
+                        help="seconds to wait for another run in this work tree (default: 15 minutes)")
     args = parser.parse_args(argv)
     if shutil.which(args.make) is None:
         print(f"check-fast CANNOT RUN: {args.make} not installed: cannot run the legs of "
@@ -290,10 +335,15 @@ def main(argv: list[str]) -> int:  # noqa: C901
     try:
         # make merges every `check:` rule it reads, and it reads `stack.mk` too: a gate a project
         # adds there runs in `make check`, so it must run here.
-        text = MAKEFILE.read_text(encoding="utf-8")
+        makefile = MAKEFILE.read_text(encoding="utf-8")
+        text = makefile
         if STACK_MK.is_file():
             text += "\n" + STACK_MK.read_text(encoding="utf-8")
         prereqs, dropped = without(check_prerequisites(text), args.without)
+        # DevFlow's record checks -- the Makefile's own `check:` line, less the code legs -- move nothing; any
+        # other target runs the project's own commands, which may move files (#52): `stack.mk`'s in the records
+        # leg too (the review's B1), and a `--with` target.
+        devflow = set(check_prerequisites(makefile)) - set(CODE_LEGS)
         own, forms, problems = settings(check_prerequisites(text), *config(args.make))
         problems += dropped + added(text, args.extra)
         own = [t for t in own if t in prereqs]
@@ -316,7 +366,23 @@ def main(argv: list[str]) -> int:  # noqa: C901
         for name, targets in plan.items():
             print(f"{name}: {shown(targets, forms)}")
         return 0
-    return run_legs(plan, args.make, forms)
+    held = None
+    if any(t not in devflow for targets in plan.values() for t in targets):
+        try:
+            held = take_lock(args.lock_wait)
+        except OSError as exc:
+            print(f"check-fast NOT RUNNABLE: cannot take this work tree's lock ({LOGS / 'lock'}): {exc}")
+            return 2
+        if held is None:
+            print(f"check-fast NOT RUNNABLE: another check-fast run in this work tree kept its lock for "
+                  f"{args.lock_wait / 60:g} min ({LOGS / 'lock'}) -- two at once can race a leg that moves files "
+                  "(#52). Not a finding: run it again when that one ends")
+            return 2
+    try:
+        return run_legs(plan, args.make, forms, LOGS / "only-records" if args.only_records else LOGS)
+    finally:
+        if held:
+            held.close()
 
 
 if __name__ == "__main__":

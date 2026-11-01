@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief-template
 status: draft
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -38,8 +38,7 @@ date: 2026-09-23
    `docs/closure-report-m{N}.md` with the REQ-ID trace, coverage delta and token cost, `make closes`
    grades it, and the owner runs their own milestone test session; off: a milestone closes on its merged
    waves, and the milestone Tester already requires a citing test for every criterion; heavy mode
-   only — a light project has no plans and no closure report; its milestone closes before a
-   release, with the milestone Tester)*
+   only — a light project's milestone closes before a release, with the milestone Tester)*
 3. **Retrospective when the work is done:** `<no (default) | yes>` *(one short file at the very end,
    `/cycle-close`, Stage 5.3 — never during the work)*
 4. **HIGH-risk areas this project touches:** *(default: none, until the first one appears; a change
@@ -57,12 +56,21 @@ date: 2026-09-23
    - Paths that make a change HIGH: `<none | comma-separated globs>` *(`make review-need` reads them:
      light mode sends a change touching one to the Security-Reviewer; heavy mode prints its signals for
      the milestone Security-Reviewer)*
+   - Security-invariant tests: `<none | comma-separated globs>` *(they stay code: a change to one re-opens
+     the release verdicts and is a security signal; with this line, any other test change re-opens neither
+     while CI is green on HEAD; a glob without `/` names a file wherever it sits)*
 5. **Senior human reviewer for those areas:** `<name + contact>` *(default: the owner)*
 6. **Does the work end in a deploy, and where:** `<yes: target environment | no>` *(default: decided
    at the first release; it decides whether Stage 5 — security review, then `/going-live` — applies
    and what it checks against)*
    - Deploy commands: `<none | comma-separated commands>` *(the deploy gate refuses each until a
      security review, and the milestone Tester, have seen every code change since their reviewed heads)*
+   - Deploy targets: `<none | comma-separated class: command>` *(class `production` or `external-test`:
+     as above; `internal` or `staging`: the Tester's verdict and an `unreleased` line in
+     `docs/releases/unreleased.md`, no release security delta -- `make deploy-check TARGET=<class>`. One
+     program in two classes: declare production by the shortest spelling every production deploy contains
+     (`vercel deploy --prod`; an alias such as `--app` for `-a` is not recognised); a team-only line decides
+     only when it holds all of production's words and more)*
    - Rollback command: `<none: why | the command that puts the previous build back>` *(`/going-live` runs
      it when a deploy fails)*
    - Runtime config files: `<none | comma-separated paths>` *(what the deploy reads that git does
@@ -92,8 +100,9 @@ date: 2026-09-23
     this line)*
 11. **QA verification:** `<off (default) | on>` *(off: a bug closes when its fix merges; on: a person
     verifies on a deployed build and the `qa:` labels track it)*
-12. **Reviewer model:** `<the session's (default) | a model name, and which reviewers>` *(written as `model:`
-    in those `.claude/agents/*.md` profiles)*
+12. **Reviewer model:** `<sonnet: Code-Reviewer, Tester (default) | the session's | a model, and which reviewers>`
+    *(written as `model:` in those `.claude/agents/*.md` profiles; the Security-Reviewer, and a
+    profile without the line, run on the session's)*
 
 ## 2.1 Repositories — every tree that ships something a customer can reach
 
@@ -109,6 +118,9 @@ internal tooling is out of scope; say so in a row rather than by leaving it out.
 | `<org/repo>` | `<the API / the console / the mobile app>` | yes / no | `<the refusal, as "refusals.md R-n", or "—">` |
 | `<org/repo-fe>` | `<...>` | yes / no | `<...>` |
 
+- **Sibling repositories:** `none` *(this product's other clones on this machine, as paths from this root: a
+  session started in one of them may push here -- `make session-check`)*
+
 **Each repo is either DevFlow-installed or named in `docs/refusals.md` with an owner ruling.**
 `make bootstrap-check` asserts that this declaration exists and is filled — at least one real row, no
 placeholders left, and every `no` carrying a ruling. It claims nothing about the contents of the
@@ -116,6 +128,8 @@ other trees, which it cannot see.
 
 ## 3. Other choices (defaults unless the owner changes them)
 
+- **Merges:** `<wait (default) | do not wait>` *(do not wait: while the owner is away, the drafts stack on
+  the integration lane — AGENTS.md §3, `/pre-merge` §1a — instead of each waiting for its merge; `make doctor` says it)*
 - **CODEOWNERS / DevOps boundary (K.10):** does app + DevOps share this repo? `<yes | no>` *(default:
   yes → fill `<DEVOPS_HANDLE>` in `.github/CODEOWNERS` and enable "Require review from Code Owners";
   no DevOps team → delete the build/deploy lines rather than leaving a placeholder owner)*

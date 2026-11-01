@@ -2,7 +2,7 @@
 record_type: brief
 id: project-brief
 status: ratified
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-08-06
 ---
 # Project Brief — model_ranking
@@ -109,6 +109,8 @@ The questions DevFlow v7.0 and v7.1 added, answered at the upgrade from v6.6.
 - **Runtime config files:** `none` *(the engine's secrets live in Fly, set by the owner)*
 - **Paths that make a change HIGH:** `none` *(as section 4 says; the security seat runs at each milestone's closure and on the whole release, D-172)*
 - **QA verification:** `off` *(a bug closes when its fix merges)*
+- **Reviewer model:** `sonnet: Code-Reviewer, Tester` *(the owner, 2026-11-01, at the v7.3.1 upgrade, D-241; the Security-Reviewer runs on the session's model)*
+- **Merges:** `do not wait` *(the owner, 2026-11-01, D-241: while the owner is away the drafts stack on one integration branch and the owner merges one PR)*
 
 ---
 

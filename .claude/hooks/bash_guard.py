@@ -3,8 +3,9 @@
 
 `.claude/settings.json` runs this as the PreToolUse hook for `Bash`, and with `--write` as the PreToolUse
 hook for `Write`, `Edit` and `MultiEdit`, each after checking its sha256 against the pin written there
-(`make guard-pin` rewrites both pins; INSTALL.md, "Changing the Bash guard"). The hook's JSON arrives on
-stdin; exit 2 refuses the call with one `BLOCKED:` line on stderr, exit 0 allows it.
+(`make guard-pin` rewrites them; INSTALL.md, "Changing the Bash guard"); `.codex/hooks.json` runs the same
+command for Codex's `Bash`. The hook's JSON arrives on stdin; exit 2 refuses the call with one `BLOCKED:` line
+on stderr, exit 0 allows it.
 
 Until this file existed the guard was a set of regular expressions over the raw text. Measured in two
 field projects over two weeks: every refusal it made on a deploy command was wrong (a commit message, an
@@ -17,8 +18,9 @@ and a rule looks only at the words in command position.
 
 What it refuses, each in one simple command:
 - refused: `git push` that forces (`-f`, `--force`, `--force-with-lease`, `--force-if-includes`, a `+ref`),
-  mirrors, pushes every branch (`--all`, `--branches`), names `main`, `master` or `trunk` as the
-  destination (`main`, `HEAD:main`, `heads/main`, `refs/heads/main`), or runs behind `xargs`; git's
+  mirrors, pushes every branch (`--all`, `--branches`), names a protected branch as the destination
+  (`main`, `HEAD:main`, `heads/main`, `refs/heads/main`) -- `main`, `master`, `trunk`, and the default of the
+  call's repository, its `origin/HEAD`, else `init.defaultBranch` (v7.3) -- or runs behind `xargs`; git's
   words are read with this text's literal assignments in, so `m=main; git push origin --delete $m` is the
   push it spells (it walked through v7.1), and a deletion (`--delete`, `-d`, a `:ref`) naming a ref
   through an expansion still unresolved is refused: it may be the protected branch;
@@ -30,7 +32,10 @@ What it refuses, each in one simple command:
   `--config-env` in either form (`--config-env core.hooksPath=V` walked through, and its separate value
   was once read as the subcommand), a `GIT_CONFIG_PARAMETERS` or `GIT_CONFIG_KEY_<n>` assignment naming it
   or holding an expansion (git reads both, as it reads `-c`), and `git config` setting it to anything but
-  `.githooks`, unsetting it, or dropping the `core` section;
+  `.githooks`, unsetting it, or dropping the `core` section; and husky's off switch on a push (v7.3:
+  `make hooks` may run the gate through husky): `HUSKY` set to `0` or to what this cannot read, or
+  `HUSKY_SKIP_HOOKS` (husky 4) set to `1`, `true` or the unreadable -- as a prefix, through `env`, exported or
+  assigned anywhere in the text that pushes;
 - a git alias, judged as the command it names (`!` and shell text, or git and its words): an alias set by
   `-c alias.x=...` with the words it is then called with, through a chain of aliases as git resolves it
   (`git -c alias.r=reset r --hard` is `git reset --hard`); a persistent one (`git config [set] alias.x ...`) only to a read-only git command, since its
@@ -93,7 +98,8 @@ What it refuses, each in one simple command:
   removed the real home past v7.1.1) -- in the second world; in the first it holds, as before a POSIX special
   builtin; `read`, `mapfile`, `getopts`, `unset`, `printf -v`, `for`, `select`, zsh's `print -v` and
   module binders, `${NAME:=...}`, and `declare -n` (for the reference and its target) make the names they
-  bind unknown;
+  bind unknown -- but a `for NAME in WORDS` over literal words, NAME unset before it, gives NAME each word in
+  turn: the call is judged once per word, every combination up to MAX_PASSES (v7.3);
 - a value this cannot read, where a refusal would read it (#344): a command substitution's output (but a lone
   `mktemp`'s), an array (`a=(.claude)`, `mapfile`), a positional parameter (`$1`, `$@`), a `${...}` that is not a
   plain `${name}` (`${d:-.claude}`), a pattern, or a name this text gave one of them -- as a write's target (a
@@ -125,12 +131,18 @@ What it refuses, each in one simple command:
   The gate matches the declared words at command position, case-insensitively, by the program's
   basename: `FLY DEPLOY`, `fly  deploy`, `'fly' deplo'y'`, `/usr/local/bin/fly deploy`, `sudo fly deploy`,
   `bash -c 'fly deploy'` and `a=fly; $a deploy` are all the deploy; `echo 'fly deploy'`
-  and `git commit -m 'fly deploy notes'` are not;
+  and `git commit -m 'fly deploy notes'` are not. Where the brief declares a `gh workflow run` deploy, a
+  `gh run rerun` is also handed over as `gh workflow run <its workflow>`, which one `gh api` call reads; one
+  gh cannot place is refused (v7.3);
 - a program word written as a pattern (`gi*`, `{git,ls}`), which could name anything;
-- any command that names the gate stamp (`devflow-gate…`, `gate_stamp…`; lower-cased, quotes,
-  backslashes and `$` removed first) -- a commit message that names it too: `make gate` writes it when
-  it passes, and pre-push and `/pre-merge` trust it, so a stamp written by hand is a gate that never
-  ran -- a pattern that expands to the script, run by an interpreter, too (`$'...'` decoded first; the
+- a command that names the gate stamp (`devflow-gate…`) or its script (`gate_stamp…`; lower-cased, quotes,
+  backslashes and `$` removed first) anywhere but where it is only read: `make gate` writes it when it passes,
+  and pre-push and `/pre-merge` trust it, so a stamp written by hand is a gate that never ran. Read means an
+  operand of a program in STAMP_READERS or of `git log|show|diff|grep|status` (no `--output`), or text that
+  writes nothing: a `git commit` or `git tag` message, `echo`, `printf` without `-v`, a here-document into
+  another file (v7.3; v7.2 refused every mention). In a call that names either, a redirection, an operand
+  behind `xargs` or a word this cannot read that may be the stamp is refused, and so is a code runner fed its
+  code on stdin. So is a pattern that expands to the script, run by an interpreter (`$'...'` decoded first; the
   stamp is named by its commit, so a pattern cannot create HEAD's); and `make` with `-i`, `-o`, `-W`,
   `-t`, `-e`, `--eval` or their long forms in any abbreviation, or `MAKEFLAGS` or `MAKELEVEL` assigned,
   which run a target whose prerequisites failed or never ran, or pass a script off as make.
@@ -229,12 +241,14 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
 Where it looks: each command after `;`, `&&`, `||`, `|`, `|&`, `&`, a newline, `(`, `)`, `{` or `}`;
 inside `$( )`, backticks, `<( )`, `${ }`, `$(( ))` and an unquoted here-document's body; past
 assignments, shell keywords and the wrappers in WRAPPERS (after one, every later word is tried as the
-program); inside `bash`, `sh`, `zsh`, `dash`, `ksh`, `csh`, `tcsh` or `fish` given `-c`, a script name, a
+program); inside `bash`, `sh`, `zsh`, `dash`, `ksh`, `csh`, `tcsh` or `fish` given `-c` (fish's `-c` and `-C`
+in every spelling its getopt reads: glued, `=`, a long prefix -- v7.3, #54), a script name, a
 here-document or a here-string; and inside `eval`, `source`, `.`, `env -S`, `find -exec`, a `trap`'s
 command, a shell `alias`'s value and `mapfile -C`'s callback. Text in
 single quotes and a quoted here-document's body are data; a `#` that starts a word starts a comment. A
 program named through a variable assigned a literal earlier in the same text (`a=git; $a push`) is read
-as that program.
+as that program; unquoted, a value with blanks is split into words (`x='rm -rf ~'; $x`), and `eval`'s and
+`-c`'s text is read with those literals in (v7.3, #68).
 
 WHERE each command runs (`_moved`): the call's `cwd`, then wherever a `cd`, `chdir`, `pushd` or `popd`
 before it leads, in order through `;`, `&&`, `||`, newlines and brace groups -- a `cd` that fails stays
@@ -250,9 +264,10 @@ loop or a function (which may run it twice), and a `cd` word where this does not
 It refuses what it cannot read rather than reading it as data: an unclosed quote or substitution; a word
 with `(` written against it; a `${(flags)...}`; a shell or `source` reading its commands from a pipe, a
 file or stdin; a `-c` with no string; an input over MAX_INPUT characters; a payload that is not JSON; and
-any call it has not finished judging within DEADLINE_S seconds (a timer thread writes the line and exits
-2). A long call into C that holds the interpreter runs to its end first; the hook's own `timeout` and
-`"onFailure": "block"` bound that case, from Claude Code 2.1.295.
+any call it has not finished judging within its time budget, DEADLINE_S seconds (a timer thread writes
+BUDGET, which says to split the command, and exits 2). A long call into C that holds the interpreter runs to
+its end first; the hook's own `timeout` and `"onFailure": "block"` bound that case, from Claude Code 2.1.295
+(an older one ignores the key and loads the file: measured on 2.1.294). Codex documents no such key.
 
 Not held, by class -- said here so nobody believes otherwise:
 - a program named when the command runs: a variable or an alias set outside this text, a function, `hash`,
@@ -271,13 +286,15 @@ Not held, by class -- said here so nobody believes otherwise:
   the shell's startup files set and this process does not see;
 - a push to a destination git chooses itself: a bare `git push`, `git push origin HEAD` or `@`, an
   upstream, `push.default`, or a variable set elsewhere naming the ref of a push that does not delete
-  (`git push origin "$branch"`; branch protection on the remote is the control there);
+  (`git push origin "$branch"`; branch protection on the remote is the control there); a default branch
+  other than the call's repository's (a push after `cd` into another one), or set in a reftable `origin/HEAD`;
 - a remote's tags: a `v*` tag pushed or fetched by name or in bulk (`git push origin v1`, `--tags`,
   `--follow-tags`, `git fetch --tags`), and a tag file written under `.git/refs/tags/` (#410 holds the local
   `git tag` and `update-ref` only);
 - the owner's machine changed by a program this does not list: `launchctl` (`bootstrap`, `bootout`, `load`),
   a write under `~/Library/LaunchAgents`, a script that runs one, or a copy of a guarded script under
   another name (#471; the launchd deploy and its rules retired with #427, #461 and #470);
+- a rerun gh misreports (`gh` is read from PATH), or a declared deploy with options a rerun does not carry;
 - what the shell expands when the command runs, beyond the program word and git's words: `IFS`, history,
   globs and braces in arguments; syntax beyond POSIX-like shell; a name bound by `read`, `for`, `printf -v`,
   `getopts` or a wrapper's assignment, which is unknown to the scratch rule only (#344 left them read as unset);
@@ -286,7 +303,8 @@ Not held, by class -- said here so nobody believes otherwise:
   it resolves, but one another program makes in this call (`python -c`, `tar`, `unzip`, a clone that holds
   a link) is not seen;
 - the gate stamp, like the pre-push hook it serves (which the editor tool can rewrite), against an agent
-  set on evading it: its name built at run time, or written by a program; a commit made while `make gate`
+  set on evading it: its name built at run time, or written by code another program runs (a script's own
+  code, a `make` recipe); a commit made while `make gate`
   runs (the stamp names the HEAD at its end); a work tree git is told not to see (`update-index
   --skip-worktree`, a `.git/info/exclude` a program this does not list writes), which pre-push graded no better
   before the stamp; CI still runs every gate leg;
@@ -322,8 +340,11 @@ from dataclasses import dataclass, field
 
 #: The longest command this reads; a longer one is refused.
 MAX_INPUT = 32768
-#: How long the guard may take; past it, it refuses.
+#: The guard's time budget for one call. A call is judged in milliseconds; past the budget it is refused with
+#: BUDGET -- inside the hook's own `timeout`, so the refusal, not a timeout, is what the agent reads.
 DEADLINE_S = 10.0
+BUDGET = ("BLOCKED: this guard did not finish judging the command within its {s:g} s budget. Split it into smaller "
+          "Bash calls; if one short command keeps hitting this, the machine or the deploy gate is slow -- tell the owner.")
 #: The directory the call runs in (the payload's `cwd`): where WHERE starts.
 CWD: dict[str, str] = {"dir": ""}
 #: The directories the command being judged may run in (WHERE; `_moved`): each a path, SCRATCH (a `mktemp`
@@ -336,7 +357,13 @@ UNKNOWN = object()
 REACHED: set[str] = set()
 #: Set for the rest of the call once a text holds a loop or a function, which may run a `cd` twice, or
 #: assigns `CDPATH`, which may send a relative `cd` elsewhere.
-SEEN: dict[str, bool] = {"repeats": False, "cdpath": False, "links": False, "home": False, "home_used": False}
+SEEN: dict[str, bool] = {"repeats": False, "cdpath": False, "links": False, "home": False, "home_used": False,
+                         "stamp": False}
+#: A3: the `for NAME in WORDS` loops over literal words this text holds, in the order it meets them: how many words
+#: each has, and the word each gives NAME in this pass. A text holding them is judged once per combination, up to
+#: MAX_PASSES; past that once more with every such NAME unknown, as before v7.3.
+FORS: dict[str, object] = {"sizes": [], "pick": (), "unknown": False}
+MAX_PASSES = 64
 #: Set while the command being judged may not run, or runs apart from what follows (`&&`, `||`, a
 #: branch, a loop, a subshell, a substitution, a pipe): an assignment there may or may not hold after it.
 #: `scoped` is the same question asked by where the command sits (#287): in a subshell, a substitution, a pipeline
@@ -418,7 +445,28 @@ COMPOUND = LOOPS | {"if", "then", "else", "elif", "fi", "case", "esac", "do", "d
 SHELLS ={"bash", "sh", "zsh", "dash", "ksh", "csh", "tcsh", "fish"}
 #: A shell or `source` given one of these reads its commands from stdin.
 STDIN_PATHS = {"-", "/dev/stdin", "/dev/fd/0", "/proc/self/fd/0"}
+#: GNU env's long options (prefixes resolve to them, #47) and those that take the next word as their value.
+ENV_LONG = ("argv0", "block-signal", "chdir", "debug", "default-signal", "help", "ignore-environment",
+            "ignore-signal", "list-signal-handling", "null", "split-string", "unset", "version")
+ENV_VALUED = {"argv0", "chdir", "split-string", "unset"}
 PROTECTED = {"main", "master", "trunk"}
+#: A8: the default branch of the call's repository -- its `origin/HEAD`, else `init.defaultBranch` -- is protected
+#: beside PROTECTED, never instead of it. One lookup per git directory for the life of this process.
+DEFAULTS: dict[str, str | None] = {}
+#: fish's options as its getopt reads them (`fish_parse_opt`): a long one in any unique prefix, True when it takes
+#: a value; the short ones that take a value glued or as the next word. `-c` and `-C` carry shell text.
+FISH_LONG = {"command": True, "init-command": True, "features": True, "debug": True, "debug-output": True,
+             "debug-stack-frames": True, "profile": True, "profile-startup": True, "interactive": False,
+             "login": False, "no-config": False, "no-execute": False, "print-rusage-self": False,
+             "print-debug-categories": False, "private": False, "help": False, "version": False}
+FISH_VALUED = set("cCdfDop")
+#: A2: in a call that names the gate stamp, the only commands that may name it: programs that read their
+#: operands, `git`'s reading subcommands (no `--output`), and text that writes nothing (`_stamp_ok`).
+STAMP_READERS = {"grep", "egrep", "fgrep", "rg", "cat", "head", "tail", "ls", "wc", "stat", "test", "[", "[["}
+GIT_READS = {"log", "show", "diff", "grep", "status"}
+#: Programs that run code from their words or stdin: one fed code there, in a call naming the stamp, may write it.
+CODE_RUNNERS = re.compile(r"^(python[0-9.]*|py|pypy[0-9.]*|perl[0-9.]*|ruby[0-9.]*|node|nodejs|deno|bun|php[0-9.]*|"
+                          r"lua[0-9.]*|luajit|rscript|osascript|[gmn]?awk|tclsh[0-9.]*|pwsh|powershell)$", re.I)
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=")
 #: A variable name as an assignment or a binder writes it, a subscript and `+` allowed.
 NAME_WORD = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?$")
@@ -566,6 +614,9 @@ PROTECTED_PUSH = ("BLOCKED: the agent never pushes the protected branch (AGENTS.
                   "draft PR; a human marks it ready and merges.")
 NO_VERIFY = ("BLOCKED: `--no-verify` and a redirected `core.hooksPath` skip the gate a hook runs (AGENTS.md S3): "
              "a hook you skipped is a gate you removed. Fix what is red, or ask the owner.")
+HUSKY_OFF = ("BLOCKED: `HUSKY=0` (or husky 4's `HUSKY_SKIP_HOOKS`) on a push skips every hook husky runs, the "
+             "pre-push gate among them; refused, as `--no-verify` is (AGENTS.md S3). Push without it: a hook you "
+             "skipped is a gate you removed.")
 UNREAD_DELETE = ("BLOCKED: this push deletes `{ref}`, a name this guard cannot read, and it may be the protected "
                  "branch (AGENTS.md S3). Write the branch name, or assign it a literal earlier in the command.")
 ENV_WRITE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (default-deny secrets)."
@@ -587,6 +638,10 @@ NOT_JSON = "BLOCKED: this guard cannot read the tool call -- the payload is not 
 GATE_MISSING = ("BLOCKED: deploy gate -- {root} declares deploy commands in docs/project-brief.md and {own} has no "
                 "scripts/deploy_gate.py, so no command can be told from a deploy. Restore the script "
                 "(INSTALL-MANIFEST.md); the guard never skips this check.")
+CONFLICT_MARKER = re.compile(r"^(<{7}|>{7})(?: |$)|^={7}$", re.M)
+GATE_CONFLICT = ("BLOCKED: deploy gate -- scripts/{name} holds an unresolved merge conflict (line {line}), so no "
+                 "command can be judged. Resolve it with the Edit tool -- no Bash call runs until it is resolved -- "
+                 "and resolve this file before any other an upgrade conflicted.")
 GATE_OLD = ("BLOCKED: deploy gate -- {gate} predates this guard: it carries no `JUDGE_PROTOCOL = {need}` line, so it "
             "would {why}. Upgrade the deploy gate to the guard's version (UPGRADING.md); the guard never skips "
             "this check.")
@@ -631,6 +686,123 @@ def _stamp_pattern(text: str, names: tuple[str, ...] = ("gate_stamp.py", "devflo
     whose last path component may name the gate stamp or its script."""
     last = re.sub(r"\{[^}]*\}", "*", text.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1].lower())
     return any(fnmatch.fnmatchcase(name, last) for name in names) if last else False
+
+
+def _stamp_named(text: str) -> bool:
+    """Whether text names the gate stamp or its script as the call's flat reading does: lower-cased, with quotes,
+    backslashes and `$` removed."""
+    flat = re.sub(r"[\"'\\$]", "", text).lower()
+    return "devflow-gate" in flat or "gate_stamp" in flat
+
+
+def _stamp_target(word: "Word") -> bool:
+    """A2: whether a file a command writes may be the gate stamp or its script -- its last path component names
+    one (this text's literals in), or, in a call that names the stamp, holds an expansion this cannot read that
+    may make it one (`"$a"`, `x-$n`; not `${slug}.md`, nor a `mktemp` result)."""
+    last = _expand(word.text).replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+    if _stamp_named(last):
+        return True
+    m = VARIABLE.fullmatch(last)
+    if not SEEN["stamp"] or not ("$" in last or "{}" in last or not last) or (m and _variable(_name(m)) is SCRATCH):
+        return False
+    pattern = re.sub(r"\$\{[^}]*\}|\$\(\.\.\.\)|\$[A-Za-z_][A-Za-z0-9_]*|\$.?|\{\}", "*", last).lower() or "*"
+    return any(fnmatch.fnmatchcase(n, pattern) for n in ("devflow-gate-ok-" + "0" * 40, "gate_stamp.py"))
+
+
+def _stamp_ok(cmd: "Command") -> bool:
+    """A2, in a call that names the gate stamp: whether this command only reads it. Every mention must be a read
+    -- an operand, not an option, of a program in STAMP_READERS or of a `git` subcommand in GIT_READS without
+    `--output` -- or text that writes nothing: `git commit` and `git tag`, `echo`, `printf` without `-v`, a
+    here-document fed to one of them. Any other command that names it, or takes its operands from where this
+    cannot read (`xargs`, an expansion, a code runner's stdin), may write it, as v7.2 read every one."""
+    words = cmd.words
+    named = [k for k, w in enumerate(words) if _stamp_named(_expand(w.text))]
+    fed = any(_stamp_named(t) for t in cmd.fed)
+    i, xargs = 0, False
+    while i < len(words) and (ASSIGNMENT.match(words[i].text) or words[i].text in KEYWORDS - {"[", "[["}):
+        i += 1
+    while i < len(words) and _program(words[i]) in WRAPPERS:
+        xargs = xargs or _program(words[i]) == "xargs"
+        i += 1
+        while i < len(words) and (words[i].text.startswith("-") or ASSIGNMENT.match(words[i].text)):
+            i += 1
+    if i >= len(words) or any(k < i for k in named):   # an assignment, or a wrapper's own word, names it
+        return not (named or fed)
+    program, rest = _program(words[i]), words[i + 1:]
+    options = [w for w in rest if w.text.startswith("-")]
+    if program == "git":
+        k = 0
+        while k < len(rest) and rest[k].text.startswith("-"):
+            k += 2 if rest[k].text in ("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env") else 1
+        sub = rest[k].text if k < len(rest) else ""
+        reads = sub in ("commit", "tag") or (sub in GIT_READS and not any(
+            w.text.startswith("--outp") or _stamp_named(_expand(w.text)) for w in options))
+    else:
+        reads = (program == "echo" or (program == "printf" and not any(w.text.startswith("-v") for w in options))
+                 or (program in STAMP_READERS and not any(_stamp_named(_expand(w.text)) for w in options)))
+    return reads or not (named or fed or xargs or any(_stamp_target(w) for w in words[i:])
+                         or (CODE_RUNNERS.match(program) and (cmd.piped or cmd.from_file or cmd.fed)))
+
+
+def _braces(text: str, limit: int = 64) -> list[str] | None:
+    """Bash's brace expansion of `text`, enough to see every path a `{a,b}` group can name (a group may hold a
+    `/`: `docs/{../scripts/g*.py,x}`, which v7.2 read as one name ending in `x}`). None past `limit` names in
+    all: a word built to expand that far is refused, never walked (v7.2.1, review: 2^n work otherwise)."""
+    out, todo = [], [text]
+    while todo:
+        if len(out) + len(todo) > limit:
+            return None
+        t = todo.pop()
+        m = re.search(r"\{([^{}]*,[^{}]*)\}", t)
+        if not m:
+            out.append(t)
+            continue
+        todo += [t[:m.start()] + alt + t[m.end():] for alt in m.group(1).split(",")]
+    return out
+
+
+#: Commands that put a file somewhere, or move a directory or link, before a pattern later in the same call
+#: is expanded: the directory checked now is not the one the shell expands then (v7.2.1, review).
+PLACES_FILES = re.compile(r"\b(cp|mv|ln|rmdir|mkdir|install|rsync|ditto|tar|unzip|cpio|pax|patch)\b"
+                          r"|\bgit\s+(mv|checkout|restore|switch|worktree|stash|apply|am|cherry-pick|merge|pull)\b")
+CALL = {"text": ""}
+
+
+def _names_stamp_script(word: "Word") -> bool:
+    if "{" in word.text:
+        alternatives = _braces(word.text)
+        if alternatives is None:
+            return True
+        if len(alternatives) > 1 or alternatives[0] != word.text:
+            return any(_names_stamp_script_one(Word(t, word.glob, word.equals, word.quoted, list(word.subs)))
+                       for t in alternatives)
+    return _names_stamp_script_one(word)
+
+
+def _names_stamp_script_one(word: "Word") -> bool:
+    """Whether an interpreter's argument may be, or expand to, the stamp's script. A literal name, a pattern
+    with no directory, or one whose directory this cannot read -- a variable, a substitution, `~`, a brace,
+    a pattern, a directory that does not exist yet (a link made in the same call) -- keeps v7.2's refusal.
+    A pattern in a plain directory that exists and holds no `gate_stamp.py` cannot expand to it:
+    `tests/unit/*.py` and `conformance/*.py` were refused as the stamp's script (Project-J, v7.2)."""
+    text = word.text
+    if not _stamp_pattern(text, ("gate_stamp.py",)):
+        return False
+    last = text.replace("\\", "/").rstrip("/").rsplit("/", 1)
+    if len(last) == 1 or not any(c in last[1] for c in "*?[") or "{" in text or "}" in text or word.subs:
+        return True
+    directory = last[0]
+    if SEEN.get("links") or PLACES_FILES.search(CALL["text"]):
+        return True
+    if not directory or not re.fullmatch(r"[A-Za-z0-9_./-]+", directory) or any(c in directory for c in "*?["):
+        return True
+    for base in HERE["dirs"] or [CWD["dir"] or os.getcwd()]:
+        if not isinstance(base, str):
+            return True
+        real = os.path.realpath(os.path.join(base, directory))
+        if not os.path.isdir(real) or os.path.exists(os.path.join(real, "gate_stamp.py")):
+            return True
+    return False
 LINKED = ("BLOCKED: this command makes a link (`ln`, `cp -s`) and removes a tree recursively: a link made here can "
           "point a scratch path at any directory. Make the link and remove the tree in separate calls.")
 ALIAS_PERSIST = ("BLOCKED: `git config` setting alias `{name}` to `{value}`: a later `git {name} <args>` runs it with "
@@ -682,6 +854,8 @@ class Word:
     equals: bool = False    # it starts with an unquoted = (zsh's path expansion)
     quoted: bool = False    # some part of it was quoted
     subs: list[str] = field(default_factory=list)   # the text of each `$( )` or backtick in it
+    bare: bool = False      # it holds an expansion outside double quotes, which the shell splits into words
+    expands: bool = False   # it holds an expansion at all (a `$` in single quotes is a character, not one)
 
 
 @dataclass
@@ -701,7 +875,7 @@ class _Builder:
     def __init__(self) -> None:
         self.parts: list[str] = []
         self.subs: list[str] = []
-        self.glob = self.equals = self.quoted = False
+        self.glob = self.equals = self.quoted = self.bare = self.expands = False
 
     def add(self, text: str, quoted: bool) -> None:
         if quoted:
@@ -713,7 +887,8 @@ class _Builder:
         self.parts.append(text)
 
     def word(self) -> Word:
-        return Word("".join(self.parts), self.glob, self.equals, self.quoted, list(self.subs))
+        return Word("".join(self.parts), self.glob, self.equals, self.quoted, list(self.subs), self.bare,
+                    self.expands)
 
 
 class Lexer:
@@ -809,7 +984,7 @@ class Lexer:
             raise Unreadable("an unclosed $( substitution")
 
     def _end(self, cmd: Command, piped: bool = False, joined: str = ";") -> Command:
-        if cmd.words or cmd.fed:
+        if cmd.words or cmd.fed or cmd.writes:   # `> file` alone writes it (zsh copies stdin there): v7.3 review, B1
             self.commands.append(cmd)
         elif cmd.joined in ("&&", "||", "|", "|&"):  # `a &&` and a newline: what follows is joined by `&&`
             piped, joined = cmd.piped, cmd.joined
@@ -845,6 +1020,8 @@ class Lexer:
         op = next(o for o in ("&>>", "&>", "<<<", "<<-", "<<", "<>", "<&", "<(", ">(", ">>", ">|", ">&", "<", ">")
                   if s.startswith(o, self.i))
         self.i += len(op)
+        if op in (">", ">>", "&>", "&>>") and s[self.i:self.i + 1] in ("!", "|"):
+            self.i += 1   # zsh's clobbering `>!`, `>>!`, `&>|`, `&>!`: still a write (v7.3 review, B2)
         if op in ("<(", ">("):
             cmd.procsub = cmd.procsub or op == "<("
             self._substitution(")")
@@ -952,7 +1129,10 @@ class Lexer:
             raw = s[self.i + 2:end].encode("latin-1", "backslashreplace")
             b.add(codecs.decode(raw, "unicode_escape"), True)
             self.i = end + 1
-        elif s.startswith("$((", self.i) and (end := self._arith_end(self.i + 3)):
+            return
+        # every other `$` that reaches here starts an expansion; a lone `$` (no name after it) is undone below
+        expanded, b.expands = b.expands, True
+        if s.startswith("$((", self.i) and (end := self._arith_end(self.i + 3)):
             self._expansions(s[self.i + 3:end - 2])
             b.add("$((...))", True)
             self.i = end
@@ -969,10 +1149,13 @@ class Lexer:
                 raise Unreadable("a `${(flags)...}`, which zsh may evaluate")
             self._expansions(inner)
             b.add("${" + inner + "}", True)
+            b.bare = b.bare or not in_double
             self.i = end + 1
         else:
             name = re.match(r"\$([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-])", s[self.i:])
             b.add(name.group(0) if name else "$", True)
+            b.bare = b.bare or (not in_double and name is not None)
+            b.expands = expanded or name is not None
             self.i += name.end() if name else 1
 
     def _arith_end(self, start: int) -> int | None:
@@ -1043,6 +1226,7 @@ class Lexer:
         self._nested(sub.commands)
         b.subs.append(inner)
         b.add("$(...)", True)
+        b.expands = True
         self.i = j + 1
 
     def _substitution(self, closing: str) -> None:
@@ -1301,7 +1485,7 @@ def _value(word: Word, value: str) -> object:
     # #344: a substitution's output, an array, a positional parameter, a `${...}` form or a pattern may be anything.
     if word.subs or word.glob or _unread_text(value):
         return UNREAD
-    if "$" not in value:
+    if "$" not in value or not word.expands:   # `x='rm -rf $HOME'` is literal: its `$` is a character (#68, v7.3)
         return value
     names = [_name(m) for m in VARIABLE.finditer(value)]
     if any(SCOPE.get(n) is UNREAD for n in names):
@@ -1338,6 +1522,10 @@ def _binds(words: list[Word], start: int) -> None:
         names += [w.text[2:] for w in rest if w.text.startswith("-v") and len(w.text) > 2]   # `-vNAME`
     elif program in ("for", "select", "foreach"):
         names = [w.text for w in rest[:1]]
+        if program == "for" and (value := _for_value(rest)) is not None:
+            _bound(names[0])
+            SCOPE[names[0]] = value
+            return
     elif program in BINDERS:
         names = [w.text for w in rest if not w.text.startswith("-")]
         # zsh's `print -vNAME`, `strftime -sNAME`, `zstat -ANAME`: the name written against its option.
@@ -1376,6 +1564,23 @@ def _binds(words: list[Word], start: int) -> None:
                 if WORLD["skip"]:
                     continue
             SCOPE[n] = UNREAD if program in ("mapfile", "readarray") else UNKNOWN   # #344: an array
+
+
+def _for_value(rest: list[Word]) -> str | None:
+    """A3: `for NAME in WORDS` over literal words gives NAME each word in turn, judged one pass per word
+    (FORS); this pass's word. None -- NAME unknown, as for any binder -- when a word is an expansion or a
+    pattern, or NAME had a value before the loop (here, in the environment, or through a reference), since a
+    loop that may not run leaves that one."""
+    if len(rest) < 3 or rest[1].text != "in" or rest[1].quoted or FORS["unknown"]:
+        return None
+    name, words = rest[0].text, rest[2:]
+    if (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) or name in CODE_ENV or name in SCOPE or name in NAMEREF
+            or name in os.environ or any(w.glob or w.equals or w.subs or w.expands for w in words)):
+        return None
+    sizes, pick = FORS["sizes"], FORS["pick"]
+    k = len(sizes)
+    sizes.append(len(words))
+    return words[pick[k] if k < len(pick) else 0].text
 
 
 def _mktemp_only(text: str) -> bool:
@@ -1477,6 +1682,8 @@ def _defaults(cmd: Command) -> list[Command] | None:
 
 def judge_command(cmd: Command, depth: int) -> str | None:
     """M5: a command with `${NAME:-literal}` defaults is judged once per value they may take, refused if any is."""
+    if any(_stamp_target(w) for w in cmd.writes):
+        return GATE_STAMP
     # `: ${GIT_PAGER:='rm -rf ~'}` and `: ${d::=/}` assign as they expand (read before a variant writes the form out).
     for w in cmd.words + cmd.writes:
         for name in EXPANSION_ASSIGN.findall(w.text):
@@ -1512,6 +1719,13 @@ def _judge_command_once(cmd: Command, depth: int) -> str | None:
     start = 0
     while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
         start += 1
+    # #68: an unquoted `$x` in program position is split into words, as the shell splits its value
+    # (`x='rm -rf ~'; $x` is `rm -rf ~`; v7.2 read one program named `rm -rf ~`).
+    if start < len(words) and words[start].bare and re.search(r"\s", value := _expand(words[start].text)):
+        words = cmd.words = (words[:start] + [Word(t, glob=any(c in t for c in "*?[")) for t in value.split()]
+                             + words[start + 1:])
+    if SEEN["stamp"] and not _stamp_ok(cmd):
+        return GATE_STAMP
     assigned = [w for w in words[:start] if ASSIGNMENT.match(w.text)]
     for w in assigned:
         if (why := _config_env(w)):
@@ -1549,6 +1763,10 @@ def _judge_command_once(cmd: Command, depth: int) -> str | None:
                 w.text == "-" or (w.text.startswith("--") and len(w.text) >= 3
                                   and "--ignore-environment".startswith(w.text.split("=")[0]))
                 or re.match(r"^-[^-]*i", w.text) for w in _env_options(words[k + 1:]))):
+            # This shell expands `"$x"` before the child starts: judge the rest with its literals in, too (#68, run v73 R1).
+            if any(w.expands for w in words[k + 1:]) and (why := judge_command(Command(words=[word] + [
+                    Word(_expand(w.text)) if w.expands else w for w in words[k + 1:]]), depth + 1)):
+                return why
             for name in list(SCOPE) + ["TMPDIR"]:
                 SCOPE[name] = UNKNOWN
         if program == "env":
@@ -1572,6 +1790,10 @@ def _judge_command_once(cmd: Command, depth: int) -> str | None:
                 if read is None:
                     return ENV_UNREAD.format(word=arg)
                 text, used = read
+                # #68 (v7.3): this shell expands `"$x"` before env runs: the string is read with this text's
+                # literals in, then refused as below if a `$` is left.
+                if text is not None and any(w.expands for w in words[j:j + used]):
+                    text = _expand(text)
                 # The bundle review's rounds 2 and 3 (B1, B2): env splits the `-S` string by its own rules, not the
                 # shell's -- `\_` separates words, `${NAME}` expands, and a raw tab, VT, FF, CR or LF is a space --
                 # so a string holding a backslash, a `$`, or any character that is not printable but the plain space
@@ -1687,7 +1909,10 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
         return UNREAD_PROGRAM.format(word=first.text)
     # A pattern the shell expands to the stamp's script, run by an interpreter. (The stamp itself is named
     # by its commit, so a pattern can only rewrite an old one: no check is owed for it here.)
-    if INTERPRETERS.match(program) and any(_stamp_pattern(w.text, ("gate_stamp.py",)) for w in words[1:]):
+    if INTERPRETERS.match(program) and any(_names_stamp_script(w) for w in words[1:]):
+        return GATE_STAMP
+    # The stamp's script run as the program (the rest of A2 is `_stamp_ok`, per command).
+    if _stamp_pattern(_expand(first.text), ("gate_stamp.py",)):
         return GATE_STAMP
     if program in ("make", "gmake") and any(
             (a.startswith("--") and len(a.split("=", 1)[0]) >= 3
@@ -1702,7 +1927,7 @@ def judge_words(words: list[Word], cmd: Command, depth: int, behind_xargs: bool 
                                  {_expand(a) for a, u in zip(args, unread) if u})):
         return why
     if program == "eval":
-        return _evaled(" ".join(args), depth + 1)
+        return _evaled(" ".join(_expand(a) for a in args), depth + 1)   # #68 (v7.3)
     # `trap 'cmd' EXIT` runs its text when the shell exits or takes the signal.
     if program == "trap" and args and args[0] not in ("-", "-l", "-p", "--") and not args[0].isdigit():
         return _apart(args[0], depth + 1)
@@ -2778,10 +3003,18 @@ def _judge_gh(args: list[str]) -> str | None:
 # --- shells and git -----------------------------------------------------------------------------------
 
 def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str | None:
-    """A shell runs `-c`'s string, a script file, or what it reads on stdin."""
-    # Only a shell asked for nothing BUT its help or version prints and stops: `bash -c 'rm -rf ~' --help` runs
-    # the string, with `--help` as its $0 (the run golden-night owner-bundle security review's P1).
-    if args and all(a in ("--version", "--help") for a in args):
+    """A shell runs `-c`'s string, a script file, or what it reads on stdin. fish reads its options its own way."""
+    if shell == "fish":
+        return _judge_fish(args, cmd, depth)
+    # Only a shell asked for nothing BUT long options, `--help` or `--version` among them, prints and stops (the run
+    # golden-night owner-bundle security review's P1, kept over v7.3's reading of a `--help` before any short
+    # option; v7.3's `--rcfile FILE --help` is such a call): `bash -c 'rm -rf ~' --help` runs the string, with
+    # `--help` as its $0, and `bash --help -c '...'` is judged as its string too. An option's value is not one.
+    k, asked = 0, False
+    while k < len(args) and args[k].startswith("--") and args[k] != "--":
+        asked = asked or args[k] in ("--version", "--help")
+        k += 2 if args[k] in ("--rcfile", "--init-file") else 1
+    if asked and k == len(args):
         return None
     j, given_c, reads_stdin = 0, False, False
     while j < len(args):
@@ -2790,11 +3023,6 @@ def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str |
             j += 1
             break
         if arg in ("-o", "+o", "-O", "+O", "--rcfile", "--init-file"):
-            j += 2
-            continue
-        if shell == "fish" and arg in ("-C", "--init-command"):
-            if j + 1 < len(args) and (why := _apart(args[j + 1], depth + 1)):
-                return why
             j += 2
             continue
         if arg.startswith(("-", "+")) and len(arg) > 1:
@@ -2810,13 +3038,62 @@ def _judge_shell(shell: str, args: list[str], cmd: Command, depth: int) -> str |
     if given_c:
         if not rest:
             return f"BLOCKED: `{shell} -c` with no command string takes it from elsewhere, which this guard cannot read."
-        for text in rest:  # the string, then $0 and its arguments: each read as a command
-            if (why := _apart(text, depth + 1)):
+        for text in rest:  # the string, then $0 and its arguments: each read as a command, literals in (#68)
+            if (why := _apart(_expand(text), depth + 1)):
                 return why
         return None
     if rest and not reads_stdin and rest[0] not in STDIN_PATHS:
         return judge_words([Word(a) for a in rest], cmd, depth)
     return _stdin(cmd, depth, f"a shell (`{shell}`)")
+
+
+def _judge_fish(args: list[str], cmd: Command, depth: int) -> str | None:
+    """fish runs the text of `-c` and `-C` in every spelling its getopt reads: the next word (`-C x`), glued
+    (`-Cx`, `-iCx`), `--command=x`, and a long option in any unique prefix (`--init=x`) -- #54: only the first
+    was read. Then a script, or stdin. `--help` runs beside `-c`, so it means nothing unless it is all there is
+    (#47)."""
+    if args and all(a in ("--version", "--help") for a in args):
+        return None
+    texts: list[str] = []
+    given_c = False
+    j = 0
+    while j < len(args) and args[j].startswith("-") and len(args[j]) > 1:
+        arg = args[j]
+        if arg == "--":
+            j += 1
+            break
+        value: str | None = None
+        letter = ""
+        if arg.startswith("--"):
+            name, eq, value = arg[2:].partition("=")
+            hits = [o for o in FISH_LONG if o.startswith(name)]
+            full = name if name in FISH_LONG else hits[0] if len(hits) == 1 else ""
+            letter = {"command": "c", "init-command": "C"}.get(full, "")
+            if FISH_LONG.get(full) and not eq:
+                j += 1
+                value = args[j] if j < len(args) else None
+        else:
+            k = next((k for k in range(1, len(arg)) if arg[k] in FISH_VALUED), None)
+            if k is not None:
+                letter, value = arg[k], arg[k + 1:]
+                if not value:
+                    j += 1
+                    value = args[j] if j < len(args) else None
+        if letter in ("c", "C"):
+            if value is None:
+                return f"BLOCKED: `fish -{letter}` with no command string takes it from elsewhere, which this guard cannot read."
+            texts.append(value)
+            given_c = given_c or letter == "c"
+        j += 1
+    rest = args[j:]
+    for text in texts + (rest if given_c else []):  # with `-c`, the words after are `$argv`: read as commands too
+        if (why := _apart(_expand(text), depth + 1)):
+            return why
+    if given_c:
+        return None
+    if rest and rest[0] not in STDIN_PATHS:
+        return judge_words([Word(a) for a in rest], cmd, depth)
+    return _stdin(cmd, depth, "a shell (`fish`)")
 
 
 def _judge_ssh(args: list[str], depth: int) -> str | None:
@@ -2881,11 +3158,63 @@ def _judge_remote(text: str, depth: int) -> str | None:
         SCOPE.update(scope)
 
 
+def _default_branch(start: str) -> str | None:
+    """A8: the default branch of the repository holding `start` -- what its `origin/HEAD` names, read from the git
+    directory with no git call; else `init.defaultBranch`, one git call; None when neither says. Once per git
+    directory for the life of this process (DEFAULTS)."""
+    top = os.path.realpath(start or ".")
+    while not os.path.lexists(os.path.join(top, ".git")) and os.path.dirname(top) != top:
+        top = os.path.dirname(top)
+    if not os.path.lexists(os.path.join(top, ".git")):
+        top = os.path.realpath(start or ".")   # no repository: `init.defaultBranch` from the user's config
+        while not os.path.isdir(top) and os.path.dirname(top) != top:
+            top = os.path.dirname(top)
+        common = None
+    else:
+        common = _common(top)
+    key = common or top
+    if key not in DEFAULTS:
+        name = None
+        if common:
+            try:
+                with open(os.path.join(common, "refs", "remotes", "origin", "HEAD"), encoding="utf-8") as f:
+                    line = f.read(4096).strip()
+                if line.startswith("ref: refs/remotes/origin/"):
+                    name = line[len("ref: refs/remotes/origin/"):]
+            except OSError:
+                pass
+        if name is None:
+            try:
+                r = subprocess.run(["git", "-C", top, "config", "--get", "init.defaultBranch"], capture_output=True,
+                                   timeout=10)
+                name = r.stdout.decode("utf-8", "replace").strip() if r.returncode == 0 else None
+            except (OSError, subprocess.SubprocessError):
+                name = None
+        DEFAULTS[key] = name if name and re.fullmatch(r"[\w./-]+", name) else None
+    return DEFAULTS[key]
+
+
+def _protected_branches() -> set[str]:
+    """The branches the agent never pushes, deletes or moves: main, master and trunk, and the default branch of
+    the repository the call runs in (A8)."""
+    name = _default_branch(CWD["dir"] or os.getcwd())
+    return PROTECTED | ({name} if name else set())
+
+
 def _skips_hooks(option: str) -> bool:
     """Whether a long option is `--no-verify` as git may read it, refused: the name, or a prefix of it
     from `--no-ve` (`--no-veri` is it; a shorter one is ambiguous with `--no-verbose`), with or without `=`."""
     name = option.split("=", 1)[0]
     return len(name) >= len("--no-ve") and "--no-verify".startswith(name)
+
+
+def _husky_off() -> bool:
+    """Whether this text turns husky's runner off for the push it holds: `HUSKY=0` (husky 5-9) or `HUSKY_SKIP_HOOKS`
+    `1` or `true` (husky 4), or either set to a value this cannot read -- a prefix or `env` assignment leaves its
+    name unread for the rest of the text, so `HUSKY=0 git push` and `env HUSKY=0 git push` are read here as well."""
+    husky, skip = SCOPE.get("HUSKY", ""), SCOPE.get("HUSKY_SKIP_HOOKS", "")
+    return (not isinstance(husky, str) or husky.strip() == "0"
+            or not isinstance(skip, str) or skip.strip().lower() in ("1", "true"))
 
 
 def _config_split(rest: list[str]) -> tuple[list[str], list[str]]:
@@ -2998,8 +3327,8 @@ def _judge_code(value: str, depth: int) -> str | None:
     """#305: a config value git runs as a command (CODE_KEY), judged as that command. A value that starts with `!`
     (`credential.helper '!rm -rf ~'`) is shell text after the `!`; any other names a program and its words. The
     `!` was once left on, and `!rm` read as a program of that name."""
-    text = value.lstrip()
-    return _apart(text[1:] if text.startswith("!") else text, depth + 1)
+    # v7.3 (#47): every leading `!` -- `!!rm -rf ~` is `rm -rf ~` to read, not the program `!rm`.
+    return _apart(value.lstrip().lstrip("!"), depth + 1)
 
 
 def _config_set(rest: list[str]) -> tuple[str, str] | None:
@@ -3450,13 +3779,20 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
             return PROJECT_TREE.format(target=hit)
         if recursive and not cached and (hit := _project_tree(moved, base)):
             return PROJECT_TREE.format(target=hit)
+    # v7.3: the repository's default branch by any name (`develop` too), beside #533's `_moves_default`.
+    if sub == "update-ref":
+        refs = [a for a in rest if not a.startswith("-")]
+        if refs and {r.removeprefix("refs/").removeprefix("heads/") for r in refs} & _protected_branches():
+            return PROTECTED_REF
     if sub == "push":
+        if _husky_off():
+            return HUSKY_OFF
         refs = [a for a in rest if not a.startswith("-")]
         forced = "f" in letters or given("--force", "--force-with-lease", "--force-if-includes")
         if forced or given("--mirror") or any(ref.startswith("+") for ref in refs):
             return DESTRUCTIVE
         targets = {ref.split(":")[-1].removeprefix("refs/").removeprefix("heads/") for ref in refs}
-        if behind_xargs or given("--all", "--branches") or PROTECTED & targets:
+        if behind_xargs or given("--all", "--branches") or (targets and _protected_branches() & targets):
             return PROTECTED_PUSH
         if any(":" in ref and (_default_ref(dst := ref.rsplit(":", 1)[1]) or _lands(dst, GATE_REFS, GATE_UNDER))
                for ref in refs[1:]):
@@ -3602,12 +3938,36 @@ def _judge_in(root: str, candidates: list[list[str]], cwd: str, foreign: bool = 
             source = f.read(1 << 20).decode("utf-8", "replace")
     except OSError as error:
         return f"BLOCKED: deploy gate -- {gate} could not be read ({type(error).__name__}: {error})."
+    # An upgrade's unresolved three-way merge left conflict markers in the gate, and every Bash call came back
+    # as a raw IndentationError (Project-J, v7.2). Say what it is, and that the Edit tool still works.
+    for name in ("deploy_gate.py", "brief_fields.py"):
+        path = os.path.join(OWN, "scripts", name)
+        try:
+            with open(path, "rb") as f:
+                text = source if name == "deploy_gate.py" else f.read(1 << 20).decode("utf-8", "replace")
+        except OSError:
+            continue
+        marker = CONFLICT_MARKER.search(text)
+        if marker:
+            line = text.count("\n", 0, marker.start()) + 1
+            return GATE_CONFLICT.format(name=name, line=line)
     protocol = JUDGE_LINE.search(source)
     level = 0 if protocol is None else int(protocol.group(1)) if protocol.group(1) is not None else 1
     if level < 1:
         return GATE_OLD.format(gate=gate, need=1, why="read `--judge` as a command and pass every deploy")
     if foreign and level < 2:
         return GATE_OLD.format(gate=gate, need=2, why=f"judge {root}, another repository, by its own verdicts")
+    # A4: `gh run rerun` runs its run's workflow again, so where the brief declares a `gh workflow run` deploy it
+    # is also handed over as `gh workflow run <file>` and `<name>`: a rerun of the CI tests is not a deploy, one
+    # of the deploy workflow is (Project-J's own rule refused both). A run gh cannot place there is refused.
+    reruns = [r for words in candidates if (r := _gh_rerun(words)) and (r[0] or r[1])]   # none: gh reruns nothing
+    if reruns and _declares_workflow(root):
+        candidates = list(candidates)
+        for run, job, repo in reruns:
+            names, why = _rerun_workflow(run, job, repo, root)
+            if why:
+                return RERUN_UNREAD.format(run=run or f"--job {job}", root=root, why=why)
+            candidates += [["gh", "workflow", "run", n] for n in names if ["gh", "workflow", "run", n] not in candidates]
     payload = json.dumps({"cwd": cwd, "commands": candidates, **({"foreign": True} if foreign else {})})
     try:
         r = subprocess.run([sys.executable, "-I", "-B", gate, "--judge"], input=payload.encode("utf-8"),
@@ -3617,15 +3977,91 @@ def _judge_in(root: str, candidates: list[list[str]], cwd: str, foreign: bool = 
     if r.returncode == 0:
         return None
     message = r.stderr.decode("utf-8", "replace").strip()
+    if message and not message.startswith("BLOCKED:"):
+        last = message.splitlines()[-1][:200]
+        return (f"BLOCKED: deploy gate -- scripts/deploy_gate.py failed (exit {r.returncode}): {last}. "
+                "Fix the script (the Edit tool still works); the guard never skips this check.")
     return message or f"BLOCKED: deploy gate -- scripts/deploy_gate.py exited {r.returncode} and gave no reason."
+
+
+def _gh_rerun(words: list[str]) -> tuple[str | None, str | None, str | None] | None:
+    """(the run, the `--job`, the `-R` repository) of a `gh ... run rerun` word list, flags anywhere; None for any
+    other list."""
+    if not words or os.path.basename(words[0]).lower() != "gh":
+        return None
+    plain: list[str] = []
+    found: dict[str, str | None] = {"repo": None, "job": None}
+    i = 1
+    while i < len(words):
+        name, eq, value = words[i].partition("=")
+        if words[i].startswith("-") and len(words[i]) > 1:
+            valued = name in GH_VALUED or name in ("-j", "--job")
+            if valued and not eq:
+                value = words[i + 1] if i + 1 < len(words) else ""
+            if name in ("-R", "--repo", "-j", "--job"):
+                found["repo" if name in ("-R", "--repo") else "job"] = value
+            i += 2 if valued and not eq else 1
+            continue
+        plain.append(words[i])
+        i += 1
+    if plain[:2] != ["run", "rerun"]:
+        return None
+    return (plain[2] if len(plain) > 2 else None), found["job"], found["repo"]
+
+
+def _declares_workflow(root: str) -> bool:
+    """Whether the brief of `root` may declare a `gh workflow run` deploy: its text, quotes and backticks removed,
+    has `gh` and then `workflow run` on one line. Only then is a rerun's workflow looked up."""
+    try:
+        with open(os.path.join(root, "docs", "project-brief.md"), "rb") as f:
+            text = f.read(1 << 20).decode("utf-8", "replace")
+    except OSError:
+        return False
+    return re.search(r"\bgh\b.*\bworkflow\s+run\b", re.sub(r"[`'\"]", "", text).lower()) is not None
+
+
+#: A4: the workflows of the runs this call reruns, by (run, job, repository): looked up once.
+RERUNS: dict[tuple, tuple[list[str], str | None]] = {}
+RERUN_UNREAD = ("BLOCKED: deploy gate -- `gh run rerun {run}` runs that run's workflow again, {root}'s brief declares "
+                "a `gh workflow run` deploy, and gh could not say which workflow the run is ({why}). Check "
+                "`gh auth status` and the network, then try again.")
+
+
+def _rerun_workflow(run: str | None, job: str | None, repo: str | None, root: str) -> tuple[list[str], str | None]:
+    """(the workflow file name and the workflow name of the run a rerun names, or why gh could not say): one
+    `gh api` call, two for a `--job`."""
+    key = (run, job, repo)
+    if key in RERUNS:
+        return RERUNS[key]
+    base = f"repos/{repo}" if repo and re.fullmatch(r"[\w.-]+/[\w.-]+", repo) else "repos/{owner}/{repo}"
+
+    def api(path: str, jq: str) -> tuple[str, str | None]:
+        try:
+            r = subprocess.run(["gh", "api", f"{base}/{path}", "--jq", jq], capture_output=True, cwd=root, timeout=8)
+        except (OSError, subprocess.SubprocessError) as error:
+            return "", f"gh could not run: {type(error).__name__}"
+        err = r.stderr.decode("utf-8", "replace").strip().splitlines()
+        return r.stdout.decode("utf-8", "replace").strip(), None if r.returncode == 0 else (
+            err[-1][:120] if err else f"gh exited {r.returncode}")
+
+    why = None
+    if job is not None:
+        run, why = api(f"actions/jobs/{job}", ".run_id") if re.fullmatch(r"[0-9]+", job) else ("", f"job `{job}`")
+    if why is None and not re.fullmatch(r"[0-9]+", run or ""):
+        why = f"`{run}` is not a run number"
+    out, why = (api(f"actions/runs/{run}", '.path + "\\t" + .name') if why is None else ("", why))
+    path, _, name = out.partition("\t")
+    names = [n for n in dict.fromkeys((os.path.basename(path.strip()), name.strip())) if n]
+    RERUNS[key] = (names, why or (None if names else "gh named no workflow"))
+    return RERUNS[key]
 
 
 # --- the hook -----------------------------------------------------------------------------------------
 
 def _expired() -> None:
-    """The guard's own bound: a thread, so it holds where SIGALRM does not exist. It cannot stop a long call
+    """The guard's time budget: a thread, so it holds where SIGALRM does not exist. It cannot stop a long call
     into C that holds the interpreter; the hook's timeout bounds that."""
-    sys.stderr.buffer.write(f"BLOCKED: the command was not judged within {DEADLINE_S:g} s.\n".encode())
+    sys.stderr.buffer.write(BUDGET.format(s=DEADLINE_S).encode() + b"\n")
     sys.stderr.flush()
     os._exit(2)
 
@@ -3649,31 +4085,56 @@ def judge_call(payload: object) -> str | None:
         return None
     # Lower-cased (a case-insensitive disk opens DEVFLOW-GATE-OK as the stamp), quotes, backslashes and `$`
     # removed (`devflow-gate-o'k'`, `$'\x6b'`); the prefix catches a brace expansion. A name built at run
-    # time is in "Not held".
+    # time is in "Not held". In a call that names the stamp, each command must only read it (A2, `_stamp_ok`).
     def ansi_c(m: re.Match) -> str:     # `$'\055'` is `-` to the shell: decode before reading
         try:
             return codecs.decode(m.group(1), "unicode_escape")
         except (UnicodeDecodeError, ValueError):
             return m.group(1)
     flat = re.sub(r"[\"'\\$]", "", re.sub(r"\$'((?:[^'\\]|\\.)*)'", ansi_c, command)).lower()
-    if "devflow-gate" in flat or "gate_stamp" in flat:
-        return GATE_STAMP
+    SEEN["stamp"] = "devflow-gate" in flat or "gate_stamp" in flat
     if re.search(r"\b(gnu)?makeflags\s*\+?=|\bmflags\s*\+?=", flat):
         return MAKE_FLAGS
-    if re.search(r"\bmakelevel\s*\+?=", flat):
+    # And the builtins that assign without `=` (`read MAKELEVEL <<< 1`, `printf -v`, `declare`): v7.2.1, review.
+    if re.search(r"\bmakelevel\s*\+?=", flat) or re.search(
+            r"(^|[;&|\n(`{]|\bthen|\bdo|\belse)\s*(read|printf\s+-v|declare|typeset|local|mapfile|readarray)\b"
+            r"[^;&|\n]*\bmakelevel\b", flat):
         return MAKE_LEVEL
     REACHED.clear()
     CANDIDATES.clear()
     TOPS.clear()
     WALK["left"] = WALK_S
     STATUS["left"] = STATUS_S
+    # A3: one pass per word of each literal `for` loop, every combination; past MAX_PASSES, one pass with
+    # those loops' variables unknown. Places reached and deploy candidates gather across the passes. A pass
+    # branches on every loop it meets past its pick, so a loop met only under another's word -- held in a
+    # loop variable and run by `eval` -- is walked too (v7.3 review, R1). The budgets above are the call's,
+    # shared by every pass and world.
+    todo, passes, why = [()], 0, None
+    while todo and why is None:
+        pick = todo.pop()
+        passes += 1
+        if passes > MAX_PASSES:
+            why = _judge_pass(command, cwd, None)[1]
+            break
+        sizes, why = _judge_pass(command, cwd, pick)
+        full = pick + (0,) * (len(sizes) - len(pick))
+        todo += [full[:j] + (k,) for j in range(len(pick), len(sizes)) for k in range(1, sizes[j])]
+    return why or judge_deploy(list(CANDIDATES), cwd)
+
+
+def _judge_pass(command: str, cwd: str, pick: tuple | None) -> tuple[list[int], str | None]:
+    """One reading of the call from its start, each literal `for` loop's variable at the word `pick` gives it
+    (None: unknown): (how many words each loop had, why it is refused or None). #287: the first world, then the
+    second when they differ (WORLD); a loop met in either world is branched on."""
     WORLD["forked"] = False
-    # #287: the first world, then the second when they differ (WORLD); the budgets above are the call's, shared.
+    sizes: list[int] = []
     for skip in (False, True):
         if skip and not WORLD["forked"]:
             break
         WORLD["skip"] = skip
         CWD["dir"] = cwd
+        CALL["text"] = command
         HERE["dirs"] = [cwd]
         SEEN.update(repeats=False, cdpath=False, links=False, home_used=False,
                     # `HOME` written anywhere but as `$HOME`: an editor or pager path through `$HOME` is unread.
@@ -3687,9 +4148,13 @@ def judge_call(payload: object) -> str | None:
         FOLLOWED["over"] = []
         TRUST["TMPDIR"] = not TMPDIR_NAMED.search(command)   # B1: `unset TMPDIR`, `local TMPDIR`, `read TMPDIR`
         TRUST["mktemp"] = not MKTEMP_DEFINED.search(command)
-        if (why := judge_text(command)):
-            return why
-    return judge_deploy(list(CANDIDATES), cwd)
+        FORS.update(sizes=[], pick=pick or (), unknown=pick is None)
+        why = judge_text(command)
+        if len(FORS["sizes"]) > len(sizes):
+            sizes = list(FORS["sizes"])
+        if why:
+            return sizes, why
+    return sizes, None
 
 
 def judge_file(payload: object) -> str | None:

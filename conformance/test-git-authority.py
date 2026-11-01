@@ -116,6 +116,27 @@ def main() -> int:
             bad.append("issue-agent.yml has commit rights but never says DRAFT -- an agent that can "
                        "merge its own work bypasses the human who merges")
 
+    # 3. the owner's merge waits for CI (v7.3 A32, #50; run v73, Tester M3)
+    pm = root / ".claude" / "skills" / "pre-merge" / "SKILL.md"
+    merges = [ln for ln in (pm.read_text(encoding="utf-8") if pm.is_file() else "").splitlines() if "gh pr merge" in ln]
+    if not merges or not all(re.search(r"gh pr checks \S+ --watch\b.*&&.*gh pr merge", ln) for ln in merges):
+        bad.append("/pre-merge's owner merge line does not wait for CI with `gh pr checks <n> --watch` first")
+
+    # 4. owner-actions.md's header shows the merge row it wants: one that points at the PR body's "For the owner"
+    # merge line, which step 1 scans where it stands. Its header once asked for a ready-to-paste merge command per
+    # row, and the row an agent wrote failed step 1 (#85). In the package only: a project keeps its own header.
+    oa = root / "docs" / "owner-actions.md"
+    head = re.search(r"<!--(.*?)-->", oa.read_text(encoding="utf-8"), re.S) if oa.is_file() else None
+    rows = [ln for ln in (head.group(1) if head else "").splitlines()
+            if ln.strip().startswith("|") and "merge" in ln.lower() and "For the owner" in ln]
+    if (root / ".gp-distribution").is_file() and not rows:
+        bad.append("docs/owner-actions.md's header shows no merge row pointing at the PR body's \"For the owner\" "
+                   "line: an agent writes its own, with the merge command step 1 refuses (#85)")
+    # Indented, or `make standup` (scripts/standup.sh: a row starts at column 0) takes it for the table's header row.
+    if any(ln.startswith("|") for ln in rows):
+        bad.append("docs/owner-actions.md's example merge row starts at column 0: make standup reads it as the table's "
+                   "header and lists the separator as an open owner action")
+
     for b in bad:
         print(f"  FAIL {b}")
     print(f"test-git-authority {'FAIL' if bad else 'PASS'}: {len(bad)} violation(s)")

@@ -13,6 +13,7 @@ Ended: open
 Integration branch: `integration/run-<name>` · PR: #<n>
 Plan PR: #<n>
 Rulings: <D-<n>, D-<n> | none>
+Cost: <the Cost: line `make cost FROM=<Started>` prints, refreshed when a wave stacks (tokens, advisory) | n/a>
 
 <!-- `Ended:` is `open` while the run runs. When it ends: `<YYYY-MM-DD> — <why>`, where why is one
      of `all milestones closed`, `owner stopped`, `stopped at <class>, nothing independent left`.

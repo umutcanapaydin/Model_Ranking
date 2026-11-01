@@ -25,14 +25,18 @@ Exit: 0 all pass - 1 any fail.
 import ast
 import concurrent.futures
 import hashlib
+import json
 import os
 import pathlib
 import re
 import subprocess
 import sys
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 PKG = HERE.parent
+sys.path.insert(0, str(HERE))
+from lib_record import pool_jobs  # noqa: E402
 
 # The required job is the one that runs the governance validator -- identified by what it DOES,
 # not by what it is called, so the check survives a rename of the job.
@@ -279,6 +283,18 @@ CACHEABLE = {
                             "permission-matrix.md", "docs/**/*.md", ".agents/**/*.md", ".github/workflows/*.yml"),
 }
 CACHE_DIR = PKG / "build" / "conformance-cache"
+#: How long each test took on its last run here. The pool starts the longest first, a test with no time
+#: before them: in name order the tests that wait more than they compute started last and held the leg
+#: (v7.3.1, #114). It only schedules; a file that does not read is the name order.
+DURATIONS = CACHE_DIR / "durations.json"
+
+
+def last_durations() -> dict[str, float]:
+    try:
+        got = json.loads(DURATIONS.read_text(encoding="utf-8"))
+        return {k: float(v) for k, v in got.items() if isinstance(k, str) and isinstance(v, (int, float))}
+    except Exception:    # noqa: BLE001 -- any file that does not read as numbers: the name order (a 400-digit int, a deep array)
+        return {}
 
 
 def cache_key(script: str) -> str | None:
@@ -319,22 +335,37 @@ def main() -> int:
 
     fails = []
     not_evaluable: list[str] = []
-    # Each test builds its own throwaway trees, so they run side by side; the report keeps the
-    # discovery order. DEVFLOW_JOBS=1 runs them one at a time.
+    # Each test builds its own throwaway trees, so they run side by side, the longest first; the report
+    # keeps the discovery order. DEVFLOW_JOBS=1 runs them one at a time. Each test gets its share of the
+    # CPUs as DEVFLOW_SHARE, for the pool it may run itself (lib_record.pool_jobs).
+    jobs, share = pool_jobs(8)
+    env = {**CHILD_ENV, "DEVFLOW_SHARE": str(share)}
+    took: dict[str, float] = {}
+
     def run(script: str) -> subprocess.CompletedProcess:
         if (hit := cached(script)):
             return subprocess.CompletedProcess([], 0, stdout=hit, stderr="")
+        start = time.monotonic()
         result = subprocess.run([PY, str(HERE / script)], capture_output=True, encoding="utf-8",
-                                errors="replace", env=CHILD_ENV)
+                                errors="replace", env=env)
+        took[script] = round(time.monotonic() - start, 2)
         if result.returncode == 0:
             remember(script)
         return result
-    try:
-        jobs = max(1, int(os.environ.get("DEVFLOW_JOBS") or min(8, os.cpu_count() or 1)))
-    except ValueError:
-        jobs = 1    # an unreadable DEVFLOW_JOBS runs one at a time
+    last = last_durations()
+    runnable = [script for script, why in tests if not why.startswith("!!")]
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
-        results = {script: pool.submit(run, script) for script, why in tests if not why.startswith("!!")}
+        results = {script: pool.submit(run, script)
+                   for script in sorted(runnable, key=lambda s: -last.get(s, float("inf")))}
+    # Written whole, then renamed into place: a run beside this one reads the old file or the new, never half.
+    tmp = DURATIONS.with_name(f"{DURATIONS.name}.{os.getpid()}.tmp")
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(json.dumps({s: took.get(s, last.get(s)) for s in runnable if s in took or s in last},
+                                  indent=0, sort_keys=True), encoding="utf-8")
+        os.replace(tmp, DURATIONS)
+    except OSError:
+        tmp.unlink(missing_ok=True)    # the next run starts in name order: slower, never wrong
     for script, why in tests:
         if why.startswith("!!"):
             print(f"  [FAIL      ] {script:26s} {why}")
@@ -359,13 +390,20 @@ def main() -> int:
             fails.append(script)
             for line in result.stdout.strip().splitlines()[:-1]:
                 print(f"         {line}")
+            # A test that died says why on stderr, which was dropped: CI showed `(no output) (exit 1)` and
+            # nothing else (two field projects, v7.2). Its last lines go with the verdict.
+            err = (result.stderr or "").strip().splitlines()
+            if err:
+                print("         stderr (last lines):")
+                for line in err[-15:]:
+                    print(f"         | {line}")
 
     liveness = caller_liveness()
     for line in liveness:
         print(f"  [FAIL      ] {line}")
 
     total = len(fails) + len(liveness)
-    hits = [s for s, f in results.items() if f.result().stdout.startswith("CACHED ")]
+    hits = [s for s in runnable if results[s].result().stdout.startswith("CACHED ")]
     if hits:
         print(f"  cached (inputs unchanged since their last pass; CI and the distribution always run them): "
               f"{', '.join(hits)}")

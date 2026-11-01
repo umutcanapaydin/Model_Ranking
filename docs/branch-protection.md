@@ -2,7 +2,7 @@
 record_type: design
 id: branch-protection
 status: ratified
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-09-23
 ---
 # Required status checks — the one list

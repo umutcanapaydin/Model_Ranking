@@ -62,7 +62,15 @@ in the field that reported the lower branch's "gate code changed" for six re-run
 yourself: `make review-need RANGE=$(git merge-base wave/m3-w2 HEAD)..HEAD` (or the lower branch's
 tip) measures only this branch's own commits. The `range:` line prints what was measured.
 
-Product lines are code and tests: records (`docs/`, Markdown) do not count. Exit 0 with an answer;
+**Change classes** (v7.3, harvest Q2, the owner's ruling of 2026-10-28) are the deploy gate's one function,
+`deploy_gate.change_class`. A record (`docs/` -- plans, ledgers, review files -- and Markdown) is never
+reviewed: a record-only range is `none` even under a HIGH glob, and a record is never a HIGH hit or a product
+line -- except Markdown outside `docs/` that a HIGH glob names, which keeps v7.2.2's routing (a prompt file
+under src/ is code-like). Tests and code are measured as before. A security-invariant test the brief names (`Security-invariant
+tests:`) is code: its change is a security signal of its own, routed per change in light mode like a declared
+HIGH path.
+
+Product lines are code and tests: records do not count. Exit 0 with an answer;
 2 when the range cannot be read -- a review decision with no diff behind it decides nothing.
 """
 from __future__ import annotations
@@ -75,10 +83,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
+from deploy_gate import (  # noqa: E402
+    TEST_PATH,
+    TEST_PATHSPECS,
+    change_class,
+    invariant_hit,
+    invariant_tests,
+)
 
 PRODUCT_THRESHOLD = 130
 #: The gate code's places: a directory, or one file. GATE_CODE and the policy readers' search are both made from it.
-GATE_ROOTS = ("scripts/", "conformance/", ".claude/", ".githooks/", ".github/", "Makefile", "stack.mk")
+GATE_ROOTS = ("scripts/", "conformance/", ".claude/", ".codex/", ".githooks/", ".github/", "Makefile", "stack.mk")
 GATE_CODE = re.compile("^(" + "|".join(re.escape(r) + ("" if r.endswith("/") else "$") for r in GATE_ROOTS) + ")")
 #: The modules that read the policy fields, or decide from them (#283): a change to one is a policy edit. Each is
 #: also a token below, so a script that names one is a policy reader too (#319).
@@ -110,11 +125,8 @@ UNTRUSTED_PARSER = re.compile(
     r"pyarrow|zipfile\.|tarfile\.|ElementTree|lxml|xml\.etree|pickle\.loads?|marshal\.loads?|"
     r"JSONDecoder|PropertyListDecoder|XMLParser|json\.Unmarshal|xml\.Unmarshal|json\.NewDecoder\(|"
     r"\.Decode\(|gzip\.open|urllib\.request|requests\.(?:get|post)|httpx\.|URLSession|fetch\()")
-# The test-path set, ONE definition for the three security signals. As git pathspecs for the parser
-# scan (`*` crosses `/`, so each pair covers the top level and any depth) and as a path test here.
-TEST_PATHSPECS = [":(exclude)tests/*", ":(exclude)*/tests/*", ":(exclude)test_*", ":(exclude)*/test_*",
-                  ":(exclude)*_test.*", ":(exclude)*Tests/*"]
-TEST_PATH = re.compile(r"(^|/)(tests/|test_[^/]*$|[^/]*_test\.[^/]+$|[^/]*Tests/)")
+# The test-path set (TEST_PATH, and TEST_PATHSPECS for the parser scan) is ONE definition, the deploy gate's:
+# the three security signals here and its change class read the same one.
 
 
 def is_test_path(path: str) -> bool:
@@ -229,9 +241,11 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
     changed = [p for p in git("diff", "--name-only", "--no-renames", "-z", rng).split("\0") if p]
     edits = policy_edits(base_root, brief_root_at(end), changed, rng, (base, end))
     numstat = git(*PLAIN_DIFF, "--numstat", rng)
+    named = invariant_tests(root) or []
     product = 0
     gate: list[str] = []
     paths: list[str] = []
+    records: set[str] = set()
     for line in numstat.splitlines():
         parts = line.split("\t")
         if len(parts) != 3:
@@ -240,7 +254,9 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
         paths.append(path)
         if GATE_CODE.search(path):
             gate.append(path)
-        elif not RECORDS.search(path) and add != "-":
+        elif change_class(path) == "record":
+            records.add(path)
+        elif add != "-":
             product += int(add) + int(rem)
     reasons: list[str] = []
     if mode == "light":
@@ -250,22 +266,33 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
         reasons.append("working mode: heavy -- a Code-Reviewer above the size threshold or on gate code")
     reasons.append(f"brief read at {at} (--at)" if at else
                    f"brief read at {base[:12]}, the range's merge-base -- not from the change (#283)")
+    globs = declared_globs(root, at, plan)
+    # Markdown outside docs/ that a declared HIGH glob names keeps v7.2.2's routing: a prompt file under src/ is
+    # code-like (the orchestrator's ruling on this package's review, R2). docs/ stays a record. model_ranking
+    # (#283): a policy edit is never record only -- the brief and the DevFlow pin are records that decide policy.
+    high_md = {p for p in records if not p.startswith("docs/") and any(fnmatch.fnmatch(p, g) for g in globs)}
+    if paths and len(records) == len(paths) and not high_md and not edits:
+        reasons.append(f"change class: record only ({len(paths)} file(s): docs/, Markdown) -- a record is never reviewed")
+        return "none", reasons
     reasons.append(f"product lines changed: {product} (a Code-Reviewer above {PRODUCT_THRESHOLD})")
     need_cr = (product > PRODUCT_THRESHOLD or bool(gate)) and mode != "light"
     if gate:
         reasons.append(f"gate or control code changed: {', '.join(gate[:4])}{' ...' if len(gate) > 4 else ''}")
     security: list[str] = []
-    globs = declared_globs(root, at, plan)
-    hit = [p for p in paths if any(fnmatch.fnmatch(p, g) for g in globs)]
-    test_only = [p for p in hit if is_test_path(p)]
+    # A security-invariant test the brief names is code (harvest Q2): its change is a signal of its own.
+    invariant = [p for p in paths if invariant_hit(p, named)]
+    if invariant:
+        security.append(f"security-invariant tests the brief names: {', '.join(invariant[:4])}")
+    hit = [p for p in paths if (p not in records or p in high_md) and any(fnmatch.fnmatch(p, g) for g in globs)]
+    test_only = [p for p in hit if is_test_path(p) and p not in invariant]
     hit = [p for p in hit if not is_test_path(p)]
     if hit:
         security.append(f"declared HIGH paths: {', '.join(hit[:4])}")
     if test_only:
         reasons.append(f"test-only files under declared HIGH paths (not a signal on their own): "
                        f"{', '.join(test_only[:4])}")
-    hit = [p for p in paths if SENSITIVE_PATH.search(p) and not RECORDS.search(p)]
-    test_only = [p for p in hit if is_test_path(p)]
+    hit = [p for p in paths if SENSITIVE_PATH.search(p) and p not in records]
+    test_only = [p for p in hit if is_test_path(p) and p not in invariant]
     hit = [p for p in hit if not is_test_path(p)]
     if hit:
         security.append(f"sensitive path names: {', '.join(hit[:4])}")
@@ -285,14 +312,16 @@ def assess(rng: str, at: str | None = None, plan: str | None = None,
                        f"review whatever the mode{', and a Code-Reviewer' if mode != 'light' else ''} (#283)")
         need = "security" if mode == "light" else "code-reviewer+security"
         return need, reasons
-    # Light mode, from v7.2 (the owner's ruling of 2026-10-17): per change only the brief's declared HIGH
-    # paths go to the Security-Reviewer; sensitive names and new parsers are read at the release review.
+    # Light mode, from v7.2 (the owner's ruling of 2026-10-17): per change only what the brief declares -- its
+    # HIGH paths and, from v7.3, its security-invariant tests -- goes to the Security-Reviewer; sensitive names
+    # and new parsers are read at the release review.
+    declared_by_brief = ("declared HIGH paths", "security-invariant tests")
     if security and mode == "light":
-        later = [s for s in security if not s.startswith("declared HIGH paths")]
+        later = [s for s in security if not s.startswith(declared_by_brief)]
         if later:
-            reasons.append("light mode: per change only the brief's declared HIGH paths go to the Security-Reviewer; "
+            reasons.append("light mode: per change only what the brief declares goes to the Security-Reviewer; "
                            "these signals are for the release review (`/going-live`): " + "; ".join(later))
-        security = [s for s in security if s.startswith("declared HIGH paths")]
+        security = [s for s in security if s.startswith(declared_by_brief)]
     if security and mode != "light" and not wave_security:
         reasons.append("heavy mode: security runs once per milestone, on the plan's last wave, over the whole "
                        "milestone (`/close-wave`, docs/reviews/m<N>-security.md) -- these signals are for it, "

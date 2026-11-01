@@ -26,7 +26,8 @@ skill's plan-first draft PR was merged twice with a BLOCKING review still open.
    the four gate lines (`make secrets`, `deps`, `slopsquat`, `conformance`) from the last `make gate`
    (`docs/reviews/enhancement-<slug>-security.md`); light mode runs no Code-Reviewer, and no
    Tester per enhancement: the milestone Tester runs before the next release, on everything
-   merged since its last verdict (`docs/closure-checklist.md` §B.0). Then `/pre-merge`. A finding this PR does not fix is filed with `/file-issue`, and
+   merged since its last verdict (`docs/closure-checklist.md` §B.0). Then `/pre-merge`. Each finding id is a row of the body's
+   findings table (`/fix-issue` step 6); one this PR does not fix is filed with `/file-issue`, and
    a phase still red after three attempts stops the same way (`.agents/rules/practices.md`).
 6. Ask for approval before finalising. Only then delete the plan document — **an enhancement's
    plan never lands on the default branch** (a milestone plan does; that is `/plan-milestone`'s).

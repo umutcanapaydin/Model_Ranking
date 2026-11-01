@@ -35,7 +35,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib_record import missing_tool, runnable_bash, scrubbed_env  # noqa: E402
+from lib_record import QUIET_GIT, copy_repo, missing_tool, runnable_bash, scrubbed_env  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GUARD = ROOT / ".claude" / "hooks" / "bash_guard.py"
@@ -81,6 +81,8 @@ def fixture(base: pathlib.Path) -> tuple[pathlib.Path, str]:
     (r / ".claude" / "skills" / "fix-issue" / "SKILL.md").write_text("# skill\n", encoding="utf-8")
     (r / "Makefile").write_text("x:\n\ttrue\n", encoding="utf-8")
     git(r, "init", "-q", "-b", "main")
+    for key, value in QUIET_GIT:     # its commits start no background maintenance to race the copies (#48)
+        git(r, "config", key, value)
     git(r, "add", "-A")
     git(r, "commit", "-qm", "base")
     head = git(r, "rev-parse", "HEAD")
@@ -192,7 +194,7 @@ def main() -> int:
         "echo hi > out.txt", "tee -a .claude/last-check.log", "cp .env.example .env.sample", "echo x > src/config.env.py", f"find {TMP}/x -delete",
         "find . -name '*.pyc'", "cat .env", "grep KEY .env",
         # shell shapes that are not commands
-        "ls -la", "make test", "echo \"$(echo hi)\"", "for f in a b; do echo $f; done", "case x in a) echo a;; esac",
+        "ls -la", "make test", "make prune-merged", "make prune-merged PR=12", "make findings-check closing-keywords", "echo \"$(echo hi)\"", "for f in a b; do echo $f; done", "case x in a) echo a;; esac",
         "x=1; y=2; echo $((x+y))", "echo \u2192 done", "$UNSET deploy",
     ):
         cases.append((f"`{c}`", c, home, env_pkg, False, ""))
@@ -218,7 +220,9 @@ def main() -> int:
     cases.append(("`rm -rf docs` from the temp directory (scratch)", "rm -rf docs", tmp, env_pkg, False, ""))
     # v7.1.1: `$TMPDIR` is scratch only as the hook's environment has it, substituted and strictly below it.
     # Unset, `rm -rf "$TMPDIR"/x` is `rm -rf /x`; `$TMPDIR/..` and `$TMPDIR` itself passed, as did `"$d"/..`.
-    no_tmp = {"CLAUDE_PROJECT_DIR": str(ROOT), "TMPDIR": ""}
+    # TMP and TEMP keep naming a temp directory Python can use: inside the macOS sandbox only `$TMPDIR` is
+    # writable, and with it unset the hook's interpreter found none at all (#72).
+    no_tmp = {"CLAUDE_PROJECT_DIR": str(ROOT), "TMPDIR": "", "TMP": TMP, "TEMP": TMP}
     for c in ("rm -rf \"$TMPDIR\"", "rm -rf \"$TMPDIR\"/", "rm -rf \"$TMPDIR\"/..", "rm -rf \"$TMPDIR\"/../x",
               "rm -rf $TMPDIR/a/../../b", "rm -rf ${TMPDIR}/../x", "TMPDIR=/home/u; rm -rf \"$TMPDIR\"/x",
               "TMPDIR=$X; rm -rf \"$TMPDIR\"/x", "d=$(mktemp -d) && rm -rf \"$d\"/..", "d=$(mktemp -d) && rm -rf \"$d\"/a/../..",
@@ -258,6 +262,17 @@ def main() -> int:
               "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=x git commit -m y",
               "git config core.hooksPath", "git config --get core.hooksPath", "git config core.hooksPath .githooks",
               "git commit -m 'never --no-veri here'"):
+        cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    # v7.3 (A35 review, M1): husky's own off switch on a push skips the gate husky runs, as `--no-verify` does:
+    # `HUSKY=0` (husky 5-9) and `HUSKY_SKIP_HOOKS` (husky 4), as a prefix, through `env`, exported, or unreadable.
+    for c in ("HUSKY=0 git push -u origin fix/x", "env HUSKY=0 git push origin fix/x",
+              "export HUSKY=0; git push origin fix/x", "export HUSKY=0 && git push -u origin fix/x",
+              "HUSKY=0; git push origin fix/x", "HUSKY_SKIP_HOOKS=1 git push origin fix/x",
+              "export HUSKY_SKIP_HOOKS=true; git push origin fix/x", "HUSKY=$off git push origin fix/x",
+              "HUSKY=0 git -c alias.p=push p origin fix/x"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, "HUSKY"))
+    for c in ("HUSKY=0 npm ci", "HUSKY=0 npm install && make test", "export HUSKY=1; git push -u origin fix/x",
+              "git push -u origin fix/x", "echo 'HUSKY=0 git push' > notes.txt"):
         cases.append((f"`{c}`", c, home, env_pkg, False, ""))
     # v7.1.1 (A5): a ref named through a variable. `m=main; git push origin --delete $m` passed v7.1 while the
     # literal form was refused; a deletion whose ref this cannot read may be the protected branch.
@@ -356,9 +371,23 @@ def main() -> int:
               "PY=/usr/bin/true make -e gate",
               # its third round: a three-letter option, ANSI-C quoting, short patterns run or written to
               "make --o=check gate", "make --eval=x gate", "git rev-parse HEAD > .git/devflow$'\\055'gate-ok",
-              "python3 scripts/gat*.py write",
+              "python3 scripts/gat*.py write", "cd scripts && python3 ./*.py write",
               # its fourth round: a script passed off as make
-              "MAKELEVEL=1 python3 - write Makefile", "export MAKELEVEL=1"):
+              "MAKELEVEL=1 python3 - write Makefile", "export MAKELEVEL=1",
+              # v7.2.1: a pattern whose directory can be scripts/ still names the script
+              "python3 s*/*.py write", "python3 */*.py write", "python3 *.py write",
+              "python3 ../scripts/g*.py write",
+              # #47 (a field project's own guard fixed these): words after `-c`'s string are `$0`, `$1`, so a
+              # `--help` there runs it; `-S` inside a short-option cluster; a code-running config value that
+              # is itself `!shell`
+              "bash -c 'rm -rf ~' --help", "sh -c 'rm -rf ~' --version", "bash -c 'git push origin main' x --help",
+              "env -iS 'rm -rf ~'", "env -vS 'rm -rf ~'", "env -0S 'rm -rf ~'", "env -iS'rm -rf ~'",
+              "env -iu FOO -S 'rm -rf ~'", "git -c credential.helper='!rm -rf ~' fetch",
+              "git config credential.helper '!rm -rf ~'", "git -c core.sshCommand='!rm -rf ~' fetch",
+              # its review: fish runs `-c` whatever `--help` says; GNU env takes abbreviated long options
+              "fish --command='rm -rf ~' --help", "fish --help -c 'rm -rf ~'", "fish --help --command 'rm -rf ~'",
+              "env --sp='rm -rf ~'", "env --split 'rm -rf ~'", "env --ch /tmp -S 'rm -rf ~'",
+              "env --un FOO -S 'rm -rf ~'"):
         cases.append((f"`{c}`", c, home, env_pkg, True, ""))
     for c in ("git config alias.st status", "git config alias.lg 'log --oneline --graph'", "git -c alias.l='log -1' l",
               "git config user.name x", "git config --get alias.st", "git config --unset alias.st", "git config alias.st",
@@ -369,6 +398,10 @@ def main() -> int:
               "GIT_PAGER=cat git log", "EDITOR=vim git commit", "GIT_SSH_COMMAND='ssh -i key' git fetch", "env cat -",
               "env -u FOO make test", "git config alias.st status && git st", "GIT_EDITOR=true git rebase --continue",
               "GIT_PAGER= git log", "export EDITOR='code --wait'", "git -c alias.x='!echo hi' x",
+              "bash --help", "sh --version", "bash --version -c x", "env -iS 'make test'", "env -vS'ls -la'",
+              "env -iu FOO make test", "git -c credential.helper=osxkeychain fetch",
+              "git config credential.helper '!echo hi'", "bash --rcfile ~/.bashrc --help", "bash --init-file x --help",
+              "env --ch /tmp make test", "env --sp='make test'", "fish --help", "fish --version",
               "EDITOR=\"$HOME/bin/ed\" git commit", "GIT_SSH_COMMAND=\"ssh -i $HOME/.ssh/k\" git fetch",
               "grep -rn GIT_PAGER .claude/hooks", "trap - EXIT", "make gate", "make gate-ok", "make -j4 test", "make -C sub check", "make -n gate", "ls scripts/*.py", "make --jobs=4 test", "ls scripts/*gate*", "find . -name '*gate*'",
               "git add scripts/*gate*.py", "rg -g '*gate*' make", "ls *flow*",
@@ -381,6 +414,108 @@ def main() -> int:
               "git -c core.pager=cat log", "ssh host -p 22 ls", "ssh -t host top", "mv -t dest a b", "mv --target-directory=dest a",
               "X=1 make test", "rm build/a.o", "mv a b", "mv -t dest a b", "git rm -r --cached .", "git rm x.txt"):
         cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    # v7.3 A1 (#54): fish runs the text of `-c` and `-C` in every spelling its getopt reads -- glued
+    # (`-C'x'`), `--init-command=x`, a long option in any unique prefix (`--init`), inside a cluster.
+    for c in ("fish -C'rm -rf ~' x.fish", "fish --init-command='rm -rf ~' x.fish", "fish --init='rm -rf ~' x.fish",
+              "fish -iC'rm -rf ~' x.fish", "fish --init-command 'git push origin main' x.fish",
+              "fish --command='rm -rf ~' x.fish", "fish -c'rm -rf ~' x.fish", "fish --comm 'rm -rf ~'",
+              "fish -NC'git push origin main' -c true"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, ""))
+    for c in ("fish -C 'set x 1' script.fish", "fish -C'set x 1' script.fish", "fish --init-command='set -g x 1' x.fish",
+              "fish -c 'echo hi'", "fish --no-config -c 'ls -la'", "fish script.fish", "fish -c'ls' x"):
+        cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    # v7.3 A2 (Project-J): a call that names the gate stamp is refused unless every mention is a read -- a
+    # reader's operand, a commit message, echo text, a heredoc into another file. A grep of its script and
+    # a heredoc into another file were refused in the field.
+    for c in ('grep -n "devflow-gate" scripts/gate_stamp.py', "grep -rn gate_stamp scripts conformance",
+              "cat > \"$TMPDIR/notes.md\" <<'EOF'\nmake gate writes .git/devflow-gate-ok-<sha>\nEOF",
+              'git commit -m "docs: only make gate writes devflow-gate-ok"', "ls .git/devflow-gate-ok-*",
+              "echo 'see scripts/gate_stamp.py' >> notes.md", "git log --oneline -- scripts/gate_stamp.py",
+              "cat > \"docs/reviews/${slug}.md\" <<'EOF'\nthe devflow-gate-ok stamp\nEOF",
+              "[ -f .git/devflow-gate-ok-abc ] && echo stamped", "> out.log", "> \"$TMPDIR/x.txt\""):
+        cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    # The review of v7.3 P1: a command of redirections only was dropped by the lexer (B1, K1), and a writer
+    # A2 did not list wrote the stamp (M1) -- each refused by v7.2.
+    for c in ("> .git/devflow-gate-ok-$(git rev-parse HEAD)", ">> .git/devflow-gate-ok-$(git rev-parse HEAD)",
+              ">| .git/devflow-gate-ok-x", "&> .git/devflow-gate-ok-x", "< /dev/null > .git/devflow-gate-ok-x",
+              "{ > .git/devflow-gate-ok-x; }", "(> .git/devflow-gate-ok-x)", "git status; > .git/devflow-gate-ok-x",
+              "h=$(git rev-parse HEAD) && > \".git/devflow-gate-ok-$h\"",
+              "git rev-parse HEAD > ../h.txt; < ../h.txt > .git/devflow-gate-ok-$(git rev-parse HEAD)",
+              "echo x | sponge .git/devflow-gate-ok-abc", "sort -o .git/devflow-gate-ok-abc /tmp/h.txt",
+              "uniq /tmp/h.txt .git/devflow-gate-ok-abc", "git archive -o .git/devflow-gate-ok-abc HEAD",
+              "git config -f .git/devflow-gate-ok-abc x.y z", "mkdir .git/devflow-gate-ok-abc",
+              "git diff --output=.git/devflow-gate-ok-abc", "echo .git/devflow-gate-ok-x | xargs sponge",
+              "printf -v f '.git/devflow-gate-ok-%s' x; echo y | sponge \"$f\"",
+              "sponge \"$(echo .git/devflow-gate-ok-x)\" < /tmp/h.txt", "sed -n '/gate_stamp/p' Makefile",
+              "rm -f .git/devflow-gate-ok-*"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, "the gate stamp"))
+    for c in ("> .env", ">> .env.local"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, "writes to .env"))
+    # The review's round 2 (B2, K2): `<>` opens its file for writing too, `>&file` is `>file 2>&1`, and zsh's
+    # `>!`, `>>!`, `&>!` clobber -- each was read as no write; v7.2 refused them. `>&2` and `2>&1` duplicate.
+    for c in ("git rev-parse HEAD >& .git/devflow-gate-ok-$(git rev-parse HEAD)",
+              "git rev-parse HEAD 1<> .git/devflow-gate-ok-$(git rev-parse HEAD)", "cat h 1<> .git/devflow-gate-ok-x",
+              "exec 3<> .git/devflow-gate-ok-x", ": <> .git/devflow-gate-ok-x", "<> .git/devflow-gate-ok-x",
+              "echo x >&.git/devflow-gate-ok-x", "echo x >! .git/devflow-gate-ok-x", "echo x >>! .git/devflow-gate-ok-x",
+              "echo x &>! .git/devflow-gate-ok-x"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, "the gate stamp"))
+    for c in ("echo X 1<> .env", "echo X >& .env", "echo X >! .env"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, "writes to .env"))
+    for c in ("echo hi >&2", "make test 2>&1 | tail -5", "make test >& build.log", "ls >& /dev/null", "exec 3>&-",
+              "echo x >! out.txt", "cat <> notes.txt", "git status 2>&1 >&2"):
+        cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    # #68 (carried by v7.3 P1): a whole command held in a variable this text assigned a literal is judged
+    # as that text where the shell runs it -- an unquoted program-position `$x`, `eval "$x"`, `-c "$x"`.
+    for c in ("x='rm -rf ~'; $x", "x='rm -rf ~'; eval \"$x\"", "x='git push origin main'; sh -c \"$x\"",
+              "for x in 'git push origin main'; do $x; done",
+              "for c in ':' 'for y in /tmp/ok ~; do rm -rf \"$y\"; done'; do eval \"$c\"; done",
+              # a `$` in single quotes is a character: the literal holds the command, run by eval and `-c`
+              "x='rm -rf $HOME'; eval \"$x\"", "x='rm -rf \"$HOME\"'; bash -c \"$x\""):
+        cases.append((f"`{c}`", c, home, env_pkg, True, ""))
+    for c in ("a=git; $a push origin fix/x", "x='ls -la'; $x", "x='echo hi'; eval \"$x\"", "x='git status'; sh -c \"$x\""):
+        cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    for c in ("a=.git/devflow-gate-ok-$(git rev-parse HEAD); echo x > \"$a\"",
+              "read p <<< \".git/devflow-gate-ok-$(git rev-parse HEAD)\"; git rev-parse HEAD > \"$p\"",
+              "python3 -c \"open('.git/devflow-gate-ok-'+'x','w')\"", "scripts/gate_stamp.py write Makefile",
+              "echo .git/devflow-gate-ok-abc | xargs touch", "dd if=/dev/null of=.git/devflow-gate-ok-abc",
+              "cat scripts/gate_stamp.py | python3 - write Makefile", "bash -c 'echo x > .git/devflow-gate-ok-abc'",
+              "install -m 644 /tmp/x .git/devflow-gate-ok-abc", "ln -sf /tmp/x .git/devflow-gate-ok-abc",
+              "d=devflow-gate; x=$(git rev-parse HEAD); touch .git/$d-ok-$x", "find .git -name 'devflow-gate*' -exec touch {} +"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, "the gate stamp"))
+    # v7.3 A3 (Project-J): a `for` over literal words gives its variable each word in turn. A literal-list
+    # branch-delete loop was refused as an unread ref, and the owner deleted the branches by hand.
+    for c in ("for b in fix/a fix/b; do git push origin --delete \"$b\"; done",
+              "for b in fix/a fix/b; do git branch -D \"$b\" && git push origin --delete \"$b\"; done",
+              f"for d in {t}/p1-a {t}/p1-b; do rm -rf \"$d\"; done"):
+        cases.append((f"`{c}`", c, home, env_pkg, False, ""))
+    for c in ("for b in fix/a main; do git push origin --delete \"$b\"; done", f"for d in {t}/p1-a ~; do rm -rf \"$d\"; done",
+              "b=main; for b in fix/a; do :; done; git push origin --delete \"$b\"",
+              "for b in fix/a; do git push origin --delete \"$b$c\"; done", "for b in main; do git push origin \"$b\"; done"):
+        cases.append((f"`{c}`", c, home, env_pkg, True, ""))
+    # v7.2.1 (Project-J, then the review): a pattern in a plain directory that exists and holds no
+    # `gate_stamp.py` cannot expand to the script; every directory this cannot read keeps the refusal.
+    for c in ("python3 tool.py conformance/*.py", "python -m pytest tests/unit/*.py",
+              ".venv/bin/python tool.py conformance/test-*.py", "python3 x.py ./conformance/*.py",
+              "python3 ./*.py write"):
+        cases.append((f"`{c}` in the package", c, ROOT, env_pkg, False, ""))
+    for c in ("python3 scripts/g*.py write", "python3 $d/g*.py write", "d=scripts; python3 $d/g*.py",
+              "python3 ${d}/g*.py", "python3 \"$(echo scripts)\"/g*.py", "python3 `echo scripts`/g*.py",
+              "cd scripts && python3 $PWD/g*.py", "python3 ~+/g*.py", "python3 \"$(pwd)\"/g*.py",
+              "ln -s scripts sc; python3 sc/g*.py write", "python3 docs/{../scripts/g*.py,x} write",
+              "cd scripts && python3 ./*.py", "python3 conformance/../scripts/g*.py",
+              "python3 nosuchdir/g*.py",
+              # the second review: a file put in an existing directory earlier in the same call
+              "cp scripts/g*.py docs/ && python3 docs/g*.py write",
+              "mv scripts/g*.py conformance/ && python3 conformance/g*.py write",
+              "ln -sfn scripts docs && python3 docs/g*.py",
+              "python3 docs/{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}{a,b}g*.py"):
+        cases.append((f"`{c}` in the package", c, ROOT, env_pkg, True, "the gate stamp"))
+    for c in ("read MAKELEVEL <<< 1; export MAKELEVEL", "printf -v MAKELEVEL 1", "echo x; read -r MAKELEVEL"):
+        cases.append((f"`{c}` in the package", c, ROOT, env_pkg, True, "MAKELEVEL"))
+    # ...and prose that only mentions it stays allowed (the review: v7.2.1's first rule refused it).
+    for c in ('git commit -m "MINORs: read/printf -v of MAKELEVEL refused"', 'echo "please read the MAKELEVEL notes"',
+              'gh issue create --title x --body "declare: the gate reads MAKELEVEL"'):
+        cases.append((f"`{c}` in the package", c, ROOT, env_pkg, False, ""))
     # The package's own tree is this guard's repository: it is not removed or moved, from inside or above.
     top = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"], capture_output=True, text=True,
                          env=scrubbed_env()).stdout.strip()
@@ -406,6 +541,7 @@ def main() -> int:
                   {"CLAUDE_PROJECT_DIR": str(ROOT), "TMPDIR": str(repo_tmp)}, False, ""))
 
     bad: list[str] = []
+    retried: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
         base = pathlib.Path(tmp)
         try:
@@ -428,7 +564,7 @@ def main() -> int:
             cases.append((f"`{c}` with every verdict current (D-185)", c, proj, env_proj, False, ""))
         # One code file after the reviewed head: every spelling of the deploy is refused, nothing else is.
         dirty = base / "dirty"
-        shutil.copytree(proj, dirty, symlinks=True)
+        copy_repo(proj, dirty)
         (dirty / "src" / "b.py").write_text("y = 2\n", encoding="utf-8")
         env_dirty = {"CLAUDE_PROJECT_DIR": str(dirty)}
         for c in ("vercel deploy", "VERCEL DEPLOY", "vercel  deploy", "'vercel' deplo'y'", "verc'el' deploy", "/usr/local/bin/vercel deploy",
@@ -441,6 +577,105 @@ def main() -> int:
         for c in ("echo 'vercel deplo'y", "echo 'vercel deploy'", "git commit -m 'vercel deploy notes'", "x='vercel deploy'; echo $x",
                   "gh issue comment 3 -b 'run vercel deploy after'", "vercel status", "cat <<'EOF'\nvercel deploy\nEOF", "ls"):
             cases.append((f"`{c}` with code changed (not a deploy)", c, dirty, env_dirty, False, ""))
+        # v7.3 A3: a literal `for` names its program as an assignment does (`a=vercel; $a deploy` above; model_ranking's fixture declares vercel, D-185).
+        cases.append(("`for d in vercel; do $d deploy; done` with code changed", "for d in vercel; do $d deploy; done", dirty,
+                      env_dirty, True, "changed since the reviewed head"))
+        # Run v73 R1: the current shell expands `"$x"` before `sudo`, `env -i` or `env -S` runs, so the deploy
+        # held in it is judged (#68's leftovers; the argument-position split stays open there).
+        for c in ("x='vercel deploy'; sudo sh -c \"$x\"", "x='vercel deploy'; doas sh -c \"$x\"",
+                  "x='vercel deploy'; env -i sh -c \"$x\"", "x='vercel deploy'; env -S \"$x\"",
+                  "x='vercel deploy'; env --split-string=\"$x\""):
+            cases.append((f"`{c}` with code changed", c, dirty, env_dirty, True, "changed since the reviewed head"))
+        for c in ("x='rm -rf ~'; sudo sh -c \"$x\"", "x='rm -rf ~'; env -S \"$x\""):
+            cases.append((f"`{c}`", c, dirty, env_dirty, True, ""))
+        cases.append(("`x='vercel status'; sudo sh -c \"$x\"` with code changed (not a deploy)",
+                      "x='vercel status'; sudo sh -c \"$x\"", dirty, env_dirty, False, ""))
+        # Run v73 M1: production's option held in a variable or a substitution is still production -- an
+        # expansion the guard leaves unread may be any option, so the strictest class of the program decides.
+        cls = base / "classes"
+        copy_repo(proj, cls)
+        (cls / "docs" / "project-brief.md").write_text(
+            "- **Working mode:** `light`\n- Deploy targets: `staging: netlify deploy --dir dist`, "
+            "`production: netlify deploy --prod`\n", encoding="utf-8")
+        shutil.copy(ROOT / "scripts" / "review_need.py", cls / "scripts")   # a staging deploy asks it
+        # model_ranking (#283): a change to the brief's deploy lines is a policy edit, which owes a security review
+        # of its own whatever the class; here the release verdict saw it, and only the product changed since.
+        git(cls, "add", "-A")
+        git(cls, "commit", "-qm", "the deploy targets, reviewed")
+        verdict(cls, "docs/reviews/release-security.md", git(cls, "rev-parse", "HEAD"))
+        (cls / "src" / "b.py").write_text("y = 2\n", encoding="utf-8")
+        git(cls, "add", "-A")
+        git(cls, "commit", "-qm", "a change the security verdict did not see")
+        verdict(cls, "docs/reviews/release-tester.md", git(cls, "rev-parse", "HEAD"))
+        (cls / "docs" / "releases").mkdir(parents=True)
+        (cls / "docs" / "releases" / "unreleased.md").write_text(
+            f"- 2026-10-29, staging, {git(cls, 'rev-parse', '--short', 'HEAD')}: y (unreleased)\n", encoding="utf-8")
+        env_cls = {"CLAUDE_PROJECT_DIR": str(cls)}
+        for c in ("p=--prod; netlify deploy --dir dist $p", "FLAGS='--dir dist --prod'; netlify deploy $FLAGS",
+                  "for f in --prod; do netlify deploy --dir dist $f; done", "netlify deploy --dir dist $(echo --prod)",
+                  "netlify deploy --dir dist `echo --prod`", "netlify deploy --dir dist \"$NETLIFY_FLAGS\"",
+                  "netlify deploy --dir dist --prod"):
+            cases.append((f"`{c}`, production held in an expansion, the security verdict stale", c, cls, env_cls, True,
+                          "release-security.md"))
+        for c in ("netlify deploy --dir dist", "netlify open $SITE"):
+            cases.append((f"`{c}` (staging, or no deploy) with the security verdict stale", c, cls, env_cls, False, ""))
+        # v7.3 A4 (Project-J): `gh run rerun` runs its run's workflow again, so it is the deploy that workflow is.
+        # A rerun of the declared `gh workflow run deploy.yml` is that deploy; a rerun of the CI tests is not
+        # (Project-J's own rule refused both); one whose workflow cannot be read is refused. A fake `gh` answers.
+        wf = base / "gh-deploy"
+        copy_repo(dirty, wf)
+        (wf / "docs" / "project-brief.md").write_text(
+            "- **Working mode:** `light`\n- Deploy commands: `gh workflow run deploy.yml`\n", encoding="utf-8")
+        fake = base / "fake-gh"
+        fake.mkdir()
+        (fake / "gh").write_text("#!/bin/sh\ncase \"$*\" in\n"
+                                 "  *runs/111*) printf '.github/workflows/deploy.yml\\tDeploy\\n';;\n"
+                                 "  *runs/222*) printf '.github/workflows/ci.yml\\tCI\\n';;\n"
+                                 "  *) echo 'HTTP 404: Not Found' >&2; exit 1;;\nesac\n", encoding="utf-8")
+        (fake / "gh").chmod(0o755)
+        env_wf = {"CLAUDE_PROJECT_DIR": str(wf), "PATH": f"{fake}{os.pathsep}{os.environ.get('PATH', '')}"}
+        for c in ("gh run rerun 111", "gh run rerun 111 --failed", "gh -R o/r run rerun 111"):
+            cases.append((f"`{c}`, a rerun of the declared deploy workflow, code changed", c, wf, env_wf, True,
+                          "changed since the reviewed head"))
+        cases.append(("`gh run rerun 333`, a run whose workflow cannot be read", "gh run rerun 333", wf, env_wf, True,
+                      "gh run rerun"))
+        # model_ranking (#390, kept by D-241 clause 2): the deploy gate reads a rerun as a dispatch of a workflow it
+        # cannot name, a deploy whenever a deploy workflow exists, whatever the guard's `gh api` call says the run
+        # was -- so a rerun of the CI tests is refused too here, where v7.3 lets it through.
+        for c in ("gh run rerun 222", "gh run rerun 222 --failed"):
+            cases.append((f"`{c}`, a rerun while a deploy workflow exists (model_ranking, #390), code changed", c, wf,
+                          env_wf, True, "changed since the reviewed head"))
+        for c in ("gh run view 111", "gh run list"):
+            cases.append((f"`{c}` where `gh workflow run deploy.yml` is a deploy", c, wf, env_wf, False, ""))
+        cases.append(("`gh run rerun 333` where no workflow deploy is declared", "gh run rerun 333", dirty,
+                      {**env_dirty, "PATH": env_wf["PATH"]}, False, ""))
+        # v7.3 A6: a call the guard has not judged within its time budget is refused, and the refusal says to
+        # split the command. A deploy gate that hangs stands in for the slowest call there is.
+        slow = base / "slow-gate"
+        copy_repo(proj, slow)
+        (slow / "scripts" / "deploy_gate.py").write_text("import time\nJUDGE_PROTOCOL = 2\ntime.sleep(15)\n",
+                                                         encoding="utf-8")
+        cases.append(("`ls` while the deploy gate hangs past the guard's budget", "ls", slow,
+                      {"CLAUDE_PROJECT_DIR": str(slow)}, True, "Split it into smaller Bash calls"))
+        # v7.3 A8 (harvest 6b): the protected branch is also the repository's own default -- its `origin/HEAD`,
+        # else `init.defaultBranch`. A `develop` default went unguarded.
+        dev = base / "develop-default"
+        dev.mkdir()
+        git(dev, "init", "-q", "-b", "develop")
+        git(dev, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop")
+        rel = base / "release-default"
+        rel.mkdir()
+        git(rel, "init", "-q", "-b", "work")
+        git(rel, "config", "init.defaultBranch", "release")
+        for c in ("git push origin develop", "git push origin HEAD:develop", "git push origin main",
+                  "git update-ref -d refs/heads/develop", "for b in fix/a develop; do git push origin --delete $b; done"):
+            cases.append((f"`{c}` where origin/HEAD is develop", c, dev, env_pkg, True, ""))
+        for c in ("git push origin fix/develop-page", "git push -u origin feature/x", "git push origin release"):
+            cases.append((f"`{c}` where origin/HEAD is develop", c, dev, env_pkg, False, ""))
+        cases.append(("`git push origin release` where init.defaultBranch is release", "git push origin release", rel,
+                      env_pkg, True, "never pushes the protected branch"))
+        cases.append(("`git push origin develop` where init.defaultBranch is release", "git push origin develop", rel,
+                      env_pkg, False, ""))
         # S1: from a subdirectory, and with CLAUDE_PROJECT_DIR unset -- the repository is the call's own.
         cases.append(("`vercel deploy` from a subdirectory, CLAUDE_PROJECT_DIR unset", "vercel deploy", dirty / "sub",
                       {"CLAUDE_PROJECT_DIR": ""}, True, "changed since the reviewed head"))
@@ -448,22 +683,31 @@ def main() -> int:
                       {"CLAUDE_PROJECT_DIR": str(dirty)}, True, "changed since the reviewed head"))
         # S1: a brief with no gate script beside it refuses every call, never skips.
         gone = base / "gone"
-        shutil.copytree(proj, gone, symlinks=True)
+        copy_repo(proj, gone)
         (gone / "scripts" / "deploy_gate.py").unlink()
         cases.append(("`ls` in a tree whose brief declares deploys and whose gate script is missing", "ls", gone,
                       {"CLAUDE_PROJECT_DIR": str(gone)}, True, "has no scripts/deploy_gate.py"))
         # v7.1.1 (A3): a gate written before `--judge` reads the flag as the command and exits 0, so it is never
         # asked; v7.1's gate, which answers it without the protocol line, still is.
         old = base / "old-gate"
-        shutil.copytree(proj, old, symlinks=True)
+        copy_repo(proj, old)
         (old / "scripts" / "deploy_gate.py").write_text(
             "import sys\n\ndef main(argv):\n    if len(argv) != 1:\n        return 2\n    return 0\n\n"
             "sys.exit(main(sys.argv[1:]))\n", encoding="utf-8")
         for c in ("vercel deploy", "ls"):
             cases.append((f"`{c}` in a tree whose deploy gate predates `--judge`", c, old,
                           {"CLAUDE_PROJECT_DIR": str(old)}, True, "predates this guard"))
+        # v7.2.1 (Project-J): an upgrade's unresolved merge in the gate is named, not a raw traceback.
+        conflicted = base / "conflicted-gate"
+        copy_repo(proj, conflicted)
+        gate_text = (conflicted / "scripts" / "deploy_gate.py").read_text(encoding="utf-8")
+        (conflicted / "scripts" / "deploy_gate.py").write_text(
+            gate_text.replace("\nJUDGE_PROTOCOL = 2\n", "\nJUDGE_PROTOCOL = 2\n<<<<<<< ours\nX = 1\n=======\nX = 2\n>>>>>>> theirs\n", 1),
+            encoding="utf-8")
+        cases.append(("`ls` in a tree whose deploy gate holds conflict markers", "ls", conflicted,
+                      {"CLAUDE_PROJECT_DIR": str(conflicted)}, True, "holds an unresolved merge conflict"))
         v71 = base / "v71-gate"
-        shutil.copytree(dirty, v71, symlinks=True)
+        copy_repo(dirty, v71)
         gate_text = (v71 / "scripts" / "deploy_gate.py").read_text(encoding="utf-8")
         (v71 / "scripts" / "deploy_gate.py").write_text(gate_text.replace("\nJUDGE_PROTOCOL = 2\n", "\n"), encoding="utf-8")
         cases.append(("`vercel deploy` with v7.1's gate (no protocol line) and code changed", "vercel deploy", v71,
@@ -473,14 +717,14 @@ def main() -> int:
         for rel in (".claude/agents/Security-Reviewer.md", ".claude/skills/fix-issue/SKILL.md", "Makefile",
                     ".github/workflows/ci.yml", "scripts/notes.md", "conformance/README.md", ".githooks/pre-push"):
             t = base / ("code-" + rel.replace("/", "_"))
-            shutil.copytree(proj, t, symlinks=True)
+            copy_repo(proj, t)
             (t / rel).parent.mkdir(parents=True, exist_ok=True)
             (t / rel).write_text("# edited after the reviewed head\n", encoding="utf-8")
             cases.append((f"`vercel deploy` after `{rel}` changed", "vercel deploy", t, {"CLAUDE_PROJECT_DIR": str(t)}, True,
                           "changed since the reviewed head"))
         for rel in ("docs/notes.md", "README.md", "docs/decisions.md", "docs/cold-start.sh"):
             t = base / ("rec-" + rel.replace("/", "_"))
-            shutil.copytree(proj, t, symlinks=True)
+            copy_repo(proj, t)
             (t / rel).parent.mkdir(parents=True, exist_ok=True)
             (t / rel).write_text("a record\n", encoding="utf-8")
             cases.append((f"`vercel deploy` after `{rel}` changed (a record)", "vercel deploy", t,
@@ -490,38 +734,38 @@ def main() -> int:
                                 ("docs/reviews/release-security.md", "PASS | MINOR | BLOCKING", "has no PASS or MINOR"),
                                 ("docs/reviews/release-tester.md", "BLOCKING", "has no PASS or MINOR")):
             t = base / ("verdict-" + rel.split("/")[-1] + text[:4].strip(" |"))
-            shutil.copytree(proj, t, symlinks=True)
+            copy_repo(proj, t)
             verdict(t, rel, head, text)
             cases.append((f"`vercel deploy` with {rel} saying `{text}`", "vercel deploy", t, {"CLAUDE_PROJECT_DIR": str(t)},
                           True, want))
         for rel in ("docs/reviews/release-security.md", "docs/reviews/release-tester.md"):
             t = base / ("missing-" + rel.split("/")[-1])
-            shutil.copytree(proj, t, symlinks=True)
+            copy_repo(proj, t)
             (t / rel).unlink()
             cases.append((f"`vercel deploy` with {rel} missing", "vercel deploy", t, {"CLAUDE_PROJECT_DIR": str(t)}, True,
                           f"there is no {rel}"))
         # Heavy mode reads the latest milestone Tester verdict, by its commit range's end.
         heavy = base / "heavy"
-        shutil.copytree(proj, heavy, symlinks=True)
+        copy_repo(proj, heavy)
         (heavy / "docs" / "project-brief.md").write_text("- Deploy commands: `vercel deploy`\n", encoding="utf-8")
         cases.append(("`vercel deploy` in heavy mode with no milestone Tester verdict", "vercel deploy", heavy,
                       {"CLAUDE_PROJECT_DIR": str(heavy)}, True, "there is no milestone Tester verdict"))
         heavy_ok = base / "heavy-ok"
-        shutil.copytree(heavy, heavy_ok, symlinks=True)
+        copy_repo(heavy, heavy_ok)
         (heavy_ok / "docs" / "reviews" / "m3-tester.md").write_text(
             f"# t\n**Independent:** yes\n\n## Verdict\nPASS\n\n**Reviewed head:** {head}\n", encoding="utf-8")
         cases.append(("`vercel deploy` in heavy mode with the milestone Tester at the head", "vercel deploy", heavy_ok,
                       {"CLAUDE_PROJECT_DIR": str(heavy_ok)}, False, ""))
         # A Tester verdict declares its independence, like every review verdict; one that does not is no verdict.
         dependent = base / "dependent"
-        shutil.copytree(proj, dependent, symlinks=True)
+        copy_repo(proj, dependent)
         (dependent / "docs" / "reviews" / "release-tester.md").write_text(
             f"# t\n\n## Verdict\nPASS\n\n**Reviewed head:** {head}\n", encoding="utf-8")
         cases.append(("`vercel deploy` with a Tester verdict that declares no independence", "vercel deploy", dependent,
                       {"CLAUDE_PROJECT_DIR": str(dependent)}, True, "does not declare `**Independent:** yes`"))
         # S2b: the checkout the command runs in. The main checkout is dirty; the worktree is reviewed.
         wt_base = base / "wt"
-        shutil.copytree(proj, wt_base, symlinks=True)
+        copy_repo(proj, wt_base)
         try:
             w = base / "worktree"
             git(wt_base, "worktree", "add", "-q", str(w), "-b", "work")
@@ -579,7 +823,7 @@ def main() -> int:
                       True, "which is not this session's project"))
         # The project's gate at protocol 1 cannot be asked about another repository; in its own it still answers.
         p1 = base / "p1-gate"
-        shutil.copytree(proj, p1, symlinks=True)
+        copy_repo(proj, p1)
         gate_text = (p1 / "scripts" / "deploy_gate.py").read_text(encoding="utf-8")
         (p1 / "scripts" / "deploy_gate.py").write_text(gate_text.replace("\nJUDGE_PROTOCOL = 2\n", "\nJUDGE_PROTOCOL = 1\n"),
                                                        encoding="utf-8")
@@ -594,7 +838,7 @@ def main() -> int:
         # A worktree the agent works in is a repository, not scratch: from inside it, its own files and the
         # tree itself are protected; from the main checkout, removing it stays scratch.
         wtp = base / "wtp"
-        shutil.copytree(proj, wtp, symlinks=True)
+        copy_repo(proj, wtp)
         real = wtp / ".claude" / "worktrees" / "real"
         try:
             git(wtp, "worktree", "add", "-q", str(real), "-b", "real")
@@ -617,12 +861,20 @@ def main() -> int:
             for k, v in extra.items():
                 if not v:
                     env.pop(k, None)
-            try:
-                r = subprocess.run([bash, "-c", hook], input=payload(command, cwd).encode("utf-8"), capture_output=True,
-                                   env=env, cwd=cwd, timeout=120)
-            except subprocess.TimeoutExpired:
-                # #328: one slow call killed the whole test with nothing on stdout; it is a finding of its own.
-                return f"the Bash guard timed out after 120 s on {label}"
+            # A call that hangs on a loaded runner is tried once more with longer: an uncaught timeout killed
+            # the whole test with no output, and CI read `(no output) (exit 1)` (two field projects, v7.2).
+            for limit in (120, 300):
+                try:
+                    r = subprocess.run([bash, "-c", hook], input=payload(command, cwd).encode("utf-8"),
+                                       capture_output=True, env=env, cwd=cwd, timeout=limit)
+                    break
+                except subprocess.TimeoutExpired:
+                    continue
+            else:
+                # #328: a call that never answers is a finding of its own, named by its case.
+                return f"the Bash guard timed out on {label}: no answer within 120 s, nor on a second try within 300 s"
+            if limit > 120:
+                retried.append(label)   # said in the result, never hidden (v7.2.1, review)
             err = r.stderr.decode("utf-8", errors="replace").strip().splitlines()
             first = err[0] if err else ""
             if r.returncode not in (0, 2) or (r.returncode == 2) != want_block:
@@ -643,6 +895,9 @@ def main() -> int:
 
     for b in bad:
         print(f"  FAIL {b}")
+    for label in retried:
+        print(f"  NOTE the Bash guard took over 120 s on {label}; it answered on the second try -- the hook's own "
+              "timeout in settings.json is shorter, so a call that slow is refused in a session")
     print(f"test-bash-guard {'FAIL' if bad else 'PASS'}: {len(cases)} tool call(s) fed to the Bash hook as Claude Code "
           f"feeds them, {len(bad)} wrong verdict(s)")
     return 1 if bad else 0

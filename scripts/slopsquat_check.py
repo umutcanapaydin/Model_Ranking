@@ -12,18 +12,27 @@ this check asks, and an LLM-hallucinated dependency reaches the manifest before 
 virtualenv -- so listing the installed set verifies nothing.
 
 OFFLINE IS NOT PASS. If PyPI cannot be reached the check exits non-zero and says so. A supply-chain
-control that reports clean because it could not run is a false pass.
+control that reports clean because it could not run is a false pass. One exception, recorded: on a
+stack other than python, outside CI, an outage passes with a WARN and a skip row in the ledger, because
+the leg grades only DevFlow's own tooling there (`scripts/net_cache.py`, outage; #51).
+
+ASKED COMPRESSED (#72). The answer is asked for gzipped: the macOS sandbox's proxy cut ruff's 6.2 MB JSON
+short, which is 1.1 MB compressed. A truncated stream does not decompress, and reads as unreachable.
 
 Exit: 0 clean · 1 findings · 2 could not run (network, no manifest).
 """
 import concurrent.futures
 import datetime
+import gzip
 import json
 import pathlib
 import re
 import sys
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import net_cache  # what an outage is, and its ledger row (#51)
 
 MIN_AGE_DAYS = 90
 TIMEOUT = 6
@@ -76,18 +85,27 @@ def declared(root: pathlib.Path) -> list[str]:
     return sorted(set(names))
 
 
+def read_json(answer) -> dict:
+    """The body as JSON, gzipped or not; any other encoding, or a truncated gzip stream, raises."""
+    body, encoding = answer.read(), (answer.headers.get("Content-Encoding") or "identity").lower()
+    if encoding not in ("gzip", "identity"):
+        raise ValueError(f"an answer in {encoding}")
+    return json.loads(gzip.decompress(body) if encoding == "gzip" else body)
+
+
 def pypi(name: str) -> tuple[str, str]:
-    """-> (verdict, detail). verdict in {ok, missing, young, unreachable}"""
+    """-> (verdict, detail). verdict in {ok, missing, young, unreachable (the network), unreadable (anything else)}"""
     url = f"https://pypi.org/pypi/{name}/json"
     try:
-        with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
-            data = json.load(r)
+        ask = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
+        with urllib.request.urlopen(ask, timeout=TIMEOUT) as r:  # noqa: S310 -- `url` is PyPI's https address
+            data = read_json(r)
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return "missing", "no such project on PyPI"
-        return "unreachable", f"HTTP {e.code}"
+        return ("unreachable" if net_cache.is_outage(e) else "unreadable"), f"HTTP {e.code}"
     except Exception as e:
-        return "unreachable", type(e).__name__
+        return ("unreachable" if net_cache.is_outage(e) else "unreadable"), net_cache.describe(e)
     stamps = [f["upload_time_iso_8601"] for rel in data.get("releases", {}).values() for f in rel
               if f.get("upload_time_iso_8601")]
     if not stamps:
@@ -111,12 +129,16 @@ def main() -> int:
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         answers = list(pool.map(pypi, names))
     for n, (verdict, detail) in zip(names, answers, strict=True):
-        if verdict == "unreachable":
+        if verdict in ("unreachable", "unreadable"):
             unreachable.append(f"{n} ({detail})")
         elif verdict != "ok":
             bad.append(f"{n}: {detail}")
 
     if unreachable:
+        # Only the network's own failure may pass, and only on another stack (#51; R1: a certificate is not one).
+        network = all(v != "unreadable" for v, _ in answers)
+        if not bad and network and net_cache.outage("slopsquat", f"{len(unreachable)} name(s): {', '.join(unreachable[:4])}"):
+            return 0
         print(f"slopsquat CANNOT RUN: PyPI unreachable for {len(unreachable)} name(s): "
               f"{', '.join(unreachable[:4])}")
         print("  Exiting non-zero on purpose. A supply-chain check that reports clean because it could")

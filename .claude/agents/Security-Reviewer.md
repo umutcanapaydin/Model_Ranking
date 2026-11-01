@@ -104,7 +104,7 @@ PASS | MINOR | BLOCKING
 ## Findings
 
 ### BLOCKING
-- file:line — issue — OWASP category if applicable — why blocking
+- **B1** file:line — issue — OWASP category if applicable — why blocking
   Evidence: <quoted lines / scan output>
 
 ### MINOR
@@ -130,8 +130,9 @@ PASS | MINOR | BLOCKING
 - **R1** <an item needing follow-up but not blocking>
 ```
 
-Every MINOR and queued-risk bullet starts with its id (`**M1**`, `**R1**`); on a wave the checklist's
-findings table says what happened to each, and `make wave-check` refuses a bullet with none.
+Every BLOCKING, MINOR and queued-risk bullet starts with its id (`**B1**`, `**M1**`, `**R1**`); the wave
+checklist's findings table (`make wave-check`) or a fix's or enhancement's PR body (`make findings-check`)
+says what happened to each.
 Nothing to report → `- none`.
 
 ---

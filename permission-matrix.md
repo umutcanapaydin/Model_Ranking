@@ -177,10 +177,9 @@ When there is no API/CLI for a step, an agent MAY drive a production UI via brow
 ## How to add an allowance
 
 1. New ADR in `docs/decisions.md` (e.g., `D-NNN -- Allow agent to do X under conditions Y`).
-2. Its `**Status:**` line: `proposed`.
-3. The owner's merge of the PR that carries it accepts it.
-4. Update this matrix.
-5. **Never** edit this matrix without the ADR.
+2. The owner's merge of the PR that carries it accepts it.
+3. Update this matrix.
+4. **Never** edit this matrix without the ADR.
 
 ---
 
@@ -197,7 +196,7 @@ Shipped guards (`.claude/settings.json`):
 - PreToolUse: a push to the default branch (§5)
 - PreToolUse: `gh pr merge`, `gh pr ready`, and a write to branch protection or rulesets — the human's steps (AGENTS.md §3)
 - PreToolUse (PowerShell tool): anything but the read-only `git` and `gh` listings, `Get-ChildItem` and `Test-Path` — the Bash guard never sees a PowerShell call, so everything else goes through the Bash tool
-- PreToolUse: a command the brief lists as `Deploy commands:` while code changed after the security review's reviewed head or the milestone Tester's (`scripts/deploy_gate.py`)
+- PreToolUse: a command the brief lists as `Deploy commands:` or `Deploy targets:` while a verdict its class owes is stale -- code changed after the security review's reviewed head or the milestone Tester's (`scripts/deploy_gate.py`)
 - SessionStart: a marker that this session loaded these settings; `make session-check` (a leg of `make check`) refuses a Claude Code session without one, and a clone with no pre-push hook
 - PostToolUse: `make check-fast` after every Write or Edit tool edit (§9; an edit made through Bash is not checked — the pre-push gate is), in the work tree that holds the edited file, the records leg alone after a document edit (`scripts/post_edit_scope.py`) — exit 2 while it is red, and exit 2 saying so when `make` is not installed
 

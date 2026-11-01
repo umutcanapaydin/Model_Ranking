@@ -83,10 +83,11 @@ FINDING_ID = re.compile(r"^\s*[-*]\s+\*\*([A-Z]{1,3}\d+)\*\*")
 DISPOSITION = re.compile(r"^(?:fixed\s+`?[0-9a-f]{7,40}`?|#\d+|refused\b\W+\w.{10,})", re.I)
 
 
-def deferrable_findings(body: str) -> tuple[list[str], int]:
+def deferrable_findings(body: str, sections: re.Pattern = DEFERRABLE) -> tuple[list[str], int]:
     """The ids of the findings under a MINOR / K.9 / queued-risk heading, and how many carry none.
 
-    A bullet that says there is nothing (`- none`, `- —`) is not a finding.
+    A bullet that says there is nothing (`- none`, `- —`) is not a finding. `sections` widens the headings
+    read: `scripts/pr_check.py` adds BLOCKING for a fix's or an enhancement's verdict (v7.3).
     """
     ids: list[str] = []
     unnamed = 0
@@ -95,7 +96,7 @@ def deferrable_findings(body: str) -> tuple[list[str], int]:
     for line in body.splitlines():
         h = re.match(r"^#{2,4}\s+(.*)$", line)
         if h:
-            in_section = bool(DEFERRABLE.search(h.group(1)))
+            in_section = bool(sections.search(h.group(1)))
             finding_above = False
             continue
         if not in_section or not re.match(r"^\s*[-*]\s+\S", line):

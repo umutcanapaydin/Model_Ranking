@@ -2,7 +2,7 @@
 record_type: license-review
 id: license-review-template
 status: draft
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-08-12
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your

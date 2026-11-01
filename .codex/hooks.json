@@ -1,0 +1,18 @@
+{
+  "description": "DevFlow: the Bash guard, the same pinned command as the Bash hook in .claude/settings.json (make guard-pin rewrites both). Codex runs it once the project is trusted, and skips it after every change until you trust it again in /hooks (.agents/rules/two-tools.md).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 30,
+            "statusMessage": "DevFlow Bash guard",
+            "command": "for py in python3 python; do \"$py\" -I -S -c 'import json' </dev/null >/dev/null 2>&1 && break; py=; done; [ -n \"$py\" ] || { echo 'BLOCKED: this guard cannot read the tool call -- no working python3 or python on PATH (see INSTALL.md).' >&2; exit 2; }; r=\"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}\"; g=\"$r/.claude/hooks/bash_guard.py\"; [ -f \"$g\" ] || { echo \"BLOCKED: the Bash guard cannot run -- $g is missing (INSTALL-MANIFEST.md). Restore it; the owner re-pins it with make guard-pin (INSTALL.md, Changing the Bash guard).\" >&2; exit 2; }; h=$(\"$py\" -I -S -c 'import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],\"rb\").read()).hexdigest())' \"$g\" </dev/null 2>/dev/null); [ \"$h\" = \"c085b476470956f2291b203366eb5345a252b6636e28baff7d11c2d57a38af26\" ] || { echo 'BLOCKED: .claude/hooks/bash_guard.py is not the guard the settings pin (sha256 c085b4764709). A session started before the pin changed keeps the old pin: restart Claude Code. Otherwise the owner runs make guard-pin (INSTALL.md, Changing the Bash guard).' >&2; exit 2; }; \"$py\" -I -S \"$g\"; rc=$?; [ \"$rc\" -eq 0 ] || exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}

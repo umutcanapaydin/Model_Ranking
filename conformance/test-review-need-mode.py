@@ -12,7 +12,8 @@ line (`review-need: ...`) and its reasons are read. Both polarities per rule: li
 `code-reviewer`, heavy must; a test-only HIGH hit must be `none`, the same path as product code must
 be `security` (light mode; in heavy mode it is kept for the milestone's security review, v7.1.2); `NewDecoder`
 must be `security`, and a stacked branch measured by its own base must
-not report the lower branch's gate change.
+not report the lower branch's gate change. From v7.3 (harvest Q2): a record-only range is `none` even under a
+HIGH glob, code under the same glob is not, and a security-invariant test the brief names is a signal.
 
 Exit: 0 every case behaves - 1 one does not - 2 git not installed.
 """
@@ -92,6 +93,11 @@ def main() -> int:
         r.commit("big again")
         case("heavy mode, the same change: a Code-Reviewer", r.need(), "review-need: code-reviewer",
              "working mode: heavy")
+        # Run v73 M3: Codex's hook runs the same guard as .claude/settings.json, so it is gate code too.
+        r.write(".codex/hooks.json", '{"hooks": {}}\n')
+        r.commit("the Codex hook")
+        case("heavy mode, a one-line .codex/hooks.json change: a Code-Reviewer, gate code", r.need(),
+             "review-need: code-reviewer", "gate or control code changed: .codex/hooks.json")
 
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
@@ -150,15 +156,78 @@ def main() -> int:
         # A failed merge-base upstream (no origin/HEAD) used to hand over `..HEAD`: an empty diff, `none`.
         case("a range with an empty side cannot run, never a vacuous none", r.need("..HEAD"),
              "review-need CANNOT RUN: `..HEAD` is not a range of two commits -- a review decision with no diff behind it decides nothing")
+        case("a three-dot range is a range: from the merge-base, as git diff reads it",
+             r.need("HEAD~2...HEAD"), "review-need: code-reviewer", "gate or control code changed: scripts/gate.py")
         case("a range naming no commit cannot run", r.need("nosuchref..HEAD"),
              "review-need CANNOT RUN: `nosuchref..HEAD` is not a range of two commits -- a review decision with no diff behind it decides nothing")
+
+    # v7.3 (harvest Q2, the owner's ruling of 2026-10-28): three change classes. A record-only range owes no
+    # review, even under a declared HIGH glob; code under the same glob still does; a security-invariant test
+    # the brief names is code, so its change is a security signal of its own. Markdown OUTSIDE docs/ that a HIGH
+    # glob names keeps v7.2.2's routing: a prompt file under src/ is code-like (the orchestrator's ruling on R2).
+    with tempfile.TemporaryDirectory() as tmp:
+        r = Repo(tmp)
+        r.write("docs/project-brief.md", brief("light", "src/**, docs/**"))
+        r.commit("brief")
+        r.write("docs/security/notes.md", "# notes\n")
+        r.write("docs/plans/m1-plan.md", "# plan\n")
+        r.commit("records only")
+        case("light, a record-only range under a HIGH glob: none, and the class says why", r.need(),
+             "review-need: none", "change class: record")
+        r.write("src/prompts/system.md", "You are the assistant.\n")
+        r.commit("a prompt file under a HIGH glob")
+        case("light, Markdown under a HIGH glob outside docs/: security, as in v7.2.2", r.need(),
+             "review-need: security", "declared HIGH paths: src/prompts/system.md")
+        r.write("src/auth_flow.py", "x = 1\n")
+        r.write("src/NOTES.md", "a note\n")
+        r.commit("code and a record")
+        case("...code under the same glob: security, never fewer for code", r.need(), "review-need: security",
+             "src/auth_flow.py")
+        # model_ranking (#283): a change to the brief's policy fields is a policy edit, a security review whatever
+        # the class -- so the switch to heavy is its own commit, and the 200 record lines come after it.
+        r.write("docs/project-brief.md", brief("heavy", "src/**"))
+        r.commit("heavy")
+        case("a change of the brief's policy fields, a record: security all the same (model_ranking, #283)",
+             r.need(), "review-need: security", "policy edit")   # the mode is the base's: light
+        r.write("docs/project-brief.md", brief("heavy", "src/**") + "".join(f"<!-- {i} -->\n" for i in range(200)))
+        r.commit("200 record lines")
+        case("heavy, 200 record lines: none -- records never count", r.need(), "review-need: none",
+             "change class: record")
+        r.write("tests/test_big.py", BIG)
+        r.commit("200 test lines")
+        case("heavy, 200 test lines: a Code-Reviewer, as before -- test-and-CI is not record", r.need(),
+             "review-need: code-reviewer")
+        # v7.3 A20, the owner's trim: a change to `.deps-accept` routes to no review; the owner's merge is it.
+        r.write(".deps-accept", "".join(f"PYSEC-2021-{i} #1 2026-12-01 a probe\n" for i in range(150)))
+        r.commit("the owner accepts advisories")
+        case("heavy, a .deps-accept change: none -- the owner's merge is its review", r.need(), "review-need: none",
+             "change class: record")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        r = Repo(tmp)
+        r.write("docs/project-brief.md", brief("light") + "- **Security-invariant tests:** `tests/test_tenant_scope.py`\n")
+        r.commit("brief")
+        r.write("tests/test_other.py", "def test_x():\n    assert 1\n")
+        r.commit("an ordinary test")
+        case("light, an ordinary test: none", r.need(), "review-need: none")
+        r.write("tests/test_tenant_scope.py", "def test_scope():\n    assert True\n")
+        r.commit("the invariant test, weakened")
+        case("light, a security-invariant test the brief names: security", r.need(), "review-need: security",
+             "security-invariant tests the brief names: tests/test_tenant_scope.py")
+        # A glob with no `/` names a file wherever it sits, as .gitignore reads it (Security-Reviewer R3).
+        r.write("docs/project-brief.md", brief("light") + "- **Security-invariant tests:** `test_tenant_scope.py`\n")
+        r.commit("the brief names the test by its file name")
+        r.write("tests/test_tenant_scope.py", "def test_scope():\n    assert 1 == 1\n")
+        r.commit("the invariant test, weakened again")
+        case("light, an invariant test named by its bare file name: security", r.need(), "review-need: security",
+             "security-invariant tests the brief names: tests/test_tenant_scope.py")
 
     if bad:
         print("test-review-need-mode FAIL (scripts/review_need.py in throwaway repositories):")
         print("\n".join(bad))
         return 1
-    print("test-review-need-mode PASS: 11 cases of scripts/review_need.py -- mode, test-only paths, Go decoders, "
-          "stacked range, heavy mode's security once per milestone")
+    print("test-review-need-mode PASS: 23 cases of scripts/review_need.py -- mode, test-only paths, Go decoders, "
+          "stacked range, heavy mode's security once per milestone, change classes")
     return 0
 
 

@@ -21,6 +21,7 @@ environment.md                # .agents/rules/environment.md, generated per deve
 data-model.md                 # a project rules file named in .agents/rules/README.md as an example
 security.md                   # a project rules file named in .agents/rules/README.md as an example
 deploy.md                     # a project rules file named in .agents/rules/README.md as an example
+build/conformance-cache/durations.json  # written by conformance/run-all.py on every run, under the gitignored build/; UPGRADING v7.3.1 names it
 
 # ── 2. Field evidence. A seed cites where its lesson was measured; the file is not ours to ship.
 sitecustomize.py              # the interpreter hook seed C.10 and practices.md name as the measured case

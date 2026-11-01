@@ -43,6 +43,35 @@ _GIT_IDENTITY = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_AUTHOR_DATE", "GIT_
                  "GIT_COMMITTER_EMAIL", "GIT_COMMITTER_DATE")
 
 
+#: GIT_REFLOG_ACTION too: `git merge` exports it to its commit-msg hook, a fixture's `git switch` then
+#: logs "merge ..." instead of "checkout: moving from", and its `git switch -` finds no previous branch (D-241).
+_CALLER_ONLY = {"CLAUDE_CODE_SESSION_ID", "MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES", "MAKELEVEL", "GIT_REFLOG_ACTION"}
+
+
+def pool_jobs(cap: int, inside: bool = False) -> tuple[int, int]:
+    """(a pool's size, the DEVFLOW_SHARE run-all hands each test): the one reader of DEVFLOW_JOBS (#114).
+
+    The size is DEVFLOW_JOBS, else min(cap, CPUs). Each test gets DEVFLOW_SHARE, twice the CPUs over the
+    pool's size, because the tests wait about as long as they compute. Eight tests that each started eight
+    runs made the gate slower; one run each left test-deploy-classes serial for the whole leg (measured).
+    A test's own pool (`inside`) takes DEVFLOW_SHARE when a runner set it. A runner reads DEVFLOW_JOBS only:
+    held to a share, test-delivered-tree's nested run-all ran two tests at a time. A set DEVFLOW_JOBS is the
+    whole budget, so each test gets 1 and DEVFLOW_JOBS=1 runs every pool one at a time, except test-bash-guard's,
+    which keeps min(8, CPUs) and is the distribution's longest test. Unreadable,
+    either one, is 1 and 1."""
+    if inside and "DEVFLOW_SHARE" in os.environ:
+        try:
+            return max(1, int(os.environ["DEVFLOW_SHARE"])), 1
+        except ValueError:
+            return 1, 1
+    raw = os.environ.get("DEVFLOW_JOBS")
+    try:
+        jobs = max(1, int(raw)) if raw else min(cap, os.cpu_count() or 1)
+    except ValueError:
+        return 1, 1
+    return jobs, 1 if raw else max(1, 2 * (os.cpu_count() or 1) // jobs)
+
+
 def scrubbed_env(extra: dict | None = None) -> dict:
     """os.environ without the repository-local git variables or a commit's identity, plus `extra`."""
     try:
@@ -52,14 +81,33 @@ def scrubbed_env(extra: dict | None = None) -> dict:
     except (OSError, subprocess.SubprocessError):
         names = list(_GIT_LOCAL_FALLBACK)
     # The Claude Code session id goes too: a scratch tree is not the tree the session started in, so
-    # `make session-check` would rightly refuse every one of them. The outer make's flags go too: the
-    # post-edit hook runs `make check-fast CHECK_FAST_ARGS=...`, and its MAKEFLAGS made `gate_stamp.py`
-    # in a throwaway repository read every case as "not run by a plain `make gate`".
+    # `make session-check` would rightly refuse every one of them.
+    # And make's own variables: a test run from a make recipe (`make check-fast CHECK_FAST_ARGS=...`, the
+    # post-edit hook) handed its flags and command-line variables to every throwaway make, and
+    # test-gate-stamp read each of its fixtures as "not a plain make gate" (Project-J, v7.2).
     env = {k: v for k, v in os.environ.items() if k not in names and k not in _GIT_IDENTITY
            and not k.startswith("GIT_CONFIG_KEY_")
-           and not k.startswith("GIT_CONFIG_VALUE_") and k not in ("CLAUDE_CODE_SESSION_ID", "MAKEFLAGS", "MFLAGS")}
+           and not k.startswith("GIT_CONFIG_VALUE_") and k not in _CALLER_ONLY}
     env.update(extra or {})
     return env
+
+
+# ── A fixture repository, as git leaves it (#48) ─────────────────────────────────────────────
+#
+# A fixture's own commit starts git's background auto-maintenance, which creates and removes
+# `.git/objects/maintenance.lock`; a copy taken meanwhile listed the lock, then could not copy it --
+# the one recurring CI flake of three field projects. A fixture repository runs with maintenance off
+# (QUIET_GIT, right after `git init`), and every copy of a tree a test makes skips git's locks.
+
+#: git's own lock files: transient, never part of what a fixture holds.
+LOCKS = shutil.ignore_patterns("*.lock")
+#: Set in a fixture repository right after `git init`: no auto-maintenance, no auto-gc.
+QUIET_GIT = (("maintenance.auto", "false"), ("gc.auto", "0"))
+
+
+def copy_repo(src, dst) -> None:
+    """Copy a tree -- a fixture repository above all -- as copytree does, leaving out every `*.lock`."""
+    shutil.copytree(src, dst, symlinks=True, ignore=LOCKS)
 
 
 # ── A missing tool is an environment, not a verdict ──────────────────────────────────────────
@@ -230,3 +278,27 @@ def doc_text(path) -> str:
     if path.suffix.lower() == ".html":
         return _CODE_TAG.sub(lambda m: f"`{m.group(1).strip()}`", text)
     return text
+
+
+# ── Names held only as hashes (`docs/project-aliases.md`, "Names held privately") ──────────────────
+_WORD = re.compile(r"[A-Za-z0-9]+")
+
+
+def name_hash(name: str) -> str:
+    """sha256 of a name's letters and digits, lowercased and joined: every separator and case of one
+    name hashes alike (`Name-Two`, `name_two`, `Name Two`, `NameTwo` -> `nametwo`)."""
+    import hashlib  # noqa: PLC0415
+    return hashlib.sha256("".join(w.lower() for w in _WORD.findall(name)).encode()).hexdigest()
+
+
+def hashed_name_hits(line: str, hashes: set[str], longest: int = 3) -> bool:
+    """Whether any run of one to `longest` adjacent words of `line`, joined, hashes to one of `hashes`.
+    Word runs, not substrings: a longer word that merely starts with a name is a different word."""
+    if not hashes:
+        return False
+    words = [w.lower() for w in _WORD.findall(line)]
+    for n in range(1, longest + 1):
+        for i in range(len(words) - n + 1):
+            if name_hash("".join(words[i:i + n])) in hashes:
+                return True
+    return False

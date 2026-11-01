@@ -50,7 +50,7 @@ open decisions, a `work-issue` verdict's flagged decisions, an approval a skill 
 would take. Ask nothing the repository already answers. The owner may answer "defaults". An
 unanswered question takes its default, written down as the default.
 
-Each answer is an ADR: `/log-decision`, status `proposed`, with the line
+Each answer is an ADR: `/log-decision`, with the line
 `**Owner ruling:** <date>, in chat, for run <name>` (`make run-check` refuses a ruling without it);
 the plan PR's merge accepts it (`/post-merge` §2a). Write their ids on the run file's
 `Rulings:` line (`none` when every question took its default); amend the plans where an answer

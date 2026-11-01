@@ -37,9 +37,10 @@ dist/
 build/
 *.egg
 
-# Local-only harness config and the post-edit check log
+# Local-only harness config, the post-edit check log, and each writing agent's worktree
 .claude/settings.local.json
 .claude/last-check.log
+.claude/worktrees/
 
 # Per-developer machine notes, generated on first session
 .agents/rules/environment.md

@@ -113,7 +113,7 @@ known-first-party = ["app"]   # ◄── change if package renamed
 "scripts/write_install_marker.py" = ["S603", "S607"]
 # DevFlow v7.2 (D-207): its new governance scripts call `git` with literal arguments, as the lines above;
 # next_adr.py is kept as shipped, so the next sync stays a small three-way merge.
-"scripts/ci_diff.py" = ["S603", "S607"]
+"scripts/ci_diff.py" = ["S603", "S607", "RUF100"]
 "scripts/conflict_markers.py" = ["S603", "S607"]  # #341: runs `git ls-files`, as ci_diff.py runs git
 "scripts/gate_stamp.py" = ["S603", "S607"]
 "scripts/post_edit_scope.py" = ["S603", "S607"]
@@ -128,7 +128,21 @@ known-first-party = ["app"]   # ◄── change if package renamed
 "scripts/review_need.py" = ["C901", "S603", "S607", "RUF100"]
 "scripts/run_check.py" = ["C901", "B008", "PTH201", "SIM102"]
 "scripts/secrets_scan.py" = ["S607", "PTH113"]
-"scripts/session_check.py" = ["S603", "S607", "PTH109"]
+"scripts/session_check.py" = ["C901", "S603", "S607", "PTH109"]
+# DevFlow v7.3.1 upgrade (D-241): the scripts v7.3 added or changed are kept as shipped, for the same reason as the
+# v7.1 and v7.2 lines above (the next sync stays a small three-way merge). Beyond S603/S607 (git and gh with
+# literal arguments): C901 (one branch per check, as closure_check.py), S310 (net_cache.py opens PyPI's https
+# address only), PTH (os.getcwd, os.chmod and open() as written upstream), RUF100 and I001 (an upstream `noqa`
+# for a rule this project does not enable, and import order after `sys.path` is set), RUF005, UP017 and B905
+# (upstream style). No rule is waived for the deploy gate's own new code: it was split instead.
+"scripts/cost_ledger.py" = ["S603", "S607", "PTH123", "UP017"]
+"scripts/doctor.py" = ["C901", "S603", "S607", "RUF005", "RUF100", "B905"]
+"scripts/git_hooks.py" = ["PTH109", "RUF100"]
+"scripts/leak_scan.py" = ["S603", "S607", "PTH109"]
+"scripts/net_cache.py" = ["S310", "S607", "RUF100"]
+"scripts/owner_bundle.py" = ["C901", "S603", "S607", "PTH101", "I001"]
+"scripts/pr_check.py" = ["C901", "S603", "S607", "RUF100"]
+"scripts/prune_merged.py" = ["C901", "S603", "S607", "RUF005"]
 # Customer-wire-format schemas may need camelCase (seed H.1):
 # "src/<pkg>/schemas/**" = ["N815"]
 

@@ -24,6 +24,8 @@ settings): NOT-EVALUABLE, after the checks that need only the Makefile's text.
 
 Exit: 0 every prerequisite in exactly one leg - 1 findings - 2 not evaluable here (no `make`).
 """
+import importlib.util
+import os
 import pathlib
 import re
 import subprocess
@@ -103,6 +105,34 @@ def main() -> int:
                                f"({', '.join(where[t])}) -- it runs twice, at the same time, "
                                "against one tree")
             extra = sorted(set(where) - set(prereqs))
+    # v7.3 (A17, the review's M1): a caller's own CLOSES_CHANGED stands; empty grades every close record, and
+    # unset, a run grades the records the branch changed.
+    if (ROOT / SCRIPT).is_file():
+        saved = os.environ.pop("CLOSES_CHANGED", None)
+        try:
+            spec = importlib.util.spec_from_file_location("check_fast", ROOT / SCRIPT)
+            cf = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(cf)
+            unset = cf.leg_env(["closes"]).get("CLOSES_CHANGED")
+            os.environ["CLOSES_CHANGED"] = ""
+            given = cf.leg_env(["closes"]).get("CLOSES_CHANGED")
+        except Exception as exc:  # noqa: BLE001 -- a script with no leg_env is a finding, never a crash of this test
+            unset = given = f"no answer ({type(exc).__name__})"
+        finally:
+            os.environ.pop("CLOSES_CHANGED", None)
+            if saved is not None:
+                os.environ["CLOSES_CHANGED"] = saved
+        if unset != "1":
+            bad.append(f"with CLOSES_CHANGED unset a leg gets {unset!r}, not '1' -- every edit grades every close record")
+        if given != "":
+            bad.append(f"`make check-fast CLOSES_CHANGED=` gives its legs {given!r}, not '' -- a caller cannot "
+                       "ask for every close record")
+    # v7.3 A17 (#51; run v73, Tester M3): the session's baseline step runs `make check-fast`, never the whole gate.
+    skill = ROOT / ".claude" / "skills" / "start-session" / "SKILL.md"
+    steps = [ln for ln in (skill.read_text(encoding="utf-8") if skill.is_file() else "").splitlines()
+             if re.match(r"\d+\. ", ln) and "make check" in ln]
+    if not steps or any("`make check-fast`" not in ln or "`make check`" in ln for ln in steps):
+        bad.append("/start-session's baseline step does not run `make check-fast` alone -- the field's 30-minute start")
     for b in bad:
         print(f"  FAIL {b}")
     if bad:

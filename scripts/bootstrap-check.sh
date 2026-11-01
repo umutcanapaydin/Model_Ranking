@@ -421,10 +421,22 @@ elif hp=$(git config core.hooksPath 2>/dev/null) && top=$(git rev-parse --show-t
 else
   hooks="core.hooksPath is not .githooks"
 fi
+# Beside husky or pre-commit (v7.3, `make hooks`), the pre-push hook git runs has .githooks/pre-push as its first
+# command instead: scripts/git_hooks.py reads it, and says only that. No Python, or no such hook, leaves the line above.
+chain=""
+if [ -n "$hooks" ] && [ -f scripts/git_hooks.py ]; then
+  for c in python3 python; do
+    "$c" -c 'import sys' >/dev/null 2>&1 || continue
+    chain=$("$c" scripts/git_hooks.py check 2>/dev/null) || chain=""
+    break
+  done
+fi
 if [ -z "$hooks" ]; then
   # Checked: the git setting. Not checked: what `.githooks/pre-push` does when git runs it -- a PASS
   # line that said "make gate runs before every push" was read as proof in the field (DevFlow #16, K1).
   ok "core.hooksPath = .githooks -- git runs .githooks/pre-push before a push (what that hook runs is not checked here)"
+elif [ -n "$chain" ]; then
+  ok "${chain#hooks: } (what that hook runs is not checked here)"
 elif [ "$ci" = yes ] && [ "$protected" = yes ]; then
   warn "$hooks -- run make hooks; meanwhile CI on the protected branch gates a push ($server)"
 else

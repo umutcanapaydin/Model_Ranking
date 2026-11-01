@@ -2,6 +2,7 @@
 record_type: experience
 id: model-ranking-experience
 status: ratified
+process_version: v7.3.1
 date: 2026-08-11
 ---
 # EXPERIENCE — model_ranking (living; V3C-81 — quarterly handover BLOCKS without it)

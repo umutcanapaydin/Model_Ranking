@@ -16,8 +16,9 @@ and 14k tokens of output per wave, with nothing changed between them (process au
 The commit is in the file's NAME: a shell pattern expands only to names that exist, and the stamp for
 a new HEAD exists only once `make gate` passed on it -- so a glob can at most rewrite an old stamp,
 which proves nothing about HEAD. The Bash guard refuses a command naming `devflow-gate` or
-`gate_stamp`, a pattern for this script handed to an interpreter, and `make` options or variables
-that skip or replace legs; the editor guard refuses writing the stamp.
+`gate_stamp` anywhere but where it is only read (a `grep`, a `cat`, a commit message, a heredoc into
+another file pass, v7.3), a pattern for this script handed to an interpreter, and `make` options or
+variables that skip or replace legs; the editor guard refuses writing the stamp.
 
 What it does not hold -- the same as the pre-push hook it serves, which the editor tool can rewrite:
 it stops mistakes, not an agent set on evading it. A name built at run time, a program that writes
@@ -47,8 +48,20 @@ def state() -> tuple[pathlib.Path, str, bool, pathlib.Path] | None:
     status = git("status", "--porcelain", "--untracked-files=all")
     if gd.returncode or head.returncode or status.returncode or top.returncode:
         return None
+    global DIRTY
+    DIRTY = [ln[3:] for ln in status.stdout.splitlines() if ln.strip()]
     return (pathlib.Path(gd.stdout.strip()), head.stdout.strip(), status.stdout.strip() == "",
             pathlib.Path(top.stdout.strip()).resolve())
+
+
+#: The paths that keep the tree from being clean, named in the refusal: a staged file nobody noticed made
+#: every push of one field project run its gate again, and the message did not say which (Project-J, v7.2).
+DIRTY: list[str] = []
+
+
+def dirty() -> str:
+    shown = ", ".join(DIRTY[:5]) + (f" and {len(DIRTY) - 5} more" if len(DIRTY) > 5 else "")
+    return f" ({shown})" if shown else ""
 
 
 def clear(gitdir: pathlib.Path) -> None:
@@ -89,8 +102,8 @@ def main(argv: list[str]) -> int:
             return 0
         if not clean:
             clear(gitdir)
-            print("gate stamp: none -- the work tree has uncommitted changes, so the gate graded a tree no "
-                  "commit holds; commit, then `make gate` again")
+            print(f"gate stamp: none -- the work tree has uncommitted changes{dirty()}, so the gate graded a tree "
+                  "no commit holds; commit first, then `make gate` -- the order that lets the push skip it")
             return 0
         clear(gitdir)
         stamp.write_text(head + "\n", encoding="utf-8")
@@ -103,7 +116,7 @@ def main(argv: list[str]) -> int:
         return 0
     why = ("no stamp for HEAD" if not have else
            f"HEAD's stamp names {have[:12]}" if have != head else
-           "the work tree has uncommitted changes" if not clean else
+           f"the work tree has uncommitted changes{dirty()}" if not clean else
            f"{len(others)} commit(s) being pushed are not HEAD")
     print(f"gate stamp: no PASS -- {why}; run `make gate`")
     return 1
