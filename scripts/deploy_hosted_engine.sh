@@ -119,7 +119,8 @@ fi
 # applied when the data is built, so a refresh run by an older release ships that release's data.
 # `unknown` is a record that names no builder (one written before #198); a copy with no record beside it,
 # or a record nobody can read, is `missing` or `unreadable`, which no acceptance covers (the second
-# M21-W1 review's R1).
+# M21-W1 review's R1). #531: a record nested past the recursion limit (#496) is `unreadable` too. Not read through
+# `status_record.read_status`: it reads every such record as `{}`, which here would be `unknown`, which an owner may accept.
 DATA_BY="$("$PYTHON" -c 'import json, os, sys
 if not os.path.exists(sys.argv[1]):
     built = "missing"
@@ -127,7 +128,7 @@ else:
     try:
         record = json.load(open(sys.argv[1]))
         built = (record.get("served_built_by") if isinstance(record, dict) else None) or "unknown"
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         built = "unreadable"
 print(built)' "$SERVED.refresh.json")"
 case "$DATA_BY" in
