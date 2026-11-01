@@ -3814,6 +3814,9 @@ build does not know, is not claimed. The filter hides rows and never re-ranks: e
 place among all the shared models, and the screen says how many it shows of how many. D-173 clause
 3's loss guard keeps protecting the values the filter reads.
 
+**Amended by D-235 (2026-11-01)**: clause 3 gains a second Debug-only launch argument, `-UITestIntelligence
+unavailable`, read beside `-UITestRouting`, so a UI test reaches the Apple Intelligence guide (#527).
+
 ## D-176 — The notices are composed by the app from facts; the close call gains its fact
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2
@@ -6406,3 +6409,72 @@ older pin then exempts the downgrade. Requiring both pins is the tightening clau
 **Mitigation if violated:** a change to the exemption that reads one pin only is refused at review.
 
 **Revisit when:** an upgrade is merged while branches cut before it must still deploy their tooling unreviewed.
+
+## D-234 — The deploy gate refuses while any `GIT_*` variable is set in its caller's environment
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #526: the gate refuses when a `GIT_*` variable is set (fail closed), rather than stripping it
+
+**Decision.** `scripts/deploy_gate.py` takes the names of the `GIT_*` variables its caller set, once, at import and
+before it sets its own `GIT_NO_REPLACE_OBJECTS`. While that list is not empty, `--check` (`make deploy-check`) fails,
+and a command the gate finds to be a deploy (`--judge`, or a command given as its argument) is refused, both naming
+every variable and the `unset` that clears them. A command that is not a deploy is not refused for it. Any `GIT_*`
+counts, not a list of the ones known to redirect git: git reads more of them than a list would keep up with
+(`GIT_CONFIG_COUNT`, `GIT_CONFIG_PARAMETERS`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, ...).
+
+**Rationale.** `GIT_WORK_TREE` (#526) made the gate judge another checkout and print PASS over a product change. A
+refusal names the variable, where stripping would leave a set variable silently ignored; a deploy shell has no
+reason to set one.
+
+**Mitigation if violated:** a deploy-check PASS that came from a shell with a `GIT_*` set is not evidence; deploy
+from a shell with none (`env | grep ^GIT_` prints nothing).
+
+**Revisit when:** a deploy path the owner uses needs a `GIT_*` variable set (the nightly script unsets the five it
+knew of before `--check`).
+
+## D-235 — A Debug-only launch argument scripts the on-device model's availability for UI tests
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #527: yes, a launch argument for tests only, and only in a Debug build
+**Amends:** D-175 clause 3
+
+**Decision.** `-UITestIntelligence unavailable` makes a Debug build report the on-device model as unavailable, so
+a UI test reaches the Apple Intelligence guide and taps its Open Settings button (#484, D-230). It is read where
+`-UITestRouting` is (`ios/ModelRanking/LaunchRouting.swift`), under `#if DEBUG`; a Release build compiles no read of
+it, and `make client-decls` keeps refusing a Release build that reads its launch arguments. It changes what the app
+believes about the device and nothing about what the model or the boards say: the routing still goes through
+`ModelOutputBoundary`, and the list still comes from the boards (D-104).
+
+**Rationale.** On the simulator Apple Intelligence runs, so without this the guide is never shown and its button is
+held only by a test that reads the source. D-175's concern was a test that tells the app to fail; this argument
+selects a device state the app must already handle, the one a device without the model is in.
+
+**Mitigation if violated:** a Release build that reads `-UITestIntelligence` is refused by `make client-decls`, and
+a unit test holds that the read is inside `#if DEBUG`.
+
+**Revisit when:** a second device state needs scripting, or the simulator can be made to report the model as
+unavailable on its own.
+
+## D-236 — The Bash guard refuses moving the default branch's refs by any route but a fetch or pull of origin, and reads a tag option's value as a value
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #533 and #529: prepare the guard patches, as one command
+
+**Decision.** One patch to the owner's `.claude/hooks/bash_guard.py`, applied and re-pinned by the owner in one
+command (`docs/owner-actions.md`):
+1. **#533:** a command that would write `refs/remotes/origin/*`, `refs/heads/main` or the default branch's ref is
+   refused unless it is a plain `git fetch origin` or `git pull` of origin: a refspec whose destination is one of
+   them, `git -c remote.<name>.fetch=...` or `git config remote.<name>.fetch|url`, `git branch -d/-D/-m` of them,
+   `git worktree add -b main`, and `git update-ref` of them.
+2. **#529:** the `v*` tag rule skips each option's value (`-m`, `--message`, `-F`, `--file`, `-u`, `--local-user`,
+   `--cleanup`, and their `=` forms) before it reads `-l`, `--list` or `-n`; and a fetch refspec whose destination
+   can match `refs/replace/` (`refs/*:refs/*`) is refused.
+
+**Rationale.** #517 reads the deploy gate's policy at the default branch's tip and the merge-base, both from that
+ref: a session that can move it chooses the policy it is judged by (#533). #529 is the same rule reading a value as
+a flag.
+
+**Mitigation if violated:** until the owner applies it, the owner deploys from their own shell (the nightly does),
+and checks that `git rev-parse origin/main` matches GitHub's `main`.
+
+**Revisit when:** the deploy gate reads the default branch from GitHub rather than from a local ref.
