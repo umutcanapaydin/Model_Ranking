@@ -3,16 +3,12 @@ name: writing-a-control
 description: Use when writing or changing anything that CHECKS something — a gate, rule, lint, CI step, assertion, validator, guard, hook or conformance test — or a prose rule that bans a shape, or the fix that stops a reviewed defect recurring.
 ---
 
-Five questions. Each one is a defect this project has measured, most of them more than once.
-Answer them out loud in the change itself, not in your head.
+Five questions, each a measured defect. Answer them in the change itself, not in your head.
 
 ## 1 · Does a gate ship with the rule?
 
-A rule without a mechanical gate is a rumour — including one you wrote this morning. If the
-change writes a rule that bans a specific literal or shape, the check goes in the SAME change.
-Not the next one.
-
-Measured in five projects, including two that never installed this pipeline.
+A rule without a mechanical gate is a rumour (five projects). If the change writes a rule that
+bans a specific literal or shape, the check goes in the SAME change, not the next one.
 
 ## 2 · Have you watched it fail?
 
@@ -21,9 +17,8 @@ knows works — one that grepped source for hardcoded credentials shipped for ei
 was never once proven to fire, because its only test asserted a non-zero exit that the unfilled
 template produced anyway.
 
-Then ask the other half, which is the one that gets skipped: **does it stay quiet when it
-should?** A control that fires on correct input is not a strict control, it is a control someone
-disables. Write both cases.
+Then the half that gets skipped: **does it stay quiet when it should?** A control that fires on
+correct input is a control someone disables. Write both cases.
 
 **A guard wider than the thing it guards refuses correct input.** The deploy gate matched a deploy
 command as a substring of the whole command line, so a commit message that mentioned the command,
@@ -47,9 +42,8 @@ If the check's scope is a hand-kept list sitting beside the thing it guards, tha
 finding. Walk the ORM, the route table, the tracked tree, the manifest. An enumeration that must
 stay hand-kept is a **named entry with a written reason**, never an absence.
 
-This is the most repeated defect in the projects this method was measured on: a forbidden-names
-check that read its names from one hand-kept column was right about what the column held and
-silent about everything it did not.
+The most repeated defect measured: a forbidden-names check read from one hand-kept column was
+silent about everything the column did not hold.
 
 ## 5 · Does it fail closed?
 

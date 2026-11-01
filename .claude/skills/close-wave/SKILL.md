@@ -68,8 +68,9 @@ field projects; one left a planted fault live in the product.
    deploy gate reads it). BLOCKING →
    fix on this branch; the same Tester re-verifies its own items (the reviewer rewrites the file's `## Verdict` line to the new verdict and appends the round below
    it: the gates read that line). No per-wave Tester: it was the
-   costliest review per real defect in the field. Then send the Tester's commits (tests are code to the
-   deploy gate) to the same Security-Reviewer (SendMessage) for a delta read; it moves its
+   costliest review per real defect in the field. Then, when the Tester's commits are code to the deploy
+   gate (a test is, unless the brief names its `Security-invariant tests:` and it is not one of them), send
+   them to the same Security-Reviewer (SendMessage) for a delta read; it moves its
    `**Reviewed head:**` to the final head, so its verdict is current at the release.
 6. **Every finding the wave does not fix leaves it as an issue.** Go through each id in the
    verdicts' MINOR, K.9 and queued-risk sections (`**M1**`, `**K1**`, `**R1**`):

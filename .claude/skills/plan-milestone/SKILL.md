@@ -7,10 +7,8 @@ description: Use in HEAVY mode at the start of every milestone, when designs or 
 `/fix-issue` or `/work-enhancement` at a time.
 
 **A wave is one container issue plus its children.** The container holds the wave's plan — its
-REQ-IDs, risk tier and tasks as a checklist — in its body, instead of a plan file deleted at close;
-the children are the filed issues the wave takes on. In the field one wave already closed exactly
-one issue in 13 of 16 cases, while most filed issues were worked outside any wave; this makes the
-queue part of the plan.
+REQ-IDs, risk tier and tasks as a checklist — in its body; the children are the filed issues the
+wave takes on, so the queue is part of the plan.
 
 1. Read `docs/prd.md` (the REQ-IDs), the design notes you were given, `docs/decisions.md` and the
    latest `docs/process-log.md` entry. Ask for what is missing rather than inventing it.
@@ -32,8 +30,7 @@ queue part of the plan.
    Every open issue — what earlier waves filed, what triage routed — either joins this plan's
    issue inventory or is named in the plan as left out, with the reason. Joining means its number
    is written into the plan; the issue itself is left as it is (step 5). An `out-of-scope` issue
-   joins only after the owner lifts that label (`.agents/rules/issues.md`). A queue the plan never
-   reads grows until nobody reads it.
+   joins only after the owner lifts that label (`.agents/rules/issues.md`).
 5. **One issue per unit of work, never two.** For each row of the issue inventory, search first,
    open and closed:
    `gh issue list --state all --search '<key words> in:title' --json number,title,state,milestone`
@@ -52,7 +49,7 @@ queue part of the plan.
      A child is named in the container; the child itself is left as it is.
    - Every issue this step creates — children and containers — ends its body with the line
      `Triage verdict: wave`: the plan triaged it, and `/fix-issue` leaves wave work to its wave.
-   - Unsure whether two titles are the same work → ask. A duplicate costs more than a question.
+   - Unsure whether two titles are the same work → ask: a duplicate costs more than a question.
 6. Write every issue number into the plan: each wave's container and its children. The plan is
    the map from wave to issues; `/close-wave` reads it to list what the wave's PR resolves. A plan
    amendment is an appended row in the plan and, for a new unit, a new child in its container.

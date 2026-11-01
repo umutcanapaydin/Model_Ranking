@@ -5,9 +5,8 @@ description: Use when an issue is filed, arrives, is reopened, comes back failed
 
 `.agents/rules/issues.md` holds the vocabulary and the pipeline (read at `/start-session`; open it again only after a compaction or in a new session).
 
-1. **Reproduce it.** If there is no local runtime, reproduce through the stack or in the test
-   image; how you run things is a property of your machine and belongs in
-   `.agents/rules/environment.md`, not in this skill.
+1. **Reproduce it.** With no local runtime, through the stack or in the test image
+   (`.agents/rules/environment.md` says how on your machine).
 2. **Label by actual root cause, never the reporter's guess.** One `severity:*` on a `bug`, by
    measured impact. Only labels that already exist.
 3. **Post a diagnosis comment** — what is actually wrong, where, and what the reporter saw
@@ -20,15 +19,13 @@ description: Use when an issue is filed, arrives, is reopened, comes back failed
      name: the verdict means `/fix-issue`, interactively)
    - larger than one fix → **light mode** `/work-enhancement`; **heavy mode** `wave`: it joins a
      wave as a child of the wave's container issue, at the next `/plan-milestone` or by a plan
-     amendment. (`make mode` says which.) In the field every wave issue that triage routed got an
-     issue-lane verdict, because the vocabulary had no word for a wave.
+     amendment. (`make mode` says which.)
 
    Write it as the diagnosis comment's **last line, exactly**:
    `Triage verdict: fix-issue` · `Triage verdict: work-issue` · `Triage verdict: work-enhancement`
    (light) · `Triage verdict: wave` (heavy).
-   That line is what `/fix-issue` checks; a verdict in prose is one nobody can find. When you
-   triage an issue in the same step as filing it, the line may end its body instead: the readers
-   take the latest line, body or comment.
+   That line is what `/fix-issue` checks; a verdict in prose is one nobody finds. Triaged in the
+   same step as filed, the line may end its body instead: readers take the latest line, body or comment.
    The verdict is a default, not a lock: a human may take the interactive lane anyway.
 
 ## When the issue is an `enhancement`
@@ -48,19 +45,16 @@ diagnosis shows the scope is larger than one fix.
 
 ## When the issue carries `qa:failed`
 
-**This is a bug coming back, not a fresh one.** A fix already shipped and the verifier found it
-still broken.
-
-Read the verifier's comment **and the previous fix's diff** before diagnosing, and treat
-*"why did the earlier fix miss this?"* as part of the diagnosis. Without that, the second attempt
-fails the same way as the first.
+**A bug coming back, not a fresh one:** a fix shipped and the verifier found it still broken. Read
+the verifier's comment **and the previous fix's diff** before diagnosing; *"why did the earlier fix
+miss this?"* is part of the diagnosis.
 
 Clear `qa:failed`, `qa:ready` and `dev:done` when the new work starts.
 
 ## When the issue carries `qa:blocked`
 
-The verifier could not test **at all** — environment or seed data, not code. Say that plainly
-instead of re-diagnosing the original bug. The thing to fix is the blocker.
+The verifier could not test **at all** — environment or seed data, not code. Say so instead of
+re-diagnosing the original bug: the thing to fix is the blocker.
 
 ## This skill writes no code
 

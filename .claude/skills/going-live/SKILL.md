@@ -17,8 +17,12 @@ command the brief lists as `Deploy commands:`: is the security verdict
 `docs/reviews/release-tester.md` in light mode, the latest `docs/reviews/m<N>-tester.md` in heavy —
 each with a `**Reviewed head:**` after which no code changed, working tree included. It prints one
 line per verdict: paste both into the body of the pull request that carries the release verdicts.
+A build only the team runs — an `internal` or `staging` class in the brief's `Deploy targets:` — owes the
+Tester's verdict, the per-change security verdict `make review-need` asks for, and a line
+`- <date>, <class>, <short HEAD>: <what changed> (unreleased)` in `docs/releases/unreleased.md`, not the
+release security verdict: `make deploy-check TARGET=<class>`.
 A `FAIL` means a review first, never a way round it — in this order, because the Tester may add tests
-and tests are code to the gate:
+and a test can be code to the gate:
 
 1. **The Tester** (`.claude/agents/Tester.md`, subagent type `tester`): light mode writes
    `docs/reviews/release-tester.md` over everything merged since its last `**Reviewed head:**` — on the

@@ -13,7 +13,8 @@
 # DELETIONS skip the gate: a push that only deletes refs grades nothing (its local SHA is all
 # zeros). No line read — stdin empty or unreadable — runs the gate, never skips it.
 #
-# BYPASS. A human may push with `git push --no-verify` when that is right; an agent never does.
+# BYPASS. A human may push with `git push --no-verify` (beside husky, `HUSKY=0` too) when that is right;
+# an agent never does.
 # A bypass is a row in `docs/control-events.csv` with its reason (the one ledger a gate counts),
 # not a silence.
 #
