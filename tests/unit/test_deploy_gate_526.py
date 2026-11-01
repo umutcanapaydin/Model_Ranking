@@ -110,3 +110,22 @@ def test_the_exceptions_are_exactly_the_three_d234_names() -> None:
     exceptions = section.split("named exceptions", 1)[1].split("Refusing them", 1)[0]
     named = set(re.findall(r"`(GIT_[A-Z_]+)`\s*\(", exceptions))
     assert named == set(deploy_gate.HARMLESS_GIT) == {"GIT_EDITOR", "GIT_EXEC_PATH", "GIT_REFLOG_ACTION"}, named
+
+
+@pytest.mark.parametrize("names", [("GIT_DIR", "GIT_WORK_TREE"), ("GIT_WORK_TREE",), ("GIT_DIR",)])
+def test_a_variable_pointing_at_another_repository_cannot_hide_the_deploy(tmp_path: Path, names: tuple[str, ...]) -> None:
+    """The fixes-1101 security review's M1: pointed at a second repository whose brief declares no deploy, the
+    command form read that brief, found no deploy and returned before the `GIT_*` check. The gate judges the
+    repository it runs in, and still refuses."""
+    repo = _installed(tmp_path)
+    other = Repo(tmp_path / "other")
+    other.write("README.md", "no brief here\n")
+    other.commit("another repository")
+    where = {"GIT_DIR": str(other.root / ".git"), "GIT_WORK_TREE": str(other.root)}
+    extra = {name: where[name] for name in names}
+    code, out = _run(repo, ["fly deploy"], extra)
+    assert code == 2 and names[0] in out, out
+    code, out = _run(repo, ["--judge"], extra, json.dumps({"commands": [["fly", "deploy"]]}))
+    assert code == 2 and names[0] in out, out
+    code, out = _run(repo, ["--check"], extra)
+    assert code == 1 and names[0] in out, out
