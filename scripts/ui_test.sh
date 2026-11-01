@@ -90,8 +90,15 @@ curl -sf -m 2 -o /dev/null "http://127.0.0.1:$PORT/health" \
 # #503: since #288 (D-202 clause 5) the app keeps its last answer and shows it, under a note, when the engine
 # cannot be reached. The pass with the engine up leaves one, so the failure screen never appeared after it: the
 # offline pass starts from an app with no data, as a first launch does.
+# #525: xcodebuild shuts the simulator down after a pass it booted it for, and an uninstall on a shut-down device
+# fails ("Unable to lookup in current state: Shutdown"). `bootstatus -b` boots the device if it must and returns
+# once it has (at once when it is booted). An app that is not installed uninstalls with exit 0 (measured), so any
+# failure means the app may keep its answer, and the run stops rather than test the failure screen against it.
 forget_answers() {
-  xcrun simctl uninstall "$DEVICE" com.ilgar.modelranking >> "$OUT/xcodebuild.log" 2>&1 || true
+  xcrun simctl bootstatus "$DEVICE" -b >> "$OUT/xcodebuild.log" 2>&1 \
+    && xcrun simctl uninstall "$DEVICE" com.ilgar.modelranking >> "$OUT/xcodebuild.log" 2>&1 \
+    || { tail -5 "$OUT/xcodebuild.log"; echo "ui-test: could not remove the app from $DEVICE, so the engine-down pass"
+         echo "         would meet its kept answer (#525); see $OUT/xcodebuild.log"; exit 1; }
 }
 
 online=0 offline=0
