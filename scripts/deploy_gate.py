@@ -58,13 +58,19 @@ head into the same file.
 
 THE BRIEF'S POLICY IS THE BASE'S (AGENTS.md section 5, base-pinned policy; #283). `Working mode:` (which
 Tester verdict) and `Deploy commands:` are read from the brief at the protected base -- the merge-base of
-HEAD with the default branch (`brief_fields.protected_base`) -- not from the tree about to ship:
+HEAD with the default branch, and its tip (`brief_fields.protected_bases`, D-232) -- not from the tree about to ship:
   * a deploy is any command the base's brief OR the tree's declares, so a change can add a deploy command
     but cannot remove one;
   * the Tester verdict is the one the base's mode names; when the tree's brief names the other mode, the
     verdicts of both are required, so a change of mode moves no deploy to the verdict it prefers;
   * a base git cannot read refuses every declared deploy, and `--check` fails: a policy read from nowhere
     is not the change's own. Matching still reads the tree's brief then, so a non-deploy is never refused.
+
+A FILE STARTED WITHOUT ITS NAME REFUSES EVERY DEPLOY (#549, D-239): while a `run:` step of a dispatched deploy
+workflow starts a program by a pattern or a name built at run time, gives a shell, `source` or an interpreter such
+a file, runs `eval`, `xargs` or `find -exec`, or names a symlink to a tree file, a deploy is refused and `--check`
+fails, whatever the verdicts say: the file it starts cannot be put on the surface. The refusal names the workflow,
+the line and the shape; write the file's name instead.
 
 `--check` prints one line per verdict (security, tester) so the closure checklist and `/going-live`
 can paste them, then `deploy-check PASS` or `deploy-check FAIL: <why>`.
@@ -79,6 +85,7 @@ refused, or this could not run.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -101,6 +108,30 @@ from brief_fields import (  # noqa: E402
     protected_bases,
     root_at,
 )
+
+#: #526 (D-234): the `GIT_*` variables the caller set, read before this module sets its own below. Git reads its
+#: tree, index, objects and configuration from them, so with one set the gate can judge another checkout than the
+#: one being deployed (`GIT_WORK_TREE` passed a product change). `main` refuses a deploy, and `--check` fails, while
+#: any is set: any `GIT_*`, since git reads more of them than a list of the redirecting ones would keep up with.
+#: Every one is then removed from this process's environment, so the gate's own git reads the repository it runs
+#: in: pointed at another one, the command form read that brief, found no deploy and passed before it reached the
+#: refusal (the fixes-1101 security review's M1). Three named exceptions (D-234) are not refused: none names a
+#: tree, an index, an object store or a configuration, and refusing them would fail every agent session and every
+#: git hook whatever the verdicts said.
+HARMLESS_GIT = {
+    # Claude Code sets it in every session, and git in its hooks: the program git opens for a message, which no
+    # command this gate runs asks for.
+    "GIT_EDITOR": "the editor git opens for a message",
+    # git sets it in every hook it runs (measured 2026-11-01): where git finds its own programs, and every command
+    # this gate runs is built into git.
+    "GIT_EXEC_PATH": "where git finds its own programs",
+    # git merge, pull and rebase set it for their hooks (measured 2026-11-01): the label of the reflog line they
+    # write, which this gate writes none of.
+    "GIT_REFLOG_ACTION": "the label of the reflog line a command writes",
+}
+CALLER_GIT = tuple(sorted(name for name in os.environ if name.startswith("GIT_") and name not in HARMLESS_GIT))
+for _name in [name for name in os.environ if name.startswith("GIT_")]:
+    del os.environ[_name]
 
 #: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
@@ -129,6 +160,15 @@ WRAPPERS = {"env", "command", "builtin", "time", "exec", "nohup", "nice", "sudo"
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\+?=")
 HOW_TO_CLOSE = ("Run the reviewer on the delta (the Security-Reviewer, .claude/agents/Security-Reviewer.md; "
                 "the Tester, .claude/agents/Tester.md) and record its head in the verdict file, then deploy.")
+
+
+def _git_variables(names: tuple[str, ...]) -> str | None:
+    """#526 (D-234): why a caller's `GIT_*` variables refuse a deploy, or None when it set none."""
+    if not names:
+        return None
+    return (f"{', '.join(names)} {'is' if len(names) == 1 else 'are'} set in the environment, and git reads its tree, "
+            f"index and configuration from such variables, so the gate could judge another checkout than this one "
+            f"(#526); run it from a shell with none set (`unset {' '.join(names)}`)")
 
 
 def refuse(why: str) -> int:
@@ -169,11 +209,13 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
     if key not in _POLICIES:
         bases = protected_bases(root)
         if not bases:
-            _POLICIES[key] = (None, "no merge-base of HEAD with a default branch (origin/HEAD, origin/main, "
-                                    "origin/master, main, master)", False)
+            _POLICIES[key] = (None, "no merge-base of HEAD with a default branch "
+                                    f"({', '.join(brief_fields.DEFAULT_BRANCHES)})", False)
         else:
+            # #534: every default-branch ref's merge-base and tip, the first one a merge-base.
             where = (f"the brief at {bases[0][:12]}, the merge-base of HEAD with the default branch"
-                     + (f", and at {bases[1][:12]}, its tip" if len(bases) > 1 else ""))
+                     + (f", and at {', '.join(b[:12] for b in bases[1:])}, the default branch refs' merge-bases and "
+                        "tips" if len(bases) > 1 else ""))
             try:
                 _POLICIES[key] = ([root_at(base, root) for base in bases], where, False)
             except Unverified as error:
@@ -181,13 +223,6 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
             except RuntimeError as error:
                 _POLICIES[key] = (None, str(error), False)
     return _POLICIES[key]
-
-
-def policy_root(root: Path) -> tuple[Path | None, str]:
-    """(a root holding the brief as the protected base -- the merge-base -- of the repository at `root` holds it, or
-    None when a base cannot be read; the line that says which). The gate itself reads every root `_policy` gives."""
-    policies, where, _ = _policy(root)
-    return (policies[0] if policies else None), where
 
 
 def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
@@ -538,13 +573,38 @@ def _runs_unread(text: str) -> bool:
         for words in _line_commands(text))
 
 
+#: #541 (D-237): quoting a shell joins back into one word (`./'ship'_it.sh`).
+_QUOTING = re.compile(r"[\"'\\]")
+
+
+def _named_by_name(text: str, files: dict[str, set[str]]) -> set[str]:
+    """#541 (D-237): every file git lists whose name, or whose name less its last suffix (a module: `-m scripts.x`,
+    `import x`), the text writes with no letter, digit or `_` beside it -- wherever the file lies. A change of the
+    directory or the prefix a file is started under (`cd`, `env --chd`, `sudo -D`, a PATH entry or `$GITHUB_PATH`, a
+    checkout's `path:`, `os.chdir`) leaves its name to be written, so no list of those ways is needed. The text is
+    read as written and with its quotes, backslashes and expansions taken out."""
+    low = text.lower()
+    sources = {low, _QUOTING.sub("", low), _QUOTING.sub("", _EXPANSION.sub("", low))}
+    out: set[str] = set()
+    for key, paths in files.items():
+        name = key.rsplit("/", 1)[-1]
+        for word in {name, Path(name).stem}:
+            if word and any(word in source and re.search(rf"(?<![a-z0-9_]){re.escape(word)}(?![a-z0-9_])", source)
+                            for source in sources):
+                out |= paths
+                break
+    return out
+
+
 def _workflow_names(root: Path, text: str, files: dict[str, set[str]]) -> set[str]:
-    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not."""
+    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not; #541
+    (D-237): and every one whose name it writes, under any prefix (`_named_by_name`)."""
     # The #522 review's M1: `$GITHUB_WORKSPACE/x`, `${{ github.workspace }}/x` and `$PWD/x` reach here as `/x`, a
     # path from the checkout's top, so each word is looked up as written and without its leading slash.
     bare = _EXPANSION.sub("", text)
     return {path for source in (text, bare) for word in _PATH_WORD.findall(source.lower())
-            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)}
+            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)} | \
+        _named_by_name(text, files)
 
 
 def _line_commands(text: str) -> list[list[str]]:
@@ -582,6 +642,269 @@ def deploy_surface(root: Path) -> frozenset[str] | None:
             workflows = {path for d in WORKFLOW_DIRS for name in starts for path in files.get(f"{d}/{name}", set())}
             _SURFACES[key] = frozenset(named | workflows | {f"{d}/{name}" for d in WORKFLOW_DIRS for name in starts})
     return _SURFACES[key]
+
+
+# --- #549 (D-239): a file a dispatched deploy workflow starts without writing its name ---------------------------
+
+#: D-239 clause 3: the programs that run the file their first operand names -- a shell (SHELLS among them), `source`,
+#: `.`, an interpreter --, matched on the program's lower-cased basename. A NAMED ENUMERATION (AGENTS.md section 3.5),
+#: kept for this reason: which program reads its operand as a script is the program's own behaviour, which no text
+#: this gate reads says. A program not here that starts a file it is given is D-239's residual risk.
+STARTER_SHELLS = re.compile(r"(?:ba|rba|da|z|k|mk|pdk|c|tc|a|ya)?sh|fish")
+STARTERS = re.compile(r"source|\.|python[0-9.]*|pypy[0-9.]*|node|deno|bun|perl[0-9.]*|ruby[0-9.]*|php[0-9.]*"
+                      r"|lua[0-9.]*|pwsh|rscript|tclsh")
+#: D-239 clause 2: programs that run names they read at run time; `find` only with one of FIND_RUNS.
+RUNTIME_RUNNERS = {"xargs", "parallel"}
+FIND_RUNS = {"-exec", "-execdir", "-ok", "-okdir"}
+#: The shell's reserved words that may stand before a command (POSIX 2.4), set aside to reach it; and those that
+#: open a header whose words are names, not a command (`for f in scripts/*.sh`).
+RESERVED = {"!", "{", "}", "if", "then", "else", "elif", "fi", "do", "done", "while", "until"}
+HEADERS = {"for", "select", "function"}
+#: A starter's options that take the next word as their value (`bash -o pipefail x`, `python -W error x`).
+STARTER_VALUED = {"-o", "-O", "+o", "+O", "-W", "-X", "--rcfile", "--init-file"}
+#: An interpreter's options whose value is code in its own language, which this does not read (D-239's residual).
+STARTER_CODE = {"-c", "-e", "--eval", "-p", "--print"}
+#: A pattern the shell expands to names: `*`, `?`, a bracket expression, a brace expansion.
+PATTERN = re.compile(r"[*?]|\[[^\]]*\]|\{[^{}]*(?:,|\.\.)[^{}]*\}")
+#: A `run:` key, plain or as a step's first key (`- run:`), with its value on the line.
+_RUN_KEY = re.compile(r"^(\s*)(?:-\s+)?run:[ \t]*(.*?)\s*$")
+_UNNAMED: dict[str, list[str] | None] = {}
+
+
+def _run_values(text: str) -> list[tuple[int, list[str]]]:
+    """D-239 clause 1: each `run:` value of a workflow, as (its first line's number, its lines): the value on the
+    key's line, or a block scalar's lines (`|`, `>`), which run while they are blank or indented as the first."""
+    lines = text.splitlines()
+    out: list[tuple[int, list[str]]] = []
+    i = 0
+    while i < len(lines):
+        m = _RUN_KEY.match(lines[i])
+        i += 1
+        if not m:
+            continue
+        if not re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", m.group(2)):
+            out.append((i, [m.group(2)]))
+            continue
+        start, block, indent = i + 1, [], 0
+        while i < len(lines):
+            width = len(lines[i]) - len(lines[i].lstrip())
+            if lines[i].strip() and (width <= len(m.group(1)) if not indent else width < indent):
+                break
+            if lines[i].strip() and not indent:
+                indent = width
+            block.append(lines[i][indent:] if lines[i].strip() else "")
+            i += 1
+        if m.group(2).startswith(">"):
+            block = [" ".join(line.strip() for line in block)]
+        out.append((start, block))
+    return out
+
+
+def _run_tokens(lines: list[str]) -> list[tuple[int, str]]:
+    """Each token of a run value with its line (from 0), split as `split_line` splits (`;`, `&&`, `|`, `(`, `)` and
+    the redirections stay tokens), a `\\` continuation joined, a here-document's body left out, and each line's end
+    a `;`. Read as one text, so a quote across lines is one word; when it cannot be split so, line by line, and a
+    line the shell cannot split is read by its words."""
+    def lex(text: str, at: int) -> list[tuple[int, str]]:
+        lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ""  # a comment is read as words, which refuses more
+        return [(at + lexer.lineno - 1, token) for token in lexer]
+
+    body: list[str] = []
+    delimiters: list[str] = []
+    for line in lines:
+        if delimiters:
+            body.append("")
+            if line.strip() == delimiters[0]:
+                delimiters.pop(0)
+            continue
+        try:  # a here-document's operator as the shell reads it, never `<<` inside quotes; unsplit, its body is read
+            words = [word for _, word in lex(line, 0)]
+        except ValueError:
+            words = []
+        delimiters += [after.removeprefix("-") for word, after in itertools.pairwise(words)
+                       if word.endswith("<<") and not word.endswith("<<<") and set(word) <= set(";&|()<>")]
+        body.append(line[:-1] + " " if line.endswith("\\") else line + " ;")
+
+    try:
+        return lex("\n".join(body), 0)
+    except ValueError:
+        out: list[tuple[int, str]] = []
+        for at, line in enumerate(body):
+            try:
+                out += lex(line, at)
+            except ValueError:
+                out += [(at, word) for word in line.split()]
+        return out
+
+
+def _in_case(case: list[str], word: str, operator: bool) -> bool:
+    """Whether `word` is a `case` subject's or a pattern's, read past: `case` holds, per open `case`, "subject" until
+    `in`, "pattern" until `)`, then "body" until `;;`, `;&` or `;;&`."""
+    if case and case[-1] == "subject":
+        if word == "in":
+            case[-1] = "pattern"
+        return True
+    if case and case[-1] == "pattern":
+        if word == "esac":
+            case.pop()
+        elif operator and ")" in word:
+            case[-1] = "body"
+        return True
+    if operator and case and case[-1] == "body" and word in (";;", ";&", ";;&"):
+        case[-1] = "pattern"
+    return False
+
+
+def _redirection(operator: str) -> str:
+    """What an operator token redirects: "<" a command's standard input (its target is kept), "skip" another (its
+    target is set aside), "" none -- a process substitution (`<(`) is no redirection."""
+    if "<(" in operator or ">(" in operator or not ("<" in operator or ">" in operator):
+        return ""
+    return "<" if operator in ("<", "<>") else "skip"
+
+
+def _run_commands(lines: list[str]) -> list[tuple[int, list[str], list[str]]]:
+    """D-239 clause 1: the simple commands of a run value, each as (its line, from 0; its words; the targets of its
+    `<` redirections), with what starts no program set aside: a redirection's target, a `case` subject and its
+    patterns. A process substitution (`<(...)`) stays as the word `<(` where it stands."""
+    out: list[tuple[int, list[str], list[str]]] = []
+    cur: list[str] = []
+    stdin: list[str] = []
+    case: list[str] = []
+    at = 0
+    target = ""  # "<" or "skip" after a redirection, until its target is read
+    for line, word in _run_tokens(lines):
+        operator = all(ch in ";&|()<>" for ch in word)
+        if _in_case(case, word, operator):
+            continue
+        if operator:
+            cur += ["<("] if "<(" in word or ">(" in word else []
+            target = _redirection(word)
+            if not target or any(ch in word for ch in ";|()") or "&&" in word:
+                out += [(at, cur, stdin)] if cur else []
+                cur, stdin = [], []
+        elif target:
+            stdin += [word] if target == "<" else []
+            target = ""
+        elif not cur and word == "case":
+            case.append("subject")
+        elif not cur and word == "esac" and case:
+            case.pop()
+        else:
+            at = line if not cur else at
+            cur.append(word)
+    if cur:
+        out.append((at, cur, stdin))
+    return out
+
+
+def _unnamed_word(word: str) -> str | None:
+    """D-239 clause 2: why the shell builds this word's file name rather than reading it as written, or None."""
+    if word.startswith(("<(", ">(")) or UNREAD.search(word):
+        return "a name built at run time"
+    return "a pattern" if PATTERN.search(word) else None
+
+
+def _started(words: list[str]) -> list[str]:
+    """The words from the program a simple command starts: past reserved words, assignments and the WRAPPERS;
+    none for a header (`for f in ...`)."""
+    i = 0
+    while True:
+        while i < len(words) and words[i] in RESERVED:
+            i += 1
+        if i < len(words) and words[i] in HEADERS:
+            return []
+        i = len(words) - len(_program_position(words[i:]))
+        if not (i < len(words) and words[i] in RESERVED):
+            return words[i:]
+
+
+def _shapes_in(text: str) -> list[tuple[str, str]]:
+    """The shapes of every command in a text a command runs in turn (`eval`'s, a shell's `-c` string)."""
+    return [found for _, command, into in _run_commands([text]) for found in _unnamed_shapes(command, into)]
+
+
+def _unnamed_shapes(words: list[str], stdin: list[str]) -> list[tuple[str, str]]:
+    """D-239 clause 2: each (shape, word) by which this simple command starts a file it does not name."""
+    run = _started(words)
+    if not run:
+        return []
+    if (shape := _unnamed_word(run[0])):
+        return [(f"{shape} in the program it runs", run[0])]
+    program = os.path.basename(run[0]).lower()
+    if program in RUNTIME_RUNNERS or (program == "find" and FIND_RUNS & set(run[1:])):
+        return [("a name built at run time: a program that runs names it reads then", run[0])]
+    if program == "eval":
+        return _shapes_in(" ".join(run[1:]))
+    if STARTER_SHELLS.fullmatch(program) or STARTERS.fullmatch(program):
+        return _starter_shapes(program, run, stdin)
+    return []
+
+
+def _starter_shapes(program: str, run: list[str], stdin: list[str]) -> list[tuple[str, str]]:
+    """D-239 clause 3: the shape of the file a starter is given -- its first operand that is not an option or an
+    option's value, the module `-m` names, or with neither its `<` target --; a shell's `-c` string is read in turn,
+    and an interpreter's code (`python -c`) is not read."""
+    shell = STARTER_SHELLS.fullmatch(program) is not None
+    j = 1
+    while j < len(run) and run[j].startswith(("-", "+")) and run[j] not in ("-", "+", "--"):
+        if shell and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", run[j]):
+            return _shapes_in(run[j + 1]) if j + 1 < len(run) else []
+        if not shell and run[j] in STARTER_CODE:
+            return []
+        if not shell and run[j].startswith("-m"):
+            module = run[j][2:] or (run[j + 1] if j + 1 < len(run) else "")
+            return [(f"{shape} in the module `{program}` runs", module)] if (shape := _unnamed_word(module)) else []
+        j += 2 if run[j] in STARTER_VALUED else 1
+    j += 1 if j < len(run) and run[j] == "--" else 0
+    for operand in run[j:j + 1] or stdin:
+        if (shape := _unnamed_word(operand)):
+            return [(f"{shape} in the file `{program}` runs", operand)]
+    return []
+
+
+def _linked(root: Path, rel: str) -> str | None:
+    """D-239 clause 2: the tree path a symlink git lists at `rel` points to, or None (not a link, or one that leaves
+    the tree or points nowhere)."""
+    link = root / rel
+    if not link.is_symlink():
+        return None
+    try:
+        target = link.resolve()
+        inside = target.relative_to(root.resolve()).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return inside if target.exists() and inside != rel else None
+
+
+def unnamed_starts(root: Path) -> list[str] | None:
+    """#549 (D-239): each place a dispatched deploy workflow (the tree's copy and each protected base's) starts a file
+    without writing its name -- a pattern, a name built at run time, a symlink to a tree file --, as `<workflow> line
+    <n>: <shape> `<word>``; None when the workflows cannot all be read or git cannot list the tree (fail closed)."""
+    key = str(root)
+    if key not in _UNNAMED:
+        texts, complete = _workflow_texts(root)
+        files = _files(root)
+        if not complete or files is None:
+            _UNNAMED[key] = None
+            return None
+        found: list[str] = []
+        for name in sorted(deploy_workflows(root, declared(root), texts)):
+            for text in texts.get(name, []):
+                for start, lines in _run_values(text):
+                    for line, words, stdin in _run_commands(lines):
+                        found += [f"{name} line {start + line}: {shape} `{word}`"
+                                  for shape, word in _unnamed_shapes(words, stdin)]
+                low = text.lower().splitlines()
+                for path in sorted(_workflow_names(root, text, files)):
+                    if (target := _linked(root, path)) is not None:
+                        where = next((n for n, line in enumerate(low, 1)
+                                      if path.lower() in line or path.lower().rsplit("/", 1)[-1] in line), 0)
+                        found.append(f"{name} line {where}: a symlink, `{path}`, to `{target}`")
+        _UNNAMED[key] = list(dict.fromkeys(found))
+    return _UNNAMED[key]
 
 
 def verified_blob(root: Path, commit: str, rel: str) -> bytes | None:
@@ -661,6 +984,16 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
         out.append((None, f"policy: {where}, working mode {modes[0]}"
                           + (f"; the bases and the tree's brief also say {', '.join(modes[1:])}, so each mode's Tester "
                              "verdict" if len(modes) > 1 else "")))
+    unnamed = unnamed_starts(root)
+    if unnamed is None:
+        out.append(("the dispatched deploy workflows cannot all be read, or git cannot list the tree, so whether one "
+                    "starts a file without writing its name cannot be told (#549, D-239)",
+                    "workflows: cannot be read for a file started without its name"))
+    elif unnamed:
+        out.append((f"a dispatched deploy workflow starts a file without writing its name (#549, D-239): "
+                    f"{'; '.join(unnamed[:5])}{' ...' if len(unnamed) > 5 else ''}; write the file's name there "
+                    "instead (a symlink's: its target's), so the file it starts is on the deploy surface",
+                    f"workflows: {len(unnamed)} start(s) of a file without its name"))
     security = current(root, SECURITY, "security")
     # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
     blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
@@ -985,7 +1318,7 @@ def toplevel(cwd: Path) -> Path | None:
     return Path(top) if top else None
 
 
-def judge(commands: list[list[str]], root: Path, foreign: bool = False) -> int:
+def judge(commands: list[list[str]], root: Path, foreign: bool = False, caller_git: tuple[str, ...] = ()) -> int:
     hit = deploy_in(commands, root)
     if not hit:
         return 0
@@ -997,16 +1330,20 @@ def judge(commands: list[list[str]], root: Path, foreign: bool = False) -> int:
     for why, _ in verdicts(root):
         if why:
             return refuse(f"`{hit}` is a deploy, and {why}")
+    if (why := _git_variables(caller_git)):
+        return refuse(f"`{hit}` is a deploy, and {why}")
     return 0
 
 
-def check(root: Path) -> int:
+def check(root: Path, caller_git: tuple[str, ...] = ()) -> int:
     print(f"deploy-check: tree {root} (working tree, nested checkouts excluded)")
     bad: list[str] = []
     for why, summary in verdicts(root):
         print(f"deploy-check: {summary}")
         if why:
             bad.append(why)
+    if (why := _git_variables(caller_git)):
+        bad.append(why)
     if bad:
         for why in bad:
             print(f"deploy-check FAIL: {why}")
@@ -1030,14 +1367,14 @@ def main(argv: list[str]) -> int:
                 raise ValueError("foreign is not true or false")
         except (ValueError, KeyError, TypeError, AttributeError) as error:
             return refuse(f"the guard's payload cannot be read ({type(error).__name__}: {error})")
-        return judge(commands, root, foreign)
+        return judge(commands, root, foreign, CALLER_GIT)
     cwd = Path.cwd()
     root = toplevel(cwd)
     if argv == ["--check"]:
         if root is None:
             print(f"deploy-check FAIL: {cwd} is not inside a git work tree, so nothing can be compared")
             return 1
-        return check(root)
+        return check(root, CALLER_GIT)
     if len(argv) != 1 or argv[0].startswith("--"):
         print('usage: deploy_gate.py "<command>" | --judge | --check', file=sys.stderr)
         return 2
@@ -1045,7 +1382,7 @@ def main(argv: list[str]) -> int:
         commands = split_line(argv[0])
     except ValueError as error:
         return refuse(f"the command cannot be split as the shell would ({error})")
-    return judge(commands, root or cwd)
+    return judge(commands, root or cwd, caller_git=CALLER_GIT)
 
 
 if __name__ == "__main__":

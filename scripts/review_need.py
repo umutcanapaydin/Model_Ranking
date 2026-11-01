@@ -126,9 +126,12 @@ def git(*args: str) -> str:
 
 
 def default_range() -> str:
-    for ref in ("origin/HEAD", "origin/main", "origin/master", "main", "master"):
+    for ref in brief_fields.DEFAULT_BRANCHES:  # #545: full names, the list the deploy gate reads, read exactly
+        sha = brief_fields.exact_ref(".", ref)
+        if sha is None:
+            continue
         try:
-            base = git("merge-base", ref, "HEAD").strip()
+            base = git("merge-base", sha, "HEAD").strip()
             if base:
                 return f"{base}..HEAD"
         except (OSError, subprocess.CalledProcessError):

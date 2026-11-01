@@ -368,3 +368,17 @@ def test_a_deploy_with_no_artifact_named_is_refused_and_reads_no_mac_copy(tmp_pa
         assert done.returncode != 0, done.stdout + done.stderr
         assert "MODEL_RANKING_SERVED is not set" in done.stderr, done.stderr
     assert not calls.exists(), calls.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("record", ["{torn", "[" * 200_000], ids=["torn", "nested-past-the-recursion-limit"])
+def test_a_refresh_record_nobody_can_read_is_refused_in_one_sentence_naming_it(tmp_path: Path, record: str) -> None:
+    """#531 (the release security review's R10): the script read `<artifact>.refresh.json` with its own Python and
+    caught `ValueError` alone, so a record nested past the recursion limit (#496's case) stopped the deploy with a
+    traceback rather than the refusal. Either record is `unreadable`, refused by the sentence that names it."""
+    _repo, served, calls, env = _scratch(tmp_path)
+    (tmp_path / "served.db.refresh.json").write_text(record, encoding="utf-8")
+    done = _deploy(env, "--dry-run")
+    assert done.returncode == 1, done.stdout + done.stderr
+    assert "Traceback" not in done.stderr, done.stderr
+    assert f"refresh record is unreadable ({served}.refresh.json)" in done.stderr, done.stderr
+    assert not calls.exists(), calls.read_text(encoding="utf-8")

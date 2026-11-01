@@ -1701,3 +1701,29 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Tester: PASS at `6e6f5be`. The range's own tests went red against `ed18de5`'s gate (18 of 30) and green at the head; 26 faults injected, and the 4 that stayed green (F7, F9, F14, F20) now have tests, plus #535's allowlist in the unit suite, since CI does not run client-decls.
 - Security-Reviewer: MINOR at `6e6f5be`; nothing loosens the gate. M12 adds three spellings to #541; R11 (dead `policy_root`) is #543.
 - Lesson: stacking the verdict PR into the integration PR costs one more delta review, and saves the owner a merge order that has to be followed exactly.
+
+## 2026-11-01 · fix/issue-527-guide-ui-test — a UI test taps the guide's Open Settings button
+
+- The owner's ruling D-235 (amending D-175 clause 3): a Debug-only launch argument, `-UITestIntelligence unavailable`, read beside `-UITestRouting` in `LaunchRouting.swift` inside `#if DEBUG`, makes the screen report the on-device model as unavailable. Routing is unchanged.
+- `IntelligenceGuideTests` opens the guide from the caption, taps Open Settings and waits for `com.apple.Preferences` in the foreground: `make ui-test` 24/24 with the engine up, 2/2 down, on the fresh artifact.
+- `tests/unit/test_intelligence_guide_527.py` holds the text half in `check-fast`: the flag is named only in `LaunchRouting.swift` and only in an `#if DEBUG` branch, both of the screen's state reads go through the launch-aware one, and the UI test runs in the engine-up pass.
+- The first run failed one assertion: the app's own state still read foreground the moment Settings did. It is now waited for.
+- Lesson: a state XCUITest reads off another process lags the one it just waited for; wait for each, never read the second at once.
+
+## 2026-11-01 · integration/fixes-1101 — #526, #527, #545 and the guard patch for #533 and #529 in one PR
+
+- The owner's rulings of 2026-11-01 (D-234, D-235, D-236): the deploy gate refuses a set `GIT_*`; a Debug-only `-UITestIntelligence unavailable` for the guide's UI test; the guard patch for #533 and #529 as one command. The ADRs went first, in one commit.
+- #526 met the real environment on its first commit: Claude Code sets `GIT_EDITOR` in every session and git sets `GIT_EXEC_PATH` and `GIT_REFLOG_ACTION` in its hooks, so "any `GIT_*`" failed every session. Three named exceptions, each with its reason in D-234, and a test holds the code's list equal to the ADR's.
+- Security: round 1 BLOCKING: B1, older than the range, the protected base read by short name, so a planted tag chose it (#545); M1, `GIT_*` pointed at another repository hid the deploy in the command form. Round 2 MINOR: M2, a full name still went through git's lookup when the ref was missing. Round 3 MINOR: fixed by `show-ref --verify`; R3 is #546.
+- `advisor.db` replaced at the owner's word (a ledgered bypass of D-164's refusal); the fresh data turns three tests red (#544).
+- Lesson: a control that refuses "anything of a kind" meets the variables its own tools set; measure the real session and hook environments before writing the rule, and name each exception with its reason.
+
+
+## 2026-11-01 · integration/fixes-1101 — every open issue in the same PR: #525, #528, #530, #531, #534, #536, #541, #543, #544, #546, #548, #549
+
+- The owner (2026-11-01): fix every open issue, #544 included, in one PR. Three implementers, each in its own worktree from `f8ad11b`, each branch stacked linearly; the owner's guard commit (`5f514da`, D-236) was pushed first, then the stacks were merged with `--no-ff`.
+- #544 hid a CAT-10 failure behind its TypeError: long-tasks' window (401.5) is above its floor (223.7), on the hosted artifact as well. The owner's ruling D-238: on an absolute scale CAT-10 reads leader − window ≥ floor; no recalibration.
+- #541 (D-237) closed the class instead of adding spellings: any tree file a dispatched deploy workflow names, under any prefix, is on the surface. #549 (D-239, the owner's ruling): a workflow that can start a file without writing its name refuses every deploy; the residue it names is #551.
+- An ADR in the fix commit fails `wave-check`'s order rule, and an ADR-only commit after a red test fails the test leg: the ADR goes first, alone, before the red test, on an artifact the tree at that commit is green on.
+- #550 was the 2026-10-10 artifact, not code: `make ui-test` 25/25 on the fresh one.
+- Lesson: a worktree that serves an older artifact than the main checkout tests a different product; name the artifact's sha in every result read from it.

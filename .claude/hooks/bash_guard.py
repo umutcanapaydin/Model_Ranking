@@ -150,22 +150,32 @@ clause 3 and the owner's patches of #281, and ported onto DevFlow v7.1.2's file 
   clone` copy in: `--template` (any prefix git reads), `init.templateDir` set by `git config` or `-c`, or named in
   `GIT_CONFIG_*`, and `GIT_TEMPLATE_DIR` assigned or bound anywhere;
 - the default branch the deploy gate reads its base from (#318: `brief_fields.DEFAULT_BRANCHES`, origin/HEAD,
-  origin/main, origin/master, main, master): `git branch` forcing, creating, moving onto or copying onto `main`,
-  `master`, `trunk` or a remote's of those or its `HEAD` (`git branch -f main HEAD`), but deleting one, which
-  leaves the gate the next default branch or none; `git checkout -b/-B` and
-  `git switch -c/-C`/`--create`/`--force-create` making one, the value apart or attached (`-Bmain`), the long
-  options in any prefix git reads; `git update-ref` naming one, or reading its refs from `--stdin`; `git
-  symbolic-ref` writing or deleting one; a `fetch` or `pull` refspec landing on one (`git fetch . HEAD:main`), or
-  on a pattern under `refs/heads/` or `refs/remotes/`; and each of these but a branch only made (`-b`, `-c`, plain
-  `git branch`) naming its ref through an expansion this cannot read (`git branch -D "$b"`); `git remote` changing `origin` (`set-url`, `add`,
-  `rename`, `remove`, `set-branches`) or any remote's `HEAD` but by `set-head --auto`; `remote.origin.url` or
-  `.fetch`, or `url.<base>.insteadOf` (which rewrites origin's URL), set by `git config`, `-c` or `GIT_CONFIG_*`; `git push` to one of this repository's (`git push .
-  HEAD:refs/remotes/origin/main`); `git replace` but its listing, which moves every merge-base with one; and a write
-  into `.git/refs/heads/<one>`, `.git/refs/remotes/`, `.git/refs/replace/`, `.git/packed-refs` or `.git/shallow`;
+  origin/main, origin/master, main, master), and since #533 (D-236) every ref under `refs/remotes/origin/`: these
+  move only by a plain `git fetch origin` or `git pull` of origin. Refused: `git branch` forcing, creating, moving
+  onto or copying onto `main`, `master`, `trunk` or a remote's of those or its `HEAD` (`git branch -f main HEAD`);
+  deleting or renaming one (`-d`, `-D`, `-m`, `-M`; with `-r`, any `origin/<x>`), and a lone `-m <new>`, which
+  renames the current branch (deleted, then made again by `git worktree add -b main <dir> <old sha>`, the gate's
+  base moved; #533); `git checkout -b/-B`, `git switch -c/-C`/`--create`/`--force-create` and `git worktree add
+  -b/-B` making one, the value apart or attached (`-Bmain`), the long options in any prefix git reads, and `git
+  worktree add <dir>` alone, which makes a branch named after the directory's last part; `git update-ref` naming
+  one or a ref under `refs/remotes/origin/`, or reading its refs from `--stdin`; `git symbolic-ref` writing or
+  deleting one; a `fetch` or `pull` refspec, or a `--refmap`, whose destination may land on one (`git fetch .
+  HEAD:main`), a pattern read as every ref it may name (`refs/*:refs/*`, `*:*`); and each of these but a branch
+  only made (`-b`, `-c`, plain `git branch`) naming its ref through an expansion this cannot read (`git branch -D
+  "$b"`); `git remote` changing `origin` in any case or adding one named `origin/<x>` (`set-url`, `add`, `rename`,
+  `remove`, `set-branches`), adding a `--mirror`, or changing any remote's `HEAD` but by `set-head --auto`; any
+  remote's `url` or `fetch` (`remote.evil.fetch=+refs/heads/x:refs/remotes/origin/main`, #533), or
+  `url.<base>.insteadOf` (which rewrites origin's URL), set by `git config`, `-c`, `--config-env` or
+  `GIT_CONFIG_*`, and a `remote.` section renamed by `git config`; `git push` to one of this repository's (`git
+  push . HEAD:refs/remotes/origin/main`); `git replace` but its listing, which moves every merge-base with one;
+  and a write into `.git/refs/heads/<one>`, `.git/refs/remotes/`, `.git/refs/replace/`, `.git/packed-refs` or
+  `.git/shallow`;
 - a version tag or a replace ref (#410, D-223 clause 5), the owner's: `git tag` making, forcing or deleting a
   `v*` tag, or one named through an expansion this cannot read, but listing (`-l`, `-n`, `--contains` and the
-  other filters) and `-v`; `git update-ref` naming a ref under `refs/tags/v` or `refs/replace/`; and a `fetch`,
-  `pull` or `push` refspec landing under `refs/replace/` (`git push origin 'refs/replace/*'`);
+  other filters) and `-v` -- an option's value is not read as one of them (#529, D-236: `git tag -m -l v1.0` makes
+  `v1.0`); `git update-ref` naming a ref under `refs/tags/v` or `refs/replace/`; and a `fetch`, `pull` or `push`
+  refspec whose destination may land under `refs/replace/` (`git push origin 'refs/replace/*'`, `git fetch origin
+  'refs/*:refs/*'`, #529);
 - a worktree with uncommitted work (#286): `rm -r`, `find -delete` and `git worktree remove` (forced or not) of a
   `.claude/worktrees/<name>`, a path inside one, or a path holding one in a nested `.claude/worktrees/`, and
   `git worktree remove` of any live worktree, named by its path or by the last part of it that git matches, while
@@ -280,9 +290,10 @@ Not held, by class -- said here so nobody believes otherwise:
   runs (the stamp names the HEAD at its end); a work tree git is told not to see (`update-index
   --skip-worktree`, a `.git/info/exclude` a program this does not list writes), which pre-push graded no better
   before the stamp; CI still runs every gate leg;
-- the deploy gate's base moved where this does not look (#318): a commit, merge, reset or rebase made while the
-  default branch is checked out, a ref written by a program this does not list, or a remote other than `origin`
-  renamed to it by a program this does not list; ignore rules from
+- the deploy gate's base moved where this does not look (#318, #533): a commit, merge, reset or rebase made while
+  the default branch is checked out, a ref written by a program this does not list, a remote other than `origin`
+  renamed to it by a program this does not list, a fetch of origin itself from a URL a program this does not list
+  rewrote, or a remote's settings in a config file this does not open; ignore rules from
   `core.excludesFile` that hide a worktree's work (#317); a clone moved by `mv` and then removed;
 - a command on another machine is judged by this machine's rules: `ssh host 'rm -rf /tmp/build'` is
   refused, though `/tmp` is scratch there;
@@ -453,8 +464,11 @@ TEMPLATE_ENV = "GIT_TEMPLATE_DIR"
 GIT_PLACE_ENV = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY", "GIT_INDEX_FILE"}
 TEMPLATE_KEY = "init.templatedir"
 #: #318: the remote's settings that decide what `origin/main` and `origin/HEAD` hold after the next fetch, and
-#: `url.<base>.insteadOf`, which rewrites origin's URL with `remote.origin.url` untouched.
-REMOTE_KEY = re.compile(r"^(remote\.origin\.(url|fetch)|url\..+\.insteadof)$", re.I)
+#: `url.<base>.insteadOf`, which rewrites origin's URL with `remote.origin.url` untouched. Since #533 (D-236) any
+#: remote's: `git -c remote.evil.fetch=+refs/heads/stale:refs/remotes/origin/main fetch evil` moved `origin/main`.
+REMOTE_KEY = re.compile(r"^(remote\..+\.(url|fetch)|url\..+\.insteadof)$", re.I)
+#: The same keys inside a `GIT_CONFIG_*` value.
+REMOTE_KEY_IN = re.compile(r"remote\..+\.(url|fetch)\b|url\..+\.insteadof", re.I)
 #: `git branch`, `git fetch` and `git symbolic-ref` options that take the next word as their value.
 BRANCH_VALUED = {"-u", "--set-upstream-to", "--contains", "--no-contains", "--merged", "--no-merged", "--points-at",
                  "--format", "--sort"}
@@ -558,8 +572,9 @@ ENV_WRITE = "BLOCKED: writes to .env are denied per permission-matrix.md S6 (def
 #: v7.2's Write/Edit hook message, word for word: the stamp's name, in any case, is never an editor's to write.
 STAMP_WRITE = ("BLOCKED: the gate stamp (devflow-gate-ok) is written only by make gate when it passes -- a stamp "
                "written by hand is a gate that never ran.")
-PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch's ref, nor `origin/HEAD` or a "
-                 "remote's default branch, where the deploy gate reads its base (AGENTS.md S3, #318): the default "
+PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch's ref, nor `origin/HEAD`, a ref "
+                 "under `origin/` or a remote's default branch, where the deploy gate reads its base (AGENTS.md S3, "
+                 "#318, #533): only a plain `git fetch origin` or `git pull` of origin moves them, and the default "
                  "branch is the human's.")
 OWNER_REF = ("BLOCKED: a `v*` tag names a release, and a `refs/replace/` ref moves every merge-base the deploy "
              "gate measures from; the owner makes, moves and deletes both, in their own terminal (#410, D-223 "
@@ -2965,7 +2980,7 @@ def _config_env(word: Word) -> str | None:
         return NO_VERIFY
     if TEMPLATE_KEY in value.lower():
         return TEMPLATE
-    if re.search(r"remote\.origin\.(url|fetch)|url\..+\.insteadof", value, re.I):
+    if REMOTE_KEY_IN.search(value):
         return PROTECTED_REF
     keys = re.findall(r"[A-Za-z][\w.-]*", value)
     return ALIAS_UNREAD if "alias." in value.lower() or any(CODE_KEY.match(k) for k in keys) else None
@@ -3017,6 +3032,96 @@ def _unread_or_default(name: str) -> bool:
     return _default_ref(name) or "$" in name or "`" in name
 
 
+#: #533 (D-236): the refs the deploy gate reads, as git stores them: the protected branches, and every ref under
+#: `refs/remotes/origin/` (`_default_ref` adds a remote's `HEAD` and protected branches by their shape).
+GATE_REFS = tuple(sorted(f"refs/heads/{b}" for b in PROTECTED))
+GATE_UNDER = ("refs/remotes/origin/",)
+
+
+def _lands(dst: str, exact: tuple[str, ...], under: tuple[str, ...]) -> bool:
+    """#533, #529 (D-236): whether a refspec's destination may be one of `exact` or lie under one of `under`, in any
+    case. A destination not under `refs/` is a branch (`main` is `refs/heads/main`), and one under `heads/`, `tags/`
+    or `remotes/` is that under `refs/`, as git stores a fetched ref. A pattern is read as every name it may take:
+    its `*` stands for anything, a `refs/...` too, so `refs/*` and `*` may be any ref (`git fetch origin
+    'refs/*:refs/*'` wrote `refs/heads/main` and `refs/replace/` past #318 and #410)."""
+    d = dst.lstrip("+").casefold()
+    if not d:
+        return False
+    names = [d] if d.startswith("refs/") else ["refs/" + d] if d.startswith(("heads/", "tags/", "remotes/")) else [
+        "refs/heads/" + d]
+    if "*" in d and not d.startswith("refs/"):
+        names += [d, "refs/" + d]
+    for n in names:
+        if "*" not in n:
+            if n in exact or n.startswith(under):
+                return True
+            continue
+        head = n.split("*", 1)[0]
+        shape = re.compile(".*".join(re.escape(part) for part in n.split("*")), re.S)
+        if any(shape.fullmatch(e) for e in exact) or any(head.startswith(u) or u.startswith(head) for u in under):
+            return True
+    return False
+
+
+def _lands_on_gate(dst: str) -> bool:
+    """#318, #533: a destination that is, or may be, a ref the deploy gate reads (an unread one may be any)."""
+    return _unread_or_default(dst) or _lands(dst, GATE_REFS, GATE_UNDER)
+
+
+def _refmaps(rest: list[str]) -> list[str]:
+    """#533: the refspecs `git fetch --refmap` maps the command line's refs by, in any prefix git reads (`--refm`)."""
+    out: list[str] = []
+    for k, a in enumerate(rest):
+        name, eq, value = a.partition("=")
+        if len(name) >= 6 and "--refmap".startswith(name):
+            out.append(value if eq else rest[k + 1] if k + 1 < len(rest) else "")
+    return out
+
+
+def _worktree_made(after: list[str]) -> str | None:
+    """#533 (D-236): `git worktree add` making a branch the deploy gate reads: `-b`/`-B` (apart, against it, or
+    ending a cluster: `-fB main`), or, with neither and no `--detach`, the branch git names after the path's last
+    part when the path is the only operand (`git worktree add ../main`)."""
+    plain: list[str] = []
+    made, forced, detached = None, False, False
+    k = 0
+    while k < len(after):
+        a = after[k]
+        if a == "--":
+            plain += after[k + 1:]
+            break
+        if a.startswith("--"):
+            name, eq, _ = a.partition("=")
+            detached = detached or (len(name) >= 4 and "--detach".startswith(name))
+            k += 2 if not eq and len(name) >= 4 and "--reason".startswith(name) else 1
+            continue
+        if a.startswith("-") and len(a) > 1:
+            at = next((j for j, ch in enumerate(a[1:], 1) if ch in "bB"), None)
+            detached = detached or "d" in a[1:at]
+            if at is not None:
+                made, forced = a[at + 1:] or (after[k + 1] if k + 1 < len(after) else ""), a[at] == "B"
+                k += 1 if a[at + 1:] else 2
+                continue
+            k += 1
+            continue
+        plain.append(a)
+        k += 1
+    if made is not None:
+        return PROTECTED_REF if (_unread_or_default if forced else _default_ref)(made) else None
+    if not detached and len(plain) == 1:
+        return PROTECTED_REF if _default_ref(plain[0].rstrip("/").rsplit("/", 1)[-1]) else None
+    return None
+
+
+def _renames_remote(rest: list[str]) -> bool:
+    """#533: `git config --rename-section` (or `rename-section`) of a `remote.` section: `remote.evil` renamed to
+    `remote.origin` is origin with evil's URL and refspec."""
+    options, plain = _config_split(rest)
+    if plain[:1] == ["rename-section"] or any(a.startswith("--rename-section") for a in options):
+        return any(p.casefold() == "remote" or p.casefold().startswith("remote.") for p in plain)
+    return False
+
+
 def _plain(rest: list[str], valued: set[str]) -> list[str]:
     """The words of `rest` that are no option and no option's value."""
     out: list[str] = []
@@ -3034,21 +3139,28 @@ def _plain(rest: list[str], valued: set[str]) -> list[str]:
 
 
 def _moves_default(sub: str, rest: list[str], letters: str, given: Callable[..., bool]) -> str | None:
-    """#318: a command that moves, deletes, creates or redirects a branch the deploy gate reads its base from:
-    `git branch` (forced, moved, copied, deleted, or created), `git checkout -b/-B` and `git switch -c/-C`, `git
-    update-ref` (or its `--stdin`), `git symbolic-ref` writing or deleting one, a fetch or pull refspec landing on
-    one, and `git remote` changing `origin` (`set-url`, `add`, `rename`, `remove`, or `set-head` but `--auto`)."""
+    """#318, #533 (D-236): a command that moves, deletes, creates or redirects a ref the deploy gate reads its base
+    from: `git branch` (forced, moved, copied, deleted, or created), `git checkout -b/-B`, `git switch -c/-C` and `git
+    worktree add -b/-B`, `git update-ref` (or its `--stdin`), `git symbolic-ref` writing or deleting one, a fetch or
+    pull refspec or `--refmap` whose destination may land on one, and `git remote` changing `origin` (`set-url`,
+    `add`, `rename`, `remove`, or `set-head` but `--auto`) or adding a mirror."""
     if sub == "branch":
-        # A deletion moves nothing the gate reads to a commit of the agent's choosing (the next default branch, or
-        # none, which refuses every deploy): `git branch -D main` stays allowed, as DevFlow's conformance holds it.
-        if any(ch in letters for ch in "dD") or given("--delete"):
-            return None
         plain = _plain(rest, BRANCH_VALUED)
-        moving = any(ch in letters for ch in "mMcC") or given("--move", "--copy")
+        if any(ch in letters for ch in "dDmM") or given("--delete", "--move"):
+            # #533: deleted, the gate's branch was made again at a commit of the agent's choosing (`git branch -D
+            # main`, then `git worktree add -b main <dir> <old sha>`), and renamed it is gone the same way; with `-r`
+            # a name is a remote's (`origin/HEAD` is `refs/remotes/origin/HEAD`). A lone `-m <new>` renames the
+            # current branch, which may be `main`.
+            remote = "r" in letters or given("--remotes")
+            if (any(ch in letters for ch in "mM") or given("--move")) and len(plain) < 2:
+                return PROTECTED_REF
+            return PROTECTED_REF if any(_unread_or_default(p) or (remote and _lands("remotes/" + p, (), GATE_UNDER))
+                                        for p in plain) else None
+        copying = any(ch in letters for ch in "cC") or given("--copy")
         listing = any(ch in letters for ch in "larv") or given("--list", "--all", "--remotes", "--show-current")
-        forced = moving or "f" in letters or given("--force")
-        # moved or copied: the destination, the last name; forced or made: the first.
-        named = plain[-1:] if moving else plain[:1] if not listing or forced else []
+        forced = copying or "f" in letters or given("--force")
+        # copied: the destination, the last name; forced or made: the first.
+        named = plain[-1:] if copying else plain[:1] if not listing or forced else []
         # A name this cannot read is refused where the branch is moved or forced; a new one is only made.
         return PROTECTED_REF if any((_unread_or_default if forced else _default_ref)(p) for p in named) else None
     if sub in ("checkout", "switch"):
@@ -3075,23 +3187,34 @@ def _moves_default(sub: str, rest: list[str], letters: str, given: Callable[...,
             if hit and (_unread_or_default if forced else _default_ref)(named):
                 return PROTECTED_REF
         return None
+    if sub == "worktree" and [a for a in rest if not a.startswith("-")][:1] == ["add"]:
+        return _worktree_made(rest[rest.index("add") + 1:])
     if sub == "update-ref":
         refs = _plain(rest, {"-m"})
-        return PROTECTED_REF if "--stdin" in rest or any(_unread_or_default(r) for r in refs) else None
+        return PROTECTED_REF if "--stdin" in rest or any(_lands_on_gate(r) for r in refs) else None
     if sub == "symbolic-ref":
         refs = _plain(rest, {"-m"})
         writes = len(refs) >= 2 or "d" in letters or given("--delete")
-        return PROTECTED_REF if writes and any(_unread_or_default(r) for r in refs) else None
+        return PROTECTED_REF if writes and any(_lands_on_gate(r) for r in refs) else None
     if sub in ("fetch", "pull"):
-        specs = _plain(rest, FETCH_VALUED)[1:]
-        return PROTECTED_REF if any(":" in sp and _unread_or_default(sp.rsplit(":", 1)[1]) for sp in specs) else None
+        # #533: a plain fetch or pull of origin moves `origin/*` by origin's own refspec; any other destination that
+        # may be one of the gate's refs is refused, a `--refmap`'s too.
+        specs = _plain(rest, FETCH_VALUED)[1:] + _refmaps(rest)
+        return PROTECTED_REF if any(":" in sp and _lands_on_gate(sp.rsplit(":", 1)[1]) for sp in specs) else None
     if sub == "replace" and not (any(ch in letters for ch in "l") or given("--list")):
         return PROTECTED_REF   # `git replace <main's commit> HEAD` moves every merge-base with main, its ref unmoved
     if sub == "remote":
         plain = _plain(rest, {"-t", "-m", "--track", "--master"})
         if plain[:1] == ["set-head"]:
             return None if "-a" in rest or "--auto" in rest else PROTECTED_REF
-        if plain[:1] in (["set-url"], ["add"], ["rename"], ["remove"], ["rm"], ["set-branches"]) and "origin" in plain[1:]:
+        # #533: `ORIGIN` is origin's loose refs on a case-insensitive disk, and `origin/x` fetches under
+        # `refs/remotes/origin/`; a mirror (`--mirror=fetch`) fetches `+refs/*:refs/*`.
+        named = [p.casefold() for p in plain[1:]]
+        if plain[:1] in (["set-url"], ["add"], ["rename"], ["remove"], ["rm"], ["set-branches"]) and any(
+                p == "origin" or p.startswith("origin/") for p in named):
+            return PROTECTED_REF
+        if plain[:1] == ["add"] and any(len(n) >= 4 and "--mirror".startswith(n)
+                                        for n in (a.split("=", 1)[0] for a in rest if a.startswith("--"))):
             return PROTECTED_REF
     return None
 
@@ -3101,31 +3224,57 @@ def _owner_ref(name: str, under: tuple[str, ...] = ("tags/v", "replace/")) -> bo
     return name.lstrip("+").casefold().removeprefix("refs/").startswith(under)
 
 
-#: `git tag` options that take the next word as their value, alone or ending a cluster (`-am <msg>`).
-TAG_VALUED = re.compile(r"^-[A-Za-z]*[mFu]$|^--(message|file|local-user|cleanup|trailer|contains|no-contains|"
-                        r"merged|no-merged|points-at|sort|format)$")
+#: `git tag` options that take a value (#529): a short letter's is the rest of its word or the next word (`-m-l`,
+#: `-am <msg>`), a long one's follows `=` or is the next word, in any prefix git reads (`--mess <msg>`).
+TAG_SHORT_VALUED = "mFu"
+TAG_LONG_VALUED = ("--message", "--file", "--local-user", "--cleanup", "--trailer", "--contains", "--no-contains",
+                   "--merged", "--no-merged", "--points-at", "--sort", "--format")
+
+
+def _tag_words(rest: list[str]) -> tuple[str, list[str], list[str]]:
+    """`git tag <rest>` as (the short letters given, the long option names given, the plain words). An option's
+    value is none of them (#529, D-236): `git tag -m -l v1.0` makes `v1.0` with the message `-l`, and was read as a
+    listing because `-l` was taken from every option word, the value too. `-n<num>` carries its number."""
+    letters, longs, names = "", [], []
+    k = 0
+    while k < len(rest):
+        a = rest[k]
+        k += 1
+        if a == "--":
+            names += rest[k:]
+            break
+        if a.startswith("--"):
+            name, eq, _ = a.partition("=")
+            longs.append(name)
+            if not eq and any(_unique(name, w, GIT_LONG["tag"]) for w in TAG_LONG_VALUED):
+                k += 1
+        elif a.startswith("-") and len(a) > 1:
+            for j, ch in enumerate(a[1:], 1):
+                letters += ch
+                if ch in TAG_SHORT_VALUED:
+                    k += 0 if a[j + 1:] else 1
+                    break
+                if ch == "n":
+                    break
+        else:
+            names.append(a)
+    return letters, longs, names
 
 
 def _moves_owner_ref(sub: str, rest: list[str], letters: str, given: Callable[..., bool]) -> str | None:
     """#410 (D-223 clause 5): `git tag` making, forcing or deleting a `v*` tag, or one it cannot read, but listing
     and `-v`; `git update-ref` naming a ref under `refs/tags/v` or `refs/replace/`; and a fetch, pull or push
-    refspec landing under `refs/replace/`. A value of an option TAG_VALUED does not name is read as the tag's
-    name, so the rule errs closed there."""
+    refspec whose destination may land under `refs/replace/` (#529: `refs/*:refs/*`). The listing and verifying
+    options are read from `_tag_words`, never from an option's value (#529); a value of an option it does not know
+    is read as the tag's name, so the rule errs closed there."""
     if sub == "tag":
-        names: list[str] = []
-        k = 0
-        while k < len(rest):
-            a = rest[k]
-            if a == "--":
-                names += rest[k + 1:]
-                break
-            if a.startswith("-") and len(a) > 1:
-                k += 2 if TAG_VALUED.match(a) else 1
-                continue
-            names.append(a)
-            k += 1
-        deleting = "d" in letters or given("--delete")
-        listing = not names or any(ch in letters for ch in "lnv") or given(
+        letters, longs, names = _tag_words(rest)
+
+        def said(*wanted: str) -> bool:
+            return any(_unique(a, w, GIT_LONG["tag"]) for a in longs for w in wanted)
+
+        deleting = "d" in letters or said("--delete")
+        listing = not names or any(ch in letters for ch in "lnv") or said(
             "--list", "--verify", "--contains", "--no-contains", "--merged", "--no-merged", "--points-at")
         if not deleting and listing:
             return None
@@ -3138,7 +3287,9 @@ def _moves_owner_ref(sub: str, rest: list[str], letters: str, given: Callable[..
         # first word a refspec.
         specs = _plain(rest, FETCH_VALUED if sub != "push" else {"--receive-pack", "--exec", "--repo", "-o",
                                                                    "--push-option"})
-        return OWNER_REF if any(_owner_ref(sp.rsplit(":", 1)[-1], ("replace/",)) for sp in specs) else None
+        # #529: a pattern that may land there too (`refs/*:refs/*`); a fetch's spec with no `:` stores nothing.
+        return OWNER_REF if any(_owner_ref(sp.rsplit(":", 1)[-1], ("replace/",)) or (
+            (":" in sp or sub == "push") and _lands(sp.rsplit(":", 1)[-1], (), ("refs/replace/",))) for sp in specs) else None
     return None
 
 
@@ -3264,6 +3415,8 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         removed = [a for a in after[:cut] if not a.startswith("-")] + after[cut + 1:]
         if (why := _judge_worktree_remove(removed, base, behind_xargs)):
             return why
+    if sub == "config" and _renames_remote(rest):
+        return PROTECTED_REF   # #533: `git config --rename-section remote.evil remote.origin`
     if sub == "config" and (pair := _config_set(rest)) is not None:
         key, value = pair
         if key.lower().startswith("alias."):
@@ -3305,8 +3458,9 @@ def _judge_git(args: list[str], behind_xargs: bool, depth: int = 0,  # noqa: C90
         targets = {ref.split(":")[-1].removeprefix("refs/").removeprefix("heads/") for ref in refs}
         if behind_xargs or given("--all", "--branches") or PROTECTED & targets:
             return PROTECTED_PUSH
-        if any(":" in ref and _default_ref(ref.rsplit(":", 1)[1]) for ref in refs[1:]):
-            return PROTECTED_REF   # #318: `git push . HEAD:refs/remotes/origin/main`
+        if any(":" in ref and (_default_ref(dst := ref.rsplit(":", 1)[1]) or _lands(dst, GATE_REFS, GATE_UNDER))
+               for ref in refs[1:]):
+            return PROTECTED_REF   # #318, #533: `git push . HEAD:refs/remotes/origin/main`, `git push . 'refs/*:refs/*'`
         # A deletion whose ref this cannot read may be the protected branch's; the remote (first) is not a ref.
         deleting = "d" in letters or given("--delete") or any(ref.startswith(":") for ref in refs[1:])
         unread = next((ref for ref in refs[1:] if "$" in ref), None)

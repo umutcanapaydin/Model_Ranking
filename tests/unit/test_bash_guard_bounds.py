@@ -1025,16 +1025,14 @@ def test_reading_gits_info_and_modules_and_a_plain_init_are_allowed(guard: Modul
 ])
 def test_the_default_branch_the_deploy_gate_reads_cannot_be_moved(guard: ModuleType, repo: Path, command: str) -> None:
     """#318: the deploy gate reads the brief at the merge-base of HEAD with origin/HEAD, origin/main or main; an
-    agent that moves one of them chooses the policy its own deploy is judged by. (Deleting a local one moves the gate
-    to the next, or to none, which refuses every deploy: `git branch -D main` stays allowed, as DevFlow's
-    conformance holds it.)"""
+    agent that moves one of them chooses the policy its own deploy is judged by. (Deleting one was allowed until
+    D-236: deleted, then made again by `git worktree add -b main <dir> <old sha>`, it moved the gate's base; #533.)"""
     why = _bash(guard, command, repo)
     assert why and "#318" in why, (command, why)
 
 
 @pytest.mark.parametrize("command", [
     "git branch fix/x", "git branch -f fix/x HEAD", "git branch -f fix/x main", "git branch -d fix/old",
-    "git branch -m main old", 'git branch -D "$b"',
     "git branch --list main", "git branch --contains main", "git branch -a", "git branch -u origin/main",
     "git branch --set-upstream-to=origin/main", "git branch -m fix/old fix/new", "git update-ref refs/heads/fix/x HEAD",
     "git symbolic-ref refs/remotes/origin/HEAD", "git symbolic-ref --short HEAD", "git remote set-head origin --auto",
@@ -1211,3 +1209,98 @@ def test_a_default_whose_values_are_both_harmless_is_allowed(guard: ModuleType, 
                                                              command: str) -> None:
     """M5: #344 refused every `${...}` form as unreadable; a plain literal default is read instead."""
     assert _bash(guard, command, repo) is None, command
+
+
+# --- D-236: the default branch's refs move only by a plain fetch or pull of origin (#533); a tag option's value is
+# --- a value (#529)
+
+@pytest.mark.parametrize("command", [
+    # a refspec, or a remote's configuration that decides one, landing in `refs/remotes/origin/` or on `main`
+    "git -c remote.evil.fetch=+refs/heads/stale:refs/remotes/origin/main fetch evil",
+    "git -c remote.evil.url=/tmp/evil fetch evil", "git -c Remote.Evil.Fetch=x fetch evil",
+    "git -cremote.evil.fetch=x fetch evil", "git --config-env remote.evil.fetch=E fetch evil",
+    "GIT_CONFIG_PARAMETERS=\"'remote.evil.fetch'='+refs/heads/x:refs/remotes/origin/main'\" git fetch evil",
+    "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=remote.evil.fetch GIT_CONFIG_VALUE_0=x git fetch evil",
+    "git config remote.evil.fetch '+refs/heads/stale:refs/remotes/origin/main'", "git config --add remote.evil.fetch x",
+    "git config set remote.evil.url /tmp/evil", "git config --global remote.evil.fetch x",
+    "git config --rename-section remote.evil remote.origin", "git config rename-section remote.evil remote.origin",
+    "git remote add --mirror=fetch evil /tmp/evil", "git remote add --mirror evil /tmp/evil",
+    "git remote add ORIGIN /tmp/evil", "git remote add origin/x /tmp/evil", "git remote rename evil Origin",
+    "git fetch evil +refs/heads/x:refs/remotes/origin/feature", "git fetch origin 'refs/*:refs/*'",
+    "git fetch origin '+refs/*:refs/*'", "git fetch /tmp/e 'refs/remotes/*:refs/remotes/*'",
+    "git fetch evil --refmap='+refs/heads/*:refs/remotes/origin/*' main",
+    "git fetch evil --refmap '+refs/heads/*:refs/remotes/origin/*' main", "git pull evil 'refs/*:refs/*'",
+    "git push . HEAD:refs/remotes/origin/feature", "git push . 'refs/h*:refs/h*'",
+    # a branch of the gate's deleted or renamed, then made again
+    "git branch -D main", "git branch -d main", "git branch --delete master", "git branch -D MAIN",
+    "git branch -rd origin/HEAD origin/main", "git branch -r -d origin/fix/x", "git branch -dr origin/main",
+    "git branch --delete --remotes origin/x", "git branch -m main old", "git branch -M main old",
+    "git branch -m fix/new", 'git branch -D "$b"', "git branch -d fix/x main",
+    "git worktree add -b main /tmp/w 0123abc", "git worktree add -B main /tmp/w", "git worktree add -Bmain /tmp/w",
+    "git worktree add -fB main /tmp/w", "git worktree add -q -b master /tmp/w HEAD", 'git worktree add -B "$b" /tmp/w',
+    "git worktree add /tmp/main", "git worktree add --orphan /tmp/main",
+    # update-ref and symbolic-ref of any ref under `refs/remotes/origin/`
+    "git update-ref refs/remotes/origin/feature HEAD", "git update-ref -d refs/remotes/origin/fix/x",
+    "git symbolic-ref refs/remotes/origin/x refs/heads/y",
+])
+def test_the_default_branchs_refs_move_only_by_a_plain_fetch_or_pull_of_origin(guard: ModuleType, repo: Path,
+                                                                               command: str) -> None:
+    """#533 (D-236): #517 reads the deploy gate's policy at the default branch's tip and at the merge-base, both from
+    the ref these move. `git -c remote.evil.fetch=+refs/heads/stale:refs/remotes/origin/main fetch evil`, and `git
+    branch -rd origin/HEAD origin/main` then `git branch -D main` then `git worktree add -b main <dir> <old sha>`,
+    each made `deploy_gate.py "fly deploy"` exit 0 again."""
+    why = _bash(guard, command, repo)
+    assert why and "#533" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git fetch origin", "git fetch origin -q", "git fetch origin main", "git fetch -q origin", "git fetch --prune origin",
+    "git fetch upstream", "git fetch origin --refmap= main", "git pull --ff-only", "git pull --ff-only origin main",
+    "git push -u origin HEAD", "git push origin fix/x", "git push origin HEAD:fix/x", "git push origin :fix/x",
+    "git branch -d fix/x", "git branch -D fix/x", "git branch -m fix/old fix/new", "git branch -r", "git branch -a",
+    "git branch -rd upstream/x", "git branch -d origin-notes",
+    "git worktree add -b fix/x /tmp/w 0123abc", "git worktree add --detach /tmp/w 0123abc",
+    "git worktree add -d /tmp/w HEAD", "git worktree add /tmp/w main", "git worktree add /tmp/fix-x",
+    "git worktree add -b x .claude/worktrees/x main", "git worktree list",
+    "git merge --no-ff x", "git tag -l", "git tag -l 'v*'", "git tag -v v1", "git config user.name x",
+    "git config --get remote.origin.url", "git config remote.origin.url", "git config --list",
+    "git remote add upstream https://example.com/a/b.git", "git remote -v", "git remote prune origin",
+    "git update-ref refs/heads/fix/x HEAD", "git symbolic-ref --short HEAD", "git rev-parse origin/main",
+])
+def test_what_a_session_needs_of_its_refs_stays_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    """#533 (D-236), the other half: a plain fetch or pull of origin, a push of the agent's branch, its own branches
+    and worktrees, and reading every ref."""
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "git tag -m -l v1.0", "git tag -a -m -n v1.0", "git tag -m --list v1.0", "git tag --message -l v1",
+    "git tag -m=-l v1", "git tag -F -l v1", "git tag --file -l v1", "git tag -u -l v1", "git tag --local-user -n v1",
+    "git tag --cleanup -l v1", "git tag -am -l v1", "git tag -s -u -v v1", "git tag --mess -l v1", "git tag -m-l v1",
+    "git tag -m -v v1", "git tag -m --contains v1", "git tag --message --verify v1.0",
+])
+def test_a_tag_options_value_is_not_read_as_list_or_verify(guard: ModuleType, repo: Path, command: str) -> None:
+    """#529 (D-236): the `v*` tag rule skipped `-m`'s value when it collected names, then read `-l` from every option
+    word, the value too, and called `git tag -m -l v1.0` a listing; git 2.54 made the tag."""
+    why = _bash(guard, command, repo)
+    assert why and "#410" in why, (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git tag -l", "git tag -l 'v*'", "git tag -v v1", "git tag -n5 -l 'v*'", "git tag -n5 v1", "git tag -l -n v1",
+    "git tag --list --sort=-v:refname 'v*'", "git tag -a note -m '-l'", "git tag -m x fix-1", "git tag -lm x",
+    "git tag --contains HEAD", "git tag --points-at HEAD 'v*'",
+])
+def test_listing_and_verifying_tags_stays_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("spec", ["refs/*:refs/*", "+refs/*:refs/*", "refs/re*:refs/re*", "*:*"])
+def test_a_refspec_that_may_land_under_refs_replace_is_the_owners(guard: ModuleType, spec: str) -> None:
+    """#529 (D-236): the #410 rule itself, apart from #533's, which also refuses these: a destination that can match
+    `refs/replace/` brings in replace refs, which move every merge-base."""
+    def given(*_: str) -> bool:
+        return False
+    for sub in ("fetch", "pull", "push"):
+        assert guard._moves_owner_ref(sub, ["origin", spec], "", given) == guard.OWNER_REF, (sub, spec)
+    assert guard._moves_owner_ref("fetch", ["origin", "refs/heads/*:refs/remotes/origin/*"], "", given) is None

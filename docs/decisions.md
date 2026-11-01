@@ -3814,6 +3814,9 @@ build does not know, is not claimed. The filter hides rows and never re-ranks: e
 place among all the shared models, and the screen says how many it shows of how many. D-173 clause
 3's loss guard keeps protecting the values the filter reads.
 
+**Amended by D-235 (2026-11-01)**: clause 3 gains a second Debug-only launch argument, `-UITestIntelligence
+unavailable`, read beside `-UITestRouting`, so a UI test reaches the Apple Intelligence guide (#527).
+
 ## D-176 — The notices are composed by the app from facts; the close call gains its fact
 
 **Status:** accepted -- decided by the agent on the owner's standing instruction of 2026-09-29; M18-W2
@@ -6406,3 +6409,236 @@ older pin then exempts the downgrade. Requiring both pins is the tightening clau
 **Mitigation if violated:** a change to the exemption that reads one pin only is refused at review.
 
 **Revisit when:** an upgrade is merged while branches cut before it must still deploy their tooling unreviewed.
+
+## D-234 — The deploy gate refuses while any `GIT_*` variable is set in its caller's environment
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #526: the gate refuses when a `GIT_*` variable is set (fail closed), rather than stripping it
+
+**Decision.** `scripts/deploy_gate.py` takes the names of the `GIT_*` variables its caller set, once, at import and
+before it sets its own `GIT_NO_REPLACE_OBJECTS`. While that list is not empty, `--check` (`make deploy-check`) fails,
+and a command the gate finds to be a deploy (`--judge`, or a command given as its argument) is refused, both naming
+every variable and the `unset` that clears them. A command that is not a deploy is not refused for it. Any `GIT_*`
+counts, not a list of the ones known to redirect git: git reads more of them than a list would keep up with
+(`GIT_CONFIG_COUNT`, `GIT_CONFIG_PARAMETERS`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, ...). Three are named exceptions, each
+with its reason, and the gate removes them from its own environment, so none reaches a git it runs: `GIT_EDITOR`
+(Claude Code sets it in every session, and git in its hooks; it names the program git opens for a message, which no
+command the gate runs asks for), `GIT_EXEC_PATH` (git sets it in every hook it runs, measured 2026-11-01; it names
+where git finds its own programs, and every command the gate runs is built into git) and `GIT_REFLOG_ACTION` (`git
+merge`, `pull` and `rebase` set it for their hooks, measured the same day; it labels the reflog line a command
+writes, and the gate writes none). Refusing them would fail `make deploy-check` in every agent session and every
+hook, whatever the verdicts said. A new exception is a new named entry here, with its reason.
+
+**Rationale.** `GIT_WORK_TREE` (#526) made the gate judge another checkout and print PASS over a product change. A
+refusal names the variable, where stripping would leave a set variable silently ignored; a deploy shell has no
+reason to set one.
+
+**Mitigation if violated:** a deploy-check PASS that came from a shell with a `GIT_*` set is not evidence; deploy
+from a shell with none (`env | grep ^GIT_` prints nothing).
+
+**Revisit when:** a deploy path the owner uses needs a `GIT_*` variable set (the nightly script unsets the five it
+knew of before `--check`); or the gate's git is to be held against the rest of its environment too: `HOME`,
+`XDG_CONFIG_HOME` and `PATH` still choose its global configuration and which `git` runs (the fixes-1101 security
+review's R2), outside this ADR.
+
+**As built (the fixes-1101 security review's M1):** after the names are read, every `GIT_*` is removed from the
+gate's own environment, so a refused variable cannot also steer what the gate reads before it is refused.
+
+## D-235 — A Debug-only launch argument scripts the on-device model's availability for UI tests
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #527: yes, a launch argument for tests only, and only in a Debug build
+**Amends:** D-175 clause 3
+
+**Decision.** `-UITestIntelligence unavailable` makes a Debug build report the on-device model as unavailable, so
+a UI test reaches the Apple Intelligence guide and taps its Open Settings button (#484, D-230). It is read where
+`-UITestRouting` is (`ios/ModelRanking/LaunchRouting.swift`), under `#if DEBUG`; a Release build compiles no read of
+it, and `make client-decls` keeps refusing a Release build that reads its launch arguments. It changes what the app
+believes about the device and nothing about what the model or the boards say: the routing still goes through
+`ModelOutputBoundary`, and the list still comes from the boards (D-104).
+
+**Rationale.** On the simulator Apple Intelligence runs, so without this the guide is never shown and its button is
+held only by a test that reads the source. D-175's concern was a test that tells the app to fail; this argument
+selects a device state the app must already handle, the one a device without the model is in.
+
+**Mitigation if violated:** a Release build that reads `-UITestIntelligence` is refused by `make client-decls`, and
+a unit test holds that the read is inside `#if DEBUG`.
+
+**Revisit when:** a second device state needs scripting, or the simulator can be made to report the model as
+unavailable on its own.
+
+## D-236 — The Bash guard refuses moving the default branch's refs by any route but a fetch or pull of origin, and reads a tag option's value as a value
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #533 and #529: prepare the guard patches, as one command
+
+**Decision.** One patch to the owner's `.claude/hooks/bash_guard.py`, applied and re-pinned by the owner in one
+command (`docs/owner-actions.md`):
+1. **#533:** a command that would write `refs/remotes/origin/*`, `refs/heads/main` or the default branch's ref is
+   refused unless it is a plain `git fetch origin` or `git pull` of origin: a refspec whose destination is one of
+   them, `git -c remote.<name>.fetch=...` or `git config remote.<name>.fetch|url`, `git branch -d/-D/-m` of them,
+   `git worktree add -b main`, and `git update-ref` of them.
+2. **#529:** the `v*` tag rule skips each option's value (`-m`, `--message`, `-F`, `--file`, `-u`, `--local-user`,
+   `--cleanup`, and their `=` forms) before it reads `-l`, `--list` or `-n`; and a fetch refspec whose destination
+   can match `refs/replace/` (`refs/*:refs/*`) is refused.
+
+**Rationale.** #517 reads the deploy gate's policy at the default branch's tip and the merge-base, both from that
+ref: a session that can move it chooses the policy it is judged by (#533). #529 is the same rule reading a value as
+a flag.
+
+**Mitigation if violated:** until the owner applies it, the owner deploys from their own shell (the nightly does),
+and checks that `git rev-parse origin/main` matches GitHub's `main`.
+
+**Revisit when:** the deploy gate reads the default branch from GitHub rather than from a local ref.
+
+## D-237 — A dispatched deploy workflow names a tree file by its name, under any prefix
+
+**Status:** proposed
+
+**Decision.** Added to D-232 clause 2 (#541), which stays as it is: every file git lists whose name, or whose name
+less its last suffix (a module: `python -m scripts.x`, `import x`), is written in a dispatched deploy workflow's
+text, not inside a longer name (letters, digits and `_` on neither side), is on the deploy surface wherever it lies.
+The text is read as written, and again with quotes, backslashes and expansions (`$X`, `${X}`, `${{ x }}`) taken
+out. `_UNREAD_IN_WORKFLOW` keeps every word it has, so nothing it refused before becomes exemptible.
+
+**Rationale.** The spellings the fixes-1031 reviews found (`env --chd`, `env --c=`, `env -S`, `sudo -D`, `sudo
+--chdir=`, a PATH entry or `$GITHUB_PATH`, a checkout's `path:`, `os.chdir` in `python -c`) are one class: each
+changes the directory or the prefix a file is started under, and none of them changes the file's name, which the
+shell, `exec` or an interpreter still needs written. A list of the ways to change directory grows with every review
+and is never complete (AGENTS.md section 3.5); the name is the invariant of all of them. Refusing every workflow that
+writes `$GITHUB_PATH` instead, as #541 proposed, would leave nothing exemptible on the real nightly workflow, which
+writes one to put `fly` on the PATH. Measured on this repository's nightly workflow, the rule adds one tooling file
+(`.github/workflows/ci.yml`, by the word `ci`) to the surface; the gate only refuses more.
+
+**Mitigation if violated:** a tree file a dispatched deploy workflow starts without writing its name -- a glob
+(`scripts/ship*.sh`), a name built at run time (`printf`, base64, a file's content), a tracked symlink to it -- stays
+exemptible; each is a different class, left open by this decision and reported with #541's fix.
+
+**Revisit when:** a deploy workflow starts a tree file by a name it builds at run time, or the rule puts so much on
+the surface that a DevFlow upgrade again makes both release verdicts stale.
+
+## D-238 — CAT-10 on an absolute scale: the value window must not reach below the floor
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #544 (*"restate the rule"*, translated): an absolute scale reads
+leader − value window ≥ floor; percentage and Elo surfaces keep `value_window < floor`; no recalibration.
+
+**Context.** CAT-10 (`tests/unit/test_categories.py`, the artifact check D-163 placed on the served data, W-132)
+held every surface to `value_window < floor`, with the floor derived from the served board (D-159). On the
+2026-10-30 artifact the check first raised a TypeError on `text_to_image`, which has no window (D-218 clause 1),
+and the error hid the next surface: `long-tasks` (#379, D-218 clause 2, D-219), whose window of 401.5 minutes is
+wider than its floor of 223.7. The local copy of 2026-10-10 has no METR rows, so the check had never read it; the
+hosted artifact of 2026-10-25 fails it too. #379's calibration (`docs/reviews/issue-379-new-boards-calibration.md`)
+set the window on purpose: the leader stands at 718.8 minutes, so Best Value reaches down to 317.3, above the floor.
+
+**Decision.**
+1. **What CAT-10 guards:** the value window must not reach models the floor has already rejected.
+2. **On a percentage or Elo surface** (`CategorySpec.metric` is `elo` or starts with `%`) the rule stays
+   `value_window < floor`, as today.
+3. **On any other scale** (an absolute one: `minutes`, `ECI`) the rule is `leader − value_window ≥ floor`, where
+   the leader is the top of the surface's ranked population on the served artifact (`category_ranking`).
+4. **The scale is read from `CategorySpec.metric`**, the field that already tells the scales apart for the
+   floor's own range checks; no list of surfaces is kept. A new metric is absolute until it is a percentage or Elo.
+5. **No recalibration:** `long-tasks` keeps 401.5 minutes. The comparison's logic has a fixture test (D-163
+   clause 2): an absolute case whose leader minus window is below the floor fails, and the long-tasks numbers pass.
+
+**Rationale.** On Elo and percentage scales the window is a few points and the floor is far from zero, so the old
+form is the rule's cheap, conservative proxy. On an absolute scale whose leader sits far above its floor (minutes
+run to the hundreds), the window is a distance from the leader and the floor a level: comparing them directly
+flags a window that reaches no rejected model. The restated form is what clause 1 says.
+
+**Mitigation if violated:** a window that reaches below the floor lets Best Value name a model the floor rejected,
+beside a Budget Pick that refuses it; the artifact check fails on the owner's machine before a publish (D-163).
+
+**Revisit when:** a percentage or Elo surface's window is sized from its leader's distance to the floor, or a
+surface's leader falls toward its floor so that the two forms disagree on a percentage or Elo scale.
+
+## D-239 — A dispatched deploy workflow that can start a file without writing its name refuses every deploy
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #549: *"reject: if a step in the nightly deploy workflow runs a file without writing its name, the gate refuses the deploy"* *(translated)*
+
+**Context.** D-237 (#541) puts on the deploy surface every tree file whose name a dispatched deploy workflow writes,
+under any prefix. Its mitigation named the class it left open: a file a run step starts without writing its name --
+by a pattern (`scripts/*.sh`), by a name built at run time (`$X`, `$(...)`), or through a symlink git lists whose
+target is the file -- stays exemptible from the staleness check (#549).
+
+**Decision.**
+1. **What is read.** The `run:` values of every dispatched deploy workflow (`deploy_workflows`: the tree's copy and
+   each protected base's, the texts `deploy_surface` reads), a block scalar's lines included and a `\` continuation
+   joined, split into simple commands at the operators `split_line` splits at (`;`, `&&`, `||`, `|`, `&`, `(`, `)`).
+   Set aside, since none is the program a command starts: a redirection's target (a starter's `<` target excepted,
+   clause 3), a here-document's body, a `case` subject and its patterns, a `for` or `select` header, and the shell's
+   reserved words before a command (`if`, `then`, `do`, `!`, `{`, ...). Then assignments and the `WRAPPERS` are
+   skipped as `_program_position` skips them. A line the shell cannot split is read by its words, as
+   `_line_commands` reads it.
+2. **The shapes that refuse.** In such a command:
+   - **a pattern:** the program word, or the file a starter is given (clause 3), holds `*`, `?`, a bracket
+     expression `[...]` or a brace expansion (`{a,b}`, `{1..3}`);
+   - **a name built at run time:** the program word, or the file a starter is given, holds an expansion or a
+     substitution (`$X`, `${X}`, `$(...)`, a backtick, `${{ ... }}`, `<(...)`); the text `eval` is given and a shell's
+     `-c` string are read as run text in turn; and a program that runs names it reads at run time starts one too
+     (`xargs`, `parallel`, `find` with `-exec`, `-execdir`, `-ok` or `-okdir`);
+   - **a symlink:** a file the workflow names (D-232 clause 2, D-237) is a symlink git lists whose target lies inside
+     the tree.
+3. **A starter** is a program that runs the file its first operand names: a shell (`sh`, `bash`, `dash`, `zsh`,
+   `ksh`, ...), `source`, `.`, and an interpreter (`python*`, `pypy*`, `node`, `deno`, `bun`, `perl*`, `ruby*`,
+   `php*`, `lua*`, `pwsh`, `rscript`, `tclsh`). Its file is its first operand that is not an option or an option's
+   value, or the module `-m` names; with none, its `<` redirection's target. A NAMED ENUMERATION (AGENTS.md section
+   3.5), kept for this reason: which program reads its operand as a script is the program's own behaviour, which no
+   text this gate reads says. A program not on it that starts a file it is given is the residual risk below.
+4. **Every deploy is refused**, `fly deploy` included, and `make deploy-check` fails, while any dispatched deploy
+   workflow holds such a command, whatever the verdicts say; the refusal names the workflow, the line, the shape and
+   the word, and says what to write instead: the file's name (the symlink's target). The surface is not widened to
+   directories. When the workflows cannot all be read, or git cannot list the tree, it refuses too (fail closed).
+5. `_UNREAD_IN_WORKFLOW`, `_named_by_name` and `_workflow_names` stay as they are.
+
+**Rationale.** A list of the files such a step may start is unknowable from the text: a pattern's matches, a
+variable's value and a link's target are decided on the runner. The owner chose refusal over widening the surface
+to every file under a directory such a step names. The shapes are read where the shell acts -- a program word, a
+starter's file -- so an expansion in an operand (`mkdir -p "$STATE"`, `rm -f "$RUNNER_TEMP/x"`) and a pattern in a
+`case` or a `jq` filter refuse nothing. Measured on this repository's nightly workflow (`nightly-hosted.yml`, both
+copies): no command refuses; reading every line, as `_line_commands` does, would refuse its `path:` block
+(`${{ runner.temp }}/state/advisor.db`) and its redirections (`>> "$GITHUB_PATH"`), which is why only `run:`
+values are read.
+
+**Mitigation if violated:** a file started by a program not in clause 3's list, by the code inside an interpreter's
+own language (`python -c`, a heredoc fed to `python -`), by a script fed on standard input (`cat x | bash`), by a
+step's `shell:` other than a POSIX shell, or by what a started script itself runs, stays exemptible, as before #549;
+each is a different class, left open here.
+
+**Revisit when:** a deploy workflow needs one of the refused shapes to work, or a field run starts a tree file in one
+of the ways the mitigation names.
+
+## D-240 — A source that sent nothing: the last good data serves, a week's silence reaches the owner
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on the stack's security review M4 (#544): *"when data does not come, we said
+it comes the next day; if it still does not, let it be tried for a week; if it still has not come after 7 days, let
+me be told somehow so I decide about the source; but let the old data, the last that came -- 30 days, was it? we
+decided that before -- be used"* *(translated)*
+
+**Context.** #544's refinements check (`tests/unit/test_refinements.py`) excuses a refinable surface whose primary
+board is missing when its source is optional (D-121), has no row at all in the artifact, and the real `/v1` route
+answers `no_evidence`. The security review of the stack (`docs/reviews/integration-fixes-1101-rest-security.md`,
+M4) found no ADR for the exemption: D-238 covers CAT-10 alone. On 2026-10-30 Hugging Face's rows API answered
+`arena_document` with a crashed job. D-156 already carries a source's last good data for 30 days from when it last
+arrived.
+
+**Decision.**
+1. **The last good data serves first** (D-156, unchanged): a source that sends nothing in a cycle keeps serving its
+   last good rows for 30 days from when it last arrived, and each nightly cycle tries it again.
+2. **The check's exemption stands, as narrow as written:** a missing primary board passes only when its source is
+   optional, the artifact holds no row of it at all (nothing was left to carry: it never arrived, or arrived more than
+   30 days ago), and `/v1` discloses the gap as `no_evidence`. Any other missing primary fails.
+3. **Seven nights without new data reach the owner:** a source whose last arrival is 7 or more days old is named
+   to the owner, so the owner decides about the source. How it is told is #552's to build; until then, the owner's
+   own `make test` run on a fresh artifact is where it shows.
+
+**Rationale.** Golden Rules 1 and 3: an outage upstream must not take a list down overnight, nor serve a list without
+saying what is missing; the owner, not the code, decides whether a source that stays silent is dropped.
+
+**Mitigation if violated:** a source silent for weeks keeps serving rows up to 30 days old with no one told; the
+nightly's own summary and the artifact check are where it shows today.
+
+**Revisit when:** #552 ships, or a required source (D-121) goes silent.

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
@@ -71,11 +72,9 @@ def test_no_refinement_refines_a_surface_a_coding_request_answers_on() -> None:
 
 
 @pytest.mark.artifact
-def test_every_board_a_question_can_select_is_served() -> None:
+def test_every_board_a_question_can_select_is_served(monkeypatch: pytest.MonkeyPatch) -> None:
     """D-163: held against the served payload, not the declared slices (review M5). A refinement or
     a primary board the artifact does not publish would fall back to the cards without a word."""
-    import sqlite3
-
     from app.workflows.standings import board_standings
 
     conn = sqlite3.connect("file:advisor.db?mode=ro", uri=True)  # INV-23: the served artifact is read-only
@@ -85,8 +84,39 @@ def test_every_board_a_question_can_select_is_served() -> None:
     missing = sorted(str(e["board"]) for e in entries if e["board"] not in served)
     assert not missing, f"refinement boards the artifact does not publish: {missing}"
     refinable = {surface for e in entries for surface in e["surfaces"]}  # type: ignore[attr-defined]
-    primaries = sorted(CATEGORIES[s].primary_source for s in refinable if CATEGORIES[s].primary_source not in served)
+    # #544: an optional source that sent nothing to this build (on 2026-10-30 Hugging Face's rows API
+    # answered `document` with a crashed job) leaves its surface without its primary board, and D-121
+    # has the engine say so rather than answer. Such a surface passes only where the served answer is
+    # that disclosure; a primary missing for any other reason fails as before.
+    outage = {s for s in refinable if CATEGORIES[s].primary_source not in served
+              and _sent_nothing(conn, CATEGORIES[s].primary_source)}
+    primaries = sorted(CATEGORIES[s].primary_source for s in refinable - outage
+                       if CATEGORIES[s].primary_source not in served)
     assert not primaries, f"primary boards of refinable surfaces the artifact does not publish: {primaries}"
+    monkeypatch.setenv("MODEL_RANKING_DB", "advisor.db")
+    monkeypatch.setenv("APP_ENV", "test")
+    undisclosed = sorted(s for s in outage if _served_reason(s) != "no_evidence")
+    assert not undisclosed, f"surfaces whose primary source sent nothing, answered without saying so: {undisclosed}"
+
+
+def _sent_nothing(conn: sqlite3.Connection, source: str) -> bool:
+    """An optional source (D-121) with no row at all in the artifact: an outage, not a lost board."""
+    from app.workflows.sources import REMOTE_SOURCES
+
+    declared = [s for s in REMOTE_SOURCES if s.name == source]
+    assert declared, f"{source} is no source the build reads"
+    rows = conn.execute("SELECT COUNT(*) FROM scores WHERE source = ?", (source,)).fetchone()[0]
+    return not declared[0].required and rows == 0
+
+
+def _served_reason(surface: str) -> str | None:
+    """The served answer's `unavailable_reason_code` for `surface`, through the real `/v1` route."""
+    from app.adapter import main as adapter
+
+    answers = TestClient(adapter.app).get("/v1/recommendations", params={"task": surface}).json()["answers"]
+    (answer,) = [a for a in answers if a["surface"] == surface]
+    code = answer["unavailable_reason_code"]
+    return None if code is None else str(code)
 
 
 def test_a_vision_slice_refines_only_the_vision_surface() -> None:

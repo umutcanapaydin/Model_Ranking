@@ -37,8 +37,11 @@ T = TypeVar("T")
 _PLACEHOLDER = re.compile(r"^<[^>]*>$")
 #: The fields that decide what a change owes (#283): read at the base, and a change to one is a policy edit.
 POLICY_FIELDS = ("Working mode", "Paths that make a change HIGH", "Deploy commands")
-#: The branches whose merge-base with HEAD is the protected base, in the order they are tried.
-DEFAULT_BRANCHES = ("origin/HEAD", "origin/main", "origin/master", "main", "master")
+#: The branches whose merge-base with HEAD is the protected base, in the order they are tried. Full ref names (#545):
+#: git resolves a short name to `refs/<name>` and `refs/tags/<name>` before `refs/heads/` or `refs/remotes/`, so a
+#: tag or ref planted under the default branch's name chose the commit whose brief judged the session's own deploy.
+DEFAULT_BRANCHES = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/master",
+                    "refs/heads/main", "refs/heads/master")
 
 
 def field(name: str, root: Path | str = ".") -> str | None:
@@ -318,10 +321,22 @@ def verified_files(repo: Path | str, rev: str, folder: str,
     return _verified_read(repo, rev, folder, walk) or ({}, [])
 
 
+def exact_ref(repo: Path | str, ref: str) -> str | None:
+    """The commit the full ref `ref` names in `repo`, read exactly, or None when that ref does not exist. #545 (the
+    fixes-1101 security review's M2): a full name given to `merge-base` or `rev-parse` still goes through git's name
+    lookup, so with the ref missing a tag spelled like it (`refs/tags/refs/remotes/origin/HEAD`) stood in for it;
+    `show-ref --verify` reads only that ref, and follows a symbolic one (`refs/remotes/origin/HEAD`)."""
+    found = _git(repo, "show-ref", "--verify", "--hash", ref)
+    sha = found.stdout.strip()
+    return sha if found.returncode == 0 and sha else None
+
+
 def protected_base(repo: Path | str = ".", head: str = "HEAD") -> str | None:
-    """The merge-base of `head` with the first of DEFAULT_BRANCHES git knows in `repo`, or None."""
+    """The merge-base of `head` with the first of DEFAULT_BRANCHES that exists in `repo`, or None."""
     for ref in DEFAULT_BRANCHES:
-        found = _git(repo, "merge-base", ref, head)
+        if (sha := exact_ref(repo, ref)) is None:
+            continue
+        found = _git(repo, "merge-base", sha, head)
         if found.returncode == 0 and found.stdout.strip():
             return found.stdout.strip()
     return None
@@ -330,14 +345,22 @@ def protected_base(repo: Path | str = ".", head: str = "HEAD") -> str | None:
 def protected_bases(repo: Path | str = ".", head: str = "HEAD") -> list[str]:
     """#517 (D-232 clause 1): the protected base (`protected_base`) and the tip of the same default branch when it
     differs, or [] with no default branch. HEAD's history is the change's own, so the merge-base alone is a commit
-    the change chose: a branch cut before a deploy command was declared read no declaration at all."""
+    the change chose: a branch cut before a deploy command was declared read no declaration at all.
+
+    #534: for EVERY ref of DEFAULT_BRANCHES that exists and has a merge-base with `head`, its merge-base and its tip,
+    each once, the first ref's merge-base first. The first such ref alone let an `origin/HEAD` left at an old commit
+    stand for the default branch and hide `origin/main`'s tip; the gate reads the union, so more bases refuse more."""
+    out: list[str] = []
     for ref in DEFAULT_BRANCHES:
-        found = _git(repo, "merge-base", ref, head)
+        if (sha := exact_ref(repo, ref)) is None:
+            continue
+        found = _git(repo, "merge-base", sha, head)
         if found.returncode == 0 and found.stdout.strip():
-            base = found.stdout.strip()
-            tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}").stdout.strip()
-            return [base, *([tip] if tip and tip != base else [])]
-    return []
+            tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options", f"{sha}^{{commit}}").stdout.strip()
+            for commit in (found.stdout.strip(), tip):
+                if commit and commit not in out:
+                    out.append(commit)
+    return out
 
 
 def policy(root: Path | str = ".") -> dict[str, str | None]:
