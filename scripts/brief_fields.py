@@ -37,8 +37,11 @@ T = TypeVar("T")
 _PLACEHOLDER = re.compile(r"^<[^>]*>$")
 #: The fields that decide what a change owes (#283): read at the base, and a change to one is a policy edit.
 POLICY_FIELDS = ("Working mode", "Paths that make a change HIGH", "Deploy commands")
-#: The branches whose merge-base with HEAD is the protected base, in the order they are tried.
-DEFAULT_BRANCHES = ("origin/HEAD", "origin/main", "origin/master", "main", "master")
+#: The branches whose merge-base with HEAD is the protected base, in the order they are tried. Full ref names (#545):
+#: git resolves a short name to `refs/<name>` and `refs/tags/<name>` before `refs/heads/` or `refs/remotes/`, so a
+#: tag or ref planted under the default branch's name chose the commit whose brief judged the session's own deploy.
+DEFAULT_BRANCHES = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/master",
+                    "refs/heads/main", "refs/heads/master")
 
 
 def field(name: str, root: Path | str = ".") -> str | None:

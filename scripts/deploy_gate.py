@@ -200,8 +200,8 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
     if key not in _POLICIES:
         bases = protected_bases(root)
         if not bases:
-            _POLICIES[key] = (None, "no merge-base of HEAD with a default branch (origin/HEAD, origin/main, "
-                                    "origin/master, main, master)", False)
+            _POLICIES[key] = (None, "no merge-base of HEAD with a default branch "
+                                    f"({', '.join(brief_fields.DEFAULT_BRANCHES)})", False)
         else:
             where = (f"the brief at {bases[0][:12]}, the merge-base of HEAD with the default branch"
                      + (f", and at {bases[1][:12]}, its tip" if len(bases) > 1 else ""))

@@ -126,7 +126,7 @@ def git(*args: str) -> str:
 
 
 def default_range() -> str:
-    for ref in ("origin/HEAD", "origin/main", "origin/master", "main", "master"):
+    for ref in brief_fields.DEFAULT_BRANCHES:  # #545: full names, the list the deploy gate reads
         try:
             base = git("merge-base", ref, "HEAD").strip()
             if base:
