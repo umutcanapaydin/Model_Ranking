@@ -102,6 +102,28 @@ from brief_fields import (  # noqa: E402
     root_at,
 )
 
+#: #526 (D-234): the `GIT_*` variables the caller set, read before this module sets its own below. Git reads its
+#: tree, index, objects and configuration from them, so with one set the gate can judge another checkout than the
+#: one being deployed (`GIT_WORK_TREE` passed a product change). `main` refuses a deploy, and `--check` fails, while
+#: any is set: any `GIT_*`, since git reads more of them than a list of the redirecting ones would keep up with.
+#: Two named exceptions (D-234), removed from this process's environment so that no git the gate runs sees them:
+#: neither names a tree, an index, an object store or a configuration, and refusing them would fail every
+#: agent session and every git hook whatever the verdicts said.
+HARMLESS_GIT = {
+    # Claude Code sets it in every session, and git in its hooks: the program git opens for a message, which no
+    # command this gate runs asks for.
+    "GIT_EDITOR": "the editor git opens for a message",
+    # git sets it in every hook it runs (measured 2026-11-01): where git finds its own programs, and every command
+    # this gate runs is built into git.
+    "GIT_EXEC_PATH": "where git finds its own programs",
+    # git merge, pull and rebase set it for their hooks (measured 2026-11-01): the label of the reflog line they
+    # write, which this gate writes none of.
+    "GIT_REFLOG_ACTION": "the label of the reflog line a command writes",
+}
+CALLER_GIT = tuple(sorted(name for name in os.environ if name.startswith("GIT_") and name not in HARMLESS_GIT))
+for _name in HARMLESS_GIT:
+    os.environ.pop(_name, None)
+
 #: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through
 #: `brief_fields`, ignores them.
@@ -129,6 +151,15 @@ WRAPPERS = {"env", "command", "builtin", "time", "exec", "nohup", "nice", "sudo"
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\+?=")
 HOW_TO_CLOSE = ("Run the reviewer on the delta (the Security-Reviewer, .claude/agents/Security-Reviewer.md; "
                 "the Tester, .claude/agents/Tester.md) and record its head in the verdict file, then deploy.")
+
+
+def _git_variables(names: tuple[str, ...]) -> str | None:
+    """#526 (D-234): why a caller's `GIT_*` variables refuse a deploy, or None when it set none."""
+    if not names:
+        return None
+    return (f"{', '.join(names)} {'is' if len(names) == 1 else 'are'} set in the environment, and git reads its tree, "
+            f"index and configuration from such variables, so the gate could judge another checkout than this one "
+            f"(#526); run it from a shell with none set (`unset {' '.join(names)}`)")
 
 
 def refuse(why: str) -> int:
@@ -985,7 +1016,7 @@ def toplevel(cwd: Path) -> Path | None:
     return Path(top) if top else None
 
 
-def judge(commands: list[list[str]], root: Path, foreign: bool = False) -> int:
+def judge(commands: list[list[str]], root: Path, foreign: bool = False, caller_git: tuple[str, ...] = ()) -> int:
     hit = deploy_in(commands, root)
     if not hit:
         return 0
@@ -997,16 +1028,20 @@ def judge(commands: list[list[str]], root: Path, foreign: bool = False) -> int:
     for why, _ in verdicts(root):
         if why:
             return refuse(f"`{hit}` is a deploy, and {why}")
+    if (why := _git_variables(caller_git)):
+        return refuse(f"`{hit}` is a deploy, and {why}")
     return 0
 
 
-def check(root: Path) -> int:
+def check(root: Path, caller_git: tuple[str, ...] = ()) -> int:
     print(f"deploy-check: tree {root} (working tree, nested checkouts excluded)")
     bad: list[str] = []
     for why, summary in verdicts(root):
         print(f"deploy-check: {summary}")
         if why:
             bad.append(why)
+    if (why := _git_variables(caller_git)):
+        bad.append(why)
     if bad:
         for why in bad:
             print(f"deploy-check FAIL: {why}")
@@ -1030,14 +1065,14 @@ def main(argv: list[str]) -> int:
                 raise ValueError("foreign is not true or false")
         except (ValueError, KeyError, TypeError, AttributeError) as error:
             return refuse(f"the guard's payload cannot be read ({type(error).__name__}: {error})")
-        return judge(commands, root, foreign)
+        return judge(commands, root, foreign, CALLER_GIT)
     cwd = Path.cwd()
     root = toplevel(cwd)
     if argv == ["--check"]:
         if root is None:
             print(f"deploy-check FAIL: {cwd} is not inside a git work tree, so nothing can be compared")
             return 1
-        return check(root)
+        return check(root, CALLER_GIT)
     if len(argv) != 1 or argv[0].startswith("--"):
         print('usage: deploy_gate.py "<command>" | --judge | --check', file=sys.stderr)
         return 2
@@ -1045,7 +1080,7 @@ def main(argv: list[str]) -> int:
         commands = split_line(argv[0])
     except ValueError as error:
         return refuse(f"the command cannot be split as the shell would ({error})")
-    return judge(commands, root or cwd)
+    return judge(commands, root or cwd, caller_git=CALLER_GIT)
 
 
 if __name__ == "__main__":

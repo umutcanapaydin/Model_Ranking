@@ -6420,7 +6420,14 @@ before it sets its own `GIT_NO_REPLACE_OBJECTS`. While that list is not empty, `
 and a command the gate finds to be a deploy (`--judge`, or a command given as its argument) is refused, both naming
 every variable and the `unset` that clears them. A command that is not a deploy is not refused for it. Any `GIT_*`
 counts, not a list of the ones known to redirect git: git reads more of them than a list would keep up with
-(`GIT_CONFIG_COUNT`, `GIT_CONFIG_PARAMETERS`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, ...).
+(`GIT_CONFIG_COUNT`, `GIT_CONFIG_PARAMETERS`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, ...). Three are named exceptions, each
+with its reason, and the gate removes them from its own environment, so none reaches a git it runs: `GIT_EDITOR`
+(Claude Code sets it in every session, and git in its hooks; it names the program git opens for a message, which no
+command the gate runs asks for), `GIT_EXEC_PATH` (git sets it in every hook it runs, measured 2026-11-01; it names
+where git finds its own programs, and every command the gate runs is built into git) and `GIT_REFLOG_ACTION` (`git
+merge`, `pull` and `rebase` set it for their hooks, measured the same day; it labels the reflog line a command
+writes, and the gate writes none). Refusing them would fail `make deploy-check` in every agent session and every
+hook, whatever the verdicts said. A new exception is a new named entry here, with its reason.
 
 **Rationale.** `GIT_WORK_TREE` (#526) made the gate judge another checkout and print PASS over a product change. A
 refusal names the variable, where stripping would leave a set variable silently ignored; a deploy shell has no
