@@ -58,7 +58,7 @@ head into the same file.
 
 THE BRIEF'S POLICY IS THE BASE'S (AGENTS.md section 5, base-pinned policy; #283). `Working mode:` (which
 Tester verdict) and `Deploy commands:` are read from the brief at the protected base -- the merge-base of
-HEAD with the default branch (`brief_fields.protected_base`) -- not from the tree about to ship:
+HEAD with the default branch, and its tip (`brief_fields.protected_bases`, D-232) -- not from the tree about to ship:
   * a deploy is any command the base's brief OR the tree's declares, so a change can add a deploy command
     but cannot remove one;
   * the Tester verdict is the one the base's mode names; when the tree's brief names the other mode, the
@@ -205,8 +205,10 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
             _POLICIES[key] = (None, "no merge-base of HEAD with a default branch "
                                     f"({', '.join(brief_fields.DEFAULT_BRANCHES)})", False)
         else:
+            # #534: every default-branch ref's merge-base and tip, the first one a merge-base.
             where = (f"the brief at {bases[0][:12]}, the merge-base of HEAD with the default branch"
-                     + (f", and at {bases[1][:12]}, its tip" if len(bases) > 1 else ""))
+                     + (f", and at {', '.join(b[:12] for b in bases[1:])}, the default branch refs' merge-bases and "
+                        "tips" if len(bases) > 1 else ""))
             try:
                 _POLICIES[key] = ([root_at(base, root) for base in bases], where, False)
             except Unverified as error:
@@ -214,13 +216,6 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
             except RuntimeError as error:
                 _POLICIES[key] = (None, str(error), False)
     return _POLICIES[key]
-
-
-def policy_root(root: Path) -> tuple[Path | None, str]:
-    """(a root holding the brief as the protected base -- the merge-base -- of the repository at `root` holds it, or
-    None when a base cannot be read; the line that says which). The gate itself reads every root `_policy` gives."""
-    policies, where, _ = _policy(root)
-    return (policies[0] if policies else None), where
 
 
 def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
@@ -571,13 +566,38 @@ def _runs_unread(text: str) -> bool:
         for words in _line_commands(text))
 
 
+#: #541 (D-237): quoting a shell joins back into one word (`./'ship'_it.sh`).
+_QUOTING = re.compile(r"[\"'\\]")
+
+
+def _named_by_name(text: str, files: dict[str, set[str]]) -> set[str]:
+    """#541 (D-237): every file git lists whose name, or whose name less its last suffix (a module: `-m scripts.x`,
+    `import x`), the text writes with no letter, digit or `_` beside it -- wherever the file lies. A change of the
+    directory or the prefix a file is started under (`cd`, `env --chd`, `sudo -D`, a PATH entry or `$GITHUB_PATH`, a
+    checkout's `path:`, `os.chdir`) leaves its name to be written, so no list of those ways is needed. The text is
+    read as written and with its quotes, backslashes and expansions taken out."""
+    low = text.lower()
+    sources = {low, _QUOTING.sub("", low), _QUOTING.sub("", _EXPANSION.sub("", low))}
+    out: set[str] = set()
+    for key, paths in files.items():
+        name = key.rsplit("/", 1)[-1]
+        for word in {name, Path(name).stem}:
+            if word and any(word in source and re.search(rf"(?<![a-z0-9_]){re.escape(word)}(?![a-z0-9_])", source)
+                            for source in sources):
+                out |= paths
+                break
+    return out
+
+
 def _workflow_names(root: Path, text: str, files: dict[str, set[str]]) -> set[str]:
-    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not."""
+    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not; #541
+    (D-237): and every one whose name it writes, under any prefix (`_named_by_name`)."""
     # The #522 review's M1: `$GITHUB_WORKSPACE/x`, `${{ github.workspace }}/x` and `$PWD/x` reach here as `/x`, a
     # path from the checkout's top, so each word is looked up as written and without its leading slash.
     bare = _EXPANSION.sub("", text)
     return {path for source in (text, bare) for word in _PATH_WORD.findall(source.lower())
-            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)}
+            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)} | \
+        _named_by_name(text, files)
 
 
 def _line_commands(text: str) -> list[list[str]]:
