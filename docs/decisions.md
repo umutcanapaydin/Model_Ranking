@@ -6490,3 +6490,39 @@ a flag.
 and checks that `git rev-parse origin/main` matches GitHub's `main`.
 
 **Revisit when:** the deploy gate reads the default branch from GitHub rather than from a local ref.
+
+## D-238 — CAT-10 on an absolute scale: the value window must not reach below the floor
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on #544 (*"restate the rule"*, translated): an absolute scale reads
+leader − value window ≥ floor; percentage and Elo surfaces keep `value_window < floor`; no recalibration.
+
+**Context.** CAT-10 (`tests/unit/test_categories.py`, the artifact check D-163 placed on the served data, W-132)
+held every surface to `value_window < floor`, with the floor derived from the served board (D-159). On the
+2026-10-30 artifact the check first raised a TypeError on `text_to_image`, which has no window (D-218 clause 1),
+and the error hid the next surface: `long-tasks` (#379, D-218 clause 2, D-219), whose window of 401.5 minutes is
+wider than its floor of 223.7. The local copy of 2026-10-10 has no METR rows, so the check had never read it; the
+hosted artifact of 2026-10-25 fails it too. #379's calibration (`docs/reviews/issue-379-new-boards-calibration.md`)
+set the window on purpose: the leader stands at 718.8 minutes, so Best Value reaches down to 317.3, above the floor.
+
+**Decision.**
+1. **What CAT-10 guards:** the value window must not reach models the floor has already rejected.
+2. **On a percentage or Elo surface** (`CategorySpec.metric` is `elo` or starts with `%`) the rule stays
+   `value_window < floor`, as today.
+3. **On any other scale** (an absolute one: `minutes`, `ECI`) the rule is `leader − value_window ≥ floor`, where
+   the leader is the top of the surface's ranked population on the served artifact (`category_ranking`).
+4. **The scale is read from `CategorySpec.metric`**, the field that already tells the scales apart for the
+   floor's own range checks; no list of surfaces is kept. A new metric is absolute until it is a percentage or Elo.
+5. **No recalibration:** `long-tasks` keeps 401.5 minutes. The comparison's logic has a fixture test (D-163
+   clause 2): an absolute case whose leader minus window is below the floor fails, and the long-tasks numbers pass.
+
+**Rationale.** On Elo and percentage scales the window is a few points and the floor is far from zero, so the old
+form is the rule's cheap, conservative proxy. On an absolute scale whose leader sits far above its floor (minutes
+run to the hundreds), the window is a distance from the leader and the floor a level: comparing them directly
+flags a window that reaches no rejected model. The restated form is what clause 1 says.
+
+**Mitigation if violated:** a window that reaches below the floor lets Best Value name a model the floor rejected,
+beside a Budget Pick that refuses it; the artifact check fails on the owner's machine before a publish (D-163).
+
+**Revisit when:** a percentage or Elo surface's window is sized from its leader's distance to the floor, or a
+surface's leader falls toward its floor so that the two forms disagree on a percentage or Elo scale.

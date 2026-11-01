@@ -116,7 +116,8 @@ def test_a_media_name_is_never_read_as_a_text_model(media_db: Path) -> None:
     finally:
         conn.close()
     assert linked == {"kling-o3-pro": "kling-o3-pro", "GPT-Image-2 (Medium)": "gpt-image2"}
-    assert (displays["kling-o3-pro"], displays["gpt-image2"]) == ("kling-o3-pro", "GPT-Image-2")
+    # #544: the video board gives only the id, so the name is the id's own words, capitalised.
+    assert (displays["kling-o3-pro"], displays["gpt-image2"]) == ("Kling O3 Pro", "GPT-Image-2")
 
 
 @pytest.mark.parametrize("surface", sorted(MEDIA))
