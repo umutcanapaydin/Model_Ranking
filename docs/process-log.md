@@ -1718,3 +1718,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `advisor.db` replaced at the owner's word (a ledgered bypass of D-164's refusal); the fresh data turns three tests red (#544).
 - Lesson: a control that refuses "anything of a kind" meets the variables its own tools set; measure the real session and hook environments before writing the rule, and name each exception with its reason.
 
+
+## 2026-11-01 · integration/fixes-1101 — every open issue in the same PR: #525, #528, #530, #531, #534, #536, #541, #543, #544, #546, #548, #549
+
+- The owner (2026-11-01): fix every open issue, #544 included, in one PR. Three implementers, each in its own worktree from `f8ad11b`, each branch stacked linearly; the owner's guard commit (`5f514da`, D-236) was pushed first, then the stacks were merged with `--no-ff`.
+- #544 hid a CAT-10 failure behind its TypeError: long-tasks' window (401.5) is above its floor (223.7), on the hosted artifact as well. The owner's ruling D-238: on an absolute scale CAT-10 reads leader − window ≥ floor; no recalibration.
+- #541 (D-237) closed the class instead of adding spellings: any tree file a dispatched deploy workflow names, under any prefix, is on the surface. #549 (D-239, the owner's ruling): a workflow that can start a file without writing its name refuses every deploy; the residue it names is #551.
+- An ADR in the fix commit fails `wave-check`'s order rule, and an ADR-only commit after a red test fails the test leg: the ADR goes first, alone, before the red test, on an artifact the tree at that commit is green on.
+- #550 was the 2026-10-10 artifact, not code: `make ui-test` 25/25 on the fresh one.
+- Lesson: a worktree that serves an older artifact than the main checkout tests a different product; name the artifact's sha in every result read from it.
