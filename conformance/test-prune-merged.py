@@ -78,7 +78,9 @@ def main() -> int:
             if how == "merge":
                 git(hub, *ID, "merge", "-q", "--no-ff", "-m", f"Merge pull request from {name}", f"origin/{name}")
             else:
-                git(hub, "merge", "-q", "--squash", f"origin/{name}")
+                # A squash merge asks for the committer's identity too: CI has none, and scrubbed_env drops
+                # GIT_COMMITTER_* (#258), so it is given here as for every commit (the v7.3.1 upgrade's CI, D-241).
+                git(hub, *ID, "merge", "-q", "--squash", f"origin/{name}")
                 git(hub, *ID, "commit", "-q", "-m", f"{name} (squashed)")
             git(hub, "push", "-q", "origin", "main")
             if delete:
