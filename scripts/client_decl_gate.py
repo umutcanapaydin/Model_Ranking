@@ -1021,6 +1021,29 @@ def dump_ast(sdk_name: str, flags: list[str], folder: pathlib.Path = CLIENT) -> 
     return result.stderr, result.returncode
 
 
+def toolchain() -> str:
+    """#536: the `swiftc --version` and each SDK's version and build the gate compiles with, for its PASS and FAIL
+    lines, so a binding that moves names the toolchain that moved it (#535). Evidence only: what cannot be read
+    says `unread`, and no verdict depends on it."""
+    xcrun = shutil.which("xcrun")
+
+    def ask(*argv: str) -> str | None:
+        if xcrun is None:
+            return None
+        try:
+            # S603: the executable is resolved from PATH above and every argument is a literal.
+            out = subprocess.run([xcrun, *argv], capture_output=True, text=True, check=True, timeout=60)  # noqa: S603
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return (out.stdout.strip().splitlines() or [None])[0]
+
+    parts = [ask("swiftc", "--version") or "swiftc unread"]
+    for sdk_name in dict.fromkeys(sdk for _, sdk, _ in CONFIGURATIONS):
+        version, build = ask("--sdk", sdk_name, "--show-sdk-version"), ask("--sdk", sdk_name, "--show-sdk-build-version")
+        parts.append(f"{sdk_name} {version or 'unread'} ({build or 'unread'})")
+    return "[toolchain: " + "; ".join(parts) + "]"
+
+
 def references(ast: str) -> dict[str, set[str]]:
     """`{file name: {"Module.symbol", ...}}` for every declaration the compiler resolved."""
     marks = [(m.start(), pathlib.Path(m.group(1)).name) for m in SOURCE.finditer(ast)]
@@ -3607,10 +3630,11 @@ def _no_toolchain() -> int:
 
 def main() -> int:
     expected = {path.name for path in CLIENT.rglob("*.swift")}
+    tools = toolchain()
     broken = self_test()
     if broken:
         for line in broken:
-            print(f"client-decls FAIL (self-test, scripts/client_decl_fixtures): {line}")
+            print(f"client-decls FAIL (self-test, scripts/client_decl_fixtures): {line} {tools}")
         print("  The gate no longer refuses what it exists to refuse (#51); its PASS below would mean nothing.")
         return 1
     bad: list[str] = []
@@ -3622,14 +3646,14 @@ def main() -> int:
         ast, code = dumped
         if code != 0:
             print(f"client-decls FAIL: the client does not type-check ({label}), so this gate "
-                  "cannot see what it would compile to")
+                  f"cannot see what it would compile to {tools}")
             print(ast[-2000:])
             return 1
         found = references(ast)
         missing = expected - set(found)
         if missing:
             print(f"client-decls FAIL ({label}): {sorted(missing)} produced no tree. A dump that "
-                  "stops early leaves files unchecked while everything else still passes")
+                  f"stops early leaves files unchecked while everything else still passes {tools}")
             return 1
         bad += [f"({label}) {line}" for line in problems(found)]
         bad += [f"({label}) a permission no longer matches anything, so its rule may have gone quiet "
@@ -3638,12 +3662,12 @@ def main() -> int:
             bad += [f"({label}) {line}" for line in release_problems(found)]
         totals.append(f"{label}: {sum(len(v) for v in found.values())}")
     for line in bad:
-        print(f"client-decls FAIL: {line}")
+        print(f"client-decls FAIL: {line} {tools}")
     if bad:
         print("  D-126: what the compiler binds, not what the source spells (W-122).")
         return 1
     print(f"client-decls PASS: {len(expected)} client file(s) in {len(CONFIGURATIONS)} "
-          f"configuration(s) -- {'; '.join(totals)}")
+          f"configuration(s) -- {'; '.join(totals)} {tools}")
     return 0
 
 
