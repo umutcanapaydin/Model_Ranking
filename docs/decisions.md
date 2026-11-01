@@ -6609,3 +6609,36 @@ each is a different class, left open here.
 
 **Revisit when:** a deploy workflow needs one of the refused shapes to work, or a field run starts a tree file in one
 of the ways the mitigation names.
+
+## D-240 — A source that sent nothing: the last good data serves, a week's silence reaches the owner
+
+**Status:** proposed
+**Owner ruling:** 2026-11-01, in chat, on the stack's security review M4 (#544): *"when data does not come, we said
+it comes the next day; if it still does not, let it be tried for a week; if it still has not come after 7 days, let
+me be told somehow so I decide about the source; but let the old data, the last that came -- 30 days, was it? we
+decided that before -- be used"* *(translated)*
+
+**Context.** #544's refinements check (`tests/unit/test_refinements.py`) excuses a refinable surface whose primary
+board is missing when its source is optional (D-121), has no row at all in the artifact, and the real `/v1` route
+answers `no_evidence`. The security review of the stack (`docs/reviews/integration-fixes-1101-rest-security.md`,
+M4) found no ADR for the exemption: D-238 covers CAT-10 alone. On 2026-10-30 Hugging Face's rows API answered
+`arena_document` with a crashed job. D-156 already carries a source's last good data for 30 days from when it last
+arrived.
+
+**Decision.**
+1. **The last good data serves first** (D-156, unchanged): a source that sends nothing in a cycle keeps serving its
+   last good rows for 30 days from when it last arrived, and each nightly cycle tries it again.
+2. **The check's exemption stands, as narrow as written:** a missing primary board passes only when its source is
+   optional, the artifact holds no row of it at all (nothing was left to carry: it never arrived, or arrived more than
+   30 days ago), and `/v1` discloses the gap as `no_evidence`. Any other missing primary fails.
+3. **Seven nights without new data reach the owner:** a source whose last arrival is 7 or more days old is named
+   to the owner, so the owner decides about the source. How it is told is #552's to build; until then, the owner's
+   own `make test` run on a fresh artifact is where it shows.
+
+**Rationale.** Golden Rules 1 and 3: an outage upstream must not take a list down overnight, nor serve a list without
+saying what is missing; the owner, not the code, decides whether a source that stays silent is dropped.
+
+**Mitigation if violated:** a source silent for weeks keeps serving rows up to 30 days old with no one told; the
+nightly's own summary and the artifact check are where it shows today.
+
+**Revisit when:** #552 ships, or a required source (D-121) goes silent.
