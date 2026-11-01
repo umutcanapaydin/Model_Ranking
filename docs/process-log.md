@@ -1727,3 +1727,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - An ADR in the fix commit fails `wave-check`'s order rule, and an ADR-only commit after a red test fails the test leg: the ADR goes first, alone, before the red test, on an artifact the tree at that commit is green on.
 - #550 was the 2026-10-10 artifact, not code: `make ui-test` 25/25 on the fresh one.
 - Lesson: a worktree that serves an older artifact than the main checkout tests a different product; name the artifact's sha in every result read from it.
+
+## 2026-11-01 · review/release-delta-1101 — the release delta reviews after #547
+
+- #547 merged at `eaee56b` before its release delta ran; both verdicts were stale at `6e6f5be`, and tonight's nightly deploys main through the deploy gate. The Tester at `eaee56b`, then the Security-Reviewer at the Tester's head.
+- Tester: MINOR at `918c227` (its seven test files). Every criterion of the 17 issues and of D-234 to D-240 has a citing test, red before its fix; `make check` green; `pytest -m artifact` 50/50 on the fresh artifact; `make ui-test` 24/24 and 2/2 after `simctl shutdown all`. 114 faults injected, 29 stayed green: 21 now have tests, 8 are equivalent. M1 is #557 (the `xdist_group` mark does nothing without `--dist loadgroup`); M2 joins #553.
+- Security-Reviewer: MINOR at `918c227`; nothing open blocks tonight. M13 joins #554 (a pushed tag `origin/main` can make the nightly re-ship an older reviewed commit); R12: #526 refuses an unexpected `GIT_*` on the runner, which fails the night closed and names the variable.
+- Lesson: a merge before the release delta leaves the night's deploy refused until the verdicts land; run the delta at the integration head before handing the PR over, or say the deploy waits for it.
