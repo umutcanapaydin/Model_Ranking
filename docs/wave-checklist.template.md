@@ -2,7 +2,7 @@
 record_type: wave
 id: wave-checklist-template
 status: draft
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-09-23
 ---
 <!-- When you copy this template, KEEP this frontmatter and change `id` to match your
@@ -41,7 +41,7 @@ date: 2026-09-23
 | 9c | **Invariant hardening:** if this wave hardens a shared invariant (auth/tenancy/money), the producer list is enumerated FROM CODE (create/rotate/import/…) with a citing test per producer; missing tests recorded as tracked gaps; auth-class producers named to the milestone Security-Reviewer | producer list + test refs | |
 | 9b | **Scope & draft PR:** scope row appended — planned vs delivered vs deferred vs the approved plan (append-only); the wave's work is committed on `wave/m{N}-w{W}`; its draft PR opens at `/close-wave` step 8, after this checklist | plan ref + branch | |
 | 9a | **Economy:** wave diff within ~≤400 changed lines OR variance noted (WARN, not block); projected token spend (owner-supplied, or `n/a`) within the milestone budget line, else pause + variance note | diffstat + cost-log ref (Quality Gate off: the run line's figure, or `n/a`) | |
-| 9 | **Skipped/waived/BYPASSED ledger + run summary:** first the RUN LINE — `gates run: <list> · gates SKIPPED: <list> · tokens/cost: <the owner's figure, or n/a> · outcome: <shipped or abandoned>` (a wave that burned budget and produced nothing is invisible in git otherwise). Then list every check that did NOT run this wave — legitimate skips (N/A, no environment) AND pressure bypasses — one-line reason + rough cost (minutes) each, and append each as a row in `docs/control-events.csv` (kind `skip` or `bypass`). A SKIPPED or WAIVED row says PRESSURE or NO-ENVIRONMENT. The SAME control recorded three times turns `make wave-check` red: the CONTROL goes under review, not the people. Bypasses are also EXPERIENCE findings (`control-bypass`) |  |  |
+| 9 | **Skipped/waived/BYPASSED ledger + run summary:** first the RUN LINE — `gates run: <list> · gates SKIPPED: <list> · tokens/cost: <the Cost: line's total, or n/a> · outcome: <shipped or abandoned>` (a wave that burned budget and produced nothing is invisible in git otherwise). Then list every check that did NOT run this wave — legitimate skips (N/A, no environment) AND pressure bypasses — one-line reason + rough cost (minutes) each, and append each as a row in `docs/control-events.csv` (kind `skip` or `bypass`). A SKIPPED or WAIVED row says PRESSURE or NO-ENVIRONMENT. The SAME control recorded three times turns `make wave-check` red: the CONTROL goes under review, not the people. Bypasses are also EXPERIENCE findings (`control-bypass`) |  |  |
 
 Filled by: `<agent>` · Date: `<YYYY-MM-DD>` · Wave commit range: `<start>..<end>`
 
@@ -73,6 +73,7 @@ Stopped at three attempts: <#issue per problem this wave gave up on after three 
 Review need:    <the last line of `make review-need RANGE=<start>..<end>` — `make wave-check` recomputes it from the range>
 Last wave of the plan: <yes on the plan's final wave, which carries the milestone Tester; otherwise no>
 Hand-kept lists: <NAME the hand-kept enumeration this wave adds — the list that sits beside the thing it guards and must be updated by hand when that thing changes — or NONE>
+Cost:           <the Cost: line `make cost FROM=<start>` prints (tokens, advisory), or n/a>
 ```
 
 **On `Hand-kept lists`.** Name the artefact or write NONE — deliberately **not** a yes/no box: a

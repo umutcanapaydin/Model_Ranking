@@ -14,9 +14,15 @@ So: the directory is the work tree that holds the edited file (when it carries t
 the records leg (`--only-records`). Anything this cannot read prints `|`: the hook then runs the full
 `check-fast` where it always did. The pre-push gate and CI run every leg regardless.
 
+v7.2.1 (field, Project-K): a file outside the project and outside every work tree that carries the kit --
+a scratch script, another repository -- changes nothing a gate here grades, yet ran the whole
+`check-fast` (on an iOS project it timed out after ten minutes and blocked the edit). It prints `SKIP|`,
+and the hook says so and passes. A path inside the project keeps the full run, whatever git answers.
+
 Reads the hook's JSON payload on stdin. Exit 0 always: the hook decides, this only advises.
 """
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -40,6 +46,19 @@ def main() -> int:
     top = pathlib.Path(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
     directory = str(top) if top and (top / "Makefile").is_file() and (top / "scripts" / "check_fast.py").is_file() \
         else ""
+    if not directory:
+        project = os.environ.get("CLAUDE_PROJECT_DIR", "")
+        try:
+            # Inside by either reading: a file reached through a link inside the project (`vendor ->
+            # ../shared`) resolves outside it, and is still the project's (v7.2.1, review).
+            root = pathlib.Path(project)
+            inside = bool(project) and (path.absolute().is_relative_to(root.absolute())
+                                        or path.resolve().is_relative_to(root.resolve()))
+        except (OSError, ValueError):
+            inside = True
+        if project and not inside:
+            print("SKIP|")
+            return 0
     try:
         rel = path.resolve().relative_to(top.resolve()).parts if top else path.parts
     except ValueError:

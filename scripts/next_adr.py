@@ -8,6 +8,8 @@ tokens per ADR spent on one number. This prints it.
 Project ADRs start at D-100 (D-001..D-099 is the universal band, never the base): the next one is the
 highest `## D-<n>` heading at or above 100, plus one -- or D-100 while D-100 is still the shipped
 `<First project decision>` placeholder, which the first decision fills. Process ADRs are `P-<n>`.
+D-999 is not in the project band: DevFlow v6.0 shipped one under that number ("the agent opens drafts;
+a human merges"), and a project that kept it got `D-1000` as its next id (Project-J, v7.2.1).
 
 Exit: 0 printed - 2 no `docs/decisions.md` (nothing to number against; fail closed).
 """
@@ -27,7 +29,7 @@ def next_ids(text: str) -> tuple[str, str]:
         n = int(num)
         if kind == "P":
             process.append(n)
-        elif n >= 100:
+        elif 100 <= n < 999:
             project.append(n)
             placeholder |= n == 100 and "<First project decision>" in rest
     if not project or (placeholder and project == [100]):

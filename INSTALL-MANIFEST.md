@@ -53,10 +53,13 @@ permission-matrix.md
 .agents/rules/practices.md
 .agents/rules/playbook-seeds.md
 .agents/rules/two-tools.md
+.agents/rules/ci-traps.md
 .agents/rules/environment.md.template
 .claude/settings.json
 .claude/hooks/bash_guard.py     (the Bash guard; settings.json pins its sha256)
 .claude/hooks/guard_pin.py      (rewrites that pin: `make guard-pin`)
+.claude/statusline.py           (the statusLine settings.json runs: DevFlow's segment after the owner's own)
+.codex/hooks.json               (Codex runs the same pinned guard; .agents/rules/two-tools.md)
 .githooks/pre-push
 .claude/skills/
 .claude/agents/
@@ -75,14 +78,22 @@ scripts/brief_fields.py
 scripts/review_need.py
 scripts/deploy_gate.py
 scripts/session_check.py
+scripts/git_hooks.py
+scripts/leak_scan.py
 scripts/bootstrap-check.sh
 scripts/check_records.py
 scripts/run_check.py
 scripts/gate_stamp.py
 scripts/post_edit_scope.py
 scripts/net_cache.py
+scripts/deps_accept.py
 scripts/ci_diff.py
 scripts/next_adr.py
+scripts/owner_bundle.py
+scripts/doctor.py
+scripts/cost_ledger.py
+scripts/pr_check.py
+scripts/prune_merged.py
 scripts/standup.sh
 scripts/README.md
 conformance/
@@ -94,6 +105,7 @@ conformance/
 .gitattributes
 .language-allow
 .placeholder-allow
+.deps-accept
 .skill-refs-allow
 .path-refs-allow
 ```
@@ -154,6 +166,9 @@ Every other PROJECT directory must hold at least as many files as it shipped wit
 ```
 conformance/falsify.py
 conformance/falsifications.py
+conformance/test-falsify-scratch.py
+conformance/test-falsify-budget.py
+conformance/test-fixture-copy.py
 conformance/test-no-customer-names.py
 conformance/test-delivered-tree.py
 conformance/test-no-gp-provenance.py

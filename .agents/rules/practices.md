@@ -1,40 +1,35 @@
 # Engineering practices
 
 **How this file was chosen.** A rule stands here only if the failure it prevents was observed in two or
-more projects, or a gate in this package refuses the change. The register of every rule considered —
-its count, the projects, the citing line — is kept by the DevFlow maintainers. The few rules kept
-below that bar, because a gate reads them, say so on their own line: deleting the prose while the gate
-still runs leaves an error message nobody can explain.
-
-**This file holds rules that live nowhere else.** Where another file is the authority — the security
-baseline, the permission matrix, the issue rules — this one points and stops. Of the rules dropped, most
-were already written down somewhere else in this same package. That is not a coincidence, it is the
-top-scoring finding in the corpus: *one fact written in two places drifts,* observed in five of nine
-projects.
+more projects (the count in brackets), or a gate in this package refuses the change; a rule kept below
+that bar says which gate reads it (deleting the prose while the gate runs leaves an error nobody can
+explain). The DevFlow maintainers keep the register of every rule considered.
+**This file holds rules that live nowhere else:** where another file is the authority — the security
+baseline, the permission matrix, the issue rules — it points and stops, because one fact written in two
+places drifts (five of nine projects).
 
 ---
 
 ## Tests are the truth signal
 
-- **Every acceptance criterion has a citing test; red-test the reported symptom first (gate).** No "done" without a test that cites the criterion; when fixing a reported bug, reproduce
-  it with a FAILING test before diagnosing, then make it green (red→green). Enforced at the Quality
-  Gate and the milestone Tester. *(4 projects)*
+- **Every acceptance criterion has a citing test; red-test the reported symptom first (gate).** No
+  "done" without a test that cites the criterion; a reported bug is reproduced with a FAILING test
+  before diagnosing, then made green (red→green). Enforced at the Quality Gate and the milestone
+  Tester. *(4 projects)*
 - **Run the tests; don't trust markdown that says "tests pass"** (seed E.1). *(3)*
 - **Tests cite REQ-IDs and D-IDs** in comments — e.g. `# covers REQ-CC-001, D-026` (seed E.2). PASS
   verdicts WITHOUT `file:line` evidence are BLOCKING per `permission-matrix.md` §11. *(3)*
-- **One canonical mock per integration + a contract test.** Build one canonical
-  mock/fake-client per external integration before the integration code; consolidate parallel mocks
-  into it; keep a contract test that runs against the real API so the mock cannot drift. Tests drive
-  the canonical fake, never bespoke per-test stubs. *(3)*
-- **A fixture supplies a NON-DEFAULT value drawn from the measured record.**
-  When a mapping short-circuits one input to a no-op and every developer machine, every CI run and
-  every fixture supplies exactly that input, the real branch has never run — and coverage reports it
-  covered. In one project an entitlement mapping reached customers the day a console began sending a
-  real group name: **a P0 capability certified DONE by a test that fed the right value into the
-  wrong parameter, having never functioned.** So at least one fixture configures the dependency in a
-  non-default state and drives one real request end to end, and **every rule a test double enforces
-  cites the dependency's own source or a contract test** — a rule in a double with no citation is a
-  hypothesis wearing a test's clothes. *(3)*
+- **One canonical mock per integration + a contract test.** Build one canonical mock/fake-client per
+  external integration before the integration code; consolidate parallel mocks into it; a contract
+  test against the real API keeps it from drifting. Tests drive the canonical fake, never bespoke
+  per-test stubs. *(3)*
+- **A fixture supplies a NON-DEFAULT value drawn from the measured record.** When a mapping
+  short-circuits one input to a no-op and every machine, CI run and fixture supplies exactly that
+  input, the real branch has never run — and coverage reports it covered. In one project **a P0
+  capability was certified DONE by a test that fed the right value into the wrong parameter, having
+  never functioned.** So at least one fixture configures the dependency in a non-default state and
+  drives one real request end to end, and **every rule a test double enforces cites the dependency's
+  own source or a contract test** — a rule in a double with no citation is a hypothesis. *(3)*
 - **Coverage gaps are design tells** — not metric targets (seed J.3). *(3)*
 - **Acceptance-criterion tests ship in the same wave as the feature** (seed E.5) — never defer the
   test that proves a *hard* criterion (concurrency, survives-restart) to closure. On subagent death,
@@ -43,48 +38,45 @@ projects.
   inject the version-only-missing names (`datetime.UTC`, `StrEnum`) via `sitecustomize.py` and run
   the WHOLE suite; keep the one behaviour-version-dependent test `skip`-marked for the real target.
   *(2)*
-- **Hermetic gate:** trust a verdict only from a reproducible environment — clean venv
-  built solely from the manifest, dev tools pinned (not `>=`-floored), stale bytecode cleared, ONE
-  designated authoritative gate host. A permissive dev sandbox passes code the real gate fails. *(2)*
+- **Hermetic gate:** trust a verdict only from a reproducible environment — clean venv built solely
+  from the manifest, dev tools pinned (not `>=`-floored), stale bytecode cleared, ONE designated
+  authoritative gate host. A permissive dev sandbox passes code the real gate fails. *(2)*
 
 ## When a fix will not come
 
 - **Three attempts, then stop.** An attempt is one change you expected to turn a failing check
-  green, followed by running that check. When the third attempt at the same failure has not turned
-  it green, do not make a fourth. Leave the tree as it was before the first attempt (revert in
-  place or with `git revert`; never `git checkout` over uncommitted work), `/file-issue` it as a
-  `bug` whose body lists the three attempts — what each changed and what the check said — and move
-  on to the next task. In a wave the slice leaves the wave (row 9b records it as deferred) and the
-  footprint's `Stopped at three attempts:` names the issue; a reviewer's third BLOCKING verdict on
-  the same finding counts the same way (`/close-wave` step 3). On a `/fix-issue` branch the three
-  attempts go on the issue as a comment, and the issue goes back to `/triage-issue`. A fourth try
-  at the same idea is how an afternoon disappears into one test. A reviewer's third BLOCKING on
-  one finding ends the review loop the same way — `/close-wave` step 3 and `/fix-issue` step 6 say
-  what ending means. *(owner ruling — below the bar; `make wave-check` requires the footprint line)*
+  green, followed by running that check. After the third at the same failure, make no fourth: leave
+  the tree as it was before the first (revert in place or with `git revert`; never `git checkout`
+  over uncommitted work), `/file-issue` it as a `bug` whose body lists the three attempts — what
+  each changed and what the check said — and move on. In a wave the slice leaves the wave (row 9b
+  records it as deferred) and the footprint's `Stopped at three attempts:` names the issue. On a
+  `/fix-issue` branch the three attempts go on the issue as a comment, and the issue goes back to
+  `/triage-issue`. A reviewer's third BLOCKING on one finding ends the review loop the same way —
+  `/close-wave` step 3 and `/fix-issue` step 6 say what ending means. *(owner ruling — below the
+  bar; `make wave-check` requires the footprint line)*
 
 ## Security
 
-`docs/security-baseline.md` is the authority and carries the origins, the review checks and the
-traceability table. Six rules are repeated here because you meet them before you meet the document —
-three of them as `make bootstrap-check` legs (C7, C9, C10):
+`docs/security-baseline.md` is the authority (origins, review checks, traceability). Six rules are
+repeated here because you meet them first — three as `make bootstrap-check` legs (C7, C9, C10):
 
-- **No plaintext creds / no default-admin password.** Hash credentials from day one;
-  secrets from env or a secrets manager, never inline literals. `make bootstrap-check` **C7**. *(2)*
+- **No plaintext creds / no default-admin password.** Hash credentials from day one; secrets from
+  env or a secrets manager, never inline literals. `make bootstrap-check` **C7**. *(2)*
 - **CORS allowlist, never allow-all + credentials.** `make bootstrap-check` **C9**. *(2)*
-- **Validate security-critical config at startup; fail the prod process.** Never silently
-  default to an insecure value — auth-off, empty key, `0`. *(2)*
-- **No reseed / reset / drop defaulting ON.** `make bootstrap-check` **C10**. *(the env
-  form is the one that ships: `os.getenv("SEED_ON_STARTUP", "true")` looks configurable, and the
-  default is what runs when nobody sets the variable)*
-- **Server-side authz on every mutating route.** Client-side checks are UI sugar; assume
-  the client is hostile. *(2)*
+- **Validate security-critical config at startup; fail the prod process.** Never silently default
+  to an insecure value — auth-off, empty key, `0`. *(2)*
+- **No reseed / reset / drop defaulting ON.** `make bootstrap-check` **C10**. *(the env form is the
+  one that ships: `os.getenv("SEED_ON_STARTUP", "true")` looks configurable, and the default is what
+  runs when nobody sets the variable)*
+- **Server-side authz on every mutating route.** Client-side checks are UI sugar; assume the client
+  is hostile. *(2)*
 - **Generic client errors; log detail server-side.** No stack, SQL or internal-path leaks; no
   user-enumeration oracles. *(2)*
 
 ## What is running is not what you built
 
-The largest cluster in the corpus, and every rule in it is the same sentence: *named, configured or
-present is not working.* Six occurrences in one project alone.
+The largest cluster in the corpus, one sentence each time: *named, configured or present is not
+working.*
 
 - **"Code green + image built" is NOT "the new code is live."** `curl <target>/health | jq .build`
   MUST equal the tag or SHA you intended to ship (L.7). *(3)*
@@ -94,24 +86,22 @@ present is not working.* Six occurrences in one project alone.
 - **A pod restart != a rebuild != a re-pull.** Restarting re-runs the image the deployment already
   references; if `/health` shows the old build, fix the build pipeline — do not just restart. *(3)*
 - **Configured != working** (L.8) — invoke every external dependency once for real
-  (`make smoke-deps`) and inspect the RESULT before declaring ready. Catalog presence and valid
+  (`make smoke-deps`) and inspect the RESULT before declaring ready: catalog presence and valid
   credentials can sit on a backend that answers "not deployed." *(4)*
 - **Config reaches the *process*, not just the values file** (L.9) — read each critical value back
   from inside the running process (safe echo: SET/EMPTY plus length, never the value). Helm,
   operators and secret mounts drop keys silently. *(3)*
-- **Runtime config, never build-baked.** Config that differs per environment is read at
-  runtime. A value baked into the image ignores the runtime environment, and nothing says so. *(2)*
-- **Boot-prerequisite ownership:** in the image, or a named-owned provisioning row — no
-  third category. A partner-built image that neither ships nor runs your migrations is the third
-  category, and it is where the data goes. *(3)*
+- **Runtime config, never build-baked.** Config that differs per environment is read at runtime; a
+  value baked into the image ignores the runtime environment, silently. *(2)*
+- **Boot-prerequisite ownership:** in the image, or a named-owned provisioning row — no third
+  category (a partner-built image that neither ships nor runs your migrations is it, and it is where
+  the data goes). *(3)*
 - **A human path, walked by a human who did not build it** — using only shipped docs and artifacts,
-  they complete the surface's primary journey. No gate models this, which is why it is written
-  down. *(3)*
+  they complete the surface's primary journey. No gate models this. *(3)*
 - **Releases are immutable and uniquely identified**; the run stage only launches a *selected*
   release (12-factor build/release/run). *(2)*
-- **Every dependency is in the manifest in the SAME edit** — or CI breaks where local
-  worked. *Below the bar (1 project); kept because `make deps` and the clean-venv gate enforce it,
-  and in that project the host gate was the only thing that caught the missing entry.*
+- **Every dependency is in the manifest in the SAME edit** — or CI breaks where local worked.
+  *Below the bar (1 project); kept because `make deps` and the clean-venv gate enforce it.*
 
 ## Working with subagents
 
@@ -126,25 +116,24 @@ present is not working.* Six occurrences in one project alone.
 - **Cross-subagent contracts are grep-verified in the plan** (K.8) — paste `grep -n <symbol>` output
   into the plan. *(2)*
 - **Subagent prompts specify the bar and leave discretion** inside a ≤5-minute scope (K.6). *(2)*
-- **Wave close is checklist-gated:** fill and commit the wave-close checklist; every ✅
-  cites a fresh wave-scoped referent; every skip or bypass is a row in `docs/control-events.csv`.
-  `make wave-check FILE=...` verifies it mechanically. In one project all five wave checklists were
-  written in a single commit after the fact. *(3)*
+- **Wave close is checklist-gated:** fill and commit the wave-close checklist; every ✅ cites a fresh
+  wave-scoped referent; every skip or bypass is a row in `docs/control-events.csv`.
+  `make wave-check FILE=...` verifies it mechanically (one project wrote all five checklists in one
+  commit after the fact). *(3)*
 - **The security pass checks for weakened validation, broadened permissions and disabled checks**,
   and flags sensitive files (auth, crypto, secrets, CI, dependency manifests) touched outside the
-  declared slice. Three rules asserted as enforced in one project were not. *(3)*
+  declared slice. *(3)*
 - **A plan names ONE alternative and its trade-offs** on MED and HIGH tiers — "which would a senior
   object to, and why". LOW-tier plans are exempt. *(2)*
 - **Telemetry per task type at every closure the Quality Gate runs** — post-closure fix rate, churn,
-  reverts, findings with security double-weighted. It exists to give the owner an honest quality signal, not a
+  reverts, findings with security double-weighted: an honest quality signal for the owner, not a
   score. *(3)*
 
 ## Git
 
 - **Branch, draft PR, no AI attribution** — the rule is `AGENTS.md` §3, "Git authority"; the Bash
   guard enforces its destructive half (`permission-matrix.md` §5), and `conformance/test-git-authority.py`
-  and `test-commit-identity.py` grade the rest. What it protects: no commit may be mistaken for the
-  owner's.
+  and `test-commit-identity.py` grade the rest, so no commit may be mistaken for the owner's.
 - **In-place revert.** `git checkout <file>` and `git restore` revert to the last COMMIT — on
   uncommitted work they destroy everything since (the guard blocks both). Revert an experimental
   edit in place and verify it byte-identical.
@@ -153,12 +142,11 @@ present is not working.* Six occurrences in one project alone.
 
 - **Open the capture file BEFORE the work starts**, not after (G.1). *(3)*
 - **process-log per pull request** — three to ten lines on the PR's branch, ending with a `Lesson:`
-  tag, headed by date and branch (`/pre-merge`). In one project two days of demo-building produced
-  zero entries; in another, numbered entries from parallel branches collided at every merge. *(3)*
+  tag, headed by date and branch, never a number (`/pre-merge`). *(3)*
 - **Capture every assumption as an ADR** (seed B.1) — use the `log-decision` skill. *(2)*
 - **Supersede, never edit** (seed B.2) — the old ADR keeps its body and is marked
-  `superseded by D-NNN`. *Below the bar (0 projects); kept because it is the invariant every
-  governance record in this package depends on, and `make check-records` reads it.*
+  `superseded by D-NNN`. *Below the bar (0 projects); kept because every governance record depends
+  on it, and `make check-records` reads it.*
 - **Session state lives in `docs/process-log.md`**, 3-10 lines a session — no separate handover
   files, no per-milestone retrospective (owner ruling). *(2)*
 - **When a rule changes, update the canonical file AND every cached pointer to it.** *(2)*
@@ -166,28 +154,23 @@ present is not working.* Six occurrences in one project alone.
 ## Writing and pruning
 
 - **README and PR/issue bodies are LIVE DOCUMENTS, not history logs.** They describe what the thing
-  *is*, not how it got there. When the work evolves, rewrite the affected section **in place** —
-  never append a changelog, a migration note, a progress update or session narration. A body that
-  has become a log is a body nobody reads to the end, and the current state is the part that
-  mattered. *(2)*
+  *is*, not how it got there: when the work evolves, rewrite the affected section **in place** —
+  never append a changelog, a migration note, a progress update or session narration. *(2)*
 - **Log at boundaries.** API entry, database write, external call, queue publish and consume.
-  Structured, never a bare print. Internal pure functions need none — that is noise. *(2)*
+  Structured, never a bare print. Internal pure functions need none. *(2)*
 - **Prune stale docs that contradict current decisions**, continuously. *(4)*
 - **At the end of the work, put the harness on a diet** (the optional retrospective, `/cycle-close`):
   retire any skill, hook or MCP server that never fired. *(4)*
 
 ## Stage 0
 
-- **`make bootstrap-check` before Stage 0 closes** (C.11) — it fails on stray
-  `<PLACEHOLDER>`s, a non-L.7 `/health`, still-template prd/decisions/architecture, missing
-  universal ADRs, an unreviewed copyleft fork, and the three security legs above. *Below the bar (1
-  project); kept because it IS the gate. In that project its first execution caught two placeholders
-  that had survived every human read.*
-- **License and commercial-use review of any wrapped or forked OSS engine** (F.10) —
-  AGPL/GPL/SSPL on a network service means "wrap, don't fork" plus legal sign-off; an unreviewed
-  copyleft fork is BLOCKING. *Below the bar (1 project); kept because `bootstrap-check` C6 enforces
-  it, and in that project the review forced an engine swap after the licence turned out to be
-  AGPL-3.0.*
+- **`make bootstrap-check` before Stage 0 closes** (C.11) — it fails on stray `<PLACEHOLDER>`s, a
+  non-L.7 `/health`, still-template prd/decisions/architecture, missing universal ADRs, an unreviewed
+  copyleft fork, and the three security legs above. *Below the bar (1 project); kept because it IS
+  the gate.*
+- **License and commercial-use review of any wrapped or forked OSS engine** (F.10) — AGPL/GPL/SSPL
+  on a network service means "wrap, don't fork" plus legal sign-off; an unreviewed copyleft fork is
+  BLOCKING. *Below the bar (1 project); kept because `bootstrap-check` C6 enforces it.*
 
 ## Where the rest lives
 

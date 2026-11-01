@@ -1,14 +1,12 @@
 # Issues, labels and the verification pipeline
 
-The skills **implement** this file. This file is the reason they do what they do — change it here
-and the skills follow, never the other way round.
+The skills **implement** this file: change it here and the skills follow, never the other way round.
 
 ## The one load-bearing rule
 
-**The agent opens drafts; a human marks them ready and merges** (`AGENTS.md` §3, "Git authority",
-is the rule; the integration lane does not bend it). Everything below is downstream of it: the skills stop where they stop because of it, the label
-pipeline exists because a merge is not a verification, and the gates exist because the human
-doing the merging cannot read every line.
+**The agent opens drafts; a human marks them ready and merges** (`AGENTS.md` §3, "Git authority";
+the integration lane does not bend it). Everything below is downstream of it: the skills stop where
+it stops them, and the gates exist because the human merging cannot read every line.
 
 ## Two working modes — the brief's `Working mode:`
 
@@ -55,11 +53,9 @@ A bug the wave fixed before it merged gets no issue: an issue for code that neve
 
 ## The label vocabulary — and it is closed
 
-Five groups. That is the whole set; `make labels` creates the missing ones once per repository.
-**Use one that already exists.** If a new one is genuinely
-needed, ask before a skill relies on it: *a skill keying on a label nobody created fails
-silently* — which is exactly how one repo's gate labels sat documented-but-absent while every
-issue went unpicked by CI.
+Five groups, the whole set; `make labels` creates the missing ones once per repository. **Use one
+that already exists.** If a new one is genuinely needed, ask before a skill relies on it: *a skill
+keying on a label nobody created fails silently.*
 
 | Group | Labels |
 |---|---|
@@ -69,24 +65,22 @@ issue went unpicked by CI.
 | **Verification** | `dev:done` · `qa:ready` · `qa:passed` · `qa:failed` · `qa:blocked` |
 | **Scope** | `out-of-scope` |
 
+**Gate:** the CI issue agent's two traps are in `.agents/rules/ci-traps.md`.
+
 **Severity:** exactly one on a `bug`, chosen by **measured impact**, never the reporter's urgency.
-It stays for the issue's whole life, including after it closes — that is what makes the archive
-readable. Non-bug issues carry none.
+It stays for the issue's whole life, after it closes too. Non-bug issues carry none.
 
 **`out-of-scope`:** deliberately outside this release, by the owner's decision. The issue **stays
-open** and keeps its type and severity. `wontfix` means *never*; closing would drop it from every
-open list. It is a deferral, not a rejection — removing the label puts it back in the queue.
-Applied only after triage, only on the owner's word, carries no QA meaning, and never sits beside
-a `dev:`/`qa:` label.
+open** and keeps its type and severity: a deferral, not a rejection (`wontfix` means *never*);
+removing the label puts it back in the queue. Applied only after triage, only on the owner's word,
+carries no QA meaning, and never sits beside a `dev:`/`qa:` label.
 
-**Area labels are deliberately absent.** The question triage actually has to answer — *which
-component?* — belongs in the diagnosis comment, not in a label nobody maintains.
+**Area labels are deliberately absent:** *which component?* belongs in the diagnosis comment.
 
 ## The verification pipeline — only when `QA verification: on`
 
 **Off, the default: a bug closes when its fix merges**, and the test that went red before the fix
-and green after is its verification — the PR says `Closes #<n>`. In both field projects no one but
-the agent ever set a `qa:` label, so a separate verification step was a step nobody ran.
+and green after is its verification — the PR says `Closes #<n>`.
 
 **On** — a person verifies on a deployed build: `.agents/rules/issues-qa.md`, read only then.
 

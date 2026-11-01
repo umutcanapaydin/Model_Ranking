@@ -2,7 +2,7 @@
 record_type: warnings
 id: warnings-ledger
 status: draft
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-09-23
 ---
 # Warning ledger (V4C-77)

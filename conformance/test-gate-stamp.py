@@ -100,6 +100,8 @@ def main() -> int:
         case("an edit after the stamp: no PASS", stamp("check"), 1, "uncommitted")
         case("an edit after the stamp: pre-push runs the gate", prepush(head), 1, "fake-make: gate")
         case("write on a dirty tree: no stamp", stamp("write", "Makefile"), 0, "uncommitted changes")
+        case("...and the refusal names the file that keeps the tree dirty (v7.2.1)", stamp("write", "Makefile"), 0,
+             "(a.txt)")
         count += 1
         if list(pathlib.Path(git("rev-parse", "--absolute-git-dir")).glob("devflow-gate-ok-*")):
             bad.append("  write on a dirty tree left a stamp behind")
@@ -124,6 +126,15 @@ def main() -> int:
                            capture_output=True, encoding="utf-8", env={**env, "MAKELEVEL": "1"})
         case("make run in a package below the top, reading its own Makefile: stamped", (r.returncode, r.stdout),
              0, "gate stamp: ")
+        # A writing agent's own worktree (AGENTS.md §4, K.4) sits under `.claude/worktrees/`. Unless the
+        # shipped .gitignore covers it, git lists it untracked and no stamp is written beside it (v7.3.1).
+        shutil.copy(ROOT / ".gitignore", repo / ".gitignore")
+        git("add", ".gitignore")
+        git("commit", "-q", "-m", "ignore")
+        git("worktree", "add", "-q", "-b", "agent-x", str(repo / ".claude" / "worktrees" / "agent-x"))
+        stamp("write", "Makefile")
+        case("an agent's worktree under .claude/worktrees/, with the shipped .gitignore: PASS", stamp("check"),
+             0, "gate stamp PASS")
 
     if bad:
         print("test-gate-stamp FAIL (scripts/gate_stamp.py and .githooks/pre-push in a throwaway repository):")

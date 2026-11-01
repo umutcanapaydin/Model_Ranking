@@ -13,7 +13,7 @@ reads everything below except what names waves, milestone plans, closure reports
 ## 0 · Read before the first command — what bites in every upgrade
 
 What the field hit, in order of when it bites (two projects upgraded to `v7.1` on 2026-10-14/15,
-one from `v7.0`, one from `v6.6`). Each is explained in its section below; this box exists so the
+one from `v7.0`, one from `v6.6`; three to `v7.2` on 2026-10-17, from `v7.1.2`, `v7.1` and `v7.0`). Each is explained in its section below; this box exists so the
 agent doing the upgrade meets them first.
 
 1. **Start the upgrade session in the repository root, and keep its work out of the temp
@@ -31,7 +31,7 @@ agent doing the upgrade meets them first.
    the code it governs) have nothing to read on a staged tree, so a tree green before the commit
    can still fail `make gate` at the push. Commit the upgrade ADR and the records' versions
    (`docs/decisions.md`, `docs/watchlist.md`) first, the rest second, and run the gate on the range
-   after committing.
+   after committing. Edit the versions in §4's order.
 4. **A diverged installation is a merge of two designs, not a patch.** Before resolving, list the
    shipped files the project changed (`git diff <your-tag> HEAD --stat -- <shipped paths>`) and ask
    the owner once for every place where the project and the new version solved the same problem
@@ -53,8 +53,10 @@ agent doing the upgrade meets them first.
 7. **The first deploy after the upgrade.** From `v7.2` the deploy gate does not count a file
    byte-identical to the installed DevFlow tag as code — keep the tag fetched (`git fetch devflow
    --tags`) — so an upgrade that only took DevFlow's files leaves the verdicts current; the guard,
-   `.claude/settings.json`, `scripts/deploy_gate.py` and `scripts/brief_fields.py` still count, and
-   so does any shipped file the project changed: plan a security delta over those. Before `v7.2`, the
+   `.claude/settings.json`, `scripts/deploy_gate.py` and `scripts/brief_fields.py` still count (from
+   `v7.3`, with `.codex/hooks.json`, only when not byte for byte the tag's), and so does any shipped
+   file the project changed: plan a security delta over those. From `v7.2.1` the versions come from the brief's committed history, and a file DevFlow deleted, a top-level kit
+   file and a reviewer profile's own `model:` line no longer count either. Before `v7.2`, the
    whole upgrade made the security verdict stale. A heavy project's `docs/reviews/m<N>-tester.md`
    written under `v7.0` has no `**Reviewed head:**`, and a project from `v6.6` or older has no
    milestone Tester verdict at all: `make deploy-check` and the deploy gate refuse every declared
@@ -70,14 +72,42 @@ agent doing the upgrade meets them first.
    file, port the project's rules onto it, keep the shipped guard tests, and ask the owner to re-pin
    it (`make guard-pin`). The shipped tests set `TMPDIR` themselves: a CI runner has none, and a
    project's own guard test that leaned on macOS's `TMPDIR` passed on the laptop and failed in CI.
+   Leave it out of the apply (`--exclude=.claude/hooks/bash_guard.py`) and take it as a file.
+11. **One repository per session.** Upgrading a second repository from the first one's session, its
+   `make session-check` cannot pass and its gate never runs whole: start a session in its root.
+12. **Commit first, then `make gate`.** The gate stamp is named by the commit it passed on: a gate
+   run on an uncommitted tree stamps nothing, and every push of the commit runs the whole gate again
+   (one iOS project graded one tree four times, about 90 minutes). The refusal names the dirty paths.
+13. **Resolve `scripts/deploy_gate.py` and `scripts/brief_fields.py` before any other conflict.**
+   The guard runs them on every Bash call: with conflict markers in either, every call is refused
+   (the guard says which file and line). The Edit tool still works.
+14. **The guard refuses two shapes an upgrade reaches for.** `git checkout <tag> -- <path>` (it
+   overwrites the work tree): take a file from a tag with `git show <tag>:<path> > <path>`. And any
+   command that names the gate stamp's script, a `cat`, a `grep` or a commit message included: write
+   such an ADR with the Edit tool and call it "the gate stamp". `v7.3`'s guard lets a command that only
+   reads or mentions it through; the session that applies `v7.3` still runs the old guard.
+15. **A project that turned the pre-push gate off, or wrote its own post-edit hook,** goes red from
+   `v7.2`: conformance grades the shipped ones. Ask the owner: take the shipped hook, or keep the
+   project's with an ADR and its tests adjusted. Never decide it for the owner.
+16. **A project whose own rules forbid the agent to write `.claude/` or `.githooks/`** needs the
+   owner's half applied before the agent's half can be shown green: in the field eleven tests went
+   red only after the owner's apply. Ask for it first, then run `make check`.
+17. **Commit `.gp/installed`** (INSTALL.md). A project that gitignores it has one per worktree, and an
+   upgrade done in a worktree left the owner's clone reading a version three releases old: commit it,
+   or run `make install` in the clone the owner works in too.
+18. **The guard's pin changes in most releases** (`v7.2.2`, `v7.3`). When the apply writes the new guard,
+   a session holding the old pin refuses every Bash call (`is not the guard the settings pin`): commit
+   the ADR and versions before the apply (item 3), finish the tree with the Edit tool, then ask the owner
+   once to restart Claude Code in the root (item 2) and, on Codex, to trust the changed hook in `/hooks`.
 
 Then `docs/project-brief.md`, `docs/decisions.md` and `docs/watchlist.md` take the new
 `process_version:` (§4), or `make check` refuses the brief (`V1`).
 
 ## 1 · Which version you have
 
-`.gp/installed` says, on its `gp_version:` line. An install older than that file: the
-`process_version:` in `docs/decisions.md`, or the tag you copied from.
+The `process_version:` of `docs/project-brief.md`: it is committed, so every clone reads the same.
+`.gp/installed`'s `gp_version:` line says what was last installed (per worktree where a project ignores it).
+An install older than both: the `process_version:` in `docs/decisions.md`, or the tag you copied from.
 
 ## 2 · Apply the difference, on a branch
 
@@ -109,7 +139,8 @@ git diff FETCH_HEAD~1 FETCH_HEAD | git apply -3 --exclude='.github/workflows/*'
 **Workflow files are a human's part.** An agent never edits `.github/workflows/`, so the commands
 above leave it out. A human applies it the same way, limited to that path:
 `git diff <your-tag> <new-tag> -- .github/workflows | git apply -3`. After the upgrade, `make ci-diff`
-prints whatever still differs from the installed tag, with the same one command.
+prints that change -- DevFlow's own, between the brief's previous and current version -- or says
+the tree already carries it. It never prints the project's own CI as reverts.
 
 ## 3 · Resolve what git shows you
 
@@ -128,7 +159,10 @@ prints whatever still differs from the installed tag, with the same one command.
   (above): exclude them, then keep them as your own files or delete them. That is your decision,
   not the upgrade's.
 - **Seed documents the project has filled** — `docs/decisions.md`, `docs/refusals.md`,
-  `docs/watchlist.md` — are yours: where the new seed differs, keep your content.
+  `docs/watchlist.md`, `docs/architecture.md` — are yours: where the new seed differs, keep your
+  content. A new seed section merged into a filled one (the `v7.2` provisioning table in
+  `docs/architecture.md`) carries placeholders `make bootstrap-check` reads: ask the owner for its
+  rows, or write `n/a` with the reason.
 
 ## 4 · Update the records the upgrade touches
 
@@ -137,14 +171,23 @@ field projects ran `v7.0` with a brief that still said `v6.3` and `v6.6`; from `
 (`check_records.py` rule `V1`) refuses a `docs/project-brief.md` whose `process_version:` differs
 from the `gp_version:` in `.gp/installed`. In the same upgrade branch:
 
+**The three version lines first, one after the other** — `docs/decisions.md`, `docs/watchlist.md`,
+then the brief — and only then the ADR, the brief's new answers and the rest. The post-edit check
+is red until the three agree, and every red edit puts its log's tail into the session: a bench
+upgrade that wrote the brief first paid seven red edits, about a tenth of its tokens.
+
 - **`docs/project-brief.md`** — frontmatter `process_version:` to the new version; then every setup
   question the new version added, answered (the template's numbered list is the source — for
   `v7.0`: `Working mode:`, `Deploy commands:`, `Paths that make a change HIGH:`, `QA verification:`;
-  `v7.1`: `Runtime config files:`);
+  `v7.1`: `Runtime config files:`; `v7.2`: `Rollback command:`, `Reviewer model:`). **Ask the
+  owner for each; never write an answer they did not give** — two field briefs carried
+  "answered" lines the owner never saw;
   and the answers that have changed since setup (`GitHub Actions run here:`, `The default branch can
   be protected:` — one project's brief said Actions did not run while CI graded every PR).
 - **`docs/decisions.md` and `docs/watchlist.md`** — frontmatter `process_version:` to the new
   version. `make install` derives `.gp/installed` from these two, and refuses while they disagree.
+- **`docs/EXPERIENCE.md`** — from `v7.2` it ships in place and conformance grades its
+  `process_version:`: the new version too.
 - **`.github/workflows/ci.yml`** — the human's half (§2): take the new workflow when the entry
   below says it changed, and record in the upgrade PR that it was, or was not, taken.
 
@@ -178,13 +221,139 @@ version and no brief — that is not another upgrade; answer the questions.
 Read every entry newer than the version you had. Older than `v6.0.1`: compare the old and the new
 `AGENTS.md` side by side after the upgrade.
 
+**`v7.3.1`** — PATCH: reviewers on `sonnet` by default at setup, shorter skills, a faster conformance pool,
+and agents' worktrees ignored (2026-10-31). No record changes shape and no stage changes. From `v7.3`: commit
+the upgrade ADR and the records' `process_version:` at `v7.3.1` first, in §4's order (§0 item 3), then
+
+```bash
+git diff v7.3 v7.3.1 | git apply -3 --exclude='.github/workflows/*'
+```
+
+then `make install` and a new session (§5). The guard and its pin do not change, nor do DevFlow's workflows.
+From `v7.2.2`, read the `v7.3` entry too, and apply `git diff v7.2.2 v7.3.1` with its excludes.
+- **Question 12 defaults to `sonnet`** for the Code-Reviewer and the Tester; the Security-Reviewer stays on the
+  session's model. **An upgrade keeps your answer:** the shipped profiles carry no `model:` line, so your
+  reviewers run as before. To adopt it, add `model: sonnet` to the frontmatter of `.claude/agents/Code-Reviewer.md`
+  and `Tester.md` and set the brief's `Reviewer model:` line. The deploy gate ignores that line, so no verdict reopens.
+- **P-004** in `docs/decisions.md` records that default, the owner's ruling. Append it after your ADRs if the
+  apply does not; it is revisited when a `sonnet` Tester misses what the session's model catches.
+- **Shorter texts, same rules:** `AGENTS.md`, `practices.md`, `issues.md` and seven skills (start-session,
+  pre-merge, fix-issue, triage-issue, setup-project, plan-milestone, writing-a-control) lose restatements and
+  anecdotes. No step, gate command or condition is dropped. A file you edited merges as usual (§3).
+- **`.gitignore`** gains `.claude/worktrees/`: an agent's worktree there left the tree untracked, so `make gate`
+  wrote no stamp and every push ran the whole gate. Take the line; `test-gate-stamp` checks it.
+- **The conformance pool** (nothing to do): `run-all.py` starts the longest tests first, by the times it keeps in
+  `build/conformance-cache/durations.json` (gitignored; missing or unreadable means name order), and hands each
+  test its share of the CPUs as `DEVFLOW_SHARE`, read only by a test's own pool. `DEVFLOW_JOBS=1` now also runs
+  each test's own pool one at a time; `test-bash-guard` keeps min(8, CPUs).
+
+**`v7.3`** — MINOR: the guard on Codex too, team-only deploy targets, what waits for the owner, finding ids
+on a fix, `make hooks` beside husky or pre-commit (2026-10-30). No record changes shape. From `v7.2.2`:
+commit the upgrade ADR and the records' `process_version:` at `v7.3` first (§0 item 3, §4), then
+
+```bash
+git diff v7.2.2 v7.3 | git apply -3 --exclude='.github/workflows/*' --exclude=docs/owner-actions.md
+```
+
+(add `--exclude=.claude/hooks/bash_guard.py` when your guard carries its own rules, and port them, §0
+item 10), then the two owner rows by hand (below), `make install` and a new session (§5). DevFlow's
+workflows do not change in this release.
+- **Restart, and re-trust Codex.** The guard's pin changes (§0 item 18). On Codex, trust the changed hook
+  in `/hooks` now and after every `make guard-pin`, which now rewrites both pins.
+- **Keep every new file**, `.codex/hooks.json` too in a project without Codex: `make install-check` expects them.
+- **The guard refuses more:** a push to the repository's default branch by any name (`develop` too),
+  `HUSKY=0` or `HUSKY_SKIP_HOOKS` on a push, and `sudo sh -c "$x"` where `$x` holds a deploy.
+- **Deploy commands** match in any word order, `--opt=value` as two words. `gh run rerun` is judged by its
+  workflow: declare `gh workflow run <deploy.yml>`, not a bare `gh run rerun`.
+- **A staging deploy written with a variable**, for a program that also has a production declaration, now
+  owes production's verdicts (the unread word may be production's option): write it literally.
+- **Four optional brief lines;** without one, today's behaviour (`/setup-project` explains each):
+  - `Deploy targets:` (question 6): `staging:` or `internal:` owes the Tester, not the release security delta.
+  - `Security-invariant tests:` (question 4): a change to any other test then re-opens no release verdict.
+  - `Sibling repositories:` (§2.1): this product's other clones, from which a session may push here.
+  - `Merges: do not wait` (§3): the integration lane while the owner is away (AGENTS.md §3).
+- **Two owner rows, by hand:** append the two `at install` rows of `git show v7.3:docs/owner-actions.md`
+  (Dependabot alerts, delete-branch-on-merge) to yours; `make standup` lists them until done.
+- **`docs/owner-actions.md` stays yours:** to stop its header asking for a merge row (#85), copy the new header
+  comment from the same `git show`.
+- **`.deps-accept`** (new, empty, the owner's alone): advisories `make deps` accepts. CI reads it once
+  `ci.yml`'s `Run pip-audit` step runs `acc=$(python3 scripts/deps_accept.py) && pip-audit --strict $acc .`
+- **New commands:** `make doctor` (it asks once: add `Bash(make doctor)` to `.claude/settings.local.json`),
+  `cost`, `owner-bundle`, `findings-check`, `closing-keywords`, `prune-merged`, `leak-scan` (`make help`).
+- **`make hooks` beside husky or pre-commit** runs DevFlow's pre-push through theirs and never edits yours:
+  it prints the line to add. A clone it set to `.githooks` before keeps that, and is told the cure.
+- **The statusline** runs your own `statusLine` and appends DevFlow's tokens; to keep only yours, set
+  `statusLine` in `.claude/settings.local.json`.
+- **In the lanes:**
+  - `/start-session` opens with `make doctor`, and runs `make check-fast` and `make closes`.
+  - A fix or enhancement PR carries a `| finding | disposition |` table (`/fix-issue` step 6).
+  - `/pre-merge` gives the owner's merge command, which waits for CI; `/post-merge` deletes local branches only.
+  - A new ADR has no `**Status:**` line (`/log-decision`): in `docs/decisions.md` take the new legend and
+    D-002's amendment line, and keep your ADRs as written.
+- **Gate behaviour:** a second `make check-fast` in one work tree waits up to 15 minutes; on a stack other
+  than python, a PyPI outage warns and writes a `skip` row to `docs/control-events.csv`: commit it.
+- **Reviewer profiles you edited:** merge the `**B1**` BLOCKING line and the sentence on ids.
+- **What an older project does not change:** its brief, its ADRs' status lines, verdicts dated on or before
+  the upgrade, a written adoption audit, a clone on `.githooks`, the allow list, DevFlow's workflows.
+- **No security delta** for the guard, its settings, `.codex/hooks.json` and the deploy gate's two scripts
+  as `v7.3` ships them (§0 item 7).
+
+**`v7.2.2`** — PATCH: the guard's shell spellings, and a session started in a subdirectory
+(2026-10-27). No record changes shape and no stage changes. From `v7.2.1`: commit the upgrade ADR and
+the records' `process_version:` at `v7.2.2` first (§0 item 3, §4), then
+
+```bash
+git diff v7.2.1 v7.2.2 | git apply -3 --exclude='.github/workflows/*'
+```
+
+(add `--exclude=.claude/hooks/bash_guard.py` when your guard carries its own rules, and port them, §0
+item 10), then `make install` and a new session (§5). The guard's pin changes: a session still open
+when the new guard lands refuses every Bash call until it restarts, and a project that ported its own
+rules re-pins (`make guard-pin`). DevFlow's workflows do not change in this patch.
+- **The guard** refuses a shell command hidden behind a trailing `--help` or `--version` (`bash -c
+  '…' --help` runs the string), behind `env -S` in an option cluster (`env -iS '…'`, `env -iu NAME -S
+  '…'`) or an abbreviated long option (`env --sp='…'`), and in a git config value that runs code
+  (`credential.helper='!…'`). `bash --help`, `env -iS 'make test'` and an ordinary credential helper
+  are allowed as before.
+- **`make session-check`** passes in a session started in a subdirectory of a repository that sits
+  under another repository's directory (it looked for the session's marker one level too high).
+
+**`v7.2.1`** — PATCH: what the first three `v7.2` upgrades hit in the field (2026-10-17). No record
+changes shape and no stage changes. From `v7.2`: commit the upgrade ADR and the records'
+`process_version:` at `v7.2.1` first (§0 item 3, §4), then
+
+```bash
+git diff v7.2 v7.2.1 | git apply -3 --exclude='.github/workflows/*'
+```
+
+(add `--exclude=.claude/hooks/bash_guard.py` when your guard carries its own rules, and port them, §0
+item 10), then `make install` and a new session (§5). The guard's pin changes: such a project re-pins
+it (`make guard-pin`). DevFlow's workflows do not change in this patch.
+- **`make next-adr`** skips the `D-999` that `v6.0` shipped (a project that kept it was told `D-1000`).
+- **The post-edit hook** is no longer red after every edit in a project whose `make check` runs
+  conformance (make's flags leaked into the tests), and it skips a file outside the project and
+  every work tree that carries DevFlow (a scratch script ran the whole check and timed out).
+- **The guard** no longer reads `python tool.py conformance/*.py` as a write of the gate stamp, and
+  names an unresolved merge conflict in the deploy gate instead of failing every call with a traceback.
+- **`make review-need`** reads an `A...B` range. **`make ci-diff`** prints DevFlow's own workflow change
+  between the brief's two versions, never the project's CI as reverts. **The deploy gate** reads the
+  versions from the brief's history and does not count DevFlow's deletions, its top-level kit files
+  or a profile's `model:` line (§0 item 7).
+- **The gate stamp's refusal** names the dirty paths and says to commit first; **conformance** prints
+  the end of a dying test's stderr, and the guard test retries a call that hangs on a loaded runner.
+- **`test-documented-commands`** reads the targets a project's `stack.mk` binds.
+- **This file:** §0 items 11–17 (one repository per session, commit before the gate, the gate's own
+  conflicts first, the guard's two refusals, the pre-push and post-edit hooks a project replaced,
+  the owner's half first, `.gp/installed` per worktree); the brief's `v7.2` questions;
+  `docs/EXPERIENCE.md`'s version; `.mcp.json` in the `v7.2` apply.
+
 **`v7.2`** — a whole-process audit (2026-10-17): every step of both modes walked in a fresh
 install, every file's references checked, the field projects' use measured, the running cost timed.
 What it changed is what could not run as written, and what was slow; no record changes shape. From
 `v7.1.2`:
 
 ```bash
-git diff v7.1.2 v7.2 | git apply -3 --exclude='.github/workflows/*' \
+git diff v7.1.2 v7.2 | git apply -3 --exclude='.github/workflows/*' --exclude=.mcp.json \
   --exclude=docs/EXPERIENCE.md --exclude=docs/process-log.md --exclude=docs/adoption-audit.template.md
 ```
 
@@ -197,11 +366,13 @@ project whose label trigger was on keeps it until the owner applies this).
 - **Your records stay yours.** `docs/EXPERIENCE.md` and `docs/process-log.md` now ship in place (the
   first as a header to fill, the second empty with its format in a comment); the excludes above keep
   your own. Excluding them also drops the renames, so by hand: `git rm docs/EXPERIENCE.template.md`
-  (and `git checkout v7.2 -- docs/EXPERIENCE.md` only if you never made one). The adoption audit's
+  (and `git show v7.2:docs/EXPERIENCE.md > docs/EXPERIENCE.md` only if you never made one). The adoption audit's
   template is now `docs/adoption-audit.template.md` and the documents point at
   `docs/adoption-audit.md`: a `docs/codex-audit.md` you filled →
   `git mv docs/codex-audit.md docs/adoption-audit.md`; one still as shipped → `git rm` it. Then
-  `git checkout v7.2 -- docs/adoption-audit.template.md`.
+  `git show v7.2:docs/adoption-audit.template.md > docs/adoption-audit.template.md`. **Keep your
+  `.mcp.json`** (the exclude above): `v7.2` no longer ships it, and the apply deleted one field
+  project's GitHub MCP configuration; a project that keeps it adds a hook for those tools.
 - **Stage 0 closes as written.** INSTALL step 11 and `/setup-project` name the files `make
   bootstrap-check` reads (AGENTS §1–§2, `docs/prd.md`, `docs/architecture.md`, the README title,
   `main.py`'s title, CODEOWNERS, the `D-100` stub) and the brief's repositories row; a copied

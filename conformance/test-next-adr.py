@@ -34,6 +34,8 @@ CASES = [
      "## D-100 — a\n## D-101 — b\n## D-999 — c\n## D-102 — d\n", ("D-103", "P-001")),
     ("an id far past the run is still counted once the run reaches it",
      "## D-100 — a\n## D-150 — b\n## D-180 — c\n", ("D-181", "P-001")),
+    ("the D-999 a v6.0 install kept is not the base", "## D-206 — a\n## D-207 — b\n## D-999 — c\n",
+     ("D-208", "P-001")),
 ]
 
 

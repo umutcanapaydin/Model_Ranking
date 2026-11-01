@@ -85,9 +85,10 @@ LINE_CAP = 150
 
 def code_changed_since(head: str) -> list[str] | None:
     """Files that are not records and differ from `head` in the WORKING TREE (committed, uncommitted
-    or untracked) -- the deploy gate's currency rule itself, DevFlow's unchanged files included, so the
-    two never disagree about one verdict. None when git cannot answer."""
-    return changed_since(pathlib.Path.cwd(), head)
+    or untracked) -- the deploy gate's currency rule itself, DevFlow's unchanged files included. One
+    difference: a leg of `make check` asks no CI over the network, so a test stays code here, where the gate
+    lets a test change pass while CI is green on HEAD -- this side is the stricter. None when git cannot answer."""
+    return changed_since(pathlib.Path.cwd(), head, ask_ci=False)
 
 
 def milestone_security(p: pathlib.Path) -> list[str]:

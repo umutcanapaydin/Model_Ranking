@@ -47,6 +47,13 @@ PIP := $(PY) -m pip
 # pyproject.toml) stays Python on every stack.
 STACK := $(firstword $(shell cat .devflow-stack 2>/dev/null | tr -d '\r') python)
 ON_PYTHON := $(filter python,$(STACK))
+# `make check`, the offline half of the gate: DevFlow's record checks first, the code legs last, and above
+# `stack.mk` on purpose -- make runs `check:`'s prerequisites in the order it reads them, so a project's own
+# come after these. `make gate` runs the conformance suite before the first code leg (below): a records or
+# docs refusal costs seconds, not the tests' minutes (#51).
+# model_ranking keeps its own legs (D-207 clause 3): `closes` stays out of `make check` (D-161, D-199), and
+# conformance, swift-test and client-decls are in it; in v7.3's order, the records first (#51).
+check: session-check check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance lint typecheck test swift-test client-decls  ## the offline half of the gate, one leg after another (the post-edit hook runs check-fast)
 -include stack.mk
 # `make check-fast` only (scripts/check_fast.py), both empty unless `stack.mk` or this file sets them:
 # CHECK_FAST_OWN_LEGS -- `check:` prerequisites that each get a leg of their own, beside the code legs;
@@ -54,6 +61,9 @@ ON_PYTHON := $(filter python,$(STACK))
 # (`swift-test=swift-test-parallel`). `make check` never uses a form. INSTALL.md has the example.
 CHECK_FAST_OWN_LEGS ?=
 CHECK_FAST_FORMS ?=
+ifneq ($(filter gate,$(MAKECMDGOALS)),)
+lint typecheck test $(CHECK_FAST_OWN_LEGS): | conformance
+endif
 # $(call bound,VAR): the project's command for VAR, or a failure naming what to bind, and where.
 bound = $(if $(strip $($(1))),$($(1)),@echo "BIND ME: $(1) is not set for stack '$(STACK)' -- define it in stack.mk (INSTALL.md: binding another stack)" >&2; exit 1)
 # $(call need,TOOL,WHAT): stop with exit 2 -- cannot run, not a finding -- when TOOL is not on PATH.
@@ -63,7 +73,7 @@ need = @command -v $(1) >/dev/null 2>&1 || { echo "$(1) not installed: cannot $(
 
 # Every target is declared phony. `conformance` is also a directory: undeclared, make called the
 # target "up to date" and never ran it, so `make gate` skipped the whole conformance suite.
-.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need closing-keywords deploy-check guard-pin ci-diff gate-ok next-adr review-need-branch model-tier
+.PHONY: help ui-test install lock test lint format typecheck check check-fast check-red check-docs swift-build-tests pytest-collect check-fast-config ci-liveness gate falsify conformance shell-dialect secrets deps slopsquat run clean standup bootstrap-check cold-start journey smoke-deps closes closure-check wave-check export-project labels hooks install-check check-records check-records-selftest coverage-floor swift-test swift-test-parallel client-decls wave-check-all harvest-context harvest-context-check run-check session-check mode review-need closing-keywords deploy-check guard-pin ci-diff gate-ok next-adr review-need-branch model-tier findings-check prune-merged owner-bundle doctor cost cost-advise leak-scan
 
 help:  ## this list, generated from the annotation on each target (a hand-written list drifts)
 	@grep -hE '^[a-zA-Z0-9_.-]+:[^#]*## ' $(MAKEFILE_LIST) | sort \
@@ -133,8 +143,6 @@ format: install  ## black, then ruff --fix, over src and tests
 
 typecheck: install  ## mypy (strict) over src (another stack: STACK_TYPECHECK)
 	$(if $(ON_PYTHON),$(PY) -m mypy src,$(call bound,STACK_TYPECHECK))
-
-check: session-check lint typecheck test check-records check-records-selftest install-check harvest-context-check shell-dialect wave-check-all conformance swift-test client-decls  ## the offline half of the gate, one leg after another (the post-edit hook runs check-fast)
 
 coverage-floor: install  ## W-041: no module carries materially less test proof than the rest
 	@# W-041. The per-module half of the coverage gate; the global floor lives in pyproject.
@@ -216,7 +224,6 @@ swift-test: ## W-038: run the Engine layer's Swift tests against the SHIPPING so
 		echo "swift-test SKIPPED NO-ENVIRONMENT: no swift toolchain on PATH"; \
 	fi
 
-
 check-fast: install  ## `make check`'s legs side by side -- what the post-edit hook runs; `make check` stays the merge gate
 	@$(PY) scripts/check_fast.py --make "$(MAKE)" $(CHECK_FAST_ARGS)
 
@@ -286,12 +293,31 @@ check-fast-config:  ## the two check-fast settings, CHECK_FAST_OWN_LEGS and CHEC
 
 # ADVISORY, and deliberately not reachable from `gate`: it asks GitHub about runs that already
 # happened, so it can say CI has stopped starting (a billing or runner limit) but cannot stop a push.
-# It always exits 0. `/start-session` and bootstrap-check C12 run it and report its one line.
-ci-diff:  ## ADVISORY: DevFlow's workflows (the installed tag) against this repository's, and the owner's one command to apply them
-	@$(SYS_PY) scripts/ci_diff.py
+# It always exits 0. `make doctor` (its `ci` line, for /start-session) and bootstrap-check C12 report it.
+ci-diff:  ## ADVISORY: what DevFlow changed in its workflows from the version this tree came from to the one it runs, and the owner's one command (make ci-diff [FROM=<tag>] [TO=<tag>])
+	@$(SYS_PY) scripts/ci_diff.py $(if $(FROM),--from $(FROM)) $(if $(TO),--to $(TO))
 
 ci-liveness:  ## ADVISORY, never a gate leg: did the latest CI runs start any step? (gh; always exits 0)
 	@$(SYS_PY) scripts/ci_liveness.py
+
+# REPORT ONLY (owner ruling, 2026-10-28), never a gate leg, always exit 0: /setup-project runs it once on an adopted codebase.
+leak-scan:  ## REPORT ONLY: tracked files that look like data -- a database, a dump, a key store, a file over 256 KB, a CSV or JSON naming personal fields (always exits 0)
+# ci: none -- report only; the adoption audit records its lines, and no gate reads them
+	@$(SYS_PY) scripts/leak_scan.py
+
+# Read-only and never a gate leg: /start-session's checks in one call (v7.3). `make check-fast` stays its own step.
+doctor:  ## where this session stands, one line per check by stable id (session environment mode run deploy ci prs settings claude-code): pass, warn or fail; JSON=1 prints JSON
+# ci: none -- it reads this machine and this Claude Code session, which CI has neither of
+	@$(SYS_PY) scripts/doctor.py $(if $(JSON),--json)
+
+# ADVISORY, never a gate leg, tokens never USD (owner ruling): the transcripts are on this machine only.
+cost:  ## ADVISORY: tokens this project's Claude Code sessions spent, from their transcripts -- the `Cost:` line (make cost [FROM=<date|sha>] [TO=..] [DIR=<projects dir>])
+# ci: none -- the transcripts it reads are on the developer's machine, not in CI
+	@$(SYS_PY) scripts/cost_ledger.py $(if $(FROM),--from "$(FROM)") $(if $(TO),--to "$(TO)") $(if $(DIR),--dir "$(DIR)")
+
+cost-advise:  ## ADVISORY: three token rules over the same transcripts -- context bloat, subagents on the top tier, 1-hour cache writes that never paid back
+# ci: none -- the transcripts it reads are on the developer's machine, not in CI
+	@$(SYS_PY) scripts/cost_ledger.py --advise $(if $(FROM),--from "$(FROM)") $(if $(TO),--to "$(TO)") $(if $(DIR),--dir "$(DIR)")
 
 # `gate` is the ONE name that means "everything this pipeline claims to enforce". The pre-push hook
 # and `/pre-merge` run it, the post-edit hook runs its offline half (`make check-fast`), and CI runs
@@ -351,16 +377,37 @@ closing-keywords:  ## which issues the commit messages in a range would close on
 review-need-branch:  ## review-need over this branch since it left the default branch -- no argument, so the allow list matches it exactly
 	@$(SYS_PY) scripts/review_need.py
 
+# /pre-merge's two questions of the PR itself (v7.3): every finding id of a fix's or an enhancement's verdicts is a
+# row of the PR body's findings table (A26), and no commit message closes an issue the PR does not (A29, #255).
+findings-check:  ## every finding id (B/M/K/R) of this branch's fix or enhancement verdicts has a row in the PR body's findings table (make findings-check [RANGE=A..B] [PR=<n>])
+# ci: none -- it reads the pull request's body through gh, and CI grades no pull request's body
+	@$(SYS_PY) scripts/pr_check.py findings $(if $(RANGE),--range $(RANGE)) $(if $(PR),--pr $(PR))
+
+# v7.3's `closing-keywords` (scripts/pr_check.py, against the PR's own closing issues) is not taken: model_ranking's
+# target above (#255, D-206 clause 6) answers the same question for any closing keyword in the range, PR or not.
+
+# /post-merge (#50): GitHub deletes a merged PR's branch (`delete_branch_on_merge`, the owner's row); this deletes
+# the local copies -- never one whose work is not on the default branch, and never anything on a remote.
+prune-merged:  ## delete the local branches whose upstream is gone and whose work is on the default branch; PR=<n>: also its branch while at the PR's head -- local only (/post-merge)
+# ci: none -- it deletes this clone's own merged branches, and a CI checkout has none
+	@$(SYS_PY) scripts/prune_merged.py $(if $(PR),--pr $(PR))
+
 # The deploy gate without a command, for the deploys the Bash guard never sees -- the owner's own
 # terminal, a dashboard, a TestFlight upload. The Bash guard runs the same check (scripts/deploy_gate.py)
-# on the brief's `Deploy commands:`; this is the question asked by hand, before any of them.
-deploy-check:  ## is the release security verdict and the milestone Tester's verdict current for this tree? (/going-live cites it)
-	@$(SYS_PY) scripts/deploy_gate.py --check
+# on the brief's `Deploy commands:` and `Deploy targets:`; this is the question asked by hand, before any of them.
+deploy-check:  ## is the release security verdict and the milestone Tester's verdict current for this tree? TARGET=<class> asks what that target class owes (/going-live cites it)
+	@$(SYS_PY) scripts/deploy_gate.py --check $(if $(TARGET),--target $(TARGET))
 
 # The Bash hook runs .claude/hooks/bash_guard.py only when its sha256 is the one .claude/settings.json
 # pins; a changed guard refuses every Bash call until the owner re-pins it here and restarts Claude Code.
-guard-pin:  ## after editing .claude/hooks/bash_guard.py: write its sha256 into .claude/settings.json (owner step; restart Claude Code)
+guard-pin:  ## after editing .claude/hooks/bash_guard.py: write its sha256 into .claude/settings.json and .codex/hooks.json (owner step; restart Claude Code)
 	@$(SYS_PY) .claude/hooks/guard_pin.py
+
+# A change the agent may not make -- a workflow, the guard, its settings: the agent writes the proposed files
+# under build/owner-bundle/src/, and this prints the patch, its sha256 and the owner's one command.
+owner-bundle:  ## a change only the owner applies: its patch, sha256 and one command that checks the sha (make owner-bundle [SRC=<dir>])
+# ci: none -- it packs a session's proposed files for the owner; CI proposes none
+	@$(SYS_PY) scripts/owner_bundle.py $(if $(SRC),--src $(SRC))
 
 session-check:  ## inside Claude Code: did this session load the project's guards, and is core.hooksPath set? (outside it: nothing to check)
 # Claude Code loads .claude/settings.json only from the directory it was started in; started one
@@ -381,9 +428,12 @@ deps: install  ## every LOCKED dependency, as it installs (D-177), against known
 # what every install takes, extras included. No lock fails closed: an audit of nothing would pass.
 # CI runs the same audit once the owner applies the patch on #81. Not cached locally (v7.2's net_cache.py
 # hashes pyproject.toml and requirements*.txt, not these locks, so a cached pass could outlive a lock change).
+# `.deps-accept` (v7.3, the owner's) names the advisories pip-audit ignores, each until its expiry; a bad entry
+# is red before the audit runs.
 # ci: job dep-audit
-	@test -n "$(LOCKS)" || { echo "FAIL [deps]: no lock under requirements/ -- the audit would read nothing"; exit 1; }
-	$(PY) -m pip_audit --strict --disable-pip $(addprefix -r ,$(LOCKS))
+	@acc=$$($(SYS_PY) scripts/deps_accept.py) || exit 1; \
+		test -n "$(LOCKS)" || { echo "FAIL [deps]: no lock under requirements/ -- the audit would read nothing"; exit 1; }; \
+		$(PY) -m pip_audit --strict --disable-pip $$acc $(addprefix -r ,$(LOCKS))
 	$(if $(ON_PYTHON),,$(call bound,STACK_DEPS))
 
 slopsquat:  ## seed F.8: DECLARED deps exist on PyPI and are not brand new (offline = non-zero, never clean)
@@ -414,7 +464,7 @@ clean:  ## remove the venv and every tool cache
 	rm -rf $(VENV) .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage build/check-fast
 	find . -type d -name __pycache__ -exec rm -rf {} +
 
-standup:  ## where are we, in five seconds: latest process-log entry, open ADRs, plans, git state
+standup:  ## where are we, in five seconds: what needs the owner, latest process-log entry, open ADRs, plans, git state
 	$(call need,bash,print the standup)
 	@bash scripts/standup.sh
 
@@ -513,13 +563,15 @@ export-project:  ## produce an INSTALLATION from this distribution package (DEST
 	@echo "  now: cd $(DEST) && make install-check"
 
 labels:  ## Stage 0: create the issue-label vocabulary on GitHub, once per repo -- only the missing ones
-# Without `gh` it prints the table to create by hand, and exits 2.
+# Without `gh` it prints the table to create by hand, and exits 2; so does a file path in a Labels cell (#84).
 	@$(SYS_PY) scripts/create_labels.py
 
-hooks:  ## Stage 0, once per clone: points core.hooksPath at .githooks -- a gate on every git commit and git merge (check-fast, check-red or check-docs), `make gate` before every push
-	$(call need,git,install the commit-msg and pre-push hooks)
-	@git config core.hooksPath .githooks
-	@echo "core.hooksPath = $$(git config core.hooksPath) -- commit-msg now runs make check-fast (check-red for a declared red test commit, check-docs for a docs-only one), pre-push runs make gate"
+# Beside husky or pre-commit it leaves their core.hooksPath and adds the pre-push to theirs; it edits no hook it did
+# not write (scripts/git_hooks.py). Where it sets core.hooksPath to .githooks, git runs this project's commit-msg
+# hook there too (check-fast, check-red or check-docs on every git commit and git merge).
+hooks:  ## Stage 0, once per clone: git runs .githooks/pre-push, which runs `make gate`, before every push (the enforcement where CI does not run), and .githooks/commit-msg on every git commit and git merge (check-fast, check-red or check-docs); beside husky or pre-commit, through theirs
+	$(call need,git,install the pre-push and commit-msg hooks)
+	@$(SYS_PY) scripts/git_hooks.py install
 
 install-check:  ## is this tree a COMPLETE install? (M0-M4 against INSTALL-MANIFEST.md)
 	@echo "[install-check] every PROJECT path present, no GP-INTERNAL path leaked"

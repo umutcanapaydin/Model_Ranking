@@ -34,7 +34,15 @@ def main() -> int:
     mk = root / "Makefile"
     if not mk.is_file():
         print("test-documented-commands CANNOT RUN: no Makefile"); return 2
-    targets = set(re.findall(r"^([A-Za-z0-9_.-]+):", mk.read_text(encoding="utf-8"), re.M))
+    # The Makefile and every file it includes: a target `stack.mk` binds is as real as one in the Makefile
+    # (field, Project-L, v7.2: its stack's documented targets read as dangling). Derived from the include
+    # lines, not a list kept here.
+    makefiles = [mk]
+    for inc in re.findall(r"^-?s?include\s+(.+)$", mk.read_text(encoding="utf-8"), re.M):
+        makefiles += [root / n for n in inc.split() if "$" not in n and (root / n).is_file()]
+    targets: set[str] = set()
+    for f in makefiles:
+        targets |= set(re.findall(r"^([A-Za-z0-9_.-]+):", f.read_text(encoding="utf-8"), re.M))
 
     bad, checked = [], 0
     for p in documents(root):

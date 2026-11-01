@@ -1,0 +1,6 @@
+# Advisories `make deps` accepts, each until its expiry. One entry per line:
+#   <advisory id> #<issue> <expires YYYY-MM-DD, at most 90 days out> <reason>
+#   PYSEC-2021-66 #12 2026-12-31 no fixed release yet; the template path is not used
+# Only the owner adds an entry; the agent never does (AGENTS.md §3), and the owner's merge is the review.
+# An entry past its expiry, more than 90 days out, or missing a field turns `make deps` red
+# (scripts/deps_accept.py). Ships empty.

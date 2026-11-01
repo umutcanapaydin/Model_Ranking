@@ -2,7 +2,7 @@
 record_type: register
 id: security-invariants
 status: ratified
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-10-04
 ---
 # Security invariants

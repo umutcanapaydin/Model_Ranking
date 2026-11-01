@@ -24,9 +24,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCOPE = ROOT / "scripts" / "post_edit_scope.py"
 
 
-def scope(payload: str) -> str:
-    r = subprocess.run([sys.executable, str(SCOPE)], input=payload, capture_output=True, text=True,
-                       env=scrubbed_env())
+def scope(payload: str, project: pathlib.Path | None = None) -> str:
+    env = scrubbed_env()
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    if project is not None:
+        env["CLAUDE_PROJECT_DIR"] = str(project)
+    r = subprocess.run([sys.executable, str(SCOPE)], input=payload, capture_output=True, text=True, env=env)
     return r.stdout.strip()
 
 
@@ -70,6 +73,21 @@ def main() -> int:
         case("an edit in a tree without the kit: where the hook always ran", scope(payload(plain / "a.py")), "|")
         case("a payload that is not JSON: nothing changes", scope("not json {"), "|")
         case("a payload with no path: nothing changes", scope("{}"), "|")
+        # v7.2.1 (Project-K): outside the project and every kit tree, nothing a gate here grades changed.
+        scratch = pathlib.Path(tmp).resolve() / "scratch"
+        scratch.mkdir()
+        case("a scratch file outside the project and every work tree: skipped",
+             scope(payload(scratch / "resolve.py"), project=kit), "SKIP|")
+        case("a file in another repository without the kit: skipped",
+             scope(payload(plain / "a.py"), project=kit), "SKIP|")
+        case("a file inside the project, where git cannot name a kit tree: the full run, never a skip",
+             scope(payload(plain / "b.py"), project=plain), "|")
+        case("a file inside the project's kit tree: graded there", scope(payload(kit / "src" / "a.py"), project=kit),
+             f"{kit}|")
+        (kit / "vendor").symlink_to(scratch)
+        case("a file reached through a link inside the project: never skipped",
+             scope(payload(kit / "vendor" / "lib.py"), project=kit) != "SKIP|" and "not skipped" or "SKIP|",
+             "not skipped")
 
     r = subprocess.run([sys.executable, str(ROOT / "scripts" / "check_fast.py"), "--plan", "--only-records"],
                        cwd=ROOT, capture_output=True, text=True, env=scrubbed_env())

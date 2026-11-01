@@ -6,15 +6,19 @@ here and nowhere else:
 
   Working mode:                    light | heavy   (unset or unreadable: heavy -- more checks, not fewer)
   Deploy commands:                 none | a comma-separated list the deploy gate guards
+  Deploy targets:                  none | comma-separated `<class>: <command>` (v7.3; the class decides the verdicts)
   Paths that make a change HIGH:   none | comma-separated globs (a change touching one needs security)
+  Security-invariant tests:        none | comma-separated globs (v7.3; absent: every test is code to the gate)
   QA verification:                 off | on        (unset: off -- a bug closes when its fix merges)
+  Sibling repositories:            none | comma-separated paths (v7.3; session-check reads a marker there)
 
     python3 scripts/brief_fields.py mode          # prints light or heavy
     python3 scripts/brief_fields.py get "<field>" # prints the raw answer, or nothing
 Exit 0, always: an absent brief is an answer (the defaults), not an error.
 
 **The policy fields are read at the protected base** (AGENTS.md section 5, base-pinned policy; #283):
-`Working mode:`, `Paths that make a change HIGH:` and `Deploy commands:` decide the reviews a change owes and
+`Working mode:`, `Paths that make a change HIGH:`, `Deploy commands:` and (v7.3) `Deploy targets:` and
+`Security-invariant tests:` decide the reviews a change owes and
 what the deploy gate guards, so `review_need.py` and `deploy_gate.py` read them from the brief as a base
 commit holds it (`root_at`), never from the change under evaluation. A base commit git cannot read is an
 error (`RuntimeError`), not the defaults: a policy read from nowhere would answer for the change.
@@ -36,7 +40,9 @@ BRIEF = Path("docs/project-brief.md")
 T = TypeVar("T")
 _PLACEHOLDER = re.compile(r"^<[^>]*>$")
 #: The fields that decide what a change owes (#283): read at the base, and a change to one is a policy edit.
-POLICY_FIELDS = ("Working mode", "Paths that make a change HIGH", "Deploy commands")
+POLICY_FIELDS = ("Working mode", "Paths that make a change HIGH", "Deploy commands",
+                 # v7.3: a target's class decides the verdicts a deploy owes, and the invariant tests stay code.
+                 "Deploy targets", "Security-invariant tests")
 #: The branches whose merge-base with HEAD is the protected base, in the order they are tried. Full ref names (#545):
 #: git resolves a short name to `refs/<name>` and `refs/tags/<name>` before `refs/heads/` or `refs/remotes/`, so a
 #: tag or ref planted under the default branch's name chose the commit whose brief judged the session's own deploy.

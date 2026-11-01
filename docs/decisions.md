@@ -2,7 +2,7 @@
 record_type: register
 id: model-ranking-decisions
 status: ratified
-process_version: v7.2
+process_version: v7.3.1
 date: 2026-08-11
 ---
 # Decisions
@@ -12,16 +12,15 @@ date: 2026-08-11
 > **ADR-ID convention (v2.2, seed B.6 / FB-2):** to avoid colliding with an inherited project's own ADR history, **process/universal ADRs use the `P-00x` namespace; project ADRs start at `D-100`** (the `D-001..D-099` band is reserved). The existing universal `D-001..D-007` are grandfathered (supersede-don't-edit, B.2) and are equivalently addressable as their `P-00x` mirror (see P-001). **Your project starts at D-100.** For an inherited project that already numbered low D-ids, run the Stage-0 reconciliation recipe in P-001.
 >
 > **Discipline:**
-> - When an assumption ossifies under uncertainty, add a new ADR with status `proposed` via the
->   `/log-decision` skill (seed B.1).
+> - When an assumption ossifies under uncertainty, add a new ADR via the `/log-decision` skill
+>   (seed B.1).
 > - To reverse: mark the old one `superseded by D-NNN`. Never edit in place (seed B.2).
 > - IDs are immutable; deletion leaves a gap (seed B.5).
 >
-> **Status legend** (the `**Status:**` line of an ADR, not the frontmatter above):
-> `proposed` — captured, not yet ratified: on its branch until the owner merges the PR that carries it.
-> That merge ratifies it — an ADR on the default branch is accepted, and no status line is edited for it.
-> `accepted` — locked. Changing requires `superseded by`.
-> `superseded by D-NNN` — old; do not follow.
+> **Status is derived, not written** (from `v7.3`): an ADR is accepted when the commit that added it is on
+> the default branch — the owner's merge of the PR that carries it — and proposed until then (`make standup`
+> lists those). A new ADR carries no `**Status:**` line. An older one keeps its line as written; the default
+> branch decides, whatever it says. A `superseded by D-NNN` line, appended later: old; do not follow.
 
 ---
 
@@ -50,6 +49,8 @@ date: 2026-08-11
 **Mitigation:** None — this is the format.
 
 **Revisit when:** Project crosses ≥3 teams and needs a richer audit format.
+
+**Amended at `v7.3`** (the format above is kept as written): a new ADR has no Status field — it is accepted when the commit that added it is on the default branch (the owner's ruling of 2026-10-28; `/log-decision`).
 
 ---
 
@@ -6670,7 +6671,11 @@ project rules), `scripts/deploy_gate.py`, `scripts/brief_fields.py` and `scripts
    owner's patch); the Security-Reviewer stays on the session's model (P-004).
 4. **`Merges: do not wait`**: the owner's standing preference (one PR at the end of the work) becomes the brief's
    setting, read by `make doctor`.
-5. **The other v7.3 brief lines** (`Deploy targets:`, `Security-invariant tests:`, `Sibling repositories:`) are not
+6. **Lint suppressions for the scripts v7.3 ships** (`pyproject.toml`'s per-file ignores, among them the bandit-class
+   S603, S607 and S310 for git, gh and PyPI's https address with literal arguments): kept as shipped so the next sync
+   stays a three-way merge, as D-199 and D-207 did. **Owner ruling:** 2026-11-01, in chat, *"I approve"* (translated),
+   asked because AGENTS.md escalates every scanner suppression. None is added for the product or the deploy gate.
+7. **The other v7.3 brief lines** (`Deploy targets:`, `Security-invariant tests:`, `Sibling repositories:`) are not
    written: without them the project behaves as today.
 
 **Rationale.** The owner asked for the stable release; v7.3.1 lowers the reviewer cost and makes the owner's

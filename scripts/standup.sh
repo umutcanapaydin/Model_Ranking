@@ -10,6 +10,22 @@ echo
 echo "Date: $(date '+%Y-%m-%d %H:%M:%S')"
 echo
 
+# v7.3: what waits for the owner comes first -- the rows of docs/owner-actions.md whose Status is not `done`
+# (the last cell: a command may hold a `|`), and the Stops rows of an open run file. /start-session reads them here.
+echo "----- Needs the owner -----"
+needs=""
+if [ -f docs/owner-actions.md ]; then
+  needs=$(awk -F'|' '/^\|/ { if (++n <= 2) next; s = $(NF-1); gsub(/^[ \t]+|[ \t]+$/, "", s); if (tolower(s) != "done") print }' docs/owner-actions.md || true)
+fi
+for f in docs/plans/run-*.md; do
+  [ -f "$f" ] && grep -qE '^Ended:[[:space:]]*open[[:space:]]*$' "$f" || continue
+  stops=$(F="$f" awk '/^## / { on = ($0 ~ /^## Stops/); n = 0; next } on && /^\|/ { if (++n > 2) print ENVIRON["F"] ": stop " $0 }' "$f" || true)
+  if [ -n "$stops" ]; then needs="${needs:+$needs
+}$stops"; fi
+done
+printf '%s\n' "${needs:-(nothing)}"
+echo
+
 # The log is append-only, so the latest entry is the LAST `## S` block, not the first.
 echo "----- Latest process-log entry -----"
 if [ -f docs/process-log.md ]; then
@@ -20,17 +36,24 @@ else
 fi
 echo
 
-# An ADR is `## D-NNN — title`, a blank line, then `**Status:** ...`: print the heading.
-# The owner's merge accepts an ADR: a `proposed` one already on the default branch is accepted.
-echo "----- ADRs awaiting the owner's merge (proposed, not on the default branch) -----"
+# An ADR (`## D-NNN — title`, or `P-NNN`) is accepted when the commit that added it is on the default branch
+# (v7.3, harvest Q5): one the default branch's docs/decisions.md holds is accepted, whatever an old
+# `**Status:**` line says; one it does not hold waits for the owner's merge. New ADRs carry no Status line.
+# `./` reads the file beside this script, so a project in a subdirectory of its repository compares its own.
+echo "----- ADRs awaiting the owner's merge (not on the default branch) -----"
 if [ -f docs/decisions.md ]; then
-  base=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo origin/main)
-  merged=$(git show "$base:docs/decisions.md" 2>/dev/null | grep -oE '^## D-[0-9]+' | sed 's/^## //' || true)
-  awk '/^## /{h=$0} /^\*\*Status:\*\*[[:space:]]*proposed/{print h}' docs/decisions.md \
-    | while IFS= read -r h; do
-        id=$(printf '%s\n' "$h" | grep -oE 'D-[0-9]+' | head -1 || true)
-        printf '%s\n' "$merged" | grep -qx "$id" || printf '%s\n' "$h"
-      done | head -20
+  base=
+  for ref in origin/HEAD origin/main origin/master main master; do
+    git rev-parse -q --verify "$ref:./docs/decisions.md" >/dev/null 2>&1 && { base=$ref; break; }
+  done
+  if [ -z "$base" ]; then
+    echo "(no default branch holds docs/decisions.md: nothing to compare)"
+  else
+    MERGED=$(git show "$base:./docs/decisions.md" 2>/dev/null | grep -oE '^## [DP]-[0-9]+' | sed 's/^## //' | tr '\n' ' ' || true) \
+      awk 'BEGIN { n = split(ENVIRON["MERGED"], a, " "); for (i = 1; i <= n; i++) m[a[i]] = 1 }
+           /^## [DP]-[0-9]+/ { match($0, /[DP]-[0-9]+/); if (!(substr($0, RSTART, RLENGTH) in m)) print }' \
+      docs/decisions.md | head -20
+  fi
 fi
 echo
 
