@@ -437,8 +437,17 @@ def _row1_evidence(text: str) -> str:
     return cells[2] if len(cells) > 2 else ""
 
 
+def _default_tips(root: pathlib.Path, remote: bool = False) -> list[str]:
+    """#546: the commit each ref of `brief_fields.DEFAULT_BRANCHES` names, read exactly (`brief_fields.exact_ref`), in
+    that list's order; with `remote`, origin's refs alone. A short name (`origin/main`, `main`) went through git's name
+    lookup, which tries `refs/<name>` and `refs/tags/<name>` first, so a planted tag chose the commits a close's wave
+    base, its merged skip and a backlog wave's decision order were read against."""
+    return [sha for ref in brief_fields.DEFAULT_BRANCHES
+            if (not remote or ref.startswith("refs/remotes/")) and (sha := brief_fields.exact_ref(root, ref))]
+
+
 def _merged(root: pathlib.Path, commit: str) -> bool:
-    return any(_git(root, "merge-base", "--is-ancestor", commit, ref) is not None for ref in ("origin/main", "main"))
+    return any(_git(root, "merge-base", "--is-ancestor", commit, tip) is not None for tip in _default_tips(root))
 
 
 def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str | None:
@@ -447,7 +456,7 @@ def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str |
     the M21 repo review's M2: a milestone stacked on an unmerged closure), and the commit that added the
     previous wave's close. A plan's `**Base:**` line is not read: a docs-only edit must not narrow a range
     (the M21 closure fixes review's M5)."""
-    candidates = [next((b for ref in ("origin/main", "main") if (b := _git(root, "merge-base", end, ref))), None)]
+    candidates = [next((b for tip in _default_tips(root) if (b := _git(root, "merge-base", end, tip))), None)]
     if ids:
         milestone, wave = int(ids.group(1)), int(ids.group(2))
         candidates.append(next((b for ref in (f"origin/closure/m{milestone - 1}", f"closure/m{milestone - 1}")
@@ -521,7 +530,8 @@ def branch_adr_problems(root: pathlib.Path) -> tuple[list[str], str | None]:
     """#274 (D-198 clause 3): a backlog wave's decision comes before its code. The branch's range from its
     merge base with `origin/main` is read as a close's is (`adr_order_problems`, no plan) when it adds no
     milestone close, which reads it itself. Returns (problems, skipped)."""
-    main = _git(root, "rev-parse", "--verify", "origin/main^{commit}")
+    # #546: origin's default branch, read exactly; as before, the range is the branch's since it left origin (#274).
+    main = next(iter(_default_tips(root, remote=True)), None)
     if main is None or (_git(root, "rev-parse", "--is-shallow-repository") or "").strip() == "true":
         return [], "a backlog wave's decision order (#274) read nothing: no origin/main in a whole history here"
     head = _git(root, "rev-parse", "HEAD")
