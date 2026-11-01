@@ -65,6 +65,8 @@ RUNTIME = {
     "find-exec": "      - run: find scripts -name 'ship*' -exec {} \\;\n",
     "continuation": "      - run: |\n          \"$SCRIPT\" \\\n            --prod\n",
     "after-a-pipe": "      - run: echo go | $SCRIPT\n",
+    # `<<` inside quotes opens no here-document, so the lines after it are read.
+    "after-a-quoted-heredoc-mark": "      - run: |\n          echo 'a <<EOF'\n          $SCRIPT\n          EOF\n",
     "in-a-case-body": "      - run: |\n          case \"$X\" in\n            a) $SCRIPT ;;\n            *) true ;;\n          esac\n",
 }
 
@@ -146,11 +148,13 @@ def test_deploy_check_fails_on_such_a_workflow_as_well(tmp_path: Path) -> None:
     "          python -m pip install -q -e .\n          bash scripts/ship_it.sh \"$1\"\n",
     "      - uses: actions/upload-artifact@v4\n        with:\n          path: |\n            ${{ runner.temp }}/x\n"
     "      - run: scripts/ship_it.sh\n",
+    "      - run: |\n          cat <<EOF > notes.txt\n          $SCRIPT scripts/*.sh\n          EOF\n"
+    "          scripts/ship_it.sh\n",
 ], ids=["a-named-script-with-an-expanded-operand", "expansions-and-patterns-in-operands-only",
-        "an-expression-outside-a-run-value"])
+        "an-expression-outside-a-run-value", "a-here-document-body"])
 def test_a_step_that_names_what_it_runs_is_not_refused(tmp_path: Path, step: str) -> None:
     """Stays quiet (writing-a-control section 2): an expansion in an operand, a pattern in a `case` or a `jq` filter,
-    a redirection's target and a `with:` value start no file, so the deploy passes."""
+    a redirection's target, a `with:` value and a here-document's body start no file, so the deploy passes."""
     repo = _dispatched(tmp_path, step)
     code, out = _deploy(repo)
     assert code == 0, out
@@ -183,3 +187,17 @@ def test_the_real_nightly_workflow_stays_quiet(tmp_path: Path) -> None:
 def test_the_real_tree_has_no_unnamed_start() -> None:
     """The same, read in this repository itself: its brief, its dispatched workflows, both copies, at both bases."""
     assert _gate().unnamed_starts(ROOT) == []
+
+
+def test_a_tree_git_cannot_list_refuses_the_deploy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fails closed (D-239 clause 4, writing-a-control section 5): when git cannot list the tree, which symlink a
+    workflow names cannot be told, so every deploy is refused rather than let through."""
+    repo = _dispatched(tmp_path, "      - run: scripts/ship_it.sh\n")
+    gate = _gate()
+    assert gate.unnamed_starts(repo.root) == [], "the control: a named step, a tree git lists"
+    assert gate.judge([["fly", "deploy"]], repo.root) == 0
+    gate._UNNAMED.clear()
+    gate._SURFACES.clear()
+    monkeypatch.setattr(gate, "_files", lambda root: None)
+    assert gate.unnamed_starts(repo.root) is None
+    assert gate.judge([["fly", "deploy"]], repo.root) == 2

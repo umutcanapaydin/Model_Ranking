@@ -66,6 +66,12 @@ HEAD with the default branch, and its tip (`brief_fields.protected_bases`, D-232
   * a base git cannot read refuses every declared deploy, and `--check` fails: a policy read from nowhere
     is not the change's own. Matching still reads the tree's brief then, so a non-deploy is never refused.
 
+A FILE STARTED WITHOUT ITS NAME REFUSES EVERY DEPLOY (#549, D-239): while a `run:` step of a dispatched deploy
+workflow starts a program by a pattern or a name built at run time, gives a shell, `source` or an interpreter such
+a file, runs `eval`, `xargs` or `find -exec`, or names a symlink to a tree file, a deploy is refused and `--check`
+fails, whatever the verdicts say: the file it starts cannot be put on the surface. The refusal names the workflow,
+the line and the shape; write the file's name instead.
+
 `--check` prints one line per verdict (security, tester) so the closure checklist and `/going-live`
 can paste them, then `deploy-check PASS` or `deploy-check FAIL: <why>`.
 
@@ -79,6 +85,7 @@ refused, or this could not run.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import os
 import re
@@ -637,6 +644,269 @@ def deploy_surface(root: Path) -> frozenset[str] | None:
     return _SURFACES[key]
 
 
+# --- #549 (D-239): a file a dispatched deploy workflow starts without writing its name ---------------------------
+
+#: D-239 clause 3: the programs that run the file their first operand names -- a shell (SHELLS among them), `source`,
+#: `.`, an interpreter --, matched on the program's lower-cased basename. A NAMED ENUMERATION (AGENTS.md section 3.5),
+#: kept for this reason: which program reads its operand as a script is the program's own behaviour, which no text
+#: this gate reads says. A program not here that starts a file it is given is D-239's residual risk.
+STARTER_SHELLS = re.compile(r"(?:ba|rba|da|z|k|mk|pdk|c|tc|a|ya)?sh|fish")
+STARTERS = re.compile(r"source|\.|python[0-9.]*|pypy[0-9.]*|node|deno|bun|perl[0-9.]*|ruby[0-9.]*|php[0-9.]*"
+                      r"|lua[0-9.]*|pwsh|rscript|tclsh")
+#: D-239 clause 2: programs that run names they read at run time; `find` only with one of FIND_RUNS.
+RUNTIME_RUNNERS = {"xargs", "parallel"}
+FIND_RUNS = {"-exec", "-execdir", "-ok", "-okdir"}
+#: The shell's reserved words that may stand before a command (POSIX 2.4), set aside to reach it; and those that
+#: open a header whose words are names, not a command (`for f in scripts/*.sh`).
+RESERVED = {"!", "{", "}", "if", "then", "else", "elif", "fi", "do", "done", "while", "until"}
+HEADERS = {"for", "select", "function"}
+#: A starter's options that take the next word as their value (`bash -o pipefail x`, `python -W error x`).
+STARTER_VALUED = {"-o", "-O", "+o", "+O", "-W", "-X", "--rcfile", "--init-file"}
+#: An interpreter's options whose value is code in its own language, which this does not read (D-239's residual).
+STARTER_CODE = {"-c", "-e", "--eval", "-p", "--print"}
+#: A pattern the shell expands to names: `*`, `?`, a bracket expression, a brace expansion.
+PATTERN = re.compile(r"[*?]|\[[^\]]*\]|\{[^{}]*(?:,|\.\.)[^{}]*\}")
+#: A `run:` key, plain or as a step's first key (`- run:`), with its value on the line.
+_RUN_KEY = re.compile(r"^(\s*)(?:-\s+)?run:[ \t]*(.*?)\s*$")
+_UNNAMED: dict[str, list[str] | None] = {}
+
+
+def _run_values(text: str) -> list[tuple[int, list[str]]]:
+    """D-239 clause 1: each `run:` value of a workflow, as (its first line's number, its lines): the value on the
+    key's line, or a block scalar's lines (`|`, `>`), which run while they are blank or indented as the first."""
+    lines = text.splitlines()
+    out: list[tuple[int, list[str]]] = []
+    i = 0
+    while i < len(lines):
+        m = _RUN_KEY.match(lines[i])
+        i += 1
+        if not m:
+            continue
+        if not re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", m.group(2)):
+            out.append((i, [m.group(2)]))
+            continue
+        start, block, indent = i + 1, [], 0
+        while i < len(lines):
+            width = len(lines[i]) - len(lines[i].lstrip())
+            if lines[i].strip() and (width <= len(m.group(1)) if not indent else width < indent):
+                break
+            if lines[i].strip() and not indent:
+                indent = width
+            block.append(lines[i][indent:] if lines[i].strip() else "")
+            i += 1
+        if m.group(2).startswith(">"):
+            block = [" ".join(line.strip() for line in block)]
+        out.append((start, block))
+    return out
+
+
+def _run_tokens(lines: list[str]) -> list[tuple[int, str]]:
+    """Each token of a run value with its line (from 0), split as `split_line` splits (`;`, `&&`, `|`, `(`, `)` and
+    the redirections stay tokens), a `\\` continuation joined, a here-document's body left out, and each line's end
+    a `;`. Read as one text, so a quote across lines is one word; when it cannot be split so, line by line, and a
+    line the shell cannot split is read by its words."""
+    def lex(text: str, at: int) -> list[tuple[int, str]]:
+        lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
+        lexer.whitespace_split = True
+        lexer.commenters = ""  # a comment is read as words, which refuses more
+        return [(at + lexer.lineno - 1, token) for token in lexer]
+
+    body: list[str] = []
+    delimiters: list[str] = []
+    for line in lines:
+        if delimiters:
+            body.append("")
+            if line.strip() == delimiters[0]:
+                delimiters.pop(0)
+            continue
+        try:  # a here-document's operator as the shell reads it, never `<<` inside quotes; unsplit, its body is read
+            words = [word for _, word in lex(line, 0)]
+        except ValueError:
+            words = []
+        delimiters += [after.removeprefix("-") for word, after in itertools.pairwise(words)
+                       if word.endswith("<<") and not word.endswith("<<<") and set(word) <= set(";&|()<>")]
+        body.append(line[:-1] + " " if line.endswith("\\") else line + " ;")
+
+    try:
+        return lex("\n".join(body), 0)
+    except ValueError:
+        out: list[tuple[int, str]] = []
+        for at, line in enumerate(body):
+            try:
+                out += lex(line, at)
+            except ValueError:
+                out += [(at, word) for word in line.split()]
+        return out
+
+
+def _in_case(case: list[str], word: str, operator: bool) -> bool:
+    """Whether `word` is a `case` subject's or a pattern's, read past: `case` holds, per open `case`, "subject" until
+    `in`, "pattern" until `)`, then "body" until `;;`, `;&` or `;;&`."""
+    if case and case[-1] == "subject":
+        if word == "in":
+            case[-1] = "pattern"
+        return True
+    if case and case[-1] == "pattern":
+        if word == "esac":
+            case.pop()
+        elif operator and ")" in word:
+            case[-1] = "body"
+        return True
+    if operator and case and case[-1] == "body" and word in (";;", ";&", ";;&"):
+        case[-1] = "pattern"
+    return False
+
+
+def _redirection(operator: str) -> str:
+    """What an operator token redirects: "<" a command's standard input (its target is kept), "skip" another (its
+    target is set aside), "" none -- a process substitution (`<(`) is no redirection."""
+    if "<(" in operator or ">(" in operator or not ("<" in operator or ">" in operator):
+        return ""
+    return "<" if operator in ("<", "<>") else "skip"
+
+
+def _run_commands(lines: list[str]) -> list[tuple[int, list[str], list[str]]]:
+    """D-239 clause 1: the simple commands of a run value, each as (its line, from 0; its words; the targets of its
+    `<` redirections), with what starts no program set aside: a redirection's target, a `case` subject and its
+    patterns. A process substitution (`<(...)`) stays as the word `<(` where it stands."""
+    out: list[tuple[int, list[str], list[str]]] = []
+    cur: list[str] = []
+    stdin: list[str] = []
+    case: list[str] = []
+    at = 0
+    target = ""  # "<" or "skip" after a redirection, until its target is read
+    for line, word in _run_tokens(lines):
+        operator = all(ch in ";&|()<>" for ch in word)
+        if _in_case(case, word, operator):
+            continue
+        if operator:
+            cur += ["<("] if "<(" in word or ">(" in word else []
+            target = _redirection(word)
+            if not target or any(ch in word for ch in ";|()") or "&&" in word:
+                out += [(at, cur, stdin)] if cur else []
+                cur, stdin = [], []
+        elif target:
+            stdin += [word] if target == "<" else []
+            target = ""
+        elif not cur and word == "case":
+            case.append("subject")
+        elif not cur and word == "esac" and case:
+            case.pop()
+        else:
+            at = line if not cur else at
+            cur.append(word)
+    if cur:
+        out.append((at, cur, stdin))
+    return out
+
+
+def _unnamed_word(word: str) -> str | None:
+    """D-239 clause 2: why the shell builds this word's file name rather than reading it as written, or None."""
+    if word.startswith(("<(", ">(")) or UNREAD.search(word):
+        return "a name built at run time"
+    return "a pattern" if PATTERN.search(word) else None
+
+
+def _started(words: list[str]) -> list[str]:
+    """The words from the program a simple command starts: past reserved words, assignments and the WRAPPERS;
+    none for a header (`for f in ...`)."""
+    i = 0
+    while True:
+        while i < len(words) and words[i] in RESERVED:
+            i += 1
+        if i < len(words) and words[i] in HEADERS:
+            return []
+        i = len(words) - len(_program_position(words[i:]))
+        if not (i < len(words) and words[i] in RESERVED):
+            return words[i:]
+
+
+def _shapes_in(text: str) -> list[tuple[str, str]]:
+    """The shapes of every command in a text a command runs in turn (`eval`'s, a shell's `-c` string)."""
+    return [found for _, command, into in _run_commands([text]) for found in _unnamed_shapes(command, into)]
+
+
+def _unnamed_shapes(words: list[str], stdin: list[str]) -> list[tuple[str, str]]:
+    """D-239 clause 2: each (shape, word) by which this simple command starts a file it does not name."""
+    run = _started(words)
+    if not run:
+        return []
+    if (shape := _unnamed_word(run[0])):
+        return [(f"{shape} in the program it runs", run[0])]
+    program = os.path.basename(run[0]).lower()
+    if program in RUNTIME_RUNNERS or (program == "find" and FIND_RUNS & set(run[1:])):
+        return [("a name built at run time: a program that runs names it reads then", run[0])]
+    if program == "eval":
+        return _shapes_in(" ".join(run[1:]))
+    if STARTER_SHELLS.fullmatch(program) or STARTERS.fullmatch(program):
+        return _starter_shapes(program, run, stdin)
+    return []
+
+
+def _starter_shapes(program: str, run: list[str], stdin: list[str]) -> list[tuple[str, str]]:
+    """D-239 clause 3: the shape of the file a starter is given -- its first operand that is not an option or an
+    option's value, the module `-m` names, or with neither its `<` target --; a shell's `-c` string is read in turn,
+    and an interpreter's code (`python -c`) is not read."""
+    shell = STARTER_SHELLS.fullmatch(program) is not None
+    j = 1
+    while j < len(run) and run[j].startswith(("-", "+")) and run[j] not in ("-", "+", "--"):
+        if shell and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", run[j]):
+            return _shapes_in(run[j + 1]) if j + 1 < len(run) else []
+        if not shell and run[j] in STARTER_CODE:
+            return []
+        if not shell and run[j].startswith("-m"):
+            module = run[j][2:] or (run[j + 1] if j + 1 < len(run) else "")
+            return [(f"{shape} in the module `{program}` runs", module)] if (shape := _unnamed_word(module)) else []
+        j += 2 if run[j] in STARTER_VALUED else 1
+    j += 1 if j < len(run) and run[j] == "--" else 0
+    for operand in run[j:j + 1] or stdin:
+        if (shape := _unnamed_word(operand)):
+            return [(f"{shape} in the file `{program}` runs", operand)]
+    return []
+
+
+def _linked(root: Path, rel: str) -> str | None:
+    """D-239 clause 2: the tree path a symlink git lists at `rel` points to, or None (not a link, or one that leaves
+    the tree or points nowhere)."""
+    link = root / rel
+    if not link.is_symlink():
+        return None
+    try:
+        target = link.resolve()
+        inside = target.relative_to(root.resolve()).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return inside if target.exists() and inside != rel else None
+
+
+def unnamed_starts(root: Path) -> list[str] | None:
+    """#549 (D-239): each place a dispatched deploy workflow (the tree's copy and each protected base's) starts a file
+    without writing its name -- a pattern, a name built at run time, a symlink to a tree file --, as `<workflow> line
+    <n>: <shape> `<word>``; None when the workflows cannot all be read or git cannot list the tree (fail closed)."""
+    key = str(root)
+    if key not in _UNNAMED:
+        texts, complete = _workflow_texts(root)
+        files = _files(root)
+        if not complete or files is None:
+            _UNNAMED[key] = None
+            return None
+        found: list[str] = []
+        for name in sorted(deploy_workflows(root, declared(root), texts)):
+            for text in texts.get(name, []):
+                for start, lines in _run_values(text):
+                    for line, words, stdin in _run_commands(lines):
+                        found += [f"{name} line {start + line}: {shape} `{word}`"
+                                  for shape, word in _unnamed_shapes(words, stdin)]
+                low = text.lower().splitlines()
+                for path in sorted(_workflow_names(root, text, files)):
+                    if (target := _linked(root, path)) is not None:
+                        where = next((n for n, line in enumerate(low, 1)
+                                      if path.lower() in line or path.lower().rsplit("/", 1)[-1] in line), 0)
+                        found.append(f"{name} line {where}: a symlink, `{path}`, to `{target}`")
+        _UNNAMED[key] = list(dict.fromkeys(found))
+    return _UNNAMED[key]
+
+
 def verified_blob(root: Path, commit: str, rel: str) -> bytes | None:
     """The bytes of `rel` at `commit`, every object on the way hashed against its id (#444 R2; #511, #509: the one
     verified reader, `brief_fields.verified_file`). None when one does not hash, or the path is not a file there."""
@@ -714,6 +984,16 @@ def verdicts(root: Path) -> list[tuple[str | None, str]]:
         out.append((None, f"policy: {where}, working mode {modes[0]}"
                           + (f"; the bases and the tree's brief also say {', '.join(modes[1:])}, so each mode's Tester "
                              "verdict" if len(modes) > 1 else "")))
+    unnamed = unnamed_starts(root)
+    if unnamed is None:
+        out.append(("the dispatched deploy workflows cannot all be read, or git cannot list the tree, so whether one "
+                    "starts a file without writing its name cannot be told (#549, D-239)",
+                    "workflows: cannot be read for a file started without its name"))
+    elif unnamed:
+        out.append((f"a dispatched deploy workflow starts a file without writing its name (#549, D-239): "
+                    f"{'; '.join(unnamed[:5])}{' ...' if len(unnamed) > 5 else ''}; write the file's name there "
+                    "instead (a symlink's: its target's), so the file it starts is on the deploy surface",
+                    f"workflows: {len(unnamed)} start(s) of a file without its name"))
     security = current(root, SECURITY, "security")
     # A BLOCKING release verdict is a finding nobody fixed: no milestone verdict stands over it.
     blocking = "has no PASS or MINOR verdict" in (security[0] or "") and (root / SECURITY).is_file()
