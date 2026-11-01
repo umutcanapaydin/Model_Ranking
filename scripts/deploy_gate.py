@@ -58,7 +58,7 @@ head into the same file.
 
 THE BRIEF'S POLICY IS THE BASE'S (AGENTS.md section 5, base-pinned policy; #283). `Working mode:` (which
 Tester verdict) and `Deploy commands:` are read from the brief at the protected base -- the merge-base of
-HEAD with the default branch (`brief_fields.protected_base`) -- not from the tree about to ship:
+HEAD with the default branch, and its tip (`brief_fields.protected_bases`, D-232) -- not from the tree about to ship:
   * a deploy is any command the base's brief OR the tree's declares, so a change can add a deploy command
     but cannot remove one;
   * the Tester verdict is the one the base's mode names; when the tree's brief names the other mode, the
@@ -214,13 +214,6 @@ def _policy(root: Path) -> tuple[list[Path] | None, str, bool]:
             except RuntimeError as error:
                 _POLICIES[key] = (None, str(error), False)
     return _POLICIES[key]
-
-
-def policy_root(root: Path) -> tuple[Path | None, str]:
-    """(a root holding the brief as the protected base -- the merge-base -- of the repository at `root` holds it, or
-    None when a base cannot be read; the line that says which). The gate itself reads every root `_policy` gives."""
-    policies, where, _ = _policy(root)
-    return (policies[0] if policies else None), where
 
 
 def tester_path(root: Path, working_mode: str | None = None) -> tuple[Path | None, str]:
