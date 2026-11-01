@@ -68,3 +68,15 @@ def test_one_list_names_the_default_branch_for_every_policy_reader() -> None:
     assert all(ref.startswith(("refs/heads/", "refs/remotes/")) for ref in brief_fields.DEFAULT_BRANCHES)
     source = (Path(__file__).resolve().parents[2] / "scripts" / "review_need.py").read_text(encoding="utf-8")
     assert "brief_fields.DEFAULT_BRANCHES" in source and '"origin/HEAD"' not in source
+
+
+def test_a_tag_spelled_as_a_missing_full_ref_does_not_stand_for_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fixes-1101 security review's M2: a full name still went through git's name lookup, so with no
+    `refs/remotes/origin/HEAD` (deleted, or never fetched) a tag spelled `refs/remotes/origin/HEAD` stood in for it."""
+    repo, before = _work(tmp_path)
+    real = repo.git("merge-base", "refs/heads/main", "HEAD")
+    repo.git("tag", "refs/remotes/origin/HEAD", before)
+    code, out = _deploy(repo, "fly deploy")
+    assert code == 2, f"a tag spelled refs/remotes/origin/HEAD chose the protected base: {out}"
+    monkeypatch.chdir(repo.root)
+    assert review_need.default_range() == f"{real}..HEAD"
