@@ -28,13 +28,12 @@ def _same_repo(repo: Repo) -> dict[str, str]:
         "GIT_ALTERNATE_OBJECT_DIRECTORIES": str(git / "objects"),
         "GIT_CONFIG_COUNT": "0",
         "GIT_CONFIG_PARAMETERS": "",
-        "GIT_EDITOR": "true",
         "GIT_NO_REPLACE_OBJECTS": "1",
     }
 
 
 NAMES = ("GIT_WORK_TREE", "GIT_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_EDITOR", "GIT_NO_REPLACE_OBJECTS")
+         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_NO_REPLACE_OBJECTS")
 
 
 def _run(repo: Repo, argv: list[str], extra: dict[str, str], stdin: str | None = None) -> tuple[int, str]:
@@ -70,9 +69,10 @@ def test_a_deploy_is_refused_while_a_git_variable_is_set(tmp_path: Path, name: s
 
 def test_the_refusal_names_every_variable_and_how_to_clear_them(tmp_path: Path) -> None:
     repo = _installed(tmp_path)
-    code, out = _run(repo, ["--check"], {"GIT_DIR": str(repo.root / ".git"), "GIT_EDITOR": "true"})
+    code, out = _run(repo, ["--check"], {"GIT_DIR": str(repo.root / ".git"), "GIT_CONFIG_COUNT": "0",
+                                         "GIT_EDITOR": "true"})
     assert code == 1, out
-    assert "GIT_DIR" in out and "GIT_EDITOR" in out and "unset GIT_DIR GIT_EDITOR" in out, out
+    assert "unset GIT_CONFIG_COUNT GIT_DIR`" in out and "GIT_EDITOR" not in out, out
 
 
 def test_a_command_that_is_not_a_deploy_is_not_refused_for_a_git_variable(tmp_path: Path) -> None:
@@ -80,3 +80,18 @@ def test_a_command_that_is_not_a_deploy_is_not_refused_for_a_git_variable(tmp_pa
     assert _run(repo, ["ls -la"], {"GIT_DIR": str(repo.root / ".git")})[0] == 0
     payload = json.dumps({"commands": [["git", "status"]]})
     assert _run(repo, ["--judge"], {"GIT_DIR": str(repo.root / ".git")}, payload)[0] == 0
+
+
+@pytest.mark.parametrize("name", ["GIT_EDITOR", "GIT_EXEC_PATH"])
+def test_the_two_named_exceptions_pass_and_are_not_passed_on(tmp_path: Path, name: str) -> None:
+    """D-234's exceptions: Claude Code sets `GIT_EDITOR` in every session and git sets it and `GIT_EXEC_PATH` in its
+    hooks, so refusing them would fail every agent session. The gate removes them from its own environment."""
+    repo = _installed(tmp_path)
+    value = "true" if name == "GIT_EDITOR" else str(tmp_path / "no-such-exec-path")
+    assert _run(repo, ["--check"], {name: value})[0] == 0
+    assert _run(repo, ["fly deploy"], {name: value})[0] == 0
+    probe = (f"import os, runpy; runpy.run_path({str(GATE)!r}, run_name='not_main'); "
+             f"print(os.environ.get({name!r}))")
+    seen = subprocess.run([sys.executable, "-c", probe], cwd=repo.root, capture_output=True, text=True,
+                          env={**_env(), name: value}, timeout=60)
+    assert seen.stdout.strip() == "None", seen.stdout + seen.stderr
