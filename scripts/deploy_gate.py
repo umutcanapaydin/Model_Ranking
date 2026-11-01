@@ -566,13 +566,38 @@ def _runs_unread(text: str) -> bool:
         for words in _line_commands(text))
 
 
+#: #541 (D-237): quoting a shell joins back into one word (`./'ship'_it.sh`).
+_QUOTING = re.compile(r"[\"'\\]")
+
+
+def _named_by_name(text: str, files: dict[str, set[str]]) -> set[str]:
+    """#541 (D-237): every file git lists whose name, or whose name less its last suffix (a module: `-m scripts.x`,
+    `import x`), the text writes with no letter, digit or `_` beside it -- wherever the file lies. A change of the
+    directory or the prefix a file is started under (`cd`, `env --chd`, `sudo -D`, a PATH entry or `$GITHUB_PATH`, a
+    checkout's `path:`, `os.chdir`) leaves its name to be written, so no list of those ways is needed. The text is
+    read as written and with its quotes, backslashes and expansions taken out."""
+    low = text.lower()
+    sources = {low, _QUOTING.sub("", low), _QUOTING.sub("", _EXPANSION.sub("", low))}
+    out: set[str] = set()
+    for key, paths in files.items():
+        name = key.rsplit("/", 1)[-1]
+        for word in {name, Path(name).stem}:
+            if word and any(word in source and re.search(rf"(?<![a-z0-9_]){re.escape(word)}(?![a-z0-9_])", source)
+                            for source in sources):
+                out |= paths
+                break
+    return out
+
+
 def _workflow_names(root: Path, text: str, files: dict[str, set[str]]) -> set[str]:
-    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not."""
+    """#522: every file git lists that a workflow's text names, quoted or not, inside a `-c` string or not; #541
+    (D-237): and every one whose name it writes, under any prefix (`_named_by_name`)."""
     # The #522 review's M1: `$GITHUB_WORKSPACE/x`, `${{ github.workspace }}/x` and `$PWD/x` reach here as `/x`, a
     # path from the checkout's top, so each word is looked up as written and without its leading slash.
     bare = _EXPANSION.sub("", text)
     return {path for source in (text, bare) for word in _PATH_WORD.findall(source.lower())
-            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)}
+            for spelled in {word, word.lstrip("/")} for path in _named_files(root, spelled, files)} | \
+        _named_by_name(text, files)
 
 
 def _line_commands(text: str) -> list[list[str]]:
