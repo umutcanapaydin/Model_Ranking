@@ -89,7 +89,7 @@ struct ContentView: View {
     /// Whether the on-device tier can run here, said as quiet help when it cannot. Read again each
     /// time the app comes back to the front (#220): the reader can turn Apple Intelligence on or off,
     /// or its model finish downloading, while the app runs.
-    @State private var onDevice = TieredRouter.onDeviceState()
+    @State private var onDevice = TieredRouter.onDeviceStateForThisLaunch()
     @Environment(\.scenePhase) private var scenePhase
     /// Every question is asked at `unlimited` since the budget strip went (M13-W3). The engine still
     /// takes a budget, and `/v1/budgets` still publishes the caps for other consumers (D-134).
@@ -157,7 +157,7 @@ struct ContentView: View {
             .sheet(isPresented: $showingIntelligenceGuide) { intelligenceGuideSheet }
             .task { await load() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { onDevice = TieredRouter.onDeviceState() }
+                if phase == .active { onDevice = TieredRouter.onDeviceStateForThisLaunch() }
             }
         }
         .tint(Design.accent)

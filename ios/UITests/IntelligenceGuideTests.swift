@@ -39,7 +39,9 @@ final class IntelligenceGuideTests: XCTestCase {
         openSettings.tap()
         let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
         XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 20), "Open Settings did not bring Settings to the front")
-        XCTAssertNotEqual(app.state, .runningForeground, "the app is still in front")
+        // The app's own state is reported a moment after Settings is in front, so it is waited for.
+        let left = expectation(for: NSPredicate { _, _ in self.app.state != .runningForeground }, evaluatedWith: nil)
+        wait(for: [left], timeout: 15)
         let after = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         after.name = "after Open Settings: the Settings app"
         after.lifetime = .keepAlways

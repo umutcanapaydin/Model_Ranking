@@ -2245,7 +2245,8 @@ def test_the_device_state_is_read_again_on_returning_to_the_foreground() -> None
     handler = re.search(r"\.onChange\(of: scenePhase\) \{ _, phase in\n(.*?)\n *\}\n", view, re.S)
     assert handler, "the device state is not read again when the app returns to the front"
     body = [line.strip() for line in handler.group(1).splitlines() if line.strip()]
-    assert body == ["if phase == .active { onDevice = TieredRouter.onDeviceState() }"], body
+    # #527 (D-235): through the launch-aware read, so a UI test's scripted state survives the return.
+    assert body == ["if phase == .active { onDevice = TieredRouter.onDeviceStateForThisLaunch() }"], body
 
 
 def test_the_text_tripwire_reads_its_served_numbers_from_the_decoded_types() -> None:

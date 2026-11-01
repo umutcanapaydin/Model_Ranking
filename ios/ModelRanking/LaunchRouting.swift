@@ -14,4 +14,18 @@ extension TieredRouter {
         #endif
         return TieredRouter()
     }
+
+    /// The on-device model's state the screen shows: the platform's, or -- in a Debug build launched by
+    /// a UI test with `-UITestIntelligence unavailable` (D-235, #527) -- unavailable, the state a device
+    /// without the model is in, so the test reaches the Apple Intelligence guide. Routing is unchanged.
+    static func onDeviceStateForThisLaunch() -> OnDeviceState {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let flag = arguments.firstIndex(of: "-UITestIntelligence"), flag + 1 < arguments.count,
+           arguments[flag + 1] == "unavailable" {
+            return .unavailable
+        }
+        #endif
+        return onDeviceState()
+    }
 }
