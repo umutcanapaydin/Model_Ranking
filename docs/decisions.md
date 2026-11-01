@@ -6685,3 +6685,63 @@ one-PR preference the default.
 the deploy gate, `brief_fields`, `wave_check` and the guard with their pre-upgrade copies.
 
 **Revisit when:** the next DevFlow release, or a `sonnet` Tester misses what the session's model catches.
+
+## D-242 — D-239's unread starts refuse too: a non-POSIX step, a program on standard input, more starters, interpreter code
+
+**Status:** proposed
+**Owner ruling:** 2026-11-02, in chat, for run 1102, on #551: *"turn them all away"* *(translated)*, answering whether
+the deploy gate should also refuse the workers that run a file without saying its name, the default in each of #551's
+five decisions
+
+**Context.** D-239 refuses every deploy while a dispatched deploy workflow can start a file without writing its name,
+and its mitigation names five classes it does not read yet (#551): a program outside its starter list, code in an
+interpreter's own language, a script fed on standard input, a step whose `shell:` is not a POSIX shell, and what a
+started script itself runs. Today's `nightly-hosted.yml` uses none of them, so the hole is latent. The stack's
+security review (R5) added a here-document or here-string fed to a shell as standard input too.
+
+**Decision.**
+1. **A step whose `shell:` is not a POSIX shell** (`pwsh`, `python`, a custom template) refuses every deploy (fail
+   closed).
+2. **A shell or interpreter that reads its program from standard input** refuses: from a pipe (`... | bash`), from
+   `-` (`python -`), and from a here-document or here-string (`bash <<'EOF'`, `bash <<<`).
+3. **The starter list grows:** `uv run`, `npx` and `poetry run` start the file their operand names; `make`'s targets'
+   recipes, read from the Makefile the workflow runs it in, are read as run text in turn, because `make` is how the
+   nightly runs most steps. Still a NAMED ENUMERATION (D-239 clause 3), with the same reason.
+4. **Code in an interpreter's own language** (`python -c`, `perl -e`/`-E`, `node -e`, `ruby -e`) refuses.
+5. **What a started script itself runs** stays a named residue: no code; D-239's Revisit carries it.
+
+**Rationale.** The owner's ruling of 2026-11-01 (D-239) is fail closed; each class here is one more way a step runs
+a file whose name the gate cannot read. Refusing now costs nothing on today's workflow and keeps a future step from
+widening the deploy surface silently.
+
+**Mitigation if violated:** a future workflow written in one of these shapes is refused and must name its file; a
+started script's own starts stay exemptible, as D-239 says.
+
+**Revisit when:** a deploy workflow needs one of the refused shapes, or a started script is found starting a tree
+file the surface does not hold.
+
+## D-243 — A source silent for seven nights opens an issue for the owner
+
+**Status:** proposed
+**Owner ruling:** 2026-11-02, in chat, for run 1102, on #552: *"let an issue be opened on GitHub"* *(translated)*,
+answering how the owner is told that a source has sent no new data for 7 nights (D-240 clause 3)
+
+**Context.** D-240 clause 3 says a source whose last arrival is 7 or more days old is named to the owner, and leaves
+how to #552. The options were an issue the nightly opens, a line in the nightly's job summary, or a row the refresh
+writes into `docs/owner-actions.md`.
+
+**Decision.**
+1. **The refresh names the silent sources:** each nightly cycle writes the sources whose last arrival (D-156) is 7 or
+   more days old, with their last arrival dates, to a file the workflow reads. A source 6 days silent is not named.
+2. **The nightly workflow opens one GitHub issue** for them, or comments on the open one it opened before, so a
+   silence that lasts is one issue, not one a night. The issue names each source and its last arrival.
+3. **The workflow half is the owner's:** the agent writes the refresh half and proposes the workflow diff
+   (`make ci-diff`); the owner applies it (AGENTS.md section 3).
+4. D-156's 30-day carry and the serving path stay as they are.
+
+**Rationale.** An issue reaches the owner by GitHub's own notification, without the owner opening a run's summary;
+Golden Rule 1 and D-240: the owner, not the code, decides about a source that stays silent.
+
+**Mitigation if violated:** until the owner applies the workflow half, the names reach only the nightly's log.
+
+**Revisit when:** the issue is opened for a source that is in fact sending, or the owner asks for another channel.

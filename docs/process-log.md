@@ -1734,3 +1734,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Tester: MINOR at `918c227` (its seven test files). Every criterion of the 17 issues and of D-234 to D-240 has a citing test, red before its fix; `make check` green; `pytest -m artifact` 50/50 on the fresh artifact; `make ui-test` 24/24 and 2/2 after `simctl shutdown all`. 114 faults injected, 29 stayed green: 21 now have tests, 8 are equivalent. M1 is #557 (the `xdist_group` mark does nothing without `--dist loadgroup`); M2 joins #553.
 - Security-Reviewer: MINOR at `918c227`; nothing open blocks tonight. M13 joins #554 (a pushed tag `origin/main` can make the nightly re-ship an older reviewed commit); R12: #526 refuses an unexpected `GIT_*` on the runner, which fails the night closed and names the variable.
 - Lesson: a merge before the release delta leaves the night's deploy refused until the verdicts land; run the delta at the integration head before handing the PR over, or say the deploy waits for it.
+
+## 2026-11-02 · plan/run-1102 — the run plan for the open queue after the v7.3.1 upgrade
+
+- Seven open issues, all triaged: five `fix-issue` bugs (#557, #554, #555, #556, #553) and two `work-issue` items (#551, #552).
+- The owner answered both `work-issue` items in one message: D-242 (#551: every start D-239 does not read refuses too, a started script's own starts stay residue) and D-243 (#552: a source silent for seven nights opens a GitHub issue; the workflow half is the owner's).
+- The plan branch is cut from the upgrade's head (`1a5fec0`), so the run file is graded by v7.3.1's `run_check`; it merges after #559.
+- The run starts in a new session after #559 merges, since the guard pin changed.
+- Lesson: ask a `work-issue`'s decisions as one plain question with its default, not as five; the owner answers the default when the metaphor makes it clear.
