@@ -1701,3 +1701,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Tester: PASS at `6e6f5be`. The range's own tests went red against `ed18de5`'s gate (18 of 30) and green at the head; 26 faults injected, and the 4 that stayed green (F7, F9, F14, F20) now have tests, plus #535's allowlist in the unit suite, since CI does not run client-decls.
 - Security-Reviewer: MINOR at `6e6f5be`; nothing loosens the gate. M12 adds three spellings to #541; R11 (dead `policy_root`) is #543.
 - Lesson: stacking the verdict PR into the integration PR costs one more delta review, and saves the owner a merge order that has to be followed exactly.
+
+## 2026-11-01 · fix/issue-527-guide-ui-test — a UI test taps the guide's Open Settings button
+
+- The owner's ruling D-235 (amending D-175 clause 3): a Debug-only launch argument, `-UITestIntelligence unavailable`, read beside `-UITestRouting` in `LaunchRouting.swift` inside `#if DEBUG`, makes the screen report the on-device model as unavailable. Routing is unchanged.
+- `IntelligenceGuideTests` opens the guide from the caption, taps Open Settings and waits for `com.apple.Preferences` in the foreground: `make ui-test` 24/24 with the engine up, 2/2 down, on the fresh artifact.
+- `tests/unit/test_intelligence_guide_527.py` holds the text half in `check-fast`: the flag is named only in `LaunchRouting.swift` and only in an `#if DEBUG` branch, both of the screen's state reads go through the launch-aware one, and the UI test runs in the engine-up pass.
+- The first run failed one assertion: the app's own state still read foreground the moment Settings did. It is now waited for.
+- Lesson: a state XCUITest reads off another process lags the one it just waited for; wait for each, never read the second at once.
