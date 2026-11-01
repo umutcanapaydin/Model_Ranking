@@ -24,7 +24,10 @@ ENGINE_URL[config=Release] = https:/$()/model-ranking.fly.dev
 // #488: the exception for a loopback engine (`NSAllowsLocalNetworking`) is a Debug build's alone: a Release build
 // talks only to the hosted engine, over HTTPS. Xcode preprocesses Info.plist, whose exception sits inside
 // `#if ENGINE_LOCAL_NETWORKING`; the directives sit inside XML comments, so the source still reads as a plist.
-// After the local file, as the address is, so no local setting can give an archive the exception.
+// After the local file, as the address is, so no local setting can give an archive the exception. #530: every
+// setting that feeds the preprocessor, not only its definitions: extra flags or a prefix header define it as well.
 INFOPLIST_PREPROCESS = YES
 INFOPLIST_PREPROCESSOR_DEFINITIONS[config=Debug] = ENGINE_LOCAL_NETWORKING=1
 INFOPLIST_PREPROCESSOR_DEFINITIONS[config=Release] =
+INFOPLIST_OTHER_PREPROCESSOR_FLAGS[config=Release] =
+INFOPLIST_PREFIX_HEADER[config=Release] =
