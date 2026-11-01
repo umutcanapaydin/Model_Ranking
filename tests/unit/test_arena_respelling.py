@@ -74,6 +74,36 @@ def test_a_name_that_resolved_before_resolves_as_before(name: str, model_id: str
     assert (derived.model_id, derived.effort) == (model_id, effort)
 
 
+def _reading_cost(name: str) -> float:
+    """The seconds one bracket reading of ``name`` takes (#528: see the linear test)."""
+    import time
+
+    from app.workflows.registry import canonicalize_with_reason
+
+    started = time.perf_counter()
+    canonicalize_with_reason(name)
+    derive_identity(name)
+    return time.perf_counter() - started
+
+
+def test_the_reading_cost_does_not_count_time_the_process_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#528: under `check-fast`'s parallel load (a Tester, a reviewer and a simulator on the same Mac) the
+    process waits for a core, and a wall clock counts that wait as the reading's cost. A reading that waits
+    0.3 s off the CPU, as a descheduled one does, must cost what the reading itself took."""
+    import time
+
+    from app.workflows import registry
+
+    real = registry.canonicalize_with_reason
+
+    def descheduled(name: str) -> object:
+        time.sleep(0.3)
+        return real(name)
+
+    monkeypatch.setattr(registry, "canonicalize_with_reason", descheduled)
+    assert _reading_cost("x (" + " " * 100 + "y") < 0.1
+
+
 @pytest.mark.parametrize("shape", [lambda n: "x (" + " " * n + "y", lambda n: "x" + " " * n + "(y)"],
                          ids=["unclosed-after-a-run", "a-run-before-the-bracket"])
 def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[[int], str]) -> None:
@@ -85,20 +115,10 @@ def test_the_bracket_reading_is_linear_on_a_long_whitespace_run(shape: Callable[
     the quadratic one 16 times. The floor keeps load from deciding the ratio: alone the linear reading takes
     0.033 s at 40k spaces, while the quadratic one takes about 6 s there (the night-1028 release Tester's M8: at
     20k the floor sat only 2x under the regression's own time)."""
-    import time
-
-    from app.workflows.registry import canonicalize_with_reason
-
-    def once(name: str) -> float:
-        started = time.perf_counter()
-        canonicalize_with_reason(name)
-        derive_identity(name)
-        return time.perf_counter() - started
-
     names = shape(10_000), shape(40_000)
     small = large = float("inf")
     for _ in range(5):
-        small, large = min(small, once(names[0])), min(large, once(names[1]))
+        small, large = min(small, _reading_cost(names[0])), min(large, _reading_cost(names[1]))
     assert large < max(8 * small, 0.5), f"10k spaces: {small:.4f} s, 40k: {large:.4f} s"
 
 
