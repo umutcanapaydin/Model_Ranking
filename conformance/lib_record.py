@@ -43,7 +43,9 @@ _GIT_IDENTITY = ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_AUTHOR_DATE", "GIT_
                  "GIT_COMMITTER_EMAIL", "GIT_COMMITTER_DATE")
 
 
-_CALLER_ONLY = {"CLAUDE_CODE_SESSION_ID", "MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES", "MAKELEVEL"}
+#: GIT_REFLOG_ACTION too: `git merge` exports it to its commit-msg hook, a fixture's `git switch` then
+#: logs "merge ..." instead of "checkout: moving from", and its `git switch -` finds no previous branch (D-241).
+_CALLER_ONLY = {"CLAUDE_CODE_SESSION_ID", "MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES", "MAKELEVEL", "GIT_REFLOG_ACTION"}
 
 
 def pool_jobs(cap: int, inside: bool = False) -> tuple[int, int]:

@@ -18,20 +18,22 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-10-31 (the delta round 2026-10-31b, `ed18de5..243d115`, and before it the delta round of run 1030 and
-the fixes before it; the night-1028 delta round was 2026-10-29,
+**Date:** 2026-11-01 (the delta round 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
+and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115` (`integration/fixes-1031`: #517,
+**Commit range:** this round `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b` (`integration/fixes-1101`, draft PR
+#547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
+D-240); the round 2026-10-31b `ed18de5bef8ad54d501b8a268db9900073ab903f..243d115` (`integration/fixes-1031`: #517,
 #522, #518, #535; D-232, D-233); the round before it `3cddbddaa777f327b1a2bf0bb2ff7a35b9e196e9..290557c39d6e672877cf6399b9d21eab2403ffbf`
 (#496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501, #505, the guard patch #497/#498; D-230,
 D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b6371a44105b404e568021f7c7f`, the head of
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 6e6f5beb81fc12d29d51540fc132be230d8d880b (the delta round 2026-10-31b, `ed18de5..243d115`, the
-head of `integration/fixes-1031`, plus this round's three tests committed at `6e6f5be` on `review/release-delta-1031b`;
-the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
+**Reviewed head:** 918c227fdb6d3910bd750d74b43c0f571d4d16c0 (the delta round 2026-11-01, `6e6f5be..eaee56b`, the
+head of `integration/fixes-1101`, plus this round's seven tests committed at `918c227` on `review/release-delta-1101`;
+the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
 round's `50c4764`, the B5 re-verify round's `9ef6448`, the hotfix-1026 delta round's `20008c6`,
 the nightly delta round's `0222150`, the full round's `e87f9a9`)
@@ -50,7 +52,19 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-PASS -- 0 BLOCKING open, 0 MINOR open in this file. The delta round 2026-10-31b (below, `ed18de5..243d115`: #517,
+MINOR -- 0 BLOCKING open, 2 MINOR open (M1, M2, both new). The delta round 2026-11-01 (below,
+`6e6f5be..eaee56b`: seventeen issues; D-234 to D-240) found every acceptance criterion proven by a citing test through
+the real entry point, each red on the code before its fix; `make check` is green at `eaee56b` (pytest 5201 passed, 37
+skipped; client-decls PASS with #536's toolchain line), `pytest -m artifact` on the fresh 2026-10-30 artifact 50
+passed, and `make ui-test` from a shut-down simulator 24 of 24 and 2 of 2 (#525's path, #527's guide test). 114
+faults: 85 killed by the range's own tests or gates; of the 29 that stayed green, 21 are closed by this round's tests
+at `918c227` and 8 are equivalent or harmless. M1: #528's `xdist_group("serial")` does nothing, since no pytest call
+passes `--dist loadgroup`. M2: a redirection with a descriptor number (`bash < "$SCRIPT" 2>&1`, `bash 2>err.log
+scripts/*.sh`) still passes D-239's reader -- the Escalate-NOW class, handed to the Security-Reviewer; it needs a
+deploy-workflow change no agent may make, and the real nightly workflow has none. Neither blocks the deploy as far as
+the tests go.
+
+The delta round 2026-10-31b, as it read when it closed: PASS -- 0 BLOCKING open, 0 MINOR open in this file. The delta round 2026-10-31b (below, `ed18de5..243d115`: #517,
 #522, #518, #535; D-232, D-233) found every acceptance criterion proven by a citing test through the real entry point
 (`scripts/deploy_gate.py` run as a program on a git fixture; `make client-decls` for #535), each red on the code
 before its fix where the issue fixes code; `make check-fast` is green at `6e6f5be` (pytest 4919 passed, 37 skipped;
@@ -1423,3 +1437,230 @@ None. The four faults that stayed green are closed by this round's tests (`6e6f5
   `./` inside a `-c` string (F9, F14, F20).
 - `tests/unit/test_client_decl_gate_535_tester.py:41`, `:48`, `:54` -- #535's allowance, its narrowness, and its sink
   (F26), in the suite CI runs.
+
+## Delta round 2026-11-01 (6e6f5be..eaee56b)
+
+**Range:** `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`, the head of `integration/fixes-1101` (draft PR #547),
+54 commits, 46 files: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531
+and #525; D-234 to D-240 (`docs/decisions.md:6413`-`:6650`), D-238 and D-240 the owner's rulings. Acceptance
+criteria read from `gh issue view` of each issue. Code: `scripts/deploy_gate.py`, `scripts/brief_fields.py`,
+`scripts/review_need.py`, `scripts/wave_check.py`, `scripts/client_decl_gate.py`, `scripts/deploy_hosted_engine.sh`,
+`scripts/ui_test.sh`, `src/app/workflows/registry.py`, the owner's `.claude/hooks/bash_guard.py` (D-236, re-pinned in
+`.claude/settings.json`), `ios/Config/Engine.xcconfig`, `ios/ModelRanking/{LaunchRouting,ContentView}.swift`,
+`ios/ModelRanking/Engine/ModelFamilies.swift`, `ios/UITests/IntelligenceGuideTests.swift`.
+**Risk tier:** HIGH. The deploy gate (#526, #545, #534, #541, #549, #543, #531), the Bash guard (#533, #529), a
+privacy setting of the Release build (#530) and the served names (#544, golden rule 3).
+**Seat:** my own worktree on `review/release-delta-1101`, cut from `eaee56b`, its own `.venv` (`make install`) and the
+fresh 2026-10-30 `advisor.db` (sha256 `a0362a7a5b73`). Two more detached worktrees at `eaee56b`, with this seat's
+venv and their own copies of the artifact, ran the red runs and the faults. A red run wrote the pre-fix file with
+`git show <fix>^:<path> >`, ran the tests and wrote `eaee56b`'s bytes back; every fault was an exact string
+replacement, checked unique, md5 taken before, reverted by the reverse replacement and md5 compared after (all 114
+matched; `git status` clean after each batch). The owner's guard was faulted only in a copy under a `mktemp`
+directory, through a copy of `test_bash_guard_bounds.py` that reads the guard's path from the environment; planted
+repositories lived under `tmp_path` or `mktemp`. No launchd service, owner data directory, hosted engine, Fly or
+GitHub write was touched; nothing was pushed or deployed.
+**Fresh eyes:** I wrote none of the range. My only code is the seven test files of this round.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family was available in this seat.
+Fresh context: the diff, the seventeen issues, D-234 to D-240 and the tests, not the implementers' sessions.
+
+### Acceptance-criterion coverage
+
+- **#526 / D-234: the gate refuses (`--check` fails, a deploy is refused) while a `GIT_*` is set, one test per
+  variable that matters** -> `tests/unit/test_deploy_gate_526.py:53` (`--check`) and `:61` (`"fly deploy"` and
+  `--judge`), each over `GIT_WORK_TREE`, `GIT_DIR`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`,
+  `GIT_ALTERNATE_OBJECT_DIRECTORIES`, `GIT_CONFIG_COUNT`, `GIT_CONFIG_PARAMETERS`, `GIT_NO_REPLACE_OBJECTS`; `:70`
+  names every variable and the `unset`; `:78` a non-deploy is not refused; `:86` and `:102` the three named
+  exceptions, held to the ADR's text; `:116` (the security review's M1) a variable pointing at another repository
+  cannot hide the deploy. RED at `6e6f5be`'s gate (24 of 26), at `099d3ee^` (5) and at `55190fc^` (3); GREEN at
+  `eaee56b`.
+- **#527 / D-235: a Debug-only `-UITestIntelligence unavailable`, and a UI test that opens the guide and taps Open
+  Settings** -> `ios/UITests/IntelligenceGuideTests.swift:24` ran in this round's `make ui-test` and passed (11.5 s,
+  `build/ui-test/xcodebuild.log:842`); `tests/unit/test_intelligence_guide_527.py:67` (the read only under `#if
+  DEBUG`), `:80` (the control), `:91` (both of the screen's reads go through it), `:99`, `:111`. RED at `d4acf7a^`
+  (2 of 5; the other 3 read the new UI test file, kept in place). `make client-decls` PASS in four configurations at
+  `eaee56b`, so no Release build reads the argument.
+- **#545: the protected base read by full ref names, in one list for `brief_fields` and `review_need`, with a red
+  test planting a tag and a `refs/origin/*` ref** -> `tests/unit/test_deploy_gate_545.py:38` (both plants), `:46`,
+  `:55` (`review_need`), `:64` (one list, every name full), `:73` (the security review's M2: a tag spelled as a
+  missing full ref). RED at `f9f6489^` (5 of 6) and `:73` at `cbf50e1^`; GREEN at `eaee56b`.
+- **#533 / D-236 clause 1: the guard refuses writing `refs/remotes/origin/*`, `refs/heads/main` or the default branch
+  by any route but a plain fetch or pull of origin** -> `tests/unit/test_bash_guard_bounds.py:1246` (52 commands:
+  the issue's two routes, `-c remote.*.fetch`, `git config remote.*`, `branch -d/-D/-m` of them, `worktree add -b
+  main`, `update-ref`, refmaps, mirrors, renamed sections), `:1270` (what a session needs stays allowed), and
+  `conformance/test-bash-guard.py:139`. All 51 new refused cases RED on `6e6f5be`'s guard; GREEN at `eaee56b`. In
+  another case (`refs/remotes/ORIGIN/x`) no test held it: F-G5 stayed green; closed by
+  `tests/unit/test_bash_guard_533_tester.py:28`.
+- **#529 / D-236 clause 2: the `v*` tag rule skips each option's value; a refspec that can land under
+  `refs/replace/` is refused** -> `tests/unit/test_bash_guard_bounds.py:1282` (17 spellings, all RED on `6e6f5be`'s
+  guard), `:1294` (listing stays allowed), `:1299` (`refs/*:refs/*`, `*:*`, RED pre-fix 4 of 4).
+- **#543: `policy_root` deleted, and a test that no caller reads the merge-base alone** ->
+  `tests/unit/test_deploy_gate_543.py:81` (gone), `:71` (no script reads a single protected base for policy), `:59`
+  (the rule fires on the old shape, stays quiet on the union). RED at `12fee63^` (2 of 3).
+- **#546: `wave_check` reads the default branch through `brief_fields.exact_ref` over `DEFAULT_BRANCHES`, with a
+  test that plants the tag** -> `tests/unit/test_wave_check_546.py:38` (decision order), `:47` (`_merged`), `:58`
+  (the wave base), `:66` (one list, read exactly), `:32` (control). RED at `cb63f40^` (9 of 14).
+- **#534: the tip read is every default-branch ref's, so a stale `origin/HEAD` cannot stand for the branch** ->
+  `tests/unit/test_deploy_gate_534.py:39` (plain and symbolic), `:46` (never fewer bases), `:61`. RED at
+  `76ff793^` (3 of 4).
+- **#541 / D-237: `env --c=`, `env --chd`, `env -S`, a PATH assignment, `$GITHUB_PATH`; one test per spelling** ->
+  `tests/unit/test_deploy_gate_541.py:45` (the issue's four plus `sudo -D`, `--chdir=`, a checkout's `path:`, `python
+  -c os.chdir`, `export PATH`, an option cluster, quoted pieces, an expansion inside the name), `:58` (a module by
+  `-m` or `import`), `:71` (stays quiet on another name or a longer one). RED at `98bd585^` (15 of 17). A file whose
+  name has capitals, started under another prefix, no test held: F-N7 stayed green; closed by
+  `tests/unit/test_deploy_gate_541_tester.py:27`.
+- **#548: `_wave_base` reads `closure/m<N>` by full ref, with a red test planting the tag** ->
+  `tests/unit/test_wave_check_548.py:30` (tag, `origin/` tag, top-level refs), `:21` (control). RED at `651bfd0^`
+  (4 of 5).
+- **#549 / D-239: refuse while a dispatched deploy workflow starts a file without writing its name (a pattern, a name
+  built at run time, a tracked symlink); the refusal names the workflow, line, shape and what to write; fail closed**
+  -> `tests/unit/test_deploy_gate_549.py:92` (12 pattern spellings), `:100` (24 run-time spellings), `:111` (a symlink
+  to a file and to a directory), `:124` (the refusal's words), `:134` (`--check`), `:155` (stays quiet), `:171` and
+  `:187` (the real nightly workflow and tree), `:192` (fail closed). RED at `1faffb3^` (42 of 47). Twelve parts no
+  test held (F-U5b to F-U28, below), closed by `tests/unit/test_deploy_gate_549_tester.py:49` (17 spellings), `:58`,
+  `:65`, `:76`. One spelling D-239 covers is still let through at `eaee56b`: M2 below.
+- **#544: every served model has a product name; the floor test skips the window for a category with none (restated
+  by D-238)** -> `tests/unit/test_display_names.py:125` (the artifact's served names, GREEN on the fresh artifact),
+  `:204` (nine media ids), `:210` (four text ids), `:214` (`FLUX.1 [dev] (FP8)`), `:220` (a spelled name kept);
+  `tests/unit/test_categories.py:355` (CAT-10 per scale on the served artifact) and `:399` (D-238 clause 5's fixture);
+  `tests/unit/test_media_surfaces.py:106`. RED on `6e37695^`'s registry (17 of 68); the old tests at `6e6f5be` fail
+  on the fresh artifact as the issue reports (3: CAT-10's TypeError, the refinements check, the shared name), the
+  symptom red. All 33 ids the issue lists are now served by a name (checked by `reconcile` over the fresh artifact).
+- **D-240 clause 2: the refinements exemption as narrow as written** -> `tests/unit/test_refinements.py:75` on the
+  real artifact; its source test had no fixture (F-E1 to F-E3 green), closed by
+  `tests/unit/test_refinements_240_tester.py:33`.
+- **#528: linear time proven without a wall-clock budget, and `xdist_group("serial")` if it must time** ->
+  `tests/unit/test_arena_respelling.py:90` (a reading that waits 0.3 s off the CPU costs what it took; RED at its
+  reproduce commit `55231b1`) and `:111` (CPU time, 8x ratio). The serial mark does nothing under this project's
+  pytest: M1 below.
+- **#536: client-decls prints the swiftc and SDK versions on its PASS and FAIL lines** -> live in this round's `make
+  check`: `client-decls PASS: ... [toolchain: Apple Swift version 6.4.2 (...); iphonesimulator 27.2 (24B8118);
+  iphoneos 27.2 (24B8118)]`; `tests/unit/test_client_decl_gate_536.py:58`, `:66`, `:74`, `:84`. RED at `74fb1d9^`
+  (5 of 5). The type-check and no-tree FAIL lines no test reached (F-C4, F-C5); closed by
+  `tests/unit/test_client_decl_gate_536_tester.py:21`, `:32`.
+- **#530: Release blanks `INFOPLIST_OTHER_PREPROCESSOR_FLAGS` and `INFOPLIST_PREFIX_HEADER` after the include; the
+  settings named with their reason, a test failing for each** -> `tests/unit/test_testflight_ready.py:196` (one per
+  setting), `tests/unit/test_release_plist_preprocessor.py:41` (every Info.plist setting the active Xcode declares is
+  classified) and `:66` (Xcode resolves a hostile local file to a Release build with none of it). RED at `26ee75a^`
+  (3 of 17).
+- **#531: a record nested past the recursion limit refuses in one line naming the record** ->
+  `tests/unit/test_deploy_hosted.py:374` (`[torn]`, `[nested-past-the-recursion-limit]`: exit 1, no traceback, the
+  sentence with the path). RED at `17c1d90^` (the nested case).
+- **#525: the harness boots the device before the uninstall, tolerating already booted, and fails when the uninstall
+  fails** -> `tests/unit/test_ui_test_script.py:147` (both passes, the offline pass alone), `:160`. RED at `6a0de03^`
+  (3 of 5). Through the real harness: `xcrun simctl shutdown all`, then `make ui-test`: `Booting device...`
+  (`build/ui-test/xcodebuild.log:2337`) before the removal, and the offline pass 2 of 2. "Tolerating already booted"
+  had no test (F-S3); closed by `tests/unit/test_ui_test_script_525_tester.py:26`.
+
+### Red to green
+Each issue's tests run against the code before its fix (`git show <fix>^:<path>`), in the fault worktree: #526 24
+of 26 red at `6e6f5be` (5 at `099d3ee^`, 3 at `55190fc^`); #545 5 of 6 at `f9f6489^`, M2's test at `cbf50e1^`; #534
+3 of 4; #543 2 of 3; #541 15 of 17; #549 42 of 47; #546 9 of 14; #548 4 of 5; #536 5 of 5; #531 1 of 2 (the torn
+record was refused before); #525 3 of 5; #530 3 of 17; #527 2 of 5; #544 17 of 68 on the registry; #533 51 of 52 and
+#529 21 of 21 on the pre-fix guard copy; #528's test red at `55231b1`. Every pass in a red run is a control or a
+regression test, as its docstring says. All GREEN at `eaee56b`.
+
+### Fault injection
+114 faults: 58 in the deploy gate and its readers (the deploy-gate, `brief_fields`, `review_need` and `wave_check`
+tests, 571, `-n 8 -x`), 23 in the guard copy (859 guard tests), 33 in the registry, the tooling and the app (their
+own tests; L4 also through `make ui-test`). Killed by the range's own tests or gates: 85. Stayed green: 29, of which
+21 are closed by this round's tests (each RED under its fault, GREEN at the head) and 8 are equivalent or harmless.
+
+| # | fault | result |
+|---|---|---|
+| D1-D8 | #526: harmless names refused; `GIT_*` not removed, or the harmless kept; the refusal dropped from `judge`, `check`, `--judge`, the command form; a non-deploy refused | all RED, `test_deploy_gate_526.py` |
+| N1, N2, N4-N6, N8 | #541: `_named_by_name` off; no stem; no expansion strip; no look-behind; no look-ahead; `_` not a name character | all RED, `test_deploy_gate_541.py` |
+| N3 | #541: the quote-only reading dropped | GREEN; equivalent: the reading with quotes and expansions both out finds every name the quote-only one finds that names the file run |
+| N7 | #541: the text not lower-cased | GREEN; RED `test_deploy_gate_541_tester.py:27` |
+| U1-U5, U6b, U8, U9, U12, U13, U15-U19, U22, U24, U25 | #549: off; not a verdict; fail open; no brace; no bracket; no `xargs`; no `eval`; no `-c`; no `<` target; here-document bodies read; case patterns read; reserved words read; symlinks unread; block scalars unread; `<(` unread; no `source`; `-c` for every starter; the program word unread | all RED, `test_deploy_gate_549.py` |
+| U5b, U6, U7, U10, U11, U14, U23, U26, U27 | #549: no `{1..3}`; no `parallel`; `find` by `-exec` only; option values read as the file; `-m` unread; a quoted `<<` opens a here-document; `sh`/`bash` only; `>` block unjoined; `\` unjoined | GREEN; RED `test_deploy_gate_549_tester.py:49` |
+| U20, U21 | #549: every redirection target read as standard input | GREEN; RED `test_deploy_gate_549_tester.py:58` |
+| U28 | #549: one copy of each workflow read | GREEN; RED `test_deploy_gate_549_tester.py:65` |
+| B1-B3, B7 | #545/#534: `rev-parse` for `show-ref --verify`; the first ref only; short names; `review_need`'s own list | all RED |
+| B4, B5, B6 | #545: `merge-base`/`rev-parse` given the full name, not `exact_ref`'s commit | GREEN; equivalent: `exact_ref` has proven the ref exists, and git's first lookup rule reads an existing full name as itself |
+| W1-W5 | #546/#548: remote filter off; `_merged`, `_wave_base`, the closure and `branch_adr_problems` by short name | all RED |
+| G1-G3, G6-G23 | #533/#529 in the guard copy | 21 RED, `test_bash_guard_bounds.py:1246`, `:1282`, `:1299` |
+| G4 | `_lands` maps a bare name to itself, not `refs/heads/` | GREEN; equivalent: `_default_ref` already refuses a bare protected name on every path that calls `_lands` |
+| G5 | `_lands` without `casefold()` | GREEN; RED `test_bash_guard_533_tester.py:28` (5 of 5, the controls GREEN) |
+| R1, R2, R4-R8, R10, R11 | #544: no capitalising; no mixed-case words; spelled names capitalised; the written name not read; brackets spaced twice; `gpt4` dropped; text ids capitalised; `muse` off the family words; capitals not from the registry | all RED |
+| R3 | #544: `_media_words` keeps a name that reads as another model | GREEN; equivalent through the entry: no spelling reaches `registry.py:950` (72,613 synthetic spellings and every `raw_name` of the artifact) |
+| R9 | #544: a word spelled two ways takes the first in sort order | GREEN; RED `test_display_names_544_tester.py:17` |
+| E1-E3 | D-240: `required`, the row count, or both not read | GREEN; RED `test_refinements_240_tester.py:33` |
+| E4 | D-240: the disclosure not asked | GREEN; equivalent while the product discloses: an assertion removed, which only a product fault turns red; a standalone artifact test of it would spend a CI skip (`docs/skip-budget.txt`, 98), so none is added |
+| S1, S2 | #525: no `bootstatus`; `|| true` back | RED `test_ui_test_script.py:147`, `:160` |
+| S3 | #525: `simctl boot` for `bootstatus -b` | GREEN; RED `test_ui_test_script_525_tester.py:26` |
+| H1 | #531: `RecursionError` not caught | RED `test_deploy_hosted.py:374` |
+| C1-C3, C6, C7 | #536: PASS, refused-binding and self-test lines without the toolchain; one SDK; no build | all RED |
+| C4, C5 | #536: the type-check and no-tree FAIL lines without the toolchain | GREEN; RED `test_client_decl_gate_536_tester.py:21`, `:32` |
+| X1-X3 | #530: either line removed; one narrowed to `[sdk=iphoneos*]` | all RED |
+| L1, L2 | #527: the read outside `#if DEBUG`; the screen's first read not launch-aware | RED `test_intelligence_guide_527.py:67`, `:91` |
+| L3 | #527: any value of `-UITestIntelligence` | GREEN; harmless: a Debug build only, and only a UI test passes the argument |
+| L4 | #527: the UI test's `openSettings.tap()` removed | green on the unit tests; RED `make ui-test` (`IntelligenceGuideTests.swift:41`, Settings never in front) |
+
+**Mutation kill-rate (advisory):** no mutation runner is wired for this stack. Hand faults: 114, 85 killed by the
+range's own tests or gates, 29 green; 106 of 114 killed after this round's tests, the other 8 equivalent or harmless.
+
+### Test integrity
+`git diff --name-status 6e6f5be..eaee56b -- tests conformance`: eleven files added, eleven modified, none deleted.
+Every modification adds cases or follows an owner ruling: `conformance/test-bash-guard.py` and
+`test_bash_guard_bounds.py` move `git branch -D main`, `-m main old` and `-D "$b"` from allowed to refused (D-236);
+`test_categories.py:355` restates CAT-10 per scale (D-238, the owner's ruling; Elo and percentage keep `<`) and
+gains its fixture (`:399`); `test_refinements.py:75` gains D-240's exemption; `test_media_surfaces.py:120` and
+`test_categories.py:589` take the new names (#544); `test_ios_client_contract.py:2249` the launch-aware read (D-235);
+`test_arena_respelling.py` moves from wall clock to CPU time (#528); `test_testflight_ready.py:196` widens one test to
+four settings (#530). `1faffb3` edits #549's red test in the fix commit: two cases added, none removed. No test
+skipped, no assertion weakened beyond the two rulings; no security-invariant test deleted.
+
+### Observations (no finding)
+- The main checkout (`main`, `74f8c07`) serves the fresh artifact and is red on #544's three artifact tests until
+  #547 merges, as #544 says; its post-edit hook showed it during this round (`.claude/last-check.log` there).
+- #544's names are the ids' own words capitalised: `Wan2.5 I2v Preview`, `Wan V2.2 A14b`, `Pixverse V5.6`, `P
+  Video`, `Ltx 2 19b`. The rule adds no word (D-104), so the vendor's casing (`PixVerse`, `I2V`, `LTX`) waits for a
+  table entry; a naming choice for the owner, not a test gap.
+- `brief_fields.protected_base` (the singular) has no caller left, the class of #543's `policy_root`;
+  `test_deploy_gate_543.py:71` already refuses a script that calls it.
+- `wave_check._default_tips(root, remote=True)` reads `refs/remotes/origin/HEAD` before `origin/main` for a backlog
+  wave's decision order (#546): a stale `origin/HEAD` widens the range read (refuses more), records only.
+- `test_deploy_gate_526.py:86` is named "the two named exceptions" over three; cosmetic.
+
+### Delta BLOCKING
+None.
+
+### Delta MINOR
+- **M1** `Makefile:117` (`pytest -n auto`, no `--dist loadgroup`), `tests/unit/test_arena_respelling.py:108` -- #528's
+  `@pytest.mark.xdist_group("serial")` does nothing: pytest-xdist 3.8 reads the mark only under `--dist loadgroup`,
+  which neither the Makefile nor `pyproject.toml` passes; measured, the two cases ran on `gw2` and `gw1` beside the
+  rest at `-n 4`, and on one worker with `--dist loadgroup`. AGENTS.md section 3.3 states the mark as the way to run
+  a test alone, and this is the one test that carries it. The CPU-time reading (`:90`) is the part of #528 that
+  holds. Remedy: `--dist loadgroup` in `check-fast`'s and `test`'s pytest calls (or `addopts`), with a test that a
+  marked pair runs on one worker. To be filed.
+- **M2** `scripts/deploy_gate.py:703` (`_run_tokens`) and `:846` (`_starter_shapes`) -- D-239 is still let through by
+  a redirection with a file-descriptor number: `shlex` splits `2>&1`, `2>err.log`, `3<x` into a word `2` and an
+  operator, and the word is read as the starter's file, so the `<` target or the real operand is never read.
+  Through the real gate on a dispatched `release.yml`: `bash < "$SCRIPT"` exit 2, but `bash < "$SCRIPT" 2>&1`,
+  `bash 2>err.log scripts/*.sh` and `sh 2>/dev/null "$SCRIPT"` exit 0. The Escalate-NOW class (a gate bypass with no
+  test), handed to the Security-Reviewer; exploiting it needs a change to a deploy workflow, which no agent may make
+  (`.github/workflows/**`), and the real nightly workflow has no such step (`test_deploy_gate_549.py:171`). Remedy:
+  read a word of digits directly before a redirection operator as that operator's descriptor, with one test per
+  spelling above. To be filed. Not committed as a test: it is red at `eaee56b`, and an `xfail` would spend the skip
+  budget (`tests/unit/test_skip_budget_local.py:84`).
+
+### Delta suite result
+- `make check` at `eaee56b` in this seat: PASS -- lint, typecheck, test (pytest 5201 passed, 37 skipped; coverage
+  93.15%, `registry.py` 99%, its one uncovered new line `:950` the R3 path no spelling reaches), coverage-floor,
+  check-records and its self-test, shell-dialect, wave-check-all, conformance (33), swift-test (734, SlowTierTests 7
+  of 7), client-decls (4 configurations, with #536's toolchain line).
+- `pytest -m artifact` on the fresh artifact (sha256 `a0362a7a5b73`): 50 passed.
+- `make ui-test` after `xcrun simctl shutdown all`: engine up 24 executed, 0 failures (IntelligenceGuideTests
+  included); engine down 2 of 2; exit 0.
+- This round's seven test files: ruff clean, 32 passed; committed at `918c227`, whose commit-msg hook ran `make check-fast`: PASS in 230.8 s (pytest 5233 passed,
+  37 skipped; client-decls 4 configurations). A first attempt carried an artifact-marked test, which spent a CI
+  skip (99 of 98) and was refused; it was dropped (E4 above).
+
+### Tests added this round
+- `tests/unit/test_bash_guard_533_tester.py:28`, `:39` -- D-236 clause 1 in any case (F-G5), and its control.
+- `tests/unit/test_deploy_gate_541_tester.py:27` -- D-237 for a file whose name has capitals (F-N7).
+- `tests/unit/test_deploy_gate_549_tester.py:49`, `:58`, `:65`, `:76` -- D-239's shapes F-U5b to F-U28 reached.
+- `tests/unit/test_refinements_240_tester.py:33` -- D-240 clause 2's source conditions on a fixture (F-E1 to F-E3).
+- `tests/unit/test_client_decl_gate_536_tester.py:21`, `:32` -- #536's two unreached FAIL lines (F-C4, F-C5).
+- `tests/unit/test_ui_test_script_525_tester.py:26` -- #525's "tolerating already booted" (F-S3).
+- `tests/unit/test_display_names_544_tester.py:17` -- #544's "one way only" (F-R9).
