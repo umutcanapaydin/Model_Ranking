@@ -170,3 +170,56 @@ def test_claude_4_is_the_edge_and_the_rest_of_a_name_stays() -> None:
     assert turn("Claude Haiku 3.5") == "Claude 3.5 Haiku"
     assert turn("Claude 4.9 Opus (thinking)") == "Claude Opus 4.9 (thinking)"
     assert turn("Claude Sonnet 3.7 (2025-02-19)") == "Claude 3.7 Sonnet (2025-02-19)"
+
+
+#: #544: the 2026-10-30 artifact's raw spellings that were served as their id or a lower-case spelling of
+#: it, each with the name derived from the source's own words: each word capitalised, a version kept as
+#: the source writes it, and no word the source does not give. `MiniMax` is the registry's own spelling.
+MEDIA_IDS_ON_2026_10_30 = {
+    "kling-v2.1-master": "Kling V2.1 Master",  # Arena's video boards publish only the id as the name
+    "minimax-h3": "MiniMax H3",
+    "ray2": "Ray2",
+    "sora": "Sora",
+    "p-video": "P Video",
+    "veo-3.1-fast-audio-1080p": "Veo 3.1 Fast Audio 1080p",
+    "hailuo-02-fast": "Hailuo 02 Fast",
+    "wan2.5-i2v-preview": "Wan2.5 I2v Preview",
+    "ltx-2-19b": "Ltx 2 19b",
+}
+TEXT_IDS_ON_2026_10_30 = {
+    "qwen3.8-flash": "Qwen3.8 Flash",                    # LiveBench; as `qwen3.5-flash` is named
+    "gpt-4": "GPT-4",                                    # METR; as `gpt4-0613` is named
+    "gpt-3-5-turbo-instruct": "GPT-3.5 Turbo Instruct",  # METR; as `gpt3.5-turbo0125` is named
+    "muse-wonder-1.0": "Muse Wonder 1.0",                # LiveBench
+}
+
+
+def _named(spelling: str, *, media: bool) -> str:
+    identity = registry.derive_identity(spelling, media=media)
+    assert identity is not None, spelling
+    return registry._derived_display(identity.model_id, [spelling], media=media)
+
+
+@pytest.mark.parametrize(("spelling", "name"), sorted(MEDIA_IDS_ON_2026_10_30.items()))
+def test_a_media_board_that_gives_only_the_id_is_named_from_its_words(spelling: str, name: str) -> None:
+    """#544: Arena's video boards give the id as the only name (`kling-v2.1-master`)."""
+    assert _named(spelling, media=True) == name
+
+
+@pytest.mark.parametrize(("spelling", "name"), sorted(TEXT_IDS_ON_2026_10_30.items()))
+def test_a_text_board_that_gives_only_the_id_is_named_by_the_table(spelling: str, name: str) -> None:
+    assert _named(spelling, media=False) == name
+
+
+def test_a_bracketed_variant_next_to_a_bracketed_mode_is_named_as_written() -> None:
+    """#544: `FLUX.1 [dev] (FP8)` was served as its id, `flux.1-dev--fp8`: the name read without its
+    brackets spaced the two brackets twice and so read as another id."""
+    assert _named("FLUX.1 [dev] (FP8)", media=True) == "FLUX.1 dev FP8"
+
+
+def test_a_media_name_the_source_spells_is_kept_and_a_text_id_is_not_capitalised() -> None:
+    """The rule names an id only: a spelled name stays the source's, and a text board's lower-case id is
+    the table's to name (OpenAI writes `o3-mini` so)."""
+    assert _named("FLUX.2 [max]", media=True) == "FLUX.2 max"
+    assert _named("Reve v1.1", media=True) == "Reve v1.1"
+    assert _named("zeta-9-mini", media=False) == "zeta-9-mini"
