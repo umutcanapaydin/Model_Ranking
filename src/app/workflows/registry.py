@@ -866,6 +866,12 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen3-next80b-a3b-instruct": "Qwen3-Next-80B-A3B-Instruct",  # Qwen/Qwen3-Next-80B-A3B-Instruct
     "qwen3-next80b-a3b-thinking": "Qwen3-Next-80B-A3B-Thinking",  # Qwen/Qwen3-Next-80B-A3B-Thinking
     "qwen3-vl235b-a22b-instruct": "Qwen3-VL-235B-A22B-Instruct",  # Qwen/Qwen3-VL-235B-A22B-Instruct
+    # #544: served under a lower-case spelling of the id on the 2026-10-30 artifact. Each is the source's
+    # own words, capitalised as this table already spells the family; no word is added.
+    "gpt3.5-turbo-instruct": "GPT-3.5 Turbo Instruct",           # METR `gpt-3-5-turbo-instruct`
+    "gpt4": "GPT-4",                                             # METR `gpt-4`
+    "muse-wonder1.0": "Muse Wonder 1.0",                         # LiveBench `muse-wonder-1.0`
+    "qwen3.8-flash": "Qwen3.8 Flash",                            # LiveBench `qwen3.8-flash`
 }
 
 
@@ -898,16 +904,50 @@ def _derived_display(model_id: str, names: list[str], *, media: bool = False) ->
         bare = _PAREN_EFFORT.sub("", _UNDERSCORE_EFFORT.sub("", name.rsplit("/", 1)[-1]))
         if dash := _dash_effort(bare):
             bare = bare[: dash.start()]
-        bare = bare.strip()
+        bare = written = bare.strip()
         if media and not _DISPLAY.fullmatch(bare):
-            bare = _MEDIA_BRACKETS.sub(" ", bare).strip()  # `FLUX.2 [max]` reads as `FLUX.2 max` (#378)
-        derived = derive_identity(bare, media=media)
+            # `FLUX.2 [max]` reads as `FLUX.2 max` (#378). It is the name as written that must read as
+            # the model: `FLUX.1 [dev] (FP8)` is `flux.1-dev--fp8`, and its two brackets side by side,
+            # spaced twice, read as another id, so the id was served (#544).
+            bare = " ".join(_MEDIA_BRACKETS.sub(" ", bare).split())
+        derived = derive_identity(written, media=media)
         if _DISPLAY.fullmatch(bare) and derived is not None and derived.model_id == model_id:
             candidates.add(bare)
     spaced = sorted(n for n in candidates if " " in n)
     if spaced:
         return claude_word_order(spaced[0])
-    return min(candidates, key=lambda n: (len(n), n)) if candidates else model_id
+    chosen = min(candidates, key=lambda n: (len(n), n)) if candidates else model_id
+    return _media_words(chosen, model_id) if media and candidates and chosen == chosen.lower() else chosen
+
+
+#: The words the registry's own names capitalise other than as a plain capitalised word (`MiniMax`,
+#: `DeepSeek`, `GPT`), each where they capitalise it one way only: derived from the names, so a rule
+#: that spells a family so is the only source (#544). A lower-case spelling (`gpt-oss`) is no capital.
+def _mixed_case_words() -> dict[str, str]:
+    spellings: dict[str, set[str]] = {}
+    for name in [rule.display for rule in MODEL_RULES] + list(DISPLAY_NAMES.values()):
+        for word in re.split(r"[^A-Za-z0-9]+", name):
+            if word.isalpha() and word != word.lower():
+                spellings.setdefault(word.lower(), set()).add(word)
+    return {word: spelled for word, (spelled, *more) in ((w, sorted(s)) for w, s in spellings.items())
+            if not more and spelled != word.capitalize()}
+
+
+_MIXED_CASE_WORDS = _mixed_case_words()
+
+
+def _media_words(spelling: str, model_id: str) -> str:
+    """#544: a media board that gives only the model's id as its name (Arena's video boards write
+    `kling-v2.1-master`) is named from that id's own words: each word capitalised (`MiniMax` as the
+    registry spells it), every other character as the board writes it, so a version stays `v2.1` →
+    `V2.1` and `02` stays `02`. No word is added: Luma's `ray2` is `Ray2`, never `Luma Ray2`. The name
+    must still be a bounded spelling that reads as the same model, or the board's spelling stays."""
+    words = [_MIXED_CASE_WORDS.get(word, word[:1].upper() + word[1:]) for word in re.split(r"[-\s]+", spelling) if word]
+    name = " ".join(words)
+    derived = derive_identity(name, media=True)
+    if _DISPLAY.fullmatch(name) and derived is not None and derived.model_id == model_id:
+        return name
+    return spelling
 
 
 @dataclass(frozen=True)

@@ -355,11 +355,12 @@ def test_no_threshold_is_on_a_scale_its_own_metric_cannot_reach() -> None:
 def test_every_derived_floor_is_on_its_own_scale() -> None:
     """CAT-01/02/09 and CAT-10, on the floors the engine SERVES (D-159): derived from the artifact's
     boards, so the scale checks run there. A percentage floor lives in (0, 100]; an Elo floor cannot
-    be a percentage constant; and a value window wider than the floor reaches models the floor has
-    already rejected, which makes the two controls contradict each other."""
+    be a percentage constant; and a value window that reaches models the floor has already rejected
+    makes the two controls contradict each other (CAT-10, as D-238 states it per scale)."""
     import sqlite3
 
     from app.workflows.floors import derived_floor
+    from app.workflows.rank import category_ranking
 
     conn = sqlite3.connect("file:advisor.db?mode=ro", uri=True)  # INV-23: the served artifact is read-only
     measured = 0
@@ -373,8 +374,40 @@ def test_every_derived_floor_is_on_its_own_scale() -> None:
             assert floor <= 100.0, (name, floor)
         if spec.metric == "elo":
             assert floor >= 1000.0, (name, floor)
-        assert spec.value_window < floor, (name, spec.value_window, floor)
+        # #544: a surface ranked on quality only has no value window (D-218 clause 1) and nothing it
+        # could contradict; a priced one must have one, as `recommend` refuses a priced surface without.
+        assert spec.value_window is not None or not spec.priced, name
+        if spec.value_window is not None:
+            ranked = category_ranking(conn, spec)
+            leader = max((row.score for row in ranked), default=None)
+            problem = _window_problem(spec.metric, spec.value_window, floor, leader)
+            assert problem is None, (name, problem)
     assert measured, "fails closed: the served artifact derived no floor at all"
+
+
+def _window_problem(metric: str, window: float, floor: float, leader: float | None) -> str | None:
+    """CAT-10 as D-238 states it: the value window must not reach models the floor has rejected. On a
+    percentage or Elo scale that is `window < floor`; on an absolute one (`minutes`, `ECI`), read from
+    `metric`, it is `leader - window >= floor`. None when the rule holds."""
+    if metric == "elo" or metric.startswith("%"):
+        return None if window < floor else f"window {window} is not below floor {floor}"
+    if leader is None:
+        return "an absolute scale with a floor but no ranked leader: the rule cannot be read"
+    return None if leader - window >= floor else f"leader {leader} - window {window} reaches below floor {floor}"
+
+
+def test_the_window_rule_reads_each_scale_by_its_own_form() -> None:
+    """D-238 clause 5 (D-163 clause 2): the comparison's logic, on fixtures. The long-tasks numbers of the
+    #379 calibration pass; an absolute window that reaches below its floor fails, and so do the old rule's
+    failures on a percentage or Elo scale."""
+    assert _window_problem("minutes", 401.5, 223.7, 718.8) is None
+    assert _window_problem("minutes", 401.5, 223.7, 600.0) is not None   # 198.5 is below the floor
+    assert _window_problem("minutes", 401.5, 223.7, 625.2) is None      # exactly at the floor holds
+    assert _window_problem("ECI", 3.0, 145.5, 147.0) is not None
+    assert _window_problem("minutes", 10.0, 223.7, None) is not None   # fails closed
+    assert _window_problem("elo", 30.0, 1411.4, 1528.6) is None
+    assert _window_problem("elo", 1500.0, 1411.4, 9999.0) is not None  # the leader cannot excuse it
+    assert _window_problem("% correct", 90.0, 83.5, 200.0) is not None
 
 
 def test_no_surface_states_a_bar_the_engine_does_not_apply() -> None:
@@ -551,8 +584,9 @@ def test_a_board_only_reaches_its_own_surface_through_the_ranking_query() -> Non
     for surface in surfaces:
         own = rating[CATEGORIES[surface].primary_source]
         # #378: an image or video board's names are read by the media grammar, never by a text rule,
-        # so the shared name ranks there under its own spelling, at that board's own rating.
-        name = shared if CATEGORIES[surface].priced else "gpt-5"
+        # so the shared name ranks there under its own words, at that board's own rating; #544: an id
+        # is named from its words, capitalised as the registry spells them (`GPT`).
+        name = shared if CATEGORIES[surface].priced else "GPT 5"
         assert seen[surface].get(name) == own, (surface, seen[surface])
     # The model that exists on ONE board reaches ONE surface. This is the assertion the mutant that
     # merged the boards at ingest died on, now stated where a reader meets it.
