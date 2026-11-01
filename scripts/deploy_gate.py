@@ -106,9 +106,11 @@ from brief_fields import (  # noqa: E402
 #: tree, index, objects and configuration from them, so with one set the gate can judge another checkout than the
 #: one being deployed (`GIT_WORK_TREE` passed a product change). `main` refuses a deploy, and `--check` fails, while
 #: any is set: any `GIT_*`, since git reads more of them than a list of the redirecting ones would keep up with.
-#: Two named exceptions (D-234), removed from this process's environment so that no git the gate runs sees them:
-#: neither names a tree, an index, an object store or a configuration, and refusing them would fail every
-#: agent session and every git hook whatever the verdicts said.
+#: Every one is then removed from this process's environment, so the gate's own git reads the repository it runs
+#: in: pointed at another one, the command form read that brief, found no deploy and passed before it reached the
+#: refusal (the fixes-1101 security review's M1). Three named exceptions (D-234) are not refused: none names a
+#: tree, an index, an object store or a configuration, and refusing them would fail every agent session and every
+#: git hook whatever the verdicts said.
 HARMLESS_GIT = {
     # Claude Code sets it in every session, and git in its hooks: the program git opens for a message, which no
     # command this gate runs asks for.
@@ -121,8 +123,8 @@ HARMLESS_GIT = {
     "GIT_REFLOG_ACTION": "the label of the reflog line a command writes",
 }
 CALLER_GIT = tuple(sorted(name for name in os.environ if name.startswith("GIT_") and name not in HARMLESS_GIT))
-for _name in HARMLESS_GIT:
-    os.environ.pop(_name, None)
+for _name in [name for name in os.environ if name.startswith("GIT_")]:
+    del os.environ[_name]
 
 #: #410 round 1's B1: git honours `refs/replace/` refs everywhere, so one written by the change under evaluation
 #: could stand in for the pinned commit or the protected base. Every git this gate starts, directly or through

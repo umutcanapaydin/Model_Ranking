@@ -6437,7 +6437,12 @@ reason to set one.
 from a shell with none (`env | grep ^GIT_` prints nothing).
 
 **Revisit when:** a deploy path the owner uses needs a `GIT_*` variable set (the nightly script unsets the five it
-knew of before `--check`).
+knew of before `--check`); or the gate's git is to be held against the rest of its environment too: `HOME`,
+`XDG_CONFIG_HOME` and `PATH` still choose its global configuration and which `git` runs (the fixes-1101 security
+review's R2), outside this ADR.
+
+**As built (the fixes-1101 security review's M1):** after the names are read, every `GIT_*` is removed from the
+gate's own environment, so a refused variable cannot also steer what the gate reads before it is refused.
 
 ## D-235 — A Debug-only launch argument scripts the on-device model's availability for UI tests
 
