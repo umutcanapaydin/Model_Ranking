@@ -1801,3 +1801,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Not covered: the issue's third remedy line ("check which tests the line names") is unclear without a brief that declares `Security-invariant tests:`; commented on #563.
 - Lesson: a call that reads its target from the caller's environment is policy by another name; name the target from the repository itself and strip the variables that could rename it.
 - The Security-Reviewer (MINOR at `73cd898`, `docs/reviews/fix-issue-563-security.md`): M1, no test refused a look-alike origin and the ssh form was untested -- seven look-alikes now refuse without asking `gh`, and `ssh://` is a positive case; R1, once `Security-invariant tests:` is declared the gate's own control tests would count as test-and-CI -- #573; R2, `gh`'s own config or proxy variables can reroute its call -- refused: it needs write access to the user's environment, not the repository, and every other check of the gate trusts that environment too.
+
+## 2026-11-02 · fix/issue-566-standup-full-ref — the standup compares with the real default branch
+
+- Found while fixing #554: `scripts/standup.sh` chose the decisions it compares by short name (`origin/HEAD origin/main ... main master`), and a tag of that name came first, so "ADRs awaiting the owner's merge" could list none. Display only; no gate reads it.
+- Red: a tag `origin/HEAD` at the branch tip, and with no `origin/HEAD` a tag `origin/main`, each hid the branch's ADR.
+- Fix: each candidate by its full ref through `show-ref --verify --hash`, then the decisions at that commit. `conformance/test-adr-status.py` and `test-standup.py` still pass; on this tree it lists D-244, which waits for the owner's merge.
+- Lesson: every reader of the default branch is a reader of policy for someone; the display ones drift last because no gate fails on them.
