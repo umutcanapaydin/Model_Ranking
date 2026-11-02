@@ -1749,3 +1749,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The plan branch is cut from the upgrade's head (`1a5fec0`), so the run file is graded by v7.3.1's `run_check`; it merges after #559.
 - The run starts in a new session after #559 merges, since the guard pin changed.
 - Lesson: ask a `work-issue`'s decisions as one plain question with its default, not as five; the owner answers the default when the metaphor makes it clear.
+
+## 2026-11-02 · fix/issue-557-xdist-loadgroup — the `serial` group holds under every `-n` run
+
+- The release delta Tester's M1: `xdist_group("serial")` needs `--dist loadgroup`. check-fast already passes it (`PYTEST_PARALLEL`), but `make test`, the merge gate, and CI's `pytest -n auto` read only pyproject's options, so the group spread over four workers there.
+- Red test: a small suite under the project's own pyproject with `-n 4` and no `PYTEST_ADDOPTS`; the eight marked cases ran on gw0 to gw3. A second test runs `--dist load` to show the measure can go red.
+- Fix: `--dist loadgroup` in pyproject's `addopts`; a run with no `-n` ignores it (measured).
+- Lesson: a flag set in one runner's environment holds only for that runner; put a test-suite promise in the suite's own config, where every runner reads it.
