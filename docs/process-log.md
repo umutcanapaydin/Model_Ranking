@@ -1741,3 +1741,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Tester: MINOR at `1a5fec0`. Every project rule goes red when its code is reverted; 51 faults, 44 killed by the range's tests, 5 closed by new tests, 2 equivalent. M3: v7.3's `test-prune-merged.py` squashed with no git identity and failed only in CI; fixed in `1a5fec0`.
 - Security-Reviewer: MINOR at `1a5fec0`. The guard port was compared against v7.2's guard on 2,423 commands: every project rule still refuses. M14 and M15 (the guard: a `for` word with a blank, `.codex/` not refused) are #561, the owner's; M16 (`.deps-accept` routed to no review) is #562; R13 (`ci_green` without `-R`) is #563.
 - Lesson: a merge in a hook-run commit carries git's own environment into the fixtures; scrub every variable git exports to hooks, not only the ones a session sets.
+
+## 2026-11-02 · plan/run-1102 — the run plan for the open queue after the v7.3.1 upgrade
+
+- Nine queued issues, all triaged: seven `fix-issue` bugs (#557, #554, #555, #556, #553, and #562, #563 from the upgrade's security delta) and two `work-issue` items (#551, #552); #561, the guard, is the owner's patch.
+- The owner answered both `work-issue` items in one message: D-242 (#551: every start D-239 does not read refuses too, a started script's own starts stay residue) and D-243 (#552: a source silent for seven nights opens a GitHub issue; the workflow half is the owner's).
+- The plan branch is cut from the upgrade's head (`1a5fec0`), so the run file is graded by v7.3.1's `run_check`; it merges after #559.
+- The run starts in a new session after #559 merges, since the guard pin changed.
+- Lesson: ask a `work-issue`'s decisions as one plain question with its default, not as five; the owner answers the default when the metaphor makes it clear.
