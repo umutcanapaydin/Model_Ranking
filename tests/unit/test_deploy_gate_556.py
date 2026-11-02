@@ -37,6 +37,18 @@ def test_the_count_follows_the_workflow(tmp_path: Path) -> None:
 def test_a_brief_that_dispatches_no_workflow_says_so(tmp_path: Path) -> None:
     """covers #556: with no dispatched deploy workflow there is nothing to read, and the line says that too."""
     repo = _installed(tmp_path)
-    assert "gh workflow run" not in _brief("fly deploy"), "the control: this brief dispatches no workflow"
+    brief = (repo.root / "docs" / "project-brief.md").read_text(encoding="utf-8")
+    assert "gh workflow run" not in brief, "the control: the committed brief dispatches no workflow"
     _code, out = repo.check()
     assert "no dispatched deploy workflow" in _d239_line(out), out
+
+
+def test_a_dispatched_name_no_file_answers_to_is_not_called_read(tmp_path: Path) -> None:
+    """covers #556 (its security review's M1): `gh workflow run ghost` with no `ghost.yml` -- the line names it apart,
+    as dispatched with no copy, never as read."""
+    repo = _installed(tmp_path)
+    repo.write("docs/project-brief.md", _brief("fly deploy", "gh workflow run ghost"))
+    repo.commit("the brief dispatches a workflow nothing holds")
+    _code, out = repo.check()
+    line = _d239_line(out)
+    assert "dispatched with no copy to read: ghost" in line and "ghost read" not in line, out

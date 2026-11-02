@@ -1283,10 +1283,20 @@ def verdicts(root: Path, target: str = "production") -> list[tuple[str | None, s
                     f"workflows: {len(unnamed)} start(s) of a file without its name"))
     else:
         # #556: a PASS names what D-239's check read, so it is evidence and not a silence.
-        names, runs = _UNNAMED_READ.get(str(root), ([], 0))
-        out.append((None, f"workflows: {', '.join(names)} read, {runs} run command(s), no start of a file without its "
-                          "name (D-239)" if names else
-                          "workflows: no dispatched deploy workflow, so no start of a file without its name (D-239)"))
+        # The #556 security review: M1, a dispatched name no copy answers to was printed as "read"; R2, a missing
+        # record of the read stated "no dispatched deploy workflow" as a fact.
+        reading = _UNNAMED_READ.get(str(root))
+        if reading is None:
+            summary = "workflows: no start of a file without its name (D-239); what was read is not recorded"
+        else:
+            names, runs = reading
+            texts, _ = _workflow_texts(root)
+            read, absent = [n for n in names if texts.get(n)], [n for n in names if not texts.get(n)]
+            summary = (f"workflows: {', '.join(read)} read, {runs} run command(s)" if read else
+                       "workflows: no dispatched deploy workflow read") + (
+                f"; dispatched with no copy to read: {', '.join(absent)}" if absent else "") + (
+                ", no start of a file without its name (D-239)")
+        out.append((None, summary))
     out.append(per_change_security(root, target) if target in TEAM_ONLY
                else _release_security(root, policies is not None and "light" not in modes))
     for working_mode in modes:
