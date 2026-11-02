@@ -1853,3 +1853,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - M14 took three tries. Returning "unknown" from the `for` binder for a blank-holding word, and leaving such a value unexpanded, each made the conformance corpus refuse less (2, then 5 misses) and were reverted. Splitting every unquoted word in place passed every corpus, and the security seat still found it BLOCKING: a quoted blank, zsh's unsplit `$k` and `export d=$v` read as split let `git -c $k"=a b" push origin main` through.
 - The fix that holds: the split reading is judged in addition to the reading as written, on a snapshot of the guard's state, so it can only add a refusal -- the same construction as #553's reader. Round 2 MINOR; 945 judge calls and 213 probe commands, none refused at the base and allowed by the patch.
 - Lesson: a control's corpus passing is not "refuses no less"; any new reading of untrusted text goes in beside the old one, never in its place, and a differential against the base proves it.
+
+## 2026-11-03 · integration/run-1102 — run 1102 closed: twelve rows stacked, one stop for the owner's guard bundle
+
+- Every planned issue is stacked (#557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551) and #561 is a reviewed owner bundle (a `control-change` stop); #566 and #568 were found inside the run and joined its queue.
+- Security review caught two fixes that refused less than the code they replaced: #553's first reader (BLOCKING: a comment strip, a descriptor pop and `env -S`) and #561's first guard split (BLOCKING: a quoted blank, zsh, `export`). Both now read the new way in addition to the old one, so a new reading can only add a refusal; differentials over 251, 486 and 945 inputs found none refusing less.
+- The release delta at the integration head: Tester MINOR (67 faults, 21 new tests) and Security MINOR, both at `0238db5`; `make deploy-check` passes, so the merge does not stop the nightly.
+- Nine low follow-ups came from the run's own reviews; they are the next run, not this one.
+- Lesson: when a control learns to read more, the old reading stays beside the new one; the only safe change to a refusing reader is one that cannot refuse less, and a differential against the base is how to show it.
