@@ -37,7 +37,6 @@ def test_the_count_follows_the_workflow(tmp_path: Path) -> None:
 def test_a_brief_that_dispatches_no_workflow_says_so(tmp_path: Path) -> None:
     """covers #556: with no dispatched deploy workflow there is nothing to read, and the line says that too."""
     repo = _installed(tmp_path)
-    repo.write("docs/project-brief.md", _brief("fly deploy"))
-    repo.commit("the brief dispatches nothing")
+    assert "gh workflow run" not in _brief("fly deploy"), "the control: this brief dispatches no workflow"
     _code, out = repo.check()
     assert "no dispatched deploy workflow" in _d239_line(out), out

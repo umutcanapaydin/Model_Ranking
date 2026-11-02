@@ -1773,3 +1773,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Fix: a closure branch (origin's or local) counts only through the closure record its history carries (`docs/closure-report-m<N-1>.md`, `docs/reviews/m<N-1>-tester.md` or `docs/reviews/m<N-1>-closure*.md`, the names this project's closures wrote), and the wave starts no later than the commit that last wrote it. Moving the branch past its record moves nothing; a wider range is the safe side.
 - `test_wave_check_548.py`'s control made a closure branch with no record, the very shape #555 calls the bug; its fixture now writes an m1 Tester record first, and asserts the same base.
 - Lesson: a branch name is a pointer anyone can move; anchor a range on a record the history wrote, not on where a ref stands.
+
+## 2026-11-02 · fix/issue-556-deploy-check-d239-line — a D-239 pass prints its evidence
+
+- The fixes-1101 rest review's R4: when D-239's check found nothing, `make deploy-check` printed nothing for it, so a PASS carried no sign the dispatched deploy workflows were read.
+- Fix: one line on a pass, `workflows: <names> read, <n> run command(s), no start of a file without its name (D-239)`, or `no dispatched deploy workflow` when the brief dispatches none. On this tree: `nightly-hosted.yml read, 148 run command(s)`.
+- The first count read 4 for a step of 2 commands: the gate reads the tree's copy and each protected base's, and they were identical. An identical copy is now read once, which also halves the work.
+- `test_deploy_gate_base_policy.py` counted the verdict lines (`[None] * 3`); the new line is one more `None`, so both counts grew by one, each with a comment.
+- The red test for "no dispatched workflow" committed a brief identical to the fixture's, which git refuses; it now asserts the fixture's brief dispatches nothing and checks as is.
+- Lesson: a count printed as evidence is only evidence once a test pins it to a known input; the first measured number here was wrong.

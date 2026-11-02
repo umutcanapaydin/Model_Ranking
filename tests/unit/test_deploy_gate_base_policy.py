@@ -80,7 +80,8 @@ def _brief_edit(root: Path, mode: str | None, deploy: str, commit: bool) -> None
 def test_the_base_is_readable_and_every_verdict_current(tmp_path: Path) -> None:
     root = _project(tmp_path / "p")
     whys = [why for why, _ in _gate().verdicts(root)]
-    assert whys == [None, None, None], whys
+    # policy, D-239's workflows line (#556: printed on a pass too), security, the Tester
+    assert whys == [None, None, None, None], whys
     assert _gate().deploy_in([["vercel", "deploy"]], root) == "vercel deploy"
 
 
@@ -117,7 +118,7 @@ def test_a_change_of_mode_asks_for_both_testers(tmp_path: Path) -> None:
     assert any("tester (light mode)" in s for s in summaries) and any("tester (heavy mode)" in s for s in summaries)
     head = _git(root, "rev-parse", "HEAD")
     (root / "docs" / "reviews" / "m1-tester.md").write_text(_verdict(head), encoding="utf-8")
-    assert [why for why, _ in _gate().verdicts(root)] == [None, None, None, None]
+    assert [why for why, _ in _gate().verdicts(root)] == [None, None, None, None, None]  # #556: the workflows line
 
 
 def test_a_base_that_cannot_be_read_refuses_the_deploy_and_fails_the_check(tmp_path: Path) -> None:
