@@ -32,7 +32,8 @@ def test_a_sha256_repository_is_read_and_its_forgeries_refused(tmp_path: Path) -
     """#511 R1, #509 N14: the `{40,64}` ids and the digest chosen by the id's length."""
     root = tmp_path / "sha256"
     root.mkdir()
-    git = ["git", "-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false"]
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false", "-c", "gc.auto=0",
+           "-c", "maintenance.auto=false"]  # #568: the loose object this test forges stays loose
     subprocess.run([*git, "init", "-q", "--object-format=sha256", "-b", "main"], cwd=root, check=True, env=_env())
     (root / "docs").mkdir()
     (root / "docs" / "a.txt").write_text("one\n", encoding="utf-8")

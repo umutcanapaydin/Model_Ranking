@@ -1801,3 +1801,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Not covered: the issue's third remedy line ("check which tests the line names") is unclear without a brief that declares `Security-invariant tests:`; commented on #563.
 - Lesson: a call that reads its target from the caller's environment is policy by another name; name the target from the repository itself and strip the variables that could rename it.
 - The Security-Reviewer (MINOR at `73cd898`, `docs/reviews/fix-issue-563-security.md`): M1, no test refused a look-alike origin and the ssh form was untested -- seven look-alikes now refuse without asking `gh`, and `ssh://` is a positive case; R1, once `Security-invariant tests:` is declared the gate's own control tests would count as test-and-CI -- #573; R2, `gh`'s own config or proxy variables can reroute its call -- refused: it needs write access to the user's environment, not the repository, and every other check of the gate trusts that environment too.
+
+## 2026-11-02 · fix/issue-568-loose-fixture — the forged-object fixtures stay loose
+
+- `test_deploy_gate_493` and `_494` failed now and then with "the fixture's objects are loose", and passed alone. Measured cause, not load: `git commit` starts `git gc --auto`, which packs every loose object once `objects/17/` holds more than 6700/256 of them, and does it detached, in the background -- so a large fixture commit whose hashes cross the threshold is packed while the test reads it.
+- Red: 40 blobs whose ids start `17`, then the `gc --auto` the commit would start, in the foreground: packed. A control shows a plain repository packs the same commit, so the test can go red.
+- Fix: the shared `Repo` sets `gc.auto=0` and `maintenance.auto=false`; `test_deploy_gate_518`, which builds its own sha256 repository, passes both on its git calls.
+- Lesson: a "flaky under load" test may be deterministic in a hidden input; measure what differs between a failing and a passing run (here, the hashes) before blaming the machine.
