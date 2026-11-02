@@ -215,8 +215,10 @@ WRAPPER_VALUED: dict[str, frozenset[str]] = {
     "exec": frozenset({"-a"}),
     "stdbuf": frozenset({"-i", "-o", "-e", "--input", "--output", "--error"}),
     "nice": frozenset({"-n", "--adjustment"}),
-    "env": frozenset({"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}),
-    "sudo": frozenset({"-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T", "-R"}),
+    # not `-S`/`--split-string`: its value is the command line itself (the #553 review's B3)
+    "env": frozenset({"-u", "--unset", "-C", "--chdir"}),
+    # not `-h`: a flag (help) in some sudo versions, a host in others; read as a flag, it swallows nothing
+    "sudo": frozenset({"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-T", "-R"}),
     "doas": frozenset({"-u", "-C"}),
     "ionice": frozenset({"-c", "-n", "-p", "-P", "-u"}),
     "time": frozenset({"-o", "--output", "-f", "--format"}),
@@ -876,21 +878,30 @@ STARTER_CODE = {"-c", "-e", "--eval", "-p", "--print"}
 PATTERN = re.compile(r"[*?]|\[[^\]]*\]|\{[^{}]*(?:,|\.\.)[^{}]*\}")
 #: A `run:` key, plain or as a step's first key (`- run:`), its name bare or quoted (#553 M3), with its value on the
 #: line. Group 1: what stands before the key (its width is the key's column); group 3: the value.
-_RUN_KEY = re.compile(r"^(\s*(?:-\s+)?)([\"']?)run\2:[ \t]*(.*?)\s*$")
-#: #553 M3: a `run:` key inside a flow mapping (`- {name: x, run: ...}`), which this reader does not split.
+_RUN_KEY = re.compile(r"^(\s*(?:-\s+)?)([\"']?)run\2[ \t]*:[ \t]*(.*?)\s*$")
+#: #553 M3: a `run:` key this reader does not split -- inside a flow mapping (`- {name: x, run: ...}`), or an
+#: explicit key (`? run`).
 _FLOW_RUN = re.compile(r"[{,]\s*[\"']?run[\"']?\s*:")
-#: #553 M2: the variables whose value a shell runs as a file when it starts (`BASH_ENV` for bash, `ENV` for sh).
-STARTUP_FILES = {"BASH_ENV", "ENV"}
-_STARTUP_KEY = re.compile(r"^\s*(?:-\s+)?[\"']?(BASH_ENV|ENV)[\"']?\s*:\s*(.*?)\s*$")
+_EXPLICIT_RUN = re.compile(r"^\s*(?:-\s+)?\?\s*[\"']?run[\"']?\s*$")
+#: #553 M2: the variable whose value bash runs as a file when it starts non-interactively. (`ENV` is read by an
+#: interactive sh only, and `ENV:` is a common workflow name -- the #553 review's M4.)
+_STARTUP_KEY = re.compile(r"(?:^\s*(?:-\s+)?|[{,]\s*)[\"']?BASH_ENV[\"']?\s*:\s*(\"[^\"]*\"|'[^']*'|[^,}#\s]*)")
+_STARTUP_WORD = re.compile(r"BASH_ENV=(.*)", re.S)
+#: YAML's double-quoted escapes (1.2, 5.7), each one decoded in one pass.
+_YAML_ESCAPES = {"0": "\0", "a": "\a", "b": "\b", "t": "\t", "\t": "\t", "n": "\n", "v": "\v", "f": "\f", "r": "\r",
+                 "e": "\x1b", " ": " ", '"': '"', "/": "/", "\\": "\\", "N": "\x85", "_": "\xa0", "L": chr(0x2028),
+                 "P": chr(0x2029)}
 _UNNAMED: dict[str, list[str] | None] = {}
 #: #556: what `unnamed_starts` read for each root -- the dispatched deploy workflows and their run commands -- so a
 #: PASS names its evidence.
 _UNNAMED_READ: dict[str, tuple[list[str], int]] = {}
 
 
-def _run_values(text: str) -> list[tuple[int, list[str]]]:
+def _run_values(text: str, new: bool = True) -> list[tuple[int, list[str]]]:
     """D-239 clause 1: each `run:` value of a workflow, as (its first line's number, its lines): the value on the
-    key's line, or a block scalar's lines (`|`, `>`), which run while they are blank or indented as the first."""
+    key's line, or a block scalar's lines (`|`, `>`), which run while they are blank or indented as the first.
+    `new` (#553): a quoted value unquoted, a plain value with its continuation lines, a folded value also line by
+    line; without it, as the reader before #553 read them -- `unnamed_starts` reads both, so it never refuses less."""
     lines = text.splitlines()
     out: list[tuple[int, list[str]]] = []
     i = 0
@@ -901,12 +912,14 @@ def _run_values(text: str) -> list[tuple[int, list[str]]]:
             continue
         value, column = m.group(3), len(m.group(1))
         if not re.fullmatch(r"[|>][-+0-9]*(?:\s+#.*)?", value):
-            if (quoted := _yaml_quoted(value)) is not None:
+            if not new:
+                out.append((i, [value]))
+            elif (quoted := _yaml_quoted(value)) is not None:
                 out.append((i, [quoted]))
-                continue
-            start = i
-            i, plain = _plain_continued(lines, i, column, value)
-            out.append((start, plain))
+            else:
+                start = i
+                i, plain = _plain_continued(lines, i, column, value)
+                out.append((start, plain))
             continue
         start, block, indent = i + 1, [], 0
         while i < len(lines):
@@ -918,6 +931,9 @@ def _run_values(text: str) -> list[tuple[int, list[str]]]:
             block.append(lines[i][indent:] if lines[i].strip() else "")
             i += 1
         if value.startswith(">"):
+            # #553 review M3: a folded value keeps a more-indented or blank-separated line apart; read it both folded
+            # and line by line, so neither reading hides a start.
+            out += [(start, block)] if new else []
             block = [" ".join(line.strip() for line in block)]
         out.append((start, block))
     return out
@@ -940,58 +956,95 @@ def _plain_continued(lines: list[str], i: int, column: int, value: str) -> tuple
 def _yaml_quoted(value: str) -> str | None:
     """#553 M3: a `run:` value quoted on its own line, as YAML reads it (single: `''` is one quote; double: the
     backslash escapes), or None when the value is not quoted on one line (a quote that runs on is unreadable)."""
-    if len(value) < 2 or value[0] not in "\"'" or value[-1] != value[0]:
+    if not value or value[0] not in "\"'":
         return None
-    body = value[1:-1]
-    if value[0] == "'":
-        return body.replace("''", "'")
-    return re.sub(r'\\(["\\/])', r"\1", body).replace("\\t", "\t").replace("\\n", "\n")
+    q, out, i = value[0], [], 1
+    while i < len(value):
+        ch = value[i]
+        if q == "'" and ch == "'":
+            if value[i + 1:i + 2] == "'":
+                out.append("'")
+                i += 2
+                continue
+            break
+        if q == '"' and ch == '"':
+            break
+        if q == '"' and ch == "\\":
+            esc = value[i + 1:i + 2]
+            width = {"x": 2, "u": 4, "U": 8}.get(esc, 0)
+            digits = value[i + 2:i + 2 + width]
+            if width and len(digits) == width and all(c in "0123456789abcdefABCDEF" for c in digits):
+                out.append(chr(int(digits, 16)))
+                i += 2 + width
+                continue
+            if esc not in _YAML_ESCAPES:
+                return None  # an escape YAML refuses: unreadable
+            out.append(_YAML_ESCAPES[esc])
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    else:
+        return None  # the quote runs past the line
+    rest = value[i + 1:]
+    # #553 review M4: a comment may follow the closing quote; anything else after it is not one scalar
+    return "".join(out) if not rest.strip() or re.fullmatch(r"\s+#.*", rest) else None
 
 
 def _unreadable_runs(text: str) -> list[int]:
-    """#553 M3, D-239 fail closed: the lines of `run:` values this reader cannot place -- inside a flow mapping, or a
-    quote that runs past its line."""
+    """#553 M3, D-239 fail closed: the lines of `run:` values this reader cannot place -- inside a flow mapping, an
+    explicit key (`? run`), a value with a tag or an anchor (`!!str`, `&a`), or a quote it cannot read on its line."""
     found: list[int] = []
     for n, line in enumerate(text.splitlines(), 1):
         m = _RUN_KEY.match(line)
-        in_flow = _FLOW_RUN.search(line) is not None and not m
-        quote_runs_on = m is not None and m.group(3)[:1] in ("\"", "'") and _yaml_quoted(m.group(3)) is None
-        if in_flow or quote_runs_on:
+        value = m.group(3) if m else ""
+        unreadable = ((_FLOW_RUN.search(line) is not None and not m) or _EXPLICIT_RUN.match(line) is not None
+                      or value[:1] in ("!", "&")
+                      or (value[:1] in ("\"", "'") and _yaml_quoted(value) is None))
+        if unreadable:
             found.append(n)
     return found
 
 
 def _startup_values(text: str) -> list[tuple[int, str]]:
-    """#553 M2: each `BASH_ENV:` or `ENV:` a workflow sets under an `env:` mapping, as (line, value)."""
-    return [(n, m.group(2).strip("\"'")) for n, line in enumerate(text.splitlines(), 1)
-            if (m := _STARTUP_KEY.match(line))]
+    """#553 M2: each `BASH_ENV:` a workflow sets in an `env:` mapping, block or flow, as (line, value)."""
+    return [(n, m.group(1).strip("\"'")) for n, line in enumerate(text.splitlines(), 1)
+            for m in _STARTUP_KEY.finditer(line)]
 
 
 def _strip_comment(line: str, quote: str | None) -> tuple[str, str | None]:
     """#553 M1: `line` without its shell comment, as the shell reads one -- a `#` that begins a word outside quotes
     runs to the end of the line --, and the quote still open at its end. `quote` is the one open at its start."""
     out: list[str] = []
-    i = 0
+    i, depth, tick = 0, 0, False
     while i < len(line):
-        ch = line[i]
-        if quote == "'":
-            quote = None if ch == "'" else quote
-        elif quote == '"' or ch == "\\":
-            if ch == "\\":
-                out.append(line[i:i + 2])
-                i += 2
-                continue
-            quote = None if ch == '"' else quote
+        ch, two = line[i], line[i:i + 2]
+        if ch == "\\" and quote != "'":
+            out.append(two)
+            i += 2
+            continue
+        if quote:  # `'`, `"` or `$'`, each closed by its last character
+            quote = None if ch == quote[-1] else quote
+        elif two in ("$'", "${", "$("):
+            # the #553 review's B1: no `#` inside `$'...'`, `${...}`, `$(...)` or `$((...))` ends the line
+            quote, depth = ("$'", depth) if two == "$'" else (quote, depth + 1)
+            out.append(two)
+            i += 2
+            continue
         elif ch in "'\"":
             quote = ch
-        elif ch == "#" and (i == 0 or line[i - 1] in " \t;&|()<>"):
+        elif ch in ")}" and depth:
+            depth -= 1
+        elif ch == "`":
+            tick = not tick
+        elif ch == "#" and not depth and not tick and (i == 0 or line[i - 1] in " \t;&|()<>"):
             break
         out.append(ch)
         i += 1
     return "".join(out), quote
 
 
-def _run_tokens(lines: list[str]) -> list[tuple[int, str]]:
+def _run_tokens(lines: list[str], new: bool = True) -> list[tuple[int, str]]:
     """Each token of a run value with its line (from 0), split as `split_line` splits (`;`, `&&`, `|`, `(`, `)` and
     the redirections stay tokens), a `\\` continuation joined, a here-document's body left out, and each line's end
     a `;`. Read as one text, so a quote across lines is one word; when it cannot be split so, line by line, and a
@@ -1013,7 +1066,8 @@ def _run_tokens(lines: list[str]) -> list[tuple[int, str]]:
             continue
         # #553 M1: the comment goes first, as the shell drops it: an apostrophe, a trailing `\` or a `<<` in it
         # no longer hides the lines after it.
-        line, quote = _strip_comment(line, quote)
+        if new:
+            line, quote = _strip_comment(line, quote)
         try:  # a here-document's operator as the shell reads it, never `<<` inside quotes; unsplit, its body is read
             words = [word for _, word in lex(line, 0)]
         except ValueError:
@@ -1060,7 +1114,7 @@ def _redirection(operator: str) -> str:
     return "<" if operator in ("<", "<>") else "skip"
 
 
-def _run_commands(lines: list[str]) -> list[tuple[int, list[str], list[str]]]:
+def _run_commands(lines: list[str], new: bool = True) -> list[tuple[int, list[str], list[str]]]:
     """D-239 clause 1: the simple commands of a run value, each as (its line, from 0; its words; the targets of its
     `<` redirections), with what starts no program set aside: a redirection's target, a `case` subject and its
     patterns. A process substitution (`<(...)`) stays as the word `<(` where it stands."""
@@ -1071,13 +1125,13 @@ def _run_commands(lines: list[str]) -> list[tuple[int, list[str], list[str]]]:
     at = 0
     target = ""  # "<" or "skip" after a redirection, until its target is read
     digits = False  # #553 M2: the last word read was all digits, the descriptor of a redirection if one follows
-    for line, word in _run_tokens(lines):
+    for line, word in _run_tokens(lines, new):
         operator = all(ch in ";&|()<>" for ch in word)
         if _in_case(case, word, operator):
             continue
-        if operator and digits and cur and _redirection(word):
+        if new and operator and digits and cur and _redirection(word):
             cur.pop()  # `2>&1`, `2>/dev/null`: the shell reads the digits as the descriptor, not as a word
-        digits = not operator and not target and word.isdigit()
+        digits = not operator and not target and (word.isdigit() or re.fullmatch(r"\{[A-Za-z_][A-Za-z0-9_]*\}", word) is not None)
         if operator:
             cur += ["<("] if "<(" in word or ">(" in word else []
             target = _redirection(word)
@@ -1120,19 +1174,19 @@ def _started(words: list[str]) -> list[str]:
             return words[i:]
 
 
-def _shapes_in(text: str) -> list[tuple[str, str]]:
+def _shapes_in(text: str, new: bool = True) -> list[tuple[str, str]]:
     """The shapes of every command in a text a command runs in turn (`eval`'s, a shell's `-c` string)."""
-    return [found for _, command, into in _run_commands([text]) for found in _unnamed_shapes(command, into)]
+    return [found for _, command, into in _run_commands([text], new) for found in _unnamed_shapes(command, into, new)]
 
 
-def _unnamed_shapes(words: list[str], stdin: list[str]) -> list[tuple[str, str]]:
+def _unnamed_shapes(words: list[str], stdin: list[str], new: bool = True) -> list[tuple[str, str]]:
     """D-239 clause 2: each (shape, word) by which this simple command starts a file it does not name."""
-    # #553 M2: `BASH_ENV=...` (bash) or `ENV=...` (sh) set for a command, or exported, names a file the shell runs
-    # when it starts; its value is read as a started file's name.
-    startup = [(name, value) for word in words if (m := re.fullmatch(r"(BASH_ENV|ENV)=(.*)", word, re.S))
-               for name, value in [m.groups()] if _unnamed_word(value)]
+    # #553 M2: `BASH_ENV=...` set for a command, or exported, names a file bash runs when it starts; its value is
+    # read as a started file's name. (Not `ENV`: only an interactive sh reads it -- the review's M4.)
+    startup = [value for word in words if (m := _STARTUP_WORD.fullmatch(word)) for value in [m.group(1)]
+               if _unnamed_word(value)]
     if startup:
-        return [(f"{_unnamed_word(value)} in the file `{name}` names", value) for name, value in startup]
+        return [(f"{_unnamed_word(value)} in the file `BASH_ENV` names", value) for value in startup]
     run = _started(words)
     if not run:
         return []
@@ -1142,13 +1196,13 @@ def _unnamed_shapes(words: list[str], stdin: list[str]) -> list[tuple[str, str]]
     if program in RUNTIME_RUNNERS or (program == "find" and FIND_RUNS & set(run[1:])):
         return [("a name built at run time: a program that runs names it reads then", run[0])]
     if program == "eval":
-        return _shapes_in(" ".join(run[1:]))
+        return _shapes_in(" ".join(run[1:]), new)
     if STARTER_SHELLS.fullmatch(program) or STARTERS.fullmatch(program):
-        return _starter_shapes(program, run, stdin)
+        return _starter_shapes(program, run, stdin, new)
     return []
 
 
-def _starter_shapes(program: str, run: list[str], stdin: list[str]) -> list[tuple[str, str]]:
+def _starter_shapes(program: str, run: list[str], stdin: list[str], new: bool = True) -> list[tuple[str, str]]:
     """D-239 clause 3: the shape of the file a starter is given -- its first operand that is not an option or an
     option's value, the module `-m` names, or with neither its `<` target --; a shell's `-c` string is read in turn,
     and an interpreter's code (`python -c`) is not read."""
@@ -1156,15 +1210,17 @@ def _starter_shapes(program: str, run: list[str], stdin: list[str]) -> list[tupl
     j = 1
     while j < len(run) and run[j].startswith(("-", "+")) and run[j] not in ("-", "+", "--"):
         if shell and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", run[j]):
-            return _shapes_in(run[j + 1]) if j + 1 < len(run) else []
+            return _shapes_in(run[j + 1], new) if j + 1 < len(run) else []
         if not shell and run[j] in STARTER_CODE:
             return []
         if not shell and run[j].startswith("-m"):
             module = run[j][2:] or (run[j + 1] if j + 1 < len(run) else "")
             return [(f"{shape} in the module `{program}` runs", module)] if (shape := _unnamed_word(module)) else []
-        # #553 M2: a cluster whose last letter takes a value takes the next word (`bash -eo pipefail`, `python -uW x`)
-        valued = (run[j] in STARTER_VALUED or (shell and re.fullmatch(r"[-+][A-Za-z]*[oO]", run[j]) is not None)
-                  or (not shell and re.fullmatch(r"-[A-Za-z]*[WX]", run[j]) is not None))
+        # #553 M2: a shell cluster holding `o`/`O` takes the next word (`bash -eo pipefail`, `-oe`), and so does a
+        # Python cluster ending in `W`/`X` (`python -uW x`; not perl's `-W`, the review's M2)
+        valued = run[j] in STARTER_VALUED or (new and (
+            (shell and re.fullmatch(r"[-+][A-Za-z]*[oO][A-Za-z]*", run[j]) is not None)
+            or (program.startswith(("python", "pypy")) and re.fullmatch(r"-[A-Za-z]*[WX]", run[j]) is not None)))
         j += 2 if valued else 1
     j += 1 if j < len(run) and run[j] == "--" else 0
     for operand in run[j:j + 1] or stdin:
@@ -1206,13 +1262,16 @@ def unnamed_starts(root: Path) -> list[str] | None:
                 # startup file set under `env:` by a name it does not write.
                 found += [f"{name} line {n}: a run value this reader cannot read (a flow mapping, or a quote "
                           "running past its line)" for n in _unreadable_runs(text)]
-                found += [f"{name} line {n}: {shape} in the file `BASH_ENV`/`ENV` names `{value}`"
+                found += [f"{name} line {n}: {shape} in the file `BASH_ENV` names `{value}`"
                           for n, value in _startup_values(text) if (shape := _unnamed_word(value))]
-                for start, lines in _run_values(text):
-                    for line, words, stdin in _run_commands(lines):
-                        runs += 1
-                        found += [f"{name} line {start + line}: {shape} `{word}`"
-                                  for shape, word in _unnamed_shapes(words, stdin)]
+                # #553 review B1-B3, R2: the value is read as the reader before #553 read it and as it reads now, and
+                # every start either finds is a finding -- a new reading never refuses less than the old one.
+                for new in (True, False):
+                    for start, lines in _run_values(text, new):
+                        for line, words, stdin in _run_commands(lines, new):
+                            runs += new
+                            found += [f"{name} line {start + line}: {shape} `{word}`"
+                                      for shape, word in _unnamed_shapes(words, stdin, new)]
                 low = text.lower().splitlines()
                 for path in sorted(_workflow_names(root, text, files)):
                     if (target := _linked(root, path)) is not None:
