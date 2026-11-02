@@ -12,11 +12,11 @@ date: 2026-11-02
 **Independent:** yes. This seat wrote none of the range: it read the code and probed it in its own detached work tree (`wt-sec-556` at 7f35a71) with its own venv.
 **Date:** 2026-11-02
 **Release range:** 9ec7a46..7f35a71
-**Reviewed head:** 7f35a71e078ddbf4cebcc8b354d3eb82477dad4f
+**Reviewed head:** 94265ca95cb116b3eaeecc460d78d107be3abec5
 **Risk tier:** MEDIUM. The brief declares no HIGH paths (`docs/project-brief.md:110`), but the range edits a fail-closed deploy control (D-239), so the review covers the control's fail direction in full. No auth, PII, payment or migration path is touched, so no senior-review line is owed.
 
 ## Verdict
-MINOR
+PASS
 
 The fix does not loosen D-239. What it refuses, and when it fails closed, is unchanged. The one new output, a PASS evidence line, is never what decides whether the check fails. One wording defect (**M1**): the line can say a workflow was "read" when no copy of it exists.
 
@@ -53,3 +53,16 @@ The fix does not loosen D-239. What it refuses, and when it fails closed, is unc
 - **R1** `scripts/deploy_gate.py:1091`, `:1094`, `:1618`: the count sums run commands over every *distinct* copy (tree, merge-base, tip), and copies that differ only in line endings count as distinct. The tree copy is newline-normalised by `read_text` while the base copy keeps its `\r\n`. Probe P4: a CRLF-committed `release.yml` with one run command prints `2 run command(s)`. This matches the process log's own warning that "the first measured number here was wrong". It is evidence accuracy, not a loosening. Remedy: normalise newlines before the `dict.fromkeys`, or say in the line that the count covers each copy read.
 - **R2** `scripts/deploy_gate.py:1286`: the fallback `([], 0)` for a missing `_UNNAMED_READ` entry prints "no dispatched deploy workflow". That claims a fact rather than saying the read was not recorded. The production path cannot reach it (both caches are written together at `:1103-1104`), but a caller that clears only `_UNNAMED` (as `tests/unit/test_deploy_gate_549.py:199` does) can leave the two out of step. A neutral default (`workflows read: not recorded`) would fail toward honesty.
 - **R3** `tests/unit/test_deploy_gate_556.py:40`: the "control" asserts a property of the helper string `_brief("fly deploy")`, not of the brief the fixture actually committed (`tests/unit/test_deploy_gate_pin.py:59`). If the fixture's brief later gains a dispatch, the control stays green while the test reads a different case. Read the committed brief instead. This is test quality, for the Code-Reviewer and Tester seats.
+
+## Round 2
+
+**Date:** 2026-11-02 · **Range re-read:** 7f35a71..94265ca95cb116b3eaeecc460d78d107be3abec5 (`scripts/deploy_gate.py` +14/-4, `tests/unit/test_deploy_gate_556.py` +13/-1, `docs/process-log.md`, this file) · **Verdict:** PASS (replaces MINOR above)
+
+Re-verified in the same seat's work tree, detached at 94265ca with its own venv. The 58 tests of `test_deploy_gate_549.py`, `test_deploy_gate_base_policy.py` and `test_deploy_gate_556.py` pass. The probes P1 to P5 were re-run unchanged, and an in-process probe covered R2 and the fail-closed path.
+
+- **M1 — fixed.** `scripts/deploy_gate.py:1293-1297` splits the names into those with text (`read`) and those without (`absent`), and prints the latter as `; dispatched with no copy to read: <name>`. Probe P3 (`gh workflow run ghost`, no `ghost.yml`) now prints `workflows: no dispatched deploy workflow read; dispatched with no copy to read: ghost, no start of a file without its name (D-239)`. The word "read" is no longer attached to `ghost`. The fix is pinned by `tests/unit/test_deploy_gate_556.py:46-54`, which asserts both `dispatched with no copy to read: ghost` and the absence of `ghost read`.
+- **R2 — fixed.** `scripts/deploy_gate.py:1288-1290`: a missing `_UNNAMED_READ` entry now prints `...; what was read is not recorded`, not a claimed fact. In-process probe: `unnamed_starts(root)` → `[]`, then `_UNNAMED_READ.clear()`, then `verdicts(root)` gives `(None, 'workflows: no start of a file without its name (D-239); what was read is not recorded')`. With `_UNNAMED[root] = None` it gives a truthy `why`, `workflows: cannot be read for a file started without its name`, so the fail-closed path is unchanged (`:1275`).
+- **R3 — fixed.** `tests/unit/test_deploy_gate_556.py:40-41`: the control now reads the brief the fixture committed (`repo.root / "docs" / "project-brief.md"`), not the helper string.
+- **R1 — filed as #570.** Unchanged in code. Probe P4 still prints `2 run command(s)` for one CRLF-committed command. This is evidence accuracy, not a loosening.
+- **Fail direction of the new code.** The new branch is still reached only when `unnamed == []` (`:1275`, `:1279`), and every summary it builds carries `why = None`, exactly as round 1 found. P1, P2 and P5 still refuse (exit 1). The added `_workflow_texts(root)` call (`:1293`) only labels names. It is the same reader `unnamed_starts` already ran, so it adds no new failure mode. An `OSError` there would raise out of `check`/`judge` with a non-zero exit, never a silent pass.
+- **R4 — queued, not blocking.** `scripts/deploy_gate.py:1293`: the read/absent split comes from a second read of the workflows, not from the read that was counted (`:1089-1104`). A workflow file created or removed between the two reads could be labelled differently from what was actually counted. The cost is wording only, the same class as M1, and needs a change to the tree during one `make deploy-check`. Remedy, if wanted: record the names that had text in `_UNNAMED_READ` at `:1104` and drop the second read.
