@@ -233,9 +233,10 @@ def is_deploy_record(path: str) -> bool:
     `.github/` or the `Makefile` itself, which are code whatever their extension. `change_class` reads it."""
     if path in CODE_FILES or path.startswith(CODE_DIRS):
         return False
-    # `.gp/installed` is the install's measurement (`make install` writes it), not the product. `.deps-accept`
-    # is the owner's waiver list: the owner's merge reviews it, and it routes to no review (v7.3 A20, the trim).
-    return path.startswith("docs/") or path.endswith(".md") or path in (".gp/installed", ".deps-accept")
+    # `.gp/installed` is the install's measurement (`make install` writes it), not the product. #562 (M16):
+    # `.deps-accept` waives a dependency advisory, so it is code here, as `data/accepted-cuts.yaml` is -- v7.3's trim
+    # made it a record, and an agent's waiver then reached a deploy with no review.
+    return path.startswith("docs/") or path.endswith(".md") or path == ".gp/installed"
 
 
 def invariant_tests(root: Path | str) -> list[str] | None:

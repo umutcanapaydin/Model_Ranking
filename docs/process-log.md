@@ -1783,3 +1783,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The red test for "no dispatched workflow" committed a brief identical to the fixture's, which git refuses; it now asserts the fixture's brief dispatches nothing and checks as is.
 - Lesson: a count printed as evidence is only evidence once a test pins it to a known input; the first measured number here was wrong.
 - The Security-Reviewer (MINOR at `7f35a71`, `docs/reviews/fix-issue-556-security.md`): M1, a dispatched name no file answers to was printed as "read" -- now named apart as dispatched with no copy, with a test; R2, a missing read record stated "no dispatched deploy workflow" -- now says it is not recorded; R3, the test's control read a helper string -- it now reads the committed brief; R1, a CRLF copy counts twice, is #570.
+
+## 2026-11-02 · fix/issue-562-deps-accept-review — a dependency waiver is a policy edit
+
+- The v7.3.1 upgrade's security delta, M16: `.deps-accept` (the advisories `make deps` waives, "only the owner adds an entry") was a record to the deploy gate and routed to no review (v7.3 A20, the owner's trim), and the agent can write it, so an agent's waiver could reach a deploy unreviewed.
+- Fix, triage's default: as `data/accepted-cuts.yaml` is (D-221 clause 4). `review_need.EXCEPTION_FILES` holds it, so a change to it is a security review in either mode; the deploy gate counts it as code. A test holds the path equal to the one `scripts/deps_accept.py` reads.
+- `conformance/test-review-need-mode.py` had a v7.3 case pinning the old routing (`none`, `change class: record`); it now pins the new one. This diverges from upstream DevFlow on purpose; the guard half (refusing the agent's write) would be the owner's, and is not needed with this default.
+- Lesson: an upstream trim can undo a project's own rule for a file of the same class; read each trimmed path against the project's exception list at the upgrade.
+- The Security-Reviewer (MINOR at `c212fe1`, `docs/reviews/fix-issue-562-security.md`): M1, the file's own header and `scripts/deps_accept.py`'s docstring still said "the owner's merge is the review" -- both now name D-244; R2, no ADR recorded the override of upstream's trim -- D-244, in its own commit before the doc fix; R1, a waiver in the Makefile's `deps:` recipe or in `deps_accept.py` is no policy edit -- filed.
