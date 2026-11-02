@@ -43,8 +43,11 @@ echo
 echo "----- ADRs awaiting the owner's merge (not on the default branch) -----"
 if [ -f docs/decisions.md ]; then
   base=
-  for ref in origin/HEAD origin/main origin/master main master; do
-    git rev-parse -q --verify "$ref:./docs/decisions.md" >/dev/null 2>&1 && { base=$ref; break; }
+  # #566: each candidate by its full ref, read exactly (`show-ref --verify`): a short name tried `refs/tags/<name>`
+  # first, so a tag named `origin/HEAD` or `main` chose the decisions compared with.
+  for ref in refs/remotes/origin/HEAD refs/remotes/origin/main refs/remotes/origin/master refs/heads/main refs/heads/master; do
+    sha=$(git show-ref --verify --hash "$ref" 2>/dev/null) || continue
+    git rev-parse -q --verify "$sha:./docs/decisions.md" >/dev/null 2>&1 && { base=$sha; break; }
   done
   if [ -z "$base" ]; then
     echo "(no default branch holds docs/decisions.md: nothing to compare)"
