@@ -1123,6 +1123,31 @@ def status_path(target: Path) -> Path:
     return target.with_name(target.name + ".refresh.json")
 
 
+#: D-240 clause 3, D-243 clause 1 (#552): a source whose last arrival (D-156) is this many days or more
+#: before the cycle is named to the owner. Six days is not named.
+SILENT_DAYS = 7
+
+
+def silent_sources(last_ok: Mapping[str, str], at: float, days: int = SILENT_DAYS) -> dict[str, str]:
+    """D-243 clause 1 (#552): each source of `last_ok` whose last arrival is `days` days or more before `at`,
+    with that arrival as recorded. A stamp that cannot be read, or one more than a day after `at`, is named
+    too: an arrival no one can date is never taken for a recent one (fail toward telling the owner)."""
+    now = dt.datetime.fromtimestamp(at, tz=dt.UTC)
+    silent: dict[str, str] = {}
+    for name, stamp in last_ok.items():
+        try:
+            then = dt.datetime.fromisoformat(stamp)
+        except (TypeError, ValueError):
+            silent[name] = stamp
+            continue
+        if then.tzinfo is None:
+            then = then.replace(tzinfo=dt.UTC)
+        age = (now - then).total_seconds()
+        if age >= days * 86400 or age < -86400:
+            silent[name] = stamp
+    return dict(sorted(silent.items()))
+
+
 def _listed(record: dict[str, object], key: str) -> list[str]:
     value = record.get(key)
     return [str(item) for item in value] if isinstance(value, list) else []
@@ -1249,6 +1274,9 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         #: when it matters — a refresh cycling happily and refusing every time.
         "last_published_at": last_published,
         "sources_last_ok": last_ok,
+        #: D-243 (#552): the sources whose last arrival is 7 or more days before this cycle, with it;
+        #: `scripts/silent_sources.py` reads this for the nightly's one issue to the owner.
+        "silent": silent_sources(last_ok, at),
         #: D-156: what this cycle served from the live artifact because its source failed, and
         #: what aged out and dropped. `/health` reads these.
         "carried": carried_now,

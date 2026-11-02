@@ -1801,3 +1801,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Not covered: the issue's third remedy line ("check which tests the line names") is unclear without a brief that declares `Security-invariant tests:`; commented on #563.
 - Lesson: a call that reads its target from the caller's environment is policy by another name; name the target from the repository itself and strip the variables that could rename it.
 - The Security-Reviewer (MINOR at `73cd898`, `docs/reviews/fix-issue-563-security.md`): M1, no test refused a look-alike origin and the ssh form was untested -- seven look-alikes now refuse without asking `gh`, and `ssh://` is a positive case; R1, once `Security-invariant tests:` is declared the gate's own control tests would count as test-and-CI -- #573; R2, `gh`'s own config or proxy variables can reroute its call -- refused: it needs write access to the user's environment, not the repository, and every other check of the gate trusts that environment too.
+
+## 2026-11-02 · fix/issue-552-silent-source-notice — a source silent for 7 nights is named to the owner
+
+- #552, D-243 (D-240 clause 3): a source whose last arrival (D-156) is 7 or more days old must reach the owner; until now it showed only where the owner ran `make test` on a fresh artifact.
+- Fix, the refresh half: `silent_sources(last_ok, at)` in `app.workflows.refresh` (7 days, `SILENT_DAYS`), and the record's additive field `silent`, `{source: last arrival}`, on every kind of night. An unreadable stamp, or one more than a day ahead, is named: an arrival no one can date is never taken for a recent one.
+- `scripts/silent_sources.py` (standard library, no network) prints the names, or with `--issue` the one issue as one line of JSON; a record with no readable `silent` exits 2, never "none silent".
+- The workflow half is the owner's: `docs/proposals/nightly-silent-sources.md` carries the `make owner-bundle` patch (both workflow copies) and the one command. The issue is posted by a separate `notice` job, the only one with `issues: write`, so the refresh job's permissions stay as D-217 holds them; the step never fails the refresh job, so it never holds the deploy back.
+- Red test: 8 days named, 6 not, on the rule and through `write_status` on published, unchanged, failed and refused nights; the script's two modes; 4 unreadable records refused.
+- Lesson: a notice whose step can fail is a new way to stop the deploy; put it last, make it unable to fail the job, and give its write permission a job of its own.
