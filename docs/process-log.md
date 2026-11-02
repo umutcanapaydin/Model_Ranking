@@ -1773,3 +1773,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Fix: a closure branch (origin's or local) counts only through the closure record its history carries (`docs/closure-report-m<N-1>.md`, `docs/reviews/m<N-1>-tester.md` or `docs/reviews/m<N-1>-closure*.md`, the names this project's closures wrote), and the wave starts no later than the commit that last wrote it. Moving the branch past its record moves nothing; a wider range is the safe side.
 - `test_wave_check_548.py`'s control made a closure branch with no record, the very shape #555 calls the bug; its fixture now writes an m1 Tester record first, and asserts the same base.
 - Lesson: a branch name is a pointer anyone can move; anchor a range on a record the history wrote, not on where a ref stands.
+
+## 2026-11-02 · fix/issue-562-deps-accept-review — a dependency waiver is a policy edit
+
+- The v7.3.1 upgrade's security delta, M16: `.deps-accept` (the advisories `make deps` waives, "only the owner adds an entry") was a record to the deploy gate and routed to no review (v7.3 A20, the owner's trim), and the agent can write it, so an agent's waiver could reach a deploy unreviewed.
+- Fix, triage's default: as `data/accepted-cuts.yaml` is (D-221 clause 4). `review_need.EXCEPTION_FILES` holds it, so a change to it is a security review in either mode; the deploy gate counts it as code. A test holds the path equal to the one `scripts/deps_accept.py` reads.
+- `conformance/test-review-need-mode.py` had a v7.3 case pinning the old routing (`none`, `change class: record`); it now pins the new one. This diverges from upstream DevFlow on purpose; the guard half (refusing the agent's write) would be the owner's, and is not needed with this default.
+- Lesson: an upstream trim can undo a project's own rule for a file of the same class; read each trimmed path against the project's exception list at the upgrade.

@@ -197,11 +197,13 @@ def main() -> int:
         r.commit("200 test lines")
         case("heavy, 200 test lines: a Code-Reviewer, as before -- test-and-CI is not record", r.need(),
              "review-need: code-reviewer")
-        # v7.3 A20, the owner's trim: a change to `.deps-accept` routes to no review; the owner's merge is it.
+        # v7.3 A20 routed a `.deps-accept` change to no review; model_ranking #562 (the upgrade's security delta, M16):
+        # a waiver of a dependency advisory is an exception to a security control, so it is a policy edit, as the
+        # cuts file is (D-221 clause 4).
         r.write(".deps-accept", "".join(f"PYSEC-2021-{i} #1 2026-12-01 a probe\n" for i in range(150)))
         r.commit("the owner accepts advisories")
-        case("heavy, a .deps-accept change: none -- the owner's merge is its review", r.need(), "review-need: none",
-             "change class: record")
+        case("heavy, a .deps-accept change: a policy edit -- #562", r.need(), "review-need: code-reviewer+security",
+             "policy edit: .deps-accept")
 
     with tempfile.TemporaryDirectory() as tmp:
         r = Repo(tmp)
