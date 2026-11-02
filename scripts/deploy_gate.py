@@ -110,12 +110,15 @@ import hashlib
 import itertools
 import json
 import os
+import posixpath
 import re
 import shlex
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import unquote
 
 # No bytecode: a `__pycache__` written beside the gate would itself read as a code change in a tree
@@ -1197,12 +1200,23 @@ def _started(words: list[str]) -> list[str]:
             return words[i:]
 
 
-def _shapes_in(text: str, new: bool = True) -> list[tuple[str, str]]:
-    """The shapes of every command in a text a command runs in turn (`eval`'s, a shell's `-c` string)."""
-    return [found for _, command, into in _run_commands([text], new) for found in _unnamed_shapes(command, into, new)]
+def _shapes_in(text: str, new: bool = True, where: _Where | None = None) -> list[tuple[str, str]]:
+    """The shapes of every command in a text a command runs in turn (`eval`'s, a shell's `-c` string, #551: a
+    Makefile's recipe line)."""
+    where = _moved([text], new, where)
+    return [found for _, command, into in _run_commands([text], new)
+            for found in _unnamed_shapes(command, into, new, where)]
 
 
-def _unnamed_shapes(words: list[str], stdin: list[str], new: bool = True) -> list[tuple[str, str]]:
+def _unnamed_shapes(words: list[str], stdin: list[str], new: bool = True,
+                    where: _Where | None = None) -> list[tuple[str, str]]:
+    """D-239 clause 2 and #551 (D-242): each (shape, word) by which this simple command starts a file it does not
+    name -- D-239's reading as it was, and D-242's added to it, so D-242 only ever refuses more."""
+    return [*_d239_shapes(words, stdin, new, where), *_d242_shapes(words, stdin, new, where)]
+
+
+def _d239_shapes(words: list[str], stdin: list[str], new: bool = True,
+                 where: _Where | None = None) -> list[tuple[str, str]]:
     """D-239 clause 2: each (shape, word) by which this simple command starts a file it does not name."""
     # #553 M2: `BASH_ENV=...` set for a command, or exported, names a file bash runs when it starts; its value is
     # read as a started file's name. (Not `ENV`: only an interactive sh reads it -- the review's M4.)
@@ -1219,13 +1233,14 @@ def _unnamed_shapes(words: list[str], stdin: list[str], new: bool = True) -> lis
     if program in RUNTIME_RUNNERS or (program == "find" and FIND_RUNS & set(run[1:])):
         return [("a name built at run time: a program that runs names it reads then", run[0])]
     if program == "eval":
-        return _shapes_in(" ".join(run[1:]), new)
+        return _shapes_in(" ".join(run[1:]), new, where)
     if STARTER_SHELLS.fullmatch(program) or STARTERS.fullmatch(program):
-        return _starter_shapes(program, run, stdin, new)
+        return _starter_shapes(program, run, stdin, new, where)
     return []
 
 
-def _starter_shapes(program: str, run: list[str], stdin: list[str], new: bool = True) -> list[tuple[str, str]]:
+def _starter_shapes(program: str, run: list[str], stdin: list[str], new: bool = True,
+                    where: _Where | None = None) -> list[tuple[str, str]]:
     """D-239 clause 3: the shape of the file a starter is given -- its first operand that is not an option or an
     option's value, the module `-m` names, or with neither its `<` target --; a shell's `-c` string is read in turn,
     and an interpreter's code (`python -c`) is not read."""
@@ -1233,7 +1248,7 @@ def _starter_shapes(program: str, run: list[str], stdin: list[str], new: bool = 
     j = 1
     while j < len(run) and run[j].startswith(("-", "+")) and run[j] not in ("-", "+", "--"):
         if shell and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", run[j]):
-            return _shapes_in(run[j + 1], new) if j + 1 < len(run) else []
+            return _shapes_in(run[j + 1], new, where) if j + 1 < len(run) else []
         if not shell and run[j] in STARTER_CODE:
             return []
         if not shell and run[j].startswith("-m"):
@@ -1250,6 +1265,664 @@ def _starter_shapes(program: str, run: list[str], stdin: list[str], new: bool = 
         if (shape := _unnamed_word(operand)):
             return [(f"{shape} in the file `{program}` runs", operand)]
     return []
+
+
+# --- #551 (D-242): the unread starts D-239's mitigation named refuse too ------------------------------------------
+
+
+class _Where(NamedTuple):
+    """#551 (D-242 clause 3): where a run text runs, which `make` needs to find its Makefile -- the tree (None: no
+    Makefile can be read here), the directory from the checkout's top (None: a `cd` or a `working-directory:` moved
+    it, so which Makefile cannot be told), and how many recipes deep the reading is."""
+    root: Path | None
+    cwd: str | None = "."
+    depth: int = 0
+
+
+#: D-242 clause 1: the shells a step may name that are POSIX shells, written plain. A custom template (`bash -e {0}`)
+#: is not one: its program is whatever the template says.
+POSIX_SHELLS = {"bash", "sh"}
+#: A `shell:` key -- a step's, or a workflow's or a job's `defaults: run:` --, block or flow, and its value.
+_SHELL_KEY = re.compile(r"(?:^\s*(?:-\s+)?|[{,]\s*)[\"']?shell[\"']?\s*:\s*(\"[^\"]*\"|'[^']*'|[^,}#]*)")
+#: A `runs-on:` key and its value on the line; the lines indented past it continue it (a list of labels).
+_RUNS_ON_KEY = re.compile(r"^(\s*(?:-\s+)?)[\"']?runs-on[\"']?\s*:\s*(.*)$")
+#: A runner whose steps' default shell is PowerShell (Windows), or one the text cannot tell (an expression).
+_UNPOSIX_RUNNER = re.compile(r"windows|\$\{\{", re.IGNORECASE)
+#: D-242 clause 3: a step that runs in another directory than the checkout's top, so `make` reads another Makefile.
+_WORKING_DIRECTORY = re.compile(r"\bworking-directory\s*:")
+#: The programs that change the directory the commands after them run in.
+CHDIRS = {"cd", "pushd", "popd"}
+#: D-242 clause 4: per interpreter, the letters of an option cluster that hold code in its own language (`perl -lne`),
+#: those whose value is the rest of the cluster or the next word, and those that take digits only. A NAMED
+#: ENUMERATION (D-239 clause 3's reason: which option holds code is the interpreter's own behaviour).
+_CLUSTER_CODE = {"perl": ("eE", "CdDFiIMmx", "0l"), "ruby": ("e", "CEFiIKrTWx", "0")}
+_NODE_CODE = {"-e", "--eval", "-p", "--print", "-pe", "-ep"}
+#: Options that print and exit, reading no program.
+INFO_OPTIONS = {"--version", "--help"}
+#: D-242 clause 3: `deno` and `bun` subcommands that start the file or command their operand names (`deno run x`);
+#: `deno eval`'s operand is code.
+_SUBCOMMANDS = {"deno": {"run", "test", "bench", "serve", "compile", "install"}, "bun": {"run", "x", "exec"}}
+#: D-242 clause 3: programs that start the command or the file their operand names, keyed as written (`uv run`),
+#: each with (its options that take the next word as their value; its options known to take none). An option in
+#: neither may take one, so the word after it is read as the operand AND the word after that too (fail closed).
+#: A NAMED ENUMERATION (D-239 clause 3's reason).
+RUNNERS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "uv run": (frozenset({
+        "--extra", "--no-extra", "--group", "--no-group", "--only-group", "--env-file", "-w", "--with",
+        "--with-editable", "--with-requirements", "--package", "--index", "--default-index", "-i", "--index-url",
+        "--extra-index-url", "-f", "--find-links", "-P", "--upgrade-package", "--reinstall-package",
+        "--index-strategy", "--keyring-provider", "--resolution", "--prerelease", "--fork-strategy", "-C",
+        "--config-setting", "--config-settings-package", "--no-build-isolation-package", "--exclude-newer",
+        "--exclude-newer-package", "--link-mode", "--no-build-package", "--no-binary-package", "--refresh-package",
+        "-p", "--python", "--python-platform", "--cache-dir", "--python-preference", "--allow-insecure-host",
+        "--directory", "--project", "--config-file", "--color", "--max-recursion-depth"}),
+        frozenset({
+            "--all-extras", "--no-dev", "--dev", "--only-dev", "--no-default-groups", "--all-groups", "--no-editable",
+            "--exact", "--no-env-file", "--isolated", "--active", "--no-active", "--no-sync", "--locked", "--frozen",
+            "-s", "--script", "--gui-script", "--no-project", "--no-index", "-U", "--upgrade", "--reinstall", "--pre",
+            "--no-build-isolation", "--compile-bytecode", "--no-sources", "--no-build", "--no-binary", "--refresh",
+            "-n", "--no-cache", "--managed-python", "--no-managed-python", "--no-python-downloads", "--offline",
+            "--native-tls", "--no-config", "-q", "--quiet", "-v", "--verbose", "--no-progress", "-h", "--help"})),
+    "uvx": (frozenset({
+        "--from", "-w", "--with", "--with-editable", "--with-requirements", "-p", "--python", "--index",
+        "--default-index", "-i", "--index-url", "--extra-index-url", "-f", "--find-links", "-C", "--config-setting",
+        "--cache-dir", "--directory", "--project", "--config-file", "--color", "--env-file"}),
+        frozenset({
+            "--isolated", "-q", "--quiet", "-v", "--verbose", "--offline", "-n", "--no-cache", "--refresh", "-U",
+            "--upgrade", "--reinstall", "--no-config", "--no-progress", "--native-tls", "--pre",
+            "--no-python-downloads", "--managed-python", "-h", "--help"})),
+    "poetry run": (frozenset({"-C", "--directory", "-P", "--project"}),
+                   frozenset({"-q", "--quiet", "-v", "-vv", "-vvv", "--verbose", "-n", "--no-interaction", "--ansi",
+                              "--no-ansi", "--no-plugins", "--no-cache", "-h", "--help"})),
+    "npx": (frozenset({"-p", "--package", "--prefix", "--registry", "--cache", "-w", "--workspace", "--userconfig",
+                       "--loglevel"}),
+            frozenset({"-y", "--yes", "--no", "-q", "--quiet", "--ignore-existing", "--no-install",
+                       "--include-workspace-root", "--workspaces", "--silent"})),
+    "deno run": (frozenset({"-c", "--config", "--import-map", "--lock", "--cert", "--location", "--seed"}),
+                 frozenset({"-A", "--allow-all", "--allow-net", "--allow-read", "--allow-write", "--allow-env",
+                            "--allow-run", "--allow-sys", "--allow-ffi", "--allow-import", "-q", "--quiet",
+                            "--no-check", "--check", "--reload", "-r", "--watch", "--unstable", "--no-prompt",
+                            "--frozen", "--no-lock", "--no-remote", "--no-npm", "--cached-only"})),
+    "bun run": (frozenset({"--cwd", "--env-file", "-c", "--config", "--filter", "-F", "--shell", "-r", "--preload"}),
+                frozenset({"--bun", "--silent", "--watch", "--hot", "--smol", "--no-install", "--if-present"})),
+}
+#: The global options before `uv`'s and `poetry`'s subcommand that take the next word as their value.
+_RUNNER_GLOBAL = {"uv": frozenset({"--directory", "--project", "--cache-dir", "--config-file", "--color",
+                                   "--python-preference", "--allow-insecure-host"}),
+                  "poetry": frozenset({"-C", "--directory", "-P", "--project"})}
+#: A runner's option whose value is the module it runs (`uv run -m x`), and one whose value is a shell string.
+_RUNNER_MODULE = {"uv run": {"-m", "--module"}}
+_RUNNER_CALL = {"npx": {"-c", "--call"}}
+#: D-242 clause 3: `make` and its GNU name; its targets' recipes are read as run text in turn.
+MAKES = {"make", "gmake"}
+#: How deep `make` is followed -- a recipe's own `make`, a prerequisite, an include, a variable --; past it, refused.
+_MAKE_DEPTH = 8
+#: The names GNU make reads, in its order, when it is given no `-f`.
+_MAKEFILE_NAMES = ("GNUmakefile", "makefile", "Makefile")
+_MAKE_ASSIGN = re.compile(r"^([^\s:#=]+)\s*(:::=|::=|:=|\?=|\+=|!=|=)\s*(.*)$", re.S)
+_ARGUMENT_ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_.-]*)(:::=|::=|:=|\?=|\+=|!=|=)(.*)$", re.S)
+_BASES: dict[str, list[str]] = {}
+#: What one `make` command line, in one directory of one tree, starts (None while it is being read: a `make` that
+#: reaches itself again adds nothing to what the outer reading reports), so a recipe that runs `$(MAKE)` many times
+#: is read once.
+_MAKE_READ: dict[tuple[str, str, tuple[str, ...], bool], list[tuple[str, str]] | None] = {}
+
+
+def _moved(lines: list[str], new: bool, where: _Where | None) -> _Where | None:
+    """`where` with no directory once a command of this run text changes it (`cd`, `pushd`): which Makefile a
+    `make` after it reads cannot be told."""
+    if where is None or where.cwd is None:
+        return where
+    for _, words, _ in _run_commands(lines, new):
+        run = _started(words)
+        if run and os.path.basename(run[0]).lower() in CHDIRS:
+            return where._replace(cwd=None)
+    return where
+
+
+def _non_posix_shells(text: str) -> list[tuple[int, str, str]]:
+    """D-242 clause 1: each (line, why, value) where a workflow runs a step in a shell that is not a POSIX shell --
+    a `shell:` key that is not `bash` or `sh` (a step's, or a workflow's or a job's `defaults: run:`), and a runner
+    whose default shell is PowerShell or cannot be told. Read wide on purpose: a `shell:` anywhere counts, which
+    refuses more."""
+    out: list[tuple[int, str, str]] = []
+    lines = text.splitlines()
+    for n, line in enumerate(lines, 1):
+        for m in _SHELL_KEY.finditer(line):
+            value = m.group(1).strip()
+            value = value[1:-1].strip() if len(value) > 1 and value[0] == value[-1] and value[0] in "\"'" else value
+            if value not in POSIX_SHELLS:
+                out.append((n, "a step's shell that is not a POSIX shell (D-242)", value))
+        if (key := _RUNS_ON_KEY.match(line)) is not None:
+            column, value_lines, k = len(key.group(1)), [key.group(2)], n
+            while k < len(lines) and (not lines[k].strip() or len(lines[k]) - len(lines[k].lstrip()) > column):
+                value_lines.append(lines[k].strip())
+                k += 1
+            joined = " ".join(part for part in value_lines if part)
+            if _UNPOSIX_RUNNER.search(joined):
+                out.append((n, "a runner whose default shell is not a POSIX shell, or cannot be told (D-242)", joined))
+    return out
+
+
+def _d242_shapes(words: list[str], stdin: list[str], new: bool = True,
+                 where: _Where | None = None) -> list[tuple[str, str]]:
+    """#551 (D-242 clauses 2-4): what D-239 left unread in this simple command -- a starter reading its program from
+    standard input, an interpreter given code in its own language, a runner (`uv run`, `npx`, `poetry run`) and
+    `make`'s recipes. Only ever added to D-239's findings."""
+    run = _started(words)
+    if not run or _unnamed_word(run[0]):
+        return []  # D-239 refuses the program word itself
+    program = os.path.basename(run[0]).lower()
+    if program in MAKES:
+        return _make_shapes(words, run, new, where)
+    if program in ("uv", "uvx", "poetry", "npx"):
+        return _runner_shapes(program, run, stdin, new, where)
+    if STARTER_SHELLS.fullmatch(program) or STARTERS.fullmatch(program):
+        return _input_shapes(program, run, stdin, new, where)
+    return []
+
+
+def _cluster_code(word: str, code: str, valued: str, numeric: str) -> bool:
+    """Whether an option cluster (`-lne`) holds a letter whose value is code, before a letter whose value is the
+    rest of the cluster (`-Mfoo`); a `numeric` letter's digits are its value (`-l0e`)."""
+    k = 1
+    while re.match(r"-[A-Za-z0-9]", word) and k < len(word):
+        ch, k = word[k], k + 1
+        if ch in code or ch in valued:
+            return ch in code
+        while ch in numeric and k < len(word) and word[k].isdigit():
+            k += 1
+    return False
+
+
+def _pwsh_code(word: str) -> bool:
+    """`pwsh`'s `-Command`, `-EncodedCommand` and `-CommandWithArgs`, by any prefix it accepts."""
+    bare = word.lower().lstrip("-")
+    return bare in ("c", "e", "ec", "cwa") or any(
+        len(bare) >= least and name.startswith(bare)
+        for name, least in (("command", 2), ("encodedcommand", 2), ("commandwithargs", 8)))
+
+
+#: D-242 clause 4: per interpreter (a test of its name), the test of an option that holds code in its own language.
+_CODE_OPTIONS: tuple[tuple[Callable[[str], bool], Callable[[str], bool]], ...] = (
+    (lambda p: p.startswith(("python", "pypy")), lambda w: re.fullmatch(r"-[bBdEhiIOPqRsSuvVx]*c.*", w, re.S) is not None),
+    (lambda p: p in ("node", "bun", "deno"), lambda w: w in _NODE_CODE),
+    (lambda p: p.startswith("php"), lambda w: re.match(r"-[rRBE]", w) is not None),
+    (lambda p: p.startswith("lua") or p == "rscript", lambda w: w.startswith("-e")),
+    (lambda p: p == "pwsh", _pwsh_code),
+    (lambda p: p.startswith("perl"), lambda w: _cluster_code(w, *_CLUSTER_CODE["perl"])),
+    (lambda p: p.startswith("ruby"), lambda w: _cluster_code(w, *_CLUSTER_CODE["ruby"])),
+)
+
+
+def _interpreter_code(program: str, word: str) -> bool:
+    """D-242 clause 4: whether this option of an interpreter holds code in its own language. Every option D-239
+    stops its reading at (STARTER_CODE) is one, so what D-239 does not read past is refused here."""
+    if word in STARTER_CODE or word.startswith(("--eval=", "--print=")):
+        return True
+    return any(applies(program) and holds(word) for applies, holds in _CODE_OPTIONS)
+
+
+def _from_stdin(program: str, stdin: list[str], operand: str) -> list[tuple[str, str]]:
+    """D-242 clause 2: a starter told to read its program from standard input -- refused, unless its `<` names the
+    file (then that name is read, as D-239 reads it)."""
+    if stdin:
+        return [(f"{shape} in the file `{program}` reads on standard input", target)
+                for target in stdin if (shape := _unnamed_word(target))]
+    return [(f"a program `{program}` reads from standard input, which names no file (D-242)", operand)]
+
+
+def _input_options(program: str, run: list[str]) -> tuple[int, bool] | list[tuple[str, str]]:
+    """A starter's options read as D-239 reads them (its new reading, whose valued options take the most words):
+    (where its operand would stand, whether a shell's `-s` tells it to read standard input), or the findings
+    that end the reading -- none for `--version` or a shell's `-c` (D-239 reads that string), code for an
+    interpreter's code option, none for Python's `-m` (D-239 reads the module)."""
+    shell = STARTER_SHELLS.fullmatch(program) is not None
+    python = program.startswith(("python", "pypy"))
+    j, told = 1, False
+    while j < len(run) and run[j].startswith(("-", "+")) and run[j] not in ("-", "+", "--"):
+        word = run[j]
+        if word in INFO_OPTIONS or (shell and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", word)) or (
+                python and word.startswith("-m")):
+            return []
+        if not shell and _interpreter_code(program, word):
+            return [(f"code in the interpreter's own language, which names no file (D-242): `{program}`'s", word)]
+        told = told or (shell and re.fullmatch(r"-[A-Za-z]*s[A-Za-z]*", word) is not None)
+        valued = (word in STARTER_VALUED
+                  or (shell and re.fullmatch(r"[-+][A-Za-z]*[oO][A-Za-z]*", word) is not None)
+                  or (python and re.fullmatch(r"-[A-Za-z]*[WX]", word) is not None)
+                  or (not shell and not python and word in ("-I", "-r", "-m", "-M", "--require", "--import")))
+        j += 2 if valued else 1
+    return j + (1 if j < len(run) and run[j] == "--" else 0), told
+
+
+def _input_shapes(program: str, run: list[str], stdin: list[str], new: bool,
+                  where: _Where | None) -> list[tuple[str, str]]:
+    """D-242 clauses 2-4 for a starter: its program read from standard input (no file operand and no `<` naming
+    one, `-`, a shell's `-s`), code in an interpreter's own language, and `deno`'s and `bun`'s subcommands."""
+    read = _input_options(program, run)
+    if isinstance(read, list):
+        return read
+    j, told = read
+    operand = run[j] if j < len(run) else None
+    if program in ("source", "."):
+        return []  # they read no program from standard input
+    if operand is not None and operand in _SUBCOMMANDS.get(program, set()):
+        return _runner_operands(f"{program} run", run[j + 1:], stdin, new, where)
+    if program == "deno" and operand == "eval":
+        return [("code in the interpreter's own language, which names no file (D-242): `deno`'s", "eval")]
+    # A starter with no operand and no `<` reads standard input; read only as the shell reads the value (`new`):
+    # the reading before #553 drops a plain value's continuation lines (`bash` then `scripts/x.sh`), so an absent
+    # operand there is no evidence. A `-` or a `-s` is, in either reading.
+    if told or operand == "-" or (operand is None and not stdin and new):
+        return _from_stdin(program, stdin, operand or program)
+    return []
+
+
+def _runner_shapes(program: str, run: list[str], stdin: list[str], new: bool,
+                   where: _Where | None) -> list[tuple[str, str]]:
+    """D-242 clause 3: `uv run` (and `uv tool run`, `uvx`), `poetry run` and `npx` start what their operand names."""
+    words = run[1:]
+    key = program
+    if program in _RUNNER_GLOBAL:
+        k = 0
+        while k < len(words) and words[k].startswith("-"):
+            k += 2 if words[k] in _RUNNER_GLOBAL[program] else 1
+        if k >= len(words):
+            return []
+        if (shape := _unnamed_word(words[k])):
+            return [(f"{shape} in the command `{program}` runs", words[k])]
+        if program == "uv" and words[k] == "tool" and words[k + 1:k + 2] == ["run"]:
+            k, key = k + 1, "uvx"
+        elif words[k] != "run":
+            return []
+        else:
+            key = f"{program} run"
+        words = words[k + 1:]
+    return _runner_operands(key, words, stdin, new, where)
+
+
+def _runner_operands(key: str, words: list[str], stdin: list[str], new: bool,
+                     where: _Where | None) -> list[tuple[str, str]]:
+    """The command a runner (RUNNERS) starts, read as a command in turn: past its options, the operand and what
+    follows it. After an option this does not know, the next word may be its value, so the word after it is read as
+    the operand too (fail closed)."""
+    valued, flags = RUNNERS[key]
+    out: list[tuple[str, str]] = []
+    k, unknown = 0, False
+    while k < len(words):
+        word = words[k]
+        if word == "--":
+            out += _runner_command(key, words[k + 1:], stdin, new, where)
+            break
+        if word.startswith("-") and word != "-":
+            name, eq, value = word.partition("=")
+            later = words[k + 1] if k + 1 < len(words) else ""
+            attached = key in _RUNNER_MODULE and re.fullmatch(r"-m\S+", name) is not None
+            if name in _RUNNER_MODULE.get(key, set()) or attached:
+                module = value if eq else (name[2:] if attached else later)
+                return out + ([(f"{shape} in the module `{key}` runs", module)]
+                              if (shape := _unnamed_word(module)) else [])
+            if name in _RUNNER_CALL.get(key, set()):
+                return out + _shapes_in(value if eq else later, new, where)
+            if not eq and name in valued:
+                k, unknown = k + 2, False
+                continue
+            unknown = not eq and name not in flags
+            k += 1
+            continue
+        out += _runner_command(key, words[k:], stdin, new, where)
+        if not unknown:
+            break
+        k, unknown = k + 1, False
+    return out
+
+
+def _runner_command(key: str, rest: list[str], stdin: list[str], new: bool,
+                    where: _Where | None) -> list[tuple[str, str]]:
+    """The command a runner starts, as a command of its own; `-` is a program read from standard input."""
+    if not rest:
+        return []
+    if rest[0] == "-":
+        return _from_stdin(key, stdin, "-")
+    return _unnamed_shapes(rest, stdin, new, where)
+
+
+class _Makefile:
+    """D-242 clause 3: what this reader takes from a Makefile -- its variables (each definition's value; None for
+    one it cannot read: `+=`, `!=`, `define`, a target's own), its rules (target -> prerequisites, recipe lines),
+    its first target, and what it could not read."""
+
+    def __init__(self) -> None:
+        self.vars: dict[str, list[str | None]] = {}
+        self.rules: dict[str, tuple[list[str], list[str]]] = {}
+        self.first: str | None = None
+        self.problems: list[tuple[str, str]] = []
+
+
+def _make_sources(root: Path) -> list[tuple[str, Callable[[str], str | None]]]:
+    """Where `make`'s files are read: the tree, and each protected base a dispatch runs (`protected_bases`)."""
+    key = str(root)
+    if key not in _BASES:
+        try:
+            _BASES[key] = protected_bases(root)
+        except (OSError, RuntimeError, subprocess.SubprocessError):
+            _BASES[key] = []
+
+    def inside(rel: str) -> bool:  # a file outside the checkout is not read: it is the runner's, not the tree's
+        return not posixpath.isabs(rel) and rel != ".." and not rel.startswith("../")
+
+    def tree(rel: str) -> str | None:
+        path = root / rel
+        try:
+            return path.read_text(encoding="utf-8", errors="replace") if inside(rel) and path.is_file() else None
+        except OSError:
+            return None
+
+    def at(base: str) -> Callable[[str], str | None]:
+        def read(rel: str) -> str | None:
+            blob = verified_blob(root, base, rel) if inside(rel) else None
+            return None if blob is None else blob.decode("utf-8", "replace")
+        return read
+
+    return [("the tree", tree), *((base[:12], at(base)) for base in _BASES[key])]
+
+
+def _make_split(text: str) -> int:
+    """The first `:` of a rule line outside a variable reference (`$(X:a=b): y`), or -1."""
+    depth = 0
+    for i, ch in enumerate(text):
+        if ch in "({" and i and text[i - 1] == "$":
+            depth += 1
+        elif ch in ")}" and depth:
+            depth -= 1
+        elif ch == ":" and not depth:
+            return i
+    return -1
+
+
+def _make_read(load: Callable[[str], str | None], rel: str, cwd: str, model: _Makefile, depth: int = 0) -> bool:
+    """Read the Makefile at `rel` into `model` (an `include` read where it stands); False when it cannot be read."""
+    text = load(rel)
+    if text is None:
+        return False
+    current: list[str] | None = None
+    define = False
+    for raw in re.sub(r"\\\r?\n", " ", text).splitlines():
+        if define:
+            define = not raw.strip().startswith("endef")
+        elif raw.startswith("\t"):
+            for target in current or []:
+                model.rules[target][1].append(raw[1:])
+        elif (line := re.sub(r"(?<!\\)#.*", "", raw).strip()):
+            current, define = _make_line(load, line, cwd, model, depth)
+    return True
+
+
+def _make_line(load: Callable[[str], str | None], line: str, cwd: str, model: _Makefile,
+               depth: int) -> tuple[list[str] | None, bool]:
+    """One Makefile line that is not a recipe line: (the targets a recipe after it belongs to, whether it opens a
+    `define`). Both branches of a conditional are read: more is read, never less."""
+    first = line.split()[0]
+    if first in ("ifeq", "ifneq", "ifdef", "ifndef", "else", "endif", "vpath", "unexport"):
+        return None, False
+    if first in ("define", "undefine"):
+        model.vars.setdefault(line.split()[1] if len(line.split()) > 1 else "", []).append(None)
+        return None, first == "define"
+    if first in ("include", "-include", "sinclude"):
+        _make_include(load, line, first, cwd, model, depth)
+        return None, False
+    if first in ("export", "override", "private"):
+        line = line[len(first):].strip()
+        if not line or _MAKE_ASSIGN.match(line) is None:
+            return None, False
+    if (assign := _MAKE_ASSIGN.match(line)) is not None:
+        name, op, value = assign.groups()
+        model.vars.setdefault(name, []).append(None if op in ("+=", "!=") else value)
+        if name == ".RECIPEPREFIX":
+            model.problems.append(("a recipe prefix this reader does not read (D-242)", line))
+        return None, False
+    return _make_rule(line, model), False
+
+
+def _make_include(load: Callable[[str], str | None], line: str, first: str, cwd: str, model: _Makefile,
+                  depth: int) -> None:
+    """An `include` read where it stands; one this cannot name or read is a problem (`-include` may be absent)."""
+    for name in _make_expand(line[len(first):], model, {}).split():
+        if "$" in name or PATTERN.search(name) or depth >= _MAKE_DEPTH:
+            model.problems.append(("an include this reader cannot follow (D-242)", name))
+        elif not _make_read(load, posixpath.normpath(posixpath.join(cwd, name)), cwd, model, depth + 1) \
+                and first == "include":
+            model.problems.append(("an include this reader cannot read (D-242)", name))
+
+
+def _make_rule(line: str, model: _Makefile) -> list[str] | None:
+    """A rule line (`a b: c d`, `a:: c`, `a: c ; recipe`): its targets, or None for a target's own variable
+    (`ship: TOOL = x`, whose value is the target's, so the variable is unreadable) or a line this cannot read."""
+    at = _make_split(line)
+    if at < 0:
+        model.problems.append(("a Makefile line this reader cannot read (D-242)", line))
+        return None
+    rest, semi, inline = line[at + 1:].removeprefix(":").partition(";")
+    if "=" in rest:
+        assigned = rest.split("=", 1)[0].rstrip(":?+!").split()
+        model.vars.setdefault(assigned[-1] if assigned else "", []).append(None)
+        return None
+    targets = _make_expand(line[:at], model, {}).split()
+    prerequisites = [p for p in _make_expand(rest.rsplit(":", 1)[-1], model, {}).split() if p != "|"]
+    for target in targets:
+        prereqs, recipe = model.rules.setdefault(target, ([], []))
+        prereqs += prerequisites
+        recipe += [inline] if semi else []
+        if model.first is None and (not target.startswith(".") or "/" in target) and "%" not in target:
+            model.first = target
+    return targets
+
+
+def _make_expand(text: str, model: _Makefile, assigns: dict[str, str | None], depth: int = 0,
+                 auto: dict[str, str] | None = None) -> str:
+    """`text` with each `$(NAME)`/`${NAME}` the Makefile (or `make`'s command line) defines once replaced by its
+    value, expanded in turn, `$$` as `$`, and `$@`/`$<` as the target and its first prerequisite. What it cannot
+    expand -- a variable defined more than once or never, a function, an automatic variable it does not know --
+    stays as written, a `$` the shell would expand, so it refuses where D-239 reads it (fail closed)."""
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        if text[i] != "$" or i + 1 >= len(text):
+            out.append(text[i])
+            i += 1
+            continue
+        mark = text[i + 1]
+        if mark == "$":
+            out.append("$")
+            i += 2
+            continue
+        if mark not in "({":
+            out.append((auto or {}).get(mark, text[i:i + 2]))
+            i += 2
+            continue
+        close, j, level = ")" if mark == "(" else "}", i + 2, 1
+        while j < len(text) and level:
+            level += 1 if text[j] == mark else -1 if text[j] == close else 0
+            j += 1
+        if level:
+            out.append(text[i:])
+            break
+        name = text[i + 2:j - 1]
+        values = [assigns[name]] if name in assigns else model.vars.get(name, [])
+        if name == "MAKE" and not values:
+            values = ["make"]
+        if (re.fullmatch(r"[A-Za-z0-9_.-]+", name) and depth < _MAKE_DEPTH and len(values) == 1
+                and values[0] is not None):
+            out.append(_make_expand(values[0], model, assigns, depth + 1, auto))
+        else:
+            out.append(text[i:j])
+        i = j
+    return "".join(out)
+
+
+class _MakeArguments:
+    """`make`'s command line: its `-C` directories, its `-f` files, its targets, its variable assignments, and the
+    option that gives it Makefile text (`--eval`, `-E`), which this does not read."""
+
+    def __init__(self) -> None:
+        self.dirs: list[str] = []
+        self.files: list[str] = []
+        self.targets: list[str] = []
+        self.assigns: dict[str, str | None] = {}
+        self.text: str | None = None
+
+    def value(self, letter: str, value: str) -> None:
+        """A valued option's value: a directory (`C`), a file (`f`), Makefile text (`E`), or another's."""
+        if letter == "C":
+            self.dirs.append(value)
+        elif letter == "f":
+            self.files.append(value)
+        elif letter == "E":
+            self.text = value
+
+
+_MAKE_LONG = {"--directory": "C", "--file": "f", "--makefile": "f", "--eval": "E", "--include-dir": "I",
+              "--old-file": "o", "--assume-old": "o", "--new-file": "W", "--assume-new": "W", "--what-if": "W"}
+
+
+def _make_arguments(run: list[str]) -> _MakeArguments:
+    """`make`'s command line, read as GNU make reads its options."""
+    args = _MakeArguments()
+    i = 1
+    while i < len(run):
+        word, i = run[i], i + 1
+        name, eq, value = word.partition("=")
+        if word == "--":
+            continue
+        if name in _MAKE_LONG:
+            if not eq:
+                value, i = (run[i] if i < len(run) else ""), i + 1
+            args.value(_MAKE_LONG[name], value)
+        elif word.startswith("--"):
+            optional = name in ("--jobs", "--load-average", "--max-load") and not eq
+            i += 1 if optional and i < len(run) and re.fullmatch(r"[0-9.]+", run[i]) else 0
+        elif word.startswith("-") and len(word) > 1:
+            i = _make_short(word, run, i, args)
+        elif (assign := _ARGUMENT_ASSIGN.match(word)) is not None:
+            args.assigns[assign.group(1)] = None if assign.group(2) in ("+=", "!=") else assign.group(3)
+        else:
+            args.targets.append(word)
+    return args
+
+
+def _make_short(word: str, run: list[str], i: int, args: _MakeArguments) -> int:
+    """A cluster of `make`'s short options (`-sC dir`, `-j4`); returns where the next word is."""
+    k = 1
+    while k < len(word):
+        letter, k = word[k], k + 1
+        if letter in "CfIoWE":
+            value = word[k:]
+            if not value:
+                value, i = (run[i] if i < len(run) else ""), i + 1
+            args.value(letter, value)
+            return i
+        if letter == "O":
+            return i
+        while letter in "jl" and k < len(word) and (word[k].isdigit() or word[k] == "."):
+            k += 1
+    last = word[-1] in "jl"
+    return i + 1 if last and i < len(run) and re.fullmatch(r"[0-9.]+", run[i]) else i
+
+
+def _make_shapes(words: list[str], run: list[str], new: bool, where: _Where | None) -> list[tuple[str, str]]:
+    """D-242 clause 3: what `make` starts, read from the Makefile it reads -- in the tree and at each protected base
+    --: its targets' recipes (with none named, `.DEFAULT_GOAL` or the first target) and their prerequisites', each
+    recipe line read as run text in turn. A Makefile, an include or a target this cannot read refuses."""
+    word = run[0]
+    prefix = words[:len(words) - len(run)]
+    moved = any(w.startswith("--chd") or re.fullmatch(r"-[A-Za-z]*[CD].*", w) for w in prefix)
+    if where is None or where.root is None:
+        return [("a `make` whose Makefile this reader is not given (D-242)", word)]
+    if where.cwd is None or moved:
+        return [("a `make` run in a directory this reader cannot tell, so its Makefile cannot be read (D-242)", word)]
+    if where.depth >= _MAKE_DEPTH:
+        return [("a `make` nested deeper than this reader follows (D-242)", word)]
+    args = _make_arguments(run)
+    if args.text is not None:
+        return [("a `make` given Makefile text on its command line (D-242)", args.text)]
+    out = [(f"{shape} in the {what} `make` reads", value)
+           for what, values in (("directory", args.dirs), ("Makefile", args.files), ("target", args.targets))
+           for value in values if (shape := _unnamed_word(value))]
+    cwd = posixpath.normpath(posixpath.join(where.cwd, *args.dirs))
+    if out or posixpath.isabs(cwd) or cwd == ".." or cwd.startswith("../"):
+        return out or [("a `make` run outside the checkout, whose Makefile this reader cannot read (D-242)", cwd)]
+    key = (str(where.root), cwd, tuple(run[1:]), new)
+    if key not in _MAKE_READ:
+        _MAKE_READ[key] = None
+        models = _make_models(where.root, cwd, args.files)
+        inner = _Where(where.root, cwd, where.depth + 1)
+        _MAKE_READ[key] = [found for label, model in models
+                           for found in _make_model_shapes(label, model, args, new, inner)] if models else [
+            ("a Makefile `make` reads that this reader cannot read (D-242)",
+             ", ".join(args.files) or posixpath.join(cwd, "Makefile"))]
+    return list(_MAKE_READ[key] or [])
+
+
+def _make_models(root: Path, cwd: str, files: list[str]) -> list[tuple[str, _Makefile]]:
+    """Each distinct copy of the Makefile(s) `make` reads in `cwd` -- the `-f` files, or the first of GNU make's
+    names --, in the tree and at each protected base, as (where it was read, what was read); a copy that cannot be
+    read is left out, and none at all is for the caller to refuse."""
+    models: dict[str, tuple[str, _Makefile]] = {}
+    for label, load in _make_sources(root):
+        names = [posixpath.normpath(posixpath.join(cwd, f)) for f in files] or [
+            next(name for name in [*(posixpath.normpath(posixpath.join(cwd, n)) for n in _MAKEFILE_NAMES), ""]
+                 if not name or load(name) is not None)]
+        model = _Makefile()
+        if all(name and _make_read(load, name, cwd, model) for name in names):
+            texts = "\0".join(load(name) or "" for name in names)
+            models.setdefault(texts, (f"{', '.join(names)} in {label}", model))
+    return list(models.values())
+
+
+def _make_model_shapes(label: str, model: _Makefile, args: _MakeArguments, new: bool,
+                       where: _Where) -> list[tuple[str, str]]:
+    """What one copy of a Makefile starts for this command line: what it could not read, a SHELL that is not a
+    POSIX shell, and each wanted target's recipe and its prerequisites', read as run text in turn."""
+    out = [(f"{why}, in {label}", what) for why, what in model.problems]
+    shells = [args.assigns["SHELL"]] if "SHELL" in args.assigns else model.vars.get("SHELL", [])
+    for value in shells:
+        program = "" if value is None else _make_expand(value, model, args.assigns).strip()
+        if os.path.basename(program) not in POSIX_SHELLS:
+            out.append((f"a Makefile's SHELL that is not a POSIX shell (D-242), in {label}", program or "SHELL"))
+    goal = model.vars.get(".DEFAULT_GOAL", [])
+    wanted = args.targets or ([_make_expand(goal[0], model, args.assigns)] if len(goal) == 1 and goal[0] is not None
+                              else [model.first] if model.first else [])
+    out += [] if wanted else [(f"a Makefile with no target to run (D-242), in {label}", "make")]
+    out += [(f"a target this reader cannot find in the Makefile (D-242), in {label}", target)
+            for target in wanted if target not in model.rules]
+    seen: set[str] = set()
+    todo = [(target, 0) for target in wanted if target in model.rules]
+    while todo:
+        target, depth = todo.pop(0)
+        if target in seen or target not in model.rules:
+            continue  # a prerequisite with no rule is a file
+        seen.add(target)
+        if depth >= _MAKE_DEPTH:
+            out.append((f"a prerequisite deeper than this reader follows (D-242), in {label}", target))
+            continue
+        prereqs = model.rules[target][0]
+        out += _make_recipe_shapes(label, model, args, target, new, where)
+        todo += [(p, depth + 1) for p in prereqs]
+    return out
+
+
+def _make_recipe_shapes(label: str, model: _Makefile, args: _MakeArguments, target: str, new: bool,
+                        where: _Where) -> list[tuple[str, str]]:
+    """A target's recipe lines -- `@`, `-` and `+` taken off before and after expansion, its variables expanded --
+    read as run text in turn; a `cd` in any of them leaves the directory of every one unknown."""
+    prereqs, recipe = model.rules[target]
+    auto = {"@": target, "<": prereqs[0] if prereqs else ""}
+    lines = [re.sub(r"^[\s@+-]*", "", _make_expand(re.sub(r"^[\s@+-]*", "", line), model, args.assigns, 0, auto))
+             for line in recipe]
+    inner = _moved(lines, new, where)
+    return [(f"{shape} (in `make {target}`'s recipe, {label})", found)
+            for line in lines for shape, found in _shapes_in(line, new, inner)]
 
 
 def _linked(root: Path, rel: str) -> str | None:
@@ -1289,12 +1962,18 @@ def unnamed_starts(root: Path) -> list[str] | None:
                           for n, value in _startup_values(text) if (shape := _unnamed_word(value))]
                 # #553 review B1-B3, R2: the value is read as the reader before #553 read it and as it reads now, and
                 # every start either finds is a finding -- a new reading never refuses less than the old one.
+                # #551 (D-242 clause 1): a step whose shell is not a POSIX shell, its own or its runner's default.
+                found += [f"{name} line {n}: {why} `{value}`" for n, why, value in _non_posix_shells(text)]
+                # #551 (D-242 clause 3): `make` reads its Makefile from the checkout's top, unless a step's
+                # `working-directory:` or a `cd` in the run value moved it.
+                top = _Where(root, None if _WORKING_DIRECTORY.search(text) else ".")
                 for new in (True, False):
                     for start, lines in _run_values(text, new):
+                        at = _moved(lines, new, top)
                         for line, words, stdin in _run_commands(lines, new):
                             runs += new
                             found += [f"{name} line {start + line}: {shape} `{word}`"
-                                      for shape, word in _unnamed_shapes(words, stdin, new)]
+                                      for shape, word in _unnamed_shapes(words, stdin, new, at)]
                 low = text.lower().splitlines()
                 for path in sorted(_workflow_names(root, text, files)):
                     if (target := _linked(root, path)) is not None:
