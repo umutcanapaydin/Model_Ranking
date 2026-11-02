@@ -18,12 +18,12 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-01 (the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-03 (the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+**Commit range:** this round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
 (`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
 `7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
 (`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 1a5fec01cfe562b10f7a6040d45b121a60426bb7 (the upgrade delta round 2026-11-01b, `918c227..7fad073`,
+**Reviewed head:** 0238db51c6e93f67757e15ae8b22afb85f1f29ad (the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -55,7 +55,15 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 1 MINOR open (M3, new, fixed at `1a5fec0` but not yet on PR #559's branch). The upgrade
+MINOR -- 0 BLOCKING open, 1 MINOR open (M1, new). The run-1102 delta round (below, `1a5fec0..970ffea`, eleven
+fixes and the #561 records, D-242 to D-244) found every acceptance criterion proven by a citing test that goes red when
+its code is reverted, all green at `970ffea`; `make check` green (pytest 5472 passed, 37 skipped; swift-test 734;
+client-decls 4 configurations). 67 faults injected into the range's changed code: 35 killed by the range's own tests, 21
+that stayed green closed by this round's tests at `0238db5`, 11 equivalent or argued harmless. The previous round's
+M1 (#557), M2 (#553) and M3 (CI red on `conformance/test-prune-merged.py`, fixed at `1a5fec0`, the start of this range)
+are closed. M1: #552's workflow half is an owner bundle outside this tree, so the nightly's issue step is untested.
+
+The upgrade delta round 2026-11-01b, as it read when it closed: MINOR -- 0 BLOCKING open, 1 MINOR open (M3, new, fixed at `1a5fec0` but not yet on PR #559's branch). The upgrade
 delta round 2026-11-01b (below, `918c227..7fad073`, DevFlow v7.2 to v7.3.1, D-241) found every project rule D-241
 clause 2 keeps -- #526/D-234, #534, #541/D-237, #543, #545, #546, #548, #549/D-239, #283, the pin at every protected
 base (#410/D-233), #390, D-236 (#533, #529) and D-207 clause 3 -- still held by its citing tests, all green at
@@ -1861,3 +1869,108 @@ None.
 - `tests/unit/test_deploy_gate_731_tester.py:196` -- D-233 on the `model:` exemption (F-P7c).
 - `tests/unit/test_review_need_731_tester.py:27`, `:38` -- the two v7.3 policy fields are policy edits (F-P15).
 - `conformance/test-prune-merged.py:83` -- the squash merge's identity (M3).
+
+## Run-1102 delta round 2026-11-03 (1a5fec0..970ffea)
+
+**Range:** `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (first-parent merges into `integration/run-1102`, draft PR
+#564): #557 (`--dist loadgroup`), #554 (default branch by full ref: `scripts/deploy_hosted_engine.sh`, the Makefile's
+`closes`, `conformance/test-commit-identity.py`), #555 (a closure branch counts through its record,
+`scripts/wave_check.py`), #556 (`make deploy-check`'s D-239 evidence line), #562 (`.deps-accept` is a policy edit, D-244),
+#563 (`ci_green` names origin's repository), #553 (D-239's run reader), #566 (`scripts/standup.sh` by full ref), #568
+(fixtures turn off auto gc), #552 (the refresh record's `silent`, `scripts/silent_sources.py`; D-243), #551 (D-242),
+#561 (records only: the guard patch is an owner bundle, not in this tree). 45 files, 3994 insertions.
+**Reviewer:** Tester subagent, fresh eyes, none of the range's code or tests written by me. `.claude/agents/Tester.md`,
+`AGENTS.md` and `.agents/rules/practices.md` read from `origin/main`.
+**Independent:** yes. **Cross-model routing:** author family Claude / reviewer family Claude (no second family
+available here); fresh context.
+**Risk tier:** HIGH (the deploy gate, review-need, wave-check).
+**Seat:** worktree `$TMPDIR/wt-563` on `review/release-delta-1102` cut from `970ffea`, its own `.venv`, a copy of the
+main clone's `advisor.db`; nothing pushed, no Fly or network call, no launchd service touched. Mutation runner: none
+wired; the hand fault injection below stands in.
+
+### Acceptance-criterion coverage
+- #557 -> `tests/unit/test_xdist_loadgroup_557.py:32,60,65` (cites #557): a marked pair runs on one worker -- GREEN;
+  red with `--dist loadgroup` removed from `pyproject.toml` (fault P1).
+- #554 -> `tests/unit/test_short_name_reads_554.py:26,40,75,81,92` (cites #554): a tag named `origin/main` or `main`
+  passes neither the deploy tip check nor the identity range nor a Makefile recipe -- GREEN; red when the script reads
+  `git rev-parse origin/main` (H1) or the Makefile reads `origin/HEAD` by short name (M1).
+- #555 -> `tests/unit/test_wave_check_555.py:21,32,42` -- GREEN; red when the closure's record is ignored (W1) or any
+  of its three records is dropped (W2, W3, W4; W5, the glob, closed by `test_release_delta_1102_tester.py` below).
+- #556 -> `tests/unit/test_deploy_gate_556.py:22,32,40,50` (the count is measured: 2 then 1; the no-workflow and the
+  no-copy lines) -- GREEN.
+- #562 -> `tests/unit/test_deps_accept_562.py` (cites #562), `conformance/test-review-need-mode.py:197-206` ("a
+  `.deps-accept` change: a policy edit") -- GREEN; red when `.deps-accept` is a record again (F1) or leaves
+  EXCEPTION_FILES (R1); R2 and R3 (the pin, the cuts file) red too.
+- #563 -> `tests/unit/test_deploy_gate_563.py:44,58,66` -- GREEN; red when `-R` is dropped (F2), `GH_REPO` (F3) or
+  `GH_HOST` (F4) is kept, or a non-GitHub origin is asked (F5). F6 (the host pattern widened) stayed green: closed below.
+- #553 -> `tests/unit/test_deploy_gate_553.py:44-170` (cites #553, D-239): 18 refused shapes, 22 review shapes, the
+  quiet controls -- GREEN; red when `timeout -k` (F7), `env -S` (F8), the quoted key (F11), the flow mapping (F12), the
+  explicit key (F13), the `BASH_ENV` key (F14) or word (F15) is reverted.
+- #566 -> `tests/unit/test_standup_566.py:60,69` -- GREEN; red on the short-name read (S1).
+- #568 -> `tests/unit/test_loose_fixture_568.py` -- GREEN (the fixtures' auto gc).
+- #552 (D-243) -> `tests/unit/test_silent_sources_552.py:60-160` (cites #552, D-243): the 8-day and 6-day sources, the
+  exact week, an unreadable stamp, the record through `write_status` on all four exit codes, the script's listing,
+  issue and refusals -- GREEN; red on `>=` (D1), the 8-day constant (D2), an unreadable stamp skipped (D5), the record
+  without `silent` (D8), exit 0 for an unreadable record (Q1), the title, marker and empty-night output (Q7-Q9).
+- #551 (D-242) -> `tests/unit/test_deploy_gate_551.py:62-298` (cites #551, D-242): the non-POSIX shell, the runner,
+  `make`, interpreter-code and standard-input shapes, each with its quiet control, and `make deploy-check` naming the
+  shape -- GREEN; red on the POSIX-shell set (F18), `gmake` (F19), the perl code letters (F26) and the Windows runner (F28).
+- #561: records only (the guard patch is `docs/reviews/owner-bundle-561-security.md`'s, outside this tree): no code
+  criterion to cite here.
+
+### Fault-injection table (67 faults; each reverted by exact string and the file's md5 checked equal)
+Killed by the range's own tests (35): F1-F5, F7, F8, F11-F15, F18, F19, F26, F28; R1-R3; W1-W4; S1; D1, D2, D5, D8; Q1,
+Q7-Q9; H1; M1; P1.
+Stayed green on the range's tests (31); closed by `tests/unit/test_release_delta_1102_tester.py` (21, all red on the
+rerun): F6 (the https host pattern widened to `https?://[^/]*github.com/`: `:34`), F17 (the `\e` escape dropped: `:48`),
+F20 (`_MAKE_DEPTH` 8 to 800: `:75`), F21 (`pushd` out of CHDIRS: `:59`), F22 (`--help` out of INFO_OPTIONS: `:84`), F27
+(`compile` out of deno's subcommands: `:91`), F29 (`working-directory:` ignored: `:67`), W5 (the closure-review glob
+dropped: `:181`), S2 (`origin/master` out of standup's candidates: `:161`), D3 and D4 (the future-stamp bound removed,
+or made 0: `:107`), D6 (a zone-less stamp skipped: `:113`), D7 and D9 (the result unsorted, the `days` argument
+ignored: `:119`), Q2, Q3 (a non-object record, a non-string arrival taken: `:133`), Q5 (a backtick left in a quoted
+name: `:146`), Q6 (the names unsorted: `:146`), Q10 and Q11 (a name or an arrival unquoted: `:146`), Q12 (the recursion
+error uncaught: `:133`).
+Equivalent or harmless (11), each argued: F9, F10 (`sudo -h` / `nice -n` in the NEW wrapper table only: D-239's reader
+runs both the old and the new reading and refuses the union, and the old default set holds `-n`; `-h` only refuses
+more), F16 (`\n` decoded as `n`: the old reading sees the whole quoted value as one program word and refuses it
+whatever the new reading decodes; no quiet case differs), F23, F24, F25 (`uv run -m`, `npx -c`, `node -p`: the
+operand is a variable or a cluster the other branch refuses; not proven by a differing input, argued from the code), S3
+(`base=$ref` for `$sha`: both name the same commit), Q4 (JSON object keys are always strings), Q13
+(`UnicodeDecodeError` is a `ValueError`), H2, H3 (`git fetch origin main` still updates `origin/main` and `rev-parse
+--verify HEAD` equals `rev-parse HEAD` for HEAD).
+All 67 files byte-identical after revert (`git status` clean before the tests were added).
+
+### Test integrity
+The range changes two test assertions (`test_deploy_gate_base_policy.py:83,121`: the verdict list grows by #556's
+workflows line) and `conformance/test-review-need-mode.py` (a `.deps-accept` change was "none", now a policy edit, by
+#562 and D-244): each follows its code and is stricter, none weakened or skipped. No test was deleted; the skip
+count is unchanged (37 local, 98 of 5509 in CI against a budget of 98, which the new file does not spend).
+
+### Suite result
+- `make check` at `970ffea`: PASS (EXIT 0) -- lint, typecheck, check-records and its self-test, wave-check-all (68
+  validated), pytest offline with the artifact required: 5472 passed, 37 skipped, 469 warnings in 343 s; coverage floor
+  (55 modules, floor 60%); swift-test 734 of 734 and SlowTierTests 7 of 7; client-decls 4 configurations.
+- The served artifact: `advisor.db` (the 2026-10-30 file, copied from the main clone) read by the artifact tests inside
+  that run (`MODEL_RANKING_REQUIRE_ARTIFACT=1`).
+- This round's file: 24 passed; its commit ran `make check-fast`: PASS in 284 s.
+- `make ui-test` not run: the range touches neither `ios/` nor `scripts/ui_test.sh`.
+
+### Mocks / contract tests
+`ci_green` is driven by one `gh` stub (`test_deploy_gate_563.py:_stub_gh`), reused by this round's file; no parallel
+mock appeared. No new external integration; `silent_sources.py` is stdlib-only and offline.
+
+### BLOCKING
+- none
+
+### MINOR
+- **M1** `docs/reviews/owner-bundle-552-security.md`, `docs/proposals/nightly-silent-sources.md` -- #552's workflow half
+  (the nightly opening or commenting the one issue from `silent_sources.py --issue`) is an owner bundle outside this
+  tree, so no test runs the `gh` step end to end. The script's output contract is proven (`test_silent_sources_552.py`,
+  and this round's quoting and refusal cases); the first run after the owner applies the bundle is the proof of the
+  step. File as an issue to read the first nightly's issue and close it.
+
+### Tests added this review
+- `tests/unit/test_release_delta_1102_tester.py` (24 cases, commit `0238db5`): #563's look-alike hosts (`:34`); D-239's
+  escape table (`:45,51`; `:45` is a control that kills no fault, see F16); D-242's `pushd`, `working-directory:`, depth, information options and
+  deno/bun subcommands (`:59-91`); #552's future bound, zone-less stamps, `days`, sorting, script refusals and quoting
+  (`:107-146`); #566's `origin/master` (`:161`); #555's closure-review glob (`:181`).
