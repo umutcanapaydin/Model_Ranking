@@ -11,14 +11,14 @@ date: 2026-11-02
 **Reviewer:** Security-Reviewer subagent (light mode; `make review-need` says `security`: policy edits of `scripts/review_need.py` and `scripts/deploy_gate.py`, #283)
 **Independent:** yes. This seat wrote none of the range: it read and probed it in its own detached work tree (`wt-sec-562`, its own `.venv` from `make install`), and the fix's author was another session.
 **Date:** 2026-11-02
-**Release range:** 9ec7a46..c212fe1
-**Reviewed head:** c212fe136d6751be0edea0817d0c090800ad0022
+**Release range:** 9ec7a46..0a08215 (round 1: 9ec7a46..c212fe1; round 2: c212fe1..0a08215)
+**Reviewed head:** 0a0821545c03230c9fed612c17050dcfe75e6b73
 **Risk tier:** MEDIUM. The fix changes gate and policy code: which review a change gets, and what the deploy gate counts as code. It touches no auth, PII, payment or migration path. The brief declares no HIGH paths (`docs/project-brief.md:110`), so no senior-review line is owed.
 
 ## Verdict
-MINOR
+PASS
 
-The fix closes #562 (M16) in the strict direction. Every reader that classifies paths now treats `.deps-accept` as policy (review-need) or as code (the deploy gate, and `closure_check.py` through it). No spelling of the path escapes. The conformance change is the minimum needed to match the new rule. Nothing in the range loosens a gate. One MINOR remains: the reader script's docstring still says the old rule. Two risks are queued.
+*(Round 1 at `c212fe1` was MINOR. Round 2, at the end of this file, re-verifies M1, R1 and R2 at `0a08215`. The round-1 text below is kept as written.)* The fix closes #562 (M16) in the strict direction. Every reader that classifies paths now treats `.deps-accept` as policy (review-need) or as code (the deploy gate, and `closure_check.py` through it). No spelling of the path escapes. The conformance change is the minimum needed to match the new rule. Nothing in the range loosens a gate. One MINOR remains: the reader script's docstring still says the old rule. Two risks are queued.
 
 ## Findings
 
@@ -81,3 +81,27 @@ The fix closes #562 (M16) in the strict direction. Every reader that classifies 
 
   Neither line names a `POLICY_TOKENS` entry (`scripts/review_need.py:115-116`). Failure scenario: in a run with `Merges: do not wait`, an agent "fixes" a red `make deps` by editing the recipe. The change stacks with no security seat, and only the owner's merge reads it. It does not reach a deploy unreviewed, because both files are code to the deploy gate and the pre-deploy delta review reads them. That is why this is a queued risk, not a finding. Light mode's per-change scope (the owner's ruling, 2026-10-17) also covers all gate code this way. Remedy, if the owner wants the same rule for every spelling of a waiver: add `deps_accept` and `ignore-vuln` to `POLICY_TOKENS`, so a Makefile line or a script naming either one becomes a policy edit.
 - **R2** `docs/decisions.md` (no entry). **This project rule overrides upstream's v7.3 A20 trim, and no ADR records it.** Project rules on the deploy gate survive upgrades because the upgrade's security delta checks the ported tree against the ADRs (D-241 clause 2, `docs/decisions.md:6668`). The process-log entry names this exact risk in its Lesson. The next upgrade's conformance case will fail closed (Q2), but the record that tells the porter to keep the project's side is a decision, not a test. Remedy: one ADR clause (`/log-decision`), or a line in the run's capture, naming `.deps-accept` among the project's exception files, beside D-221 clause 4 and #444.
+
+## Round 2
+
+**Re-verified:** 2026-11-02, in the same seat's detached tree at `0a0821545c03230c9fed612c17050dcfe75e6b73`. The delta `c212fe1..0a08215` has two commits: `47ef837` (D-244) and `0a08215` (the M1 doc fix, plus this verdict's round-1 text committed unchanged). The delta leaves `scripts/review_need.py`, `scripts/deploy_gate.py`, `conformance/` and `tests/` unchanged. It changes code in two places only: one comment line in `.deps-accept`, and the docstring of `scripts/deps_accept.py`.
+
+**Verdict: PASS.**
+
+- **M1: fixed.**
+  - The `.deps-accept` header now reads *"A change here gets a security review (D-244)"* (`.deps-accept:4`).
+  - The `scripts/deps_accept.py` docstring now says a change *"is a policy edit, a security review in either mode, and code to the deploy gate (#562, D-244), not v7.3's 'the owner's merge is the review'"* (`scripts/deps_accept.py:12-14`).
+  - Both now match the code (`scripts/review_need.py:110`, `scripts/deploy_gate.py:239`).
+  - The header edit adds no entry. `python3 scripts/deps_accept.py` exits 0 and prints no `--ignore-vuln`, so the file still waives nothing.
+  - The edit holds no hidden character: `conformance/test-network-legs.py` passed, 51 cases.
+  - At this head, `.deps-accept` differs from the pinned DevFlow bytes and is code to the deploy gate. This round is the review that change owed.
+- **R2: resolved.** `docs/decisions.md:6749` is D-244. It names both halves of the rule (clause 1) and that it overrides upstream's v7.3 A20 trim (clause 2). It also tells the next upgrade's porter to keep the rule under D-241 clause 2, and names the two tests that turn red first if the rule is lost: the conformance case and `tests/unit/test_deps_accept_562.py`.
+  - *Records note, not a security item:* unlike D-243 (`docs/decisions.md:6725`), D-244 carries no `**Status:** proposed` line and no Context section, which AGENTS.md §3.4 asks of a new ADR. `make check-records` passes all the same, so whoever owns the ADR may want to add them.
+- **R1: queued.** It is filed as #572. It is unchanged at this head and was never a finding: a waiver in the Makefile's `deps:` recipe or in `scripts/deps_accept.py` routes to no review in light mode, but both are code to the deploy gate.
+
+**Runs at `0a08215`, in this tree:**
+- `tests/unit/test_deps_accept_562.py`: 5 passed.
+- `conformance/test-review-need-mode.py`: 23 cases PASS.
+- `conformance/test-network-legs.py`: 51 cases PASS.
+- `make check-records`: PASS, no findings.
+- `make secrets`: no leaks found.
