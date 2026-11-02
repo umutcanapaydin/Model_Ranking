@@ -1766,3 +1766,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The first red test for the deploy script passed for the wrong reason: the data-builder check refused first, and `origin/main` was in the output as git's ambiguity warning. The test now names the builder and asserts the tip check's own sentence.
 - The guard half (refusing a tag that shadows a default-branch name, R3) is the owner's: it rides on #561's patch. `scripts/standup.sh` reads the same way, display only: #566.
 - Lesson: a red test that asserts a word the output may carry for another reason is not red for the reason; make every other check pass first, and assert the refusing check's own sentence.
+
+## 2026-11-02 · fix/issue-555-closure-ref — a closure branch counts through its record
+
+- The fixes-1101 review's R2: `wave_check._wave_base` took a local `closure/m<N-1>` wherever it stood, so a branch a session made at the close's end moved the wave's start there and the close read an empty range. #548 had closed only the tag route.
+- Fix: a closure branch (origin's or local) counts only through the closure record its history carries (`docs/closure-report-m<N-1>.md`, `docs/reviews/m<N-1>-tester.md` or `docs/reviews/m<N-1>-closure*.md`, the names this project's closures wrote), and the wave starts no later than the commit that last wrote it. Moving the branch past its record moves nothing; a wider range is the safe side.
+- `test_wave_check_548.py`'s control made a closure branch with no record, the very shape #555 calls the bug; its fixture now writes an m1 Tester record first, and asserts the same base.
+- Lesson: a branch name is a pointer anyone can move; anchor a range on a record the history wrote, not on where a ref stands.
