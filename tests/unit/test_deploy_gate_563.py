@@ -53,7 +53,8 @@ def _stub_gh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return log
 
 
-@pytest.mark.parametrize("origin", ["https://github.com/o/r.git", "git@github.com:o/r.git", "https://github.com/o/r"])
+@pytest.mark.parametrize("origin", ["https://github.com/o/r.git", "git@github.com:o/r.git", "https://github.com/o/r",
+                                    "ssh://git@github.com/o/r.git"])
 def test_ci_green_asks_this_repository_whatever_gh_repo_says(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
                                                              origin: str) -> None:
     """covers #563: with `GH_REPO` and `GH_HOST` pointing elsewhere, the call names origin's repository and carries
@@ -70,4 +71,16 @@ def test_an_origin_it_cannot_read_is_not_green(tmp_path: Path, monkeypatch: pyte
     """covers #563: no origin, so no repository to name -- not green, and `gh` is not asked at all."""
     log = _stub_gh(tmp_path, monkeypatch)
     assert _gate().ci_green(_repo(tmp_path, None)) is False
+    assert not log.exists()
+
+
+@pytest.mark.parametrize("origin", [
+    "https://github.com.evil.com/o/r.git", "https://github.com@evil.com/o/r.git", "https://evil.com/github.com/o/r.git",
+    "https://github.com/o/r/x", "git@github.com.evil.com:o/r.git", "file:///srv/o/r.git", "https://gitlab.com/o/r.git",
+])
+def test_a_look_alike_origin_is_not_green(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, origin: str) -> None:
+    """covers #563 (its security review's M1): an origin that only looks like a GitHub repository names none, so the
+    gate is not green and `gh` is not asked -- the regex cannot loosen unseen."""
+    log = _stub_gh(tmp_path, monkeypatch)
+    assert _gate().ci_green(_repo(tmp_path, origin)) is False
     assert not log.exists()
