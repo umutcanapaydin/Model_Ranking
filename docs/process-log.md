@@ -1819,3 +1819,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red: a tag `origin/HEAD` at the branch tip, and with no `origin/HEAD` a tag `origin/main`, each hid the branch's ADR.
 - Fix: each candidate by its full ref through `show-ref --verify --hash`, then the decisions at that commit. `conformance/test-adr-status.py` and `test-standup.py` still pass; on this tree it lists D-244, which waits for the owner's merge.
 - Lesson: every reader of the default branch is a reader of policy for someone; the display ones drift last because no gate fails on them.
+
+## 2026-11-02 · fix/issue-568-loose-fixture — the forged-object fixtures stay loose
+
+- `test_deploy_gate_493` and `_494` failed now and then with "the fixture's objects are loose", and passed alone. Measured cause, not load: `git commit` starts `git gc --auto`, which packs every loose object once `objects/17/` holds more than 6700/256 of them, and does it detached, in the background -- so a large fixture commit whose hashes cross the threshold is packed while the test reads it.
+- Red: 40 blobs whose ids start `17`, then the `gc --auto` the commit would start, in the foreground: packed. A control shows a plain repository packs the same commit, so the test can go red.
+- Fix: the shared `Repo` sets `gc.auto=0` and `maintenance.auto=false`; `test_deploy_gate_518`, which builds its own sha256 repository, passes both on its git calls.
+- Lesson: a "flaky under load" test may be deterministic in a hidden input; measure what differs between a failing and a passing run (here, the hashes) before blaming the machine.
