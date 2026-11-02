@@ -861,6 +861,9 @@ PATTERN = re.compile(r"[*?]|\[[^\]]*\]|\{[^{}]*(?:,|\.\.)[^{}]*\}")
 #: A `run:` key, plain or as a step's first key (`- run:`), with its value on the line.
 _RUN_KEY = re.compile(r"^(\s*)(?:-\s+)?run:[ \t]*(.*?)\s*$")
 _UNNAMED: dict[str, list[str] | None] = {}
+#: #556: what `unnamed_starts` read for each root -- the dispatched deploy workflows and their run commands -- so a
+#: PASS names its evidence.
+_UNNAMED_READ: dict[str, tuple[list[str], int]] = {}
 
 
 def _run_values(text: str) -> list[tuple[int, list[str]]]:
@@ -1083,10 +1086,12 @@ def unnamed_starts(root: Path) -> list[str] | None:
             _UNNAMED[key] = None
             return None
         found: list[str] = []
-        for name in sorted(deploy_workflows(root, declared(root), texts)):
-            for text in texts.get(name, []):
+        names, runs = sorted(deploy_workflows(root, declared(root), texts)), 0
+        for name in names:
+            for text in dict.fromkeys(texts.get(name, [])):   # #556: an identical copy at a base adds no command
                 for start, lines in _run_values(text):
                     for line, words, stdin in _run_commands(lines):
+                        runs += 1
                         found += [f"{name} line {start + line}: {shape} `{word}`"
                                   for shape, word in _unnamed_shapes(words, stdin)]
                 low = text.lower().splitlines()
@@ -1096,6 +1101,7 @@ def unnamed_starts(root: Path) -> list[str] | None:
                                       if path.lower() in line or path.lower().rsplit("/", 1)[-1] in line), 0)
                         found.append(f"{name} line {where}: a symlink, `{path}`, to `{target}`")
         _UNNAMED[key] = list(dict.fromkeys(found))
+        _UNNAMED_READ[key] = (names, runs)
     return _UNNAMED[key]
 
 
@@ -1275,6 +1281,22 @@ def verdicts(root: Path, target: str = "production") -> list[tuple[str | None, s
                     f"{'; '.join(unnamed[:5])}{' ...' if len(unnamed) > 5 else ''}; write the file's name there "
                     "instead (a symlink's: its target's), so the file it starts is on the deploy surface",
                     f"workflows: {len(unnamed)} start(s) of a file without its name"))
+    else:
+        # #556: a PASS names what D-239's check read, so it is evidence and not a silence.
+        # The #556 security review: M1, a dispatched name no copy answers to was printed as "read"; R2, a missing
+        # record of the read stated "no dispatched deploy workflow" as a fact.
+        reading = _UNNAMED_READ.get(str(root))
+        if reading is None:
+            summary = "workflows: no start of a file without its name (D-239); what was read is not recorded"
+        else:
+            names, runs = reading
+            texts, _ = _workflow_texts(root)
+            read, absent = [n for n in names if texts.get(n)], [n for n in names if not texts.get(n)]
+            summary = (f"workflows: {', '.join(read)} read, {runs} run command(s)" if read else
+                       "workflows: no dispatched deploy workflow read") + (
+                f"; dispatched with no copy to read: {', '.join(absent)}" if absent else "") + (
+                ", no start of a file without its name (D-239)")
+        out.append((None, summary))
     out.append(per_change_security(root, target) if target in TEAM_ONLY
                else _release_security(root, policies is not None and "light" not in modes))
     for working_mode in modes:
