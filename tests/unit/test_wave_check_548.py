@@ -11,7 +11,7 @@ import re
 import pytest
 
 from tests.unit.test_wave_check_546 import _plant, _rule_beside_code
-from tests.unit.test_wave_check_m21_rules import _git, _module
+from tests.unit.test_wave_check_m21_rules import _commit, _git, _module
 
 IDS = re.match(r"m(\d+)-w(\d+)", "m2-w1")
 PLANTS = [("tag", "closure/m1"), ("tag", "origin/closure/m1"), ("update-ref", "refs/closure/m1"),
@@ -19,8 +19,10 @@ PLANTS = [("tag", "closure/m1"), ("tag", "origin/closure/m1"), ("update-ref", "r
 
 
 def test_the_control_a_real_closure_branch_moves_the_wave_base(tmp_path) -> None:
-    """A milestone stacked on an unmerged closure starts at that closure (the M21 repo review's M2)."""
+    """A milestone stacked on an unmerged closure starts at that closure (the M21 repo review's M2). #555: a real
+    closure carries its record, and a branch without one moves nothing (`test_wave_check_555.py`)."""
     root = _rule_beside_code(tmp_path)
+    _commit(root, "m1 closes", "2026-10-11T12:00:00", {"docs/reviews/m1-tester.md": "# m1 Tester\n"})
     head = _git(root, "rev-parse", "HEAD")
     _git(root, "branch", "closure/m1", head)
     assert _module("wave_check")._wave_base(root, IDS, "HEAD") == head

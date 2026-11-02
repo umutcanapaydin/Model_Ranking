@@ -1756,3 +1756,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red test: a small suite under the project's own pyproject with `-n 4` and no `PYTEST_ADDOPTS`; the eight marked cases ran on gw0 to gw3. A second test runs `--dist load` to show the measure can go red.
 - Fix: `--dist loadgroup` in pyproject's `addopts`; a run with no `-n` ignores it (measured).
 - Lesson: a flag set in one runner's environment holds only for that runner; put a test-suite promise in the suite's own config, where every runner reads it.
+
+## 2026-11-02 · fix/issue-555-closure-ref — a closure branch counts through its record
+
+- The fixes-1101 review's R2: `wave_check._wave_base` took a local `closure/m<N-1>` wherever it stood, so a branch a session made at the close's end moved the wave's start there and the close read an empty range. #548 had closed only the tag route.
+- Fix: a closure branch (origin's or local) counts only through the closure record its history carries (`docs/closure-report-m<N-1>.md`, `docs/reviews/m<N-1>-tester.md` or `docs/reviews/m<N-1>-closure*.md`, the names this project's closures wrote), and the wave starts no later than the commit that last wrote it. Moving the branch past its record moves nothing; a wider range is the safe side.
+- `test_wave_check_548.py`'s control made a closure branch with no record, the very shape #555 calls the bug; its fixture now writes an m1 Tester record first, and asserts the same base.
+- Lesson: a branch name is a pointer anyone can move; anchor a range on a record the history wrote, not on where a ref stands.
