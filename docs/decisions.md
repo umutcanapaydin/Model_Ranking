@@ -6745,3 +6745,26 @@ Golden Rule 1 and D-240: the owner, not the code, decides about a source that st
 **Mitigation if violated:** until the owner applies the workflow half, the names reach only the nightly's log.
 
 **Revisit when:** the issue is opened for a source that is in fact sending, or the owner asks for another channel.
+
+## D-244 — A dependency waiver is a policy edit here, against upstream v7.3's trim
+
+**Decision.**
+1. **`.deps-accept` is an exception to a security control**, as `data/accepted-cuts.yaml` is (D-221 clause 4): a
+   change to it is a policy edit in `make review-need` (`scripts/review_need.py` `EXCEPTION_FILES`, a security review
+   in either mode), and code to the deploy gate (`scripts/deploy_gate.py` `is_deploy_record`).
+2. **This keeps a project rule against upstream DevFlow.** v7.3 (A20, the trim of 2026-10-28) made the file a record
+   routed to no review, on the reasoning that only the owner writes it and the owner's merge reviews it. Here the agent
+   can write it (the guard does not refuse it), so the merge was its only review. At the next upgrade the porter keeps
+   this rule (D-241 clause 2): upstream's `conformance/test-review-need-mode.py` case for `.deps-accept` will fail
+   against this project's `review_need.py`, which forces the choice rather than hiding it.
+3. Refusing the agent's write in the guard would close the same hole from the other side; it is the owner's file and
+   is not needed while clause 1 holds.
+
+**Rationale.** #562 (the v7.3.1 upgrade's security delta, M16): an agent's waiver of a vulnerable dependency could
+reach a deploy unreviewed. The routing change costs one security review per waiver, which is rare by design.
+
+**Mitigation if violated:** an upgrade that takes upstream's routing back reopens #562; the conformance case and
+`tests/unit/test_deps_accept_562.py` both turn red first.
+
+**Revisit when:** the guard refuses the agent's write to `.deps-accept`, or the owner rules that the merge alone
+reviews a waiver.
