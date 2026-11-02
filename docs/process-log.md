@@ -1835,3 +1835,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The workflow half is the owner's: `docs/proposals/nightly-silent-sources.md` carries the `make owner-bundle` patch (both workflow copies) and the one command. The issue is posted by a separate `notice` job, the only one with `issues: write`, so the refresh job's permissions stay as D-217 holds them; the step never fails the refresh job, so it never holds the deploy back.
 - Red test: 8 days named, 6 not, on the rule and through `write_status` on published, unchanged, failed and refused nights; the script's two modes; 4 unreadable records refused.
 - Lesson: a notice whose step can fail is a new way to stop the deploy; put it last, make it unable to fail the job, and give its write permission a job of its own.
+
+## 2026-11-02 · fix/issue-561-guard-owner-patch — the guard's M14, M15 and #554's R3, as an owner bundle
+
+- #561 is the owner's file (`.claude/hooks/bash_guard.py`), so the change was built on an export of `fe2542b`, outside any work tree, and handed over as `make owner-bundle`'s patch with one command; #554's R3 (a tag named like a default branch) rides in it.
+- M14 took three tries. Returning "unknown" from the `for` binder for a blank-holding word, and leaving such a value unexpanded, each made the conformance corpus refuse less (2, then 5 misses) and were reverted. Splitting every unquoted word in place passed every corpus, and the security seat still found it BLOCKING: a quoted blank, zsh's unsplit `$k` and `export d=$v` read as split let `git -c $k"=a b" push origin main` through.
+- The fix that holds: the split reading is judged in addition to the reading as written, on a snapshot of the guard's state, so it can only add a refusal -- the same construction as #553's reader. Round 2 MINOR; 945 judge calls and 213 probe commands, none refused at the base and allowed by the patch.
+- Lesson: a control's corpus passing is not "refuses no less"; any new reading of untrusted text goes in beside the old one, never in its place, and a differential against the base proves it.
