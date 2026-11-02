@@ -1846,3 +1846,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Clause 4: every option D-239 stops reading at (`-c`, `-e`, `-p`, `--eval`, `--print`) now refuses, plus each interpreter's own (Python's `-Bc`, perl's and ruby's clusters, `-E`, php's `-r`, pwsh's `-Command`, `deno eval`).
 - D-242's reading is a second function beside D-239's (`_d242_shapes`), whose findings are added to D-239's unchanged ones, so it can only refuse more. `make deploy-check` still reads 37 run commands in `nightly-hosted.yml` and finds none.
 - Lesson: a rule that refuses on an absence (no operand) is only as good as the reader that might have dropped the word; key it to the reader that reads as the shell does, and keep presence rules on every reading.
+
+## 2026-11-02 · fix/issue-561-guard-owner-patch — the guard's M14, M15 and #554's R3, as an owner bundle
+
+- #561 is the owner's file (`.claude/hooks/bash_guard.py`), so the change was built on an export of `fe2542b`, outside any work tree, and handed over as `make owner-bundle`'s patch with one command; #554's R3 (a tag named like a default branch) rides in it.
+- M14 took three tries. Returning "unknown" from the `for` binder for a blank-holding word, and leaving such a value unexpanded, each made the conformance corpus refuse less (2, then 5 misses) and were reverted. Splitting every unquoted word in place passed every corpus, and the security seat still found it BLOCKING: a quoted blank, zsh's unsplit `$k` and `export d=$v` read as split let `git -c $k"=a b" push origin main` through.
+- The fix that holds: the split reading is judged in addition to the reading as written, on a snapshot of the guard's state, so it can only add a refusal -- the same construction as #553's reader. Round 2 MINOR; 945 judge calls and 213 probe commands, none refused at the base and allowed by the patch.
+- Lesson: a control's corpus passing is not "refuses no less"; any new reading of untrusted text goes in beside the old one, never in its place, and a differential against the base proves it.
