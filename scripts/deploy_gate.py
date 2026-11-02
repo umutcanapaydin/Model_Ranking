@@ -391,16 +391,38 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(["git", "-C", str(root), *args], capture_output=True, timeout=30)
 
 
+#: #563: `origin`'s URL as git stores it -- `https://github.com/<o>/<r>[.git]`, `ssh://git@github.com/<o>/<r>[.git]`
+#: or `git@github.com:<o>/<r>[.git]`. Anything else names no repository this gate may ask about.
+_GITHUB_URL = re.compile(r"^(?:https://github\.com/|ssh://git@github\.com/|git@github\.com:)"
+                         r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+
+
+def _github_repo(url: str) -> str | None:
+    """`<owner>/<repo>` of a GitHub `origin` URL, or None."""
+    found = _GITHUB_URL.match(url)
+    return found.group(1) if found else None
+
+
 def ci_green(root: Path) -> bool:
     """Whether CI is green on HEAD: one `gh run list --commit <HEAD>` call, remembered for this process. Green
     means at least one run, every run finished, and each a success (a skipped run aside); no `gh`, no answer,
-    or anything else is not green."""
+    or anything else is not green.
+
+    #563 (R13): the repository is named, `-R github.com/<owner>/<repo>` read from `origin`'s URL, and `GH_REPO` and
+    `GH_HOST` are dropped from `gh`'s environment, so neither they nor `gh repo set-default` can point the question
+    at another repository's CI. An origin that names no GitHub repository is not green, and `gh` is not asked."""
     key = str(root)
     if key not in _CI:
         try:
             head = _git(root, "rev-parse", "HEAD").stdout.decode().strip()
-            r = subprocess.run(["gh", "run", "list", "--commit", head, "--json", "status,conclusion", "--limit", "50"],
-                               cwd=root, capture_output=True, timeout=GH_TIMEOUT_S)
+            repo = _github_repo(_git(root, "config", "--get", "remote.origin.url").stdout.decode().strip())
+            if repo is None:
+                _CI[key] = False
+                return False
+            env = {k: v for k, v in os.environ.items() if k not in ("GH_REPO", "GH_HOST")}
+            r = subprocess.run(["gh", "run", "list", "-R", f"github.com/{repo}", "--commit", head,
+                                "--json", "status,conclusion", "--limit", "50"],
+                               cwd=root, capture_output=True, timeout=GH_TIMEOUT_S, env=env)
             runs = json.loads(r.stdout.decode("utf-8", "replace")) if r.returncode == 0 and head else []
             _CI[key] = (isinstance(runs, list) and bool(runs) and all(
                 isinstance(x, dict) and x.get("status") == "completed" and x.get("conclusion") in ("success", "skipped")

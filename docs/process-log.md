@@ -1773,3 +1773,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Fix: a closure branch (origin's or local) counts only through the closure record its history carries (`docs/closure-report-m<N-1>.md`, `docs/reviews/m<N-1>-tester.md` or `docs/reviews/m<N-1>-closure*.md`, the names this project's closures wrote), and the wave starts no later than the commit that last wrote it. Moving the branch past its record moves nothing; a wider range is the safe side.
 - `test_wave_check_548.py`'s control made a closure branch with no record, the very shape #555 calls the bug; its fixture now writes an m1 Tester record first, and asserts the same base.
 - Lesson: a branch name is a pointer anyone can move; anchor a range on a record the history wrote, not on where a ref stands.
+
+## 2026-11-02 · fix/issue-563-ci-green-repo — the deploy gate asks this repository's CI, by name
+
+- The v7.3.1 upgrade's security delta, R13 (dormant): `ci_green` ran `gh run list` with no `-R`, so `GH_REPO`, `GH_HOST` or `gh repo set-default` could point it at another repository's CI; a green run there would let a test-and-CI change pass without re-opening the verdicts.
+- Fix: `-R github.com/<owner>/<repo>` read from `origin`'s URL (https, ssh or scp form), and `GH_REPO` and `GH_HOST` dropped from `gh`'s environment. An origin that names no GitHub repository is not green, and `gh` is not asked: fail closed, so a test change counts as code.
+- Red test: a `gh` stub that answers green only for `-R github.com/o/r`, with `GH_REPO=evil/other` and `GH_HOST` set.
+- Two fixtures built repositories with no origin and now added one: `tests/unit/test_deploy_gate_731_tester.py` and DevFlow's `conformance/test-deploy-classes.py` (75 cases pass).
+- Not covered: the issue's third remedy line ("check which tests the line names") is unclear without a brief that declares `Security-invariant tests:`; commented on #563.
+- Lesson: a call that reads its target from the caller's environment is policy by another name; name the target from the repository itself and strip the variables that could rename it.
