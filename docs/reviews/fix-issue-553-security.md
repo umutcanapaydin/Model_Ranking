@@ -12,13 +12,15 @@ date: 2026-11-02
 **Independent:** yes. This seat wrote none of `ae0d42a` or `c4a0ad1`. It worked in its own detached work tree (`wt-sec-553`) with its own venv, and it read policy from the base.
 **Date:** 2026-11-02
 **Release range:** 799efe5..c4a0ad1
-**Reviewed head:** c4a0ad15ec2738c2733d27dfcdab564a8f5d35ff
+**Reviewed head:** 6bc67ac38c5866540f1e30bb7ce679cf63553031
 **Risk tier:** MEDIUM. The change edits a fail-closed deploy control (D-239, D-242). The brief declares no HIGH paths (`Paths that make a change HIGH: none`), and no auth, PII, payment or migration code is touched, so no senior-review line is owed.
 
 ## Verdict
-BLOCKING
+MINOR
 
-The fix closes every shape #553 names: all 19 REFUSED and 6 QUIET cases pass. The real `nightly-hosted.yml` stays quiet. But three of the fix's own mechanisms make the gate **refuse less than at the base**. With each shape below planted in a dispatched deploy workflow, `799efe5` refuses `fly deploy` and `c4a0ad1` lets it through (exit 0).
+*(Round 2 at `6bc67ac`; round 1 below was BLOCKING at `c4a0ad1`. Each round-1 item's disposition is under "Round 2".)*
+
+Round 1 (at `c4a0ad1`): the fix closes every shape #553 names: all 19 REFUSED and 6 QUIET cases pass. The real `nightly-hosted.yml` stays quiet. But three of the fix's own mechanisms make the gate **refuse less than at the base**. With each shape below planted in a dispatched deploy workflow, `799efe5` refuses `fly deploy` and `c4a0ad1` lets it through (exit 0).
 
 Method: a side-by-side probe imports `scripts/deploy_gate.py` at `799efe5` and at `c4a0ad1` and runs `_unreadable_runs` + `_startup_values` + `_run_values` → `_run_commands` → `_unnamed_shapes` over the same workflow text. Each regression was then driven through the real entry point (`tests/unit/test_deploy_gate_549.py::_dispatched` + `_deploy`, i.e. `deploy_gate.py` judging `fly deploy`): every one exits 0, and the control `bash scripts/*.sh` exits 2. The shell readings were checked by running them under `/bin/bash` 3.2 and Homebrew bash 5.x.
 
@@ -123,3 +125,74 @@ Method: a side-by-side probe imports `scripts/deploy_gate.py` at `799efe5` and a
 - **R1** `BASH_ENV` written to `$GITHUB_ENV` for later steps (`printf 'BASH_ENV=%s\n' "$F" >> "$GITHUB_ENV"`, or a heredoc into it) is not read. `echo "BASH_ENV=$F" >> $GITHUB_ENV` refuses only by accident, because the echo argument looks like an assignment word. D-239 and D-242 do not name this class; it needs an issue or a line in D-239's mitigation.
 - **R2** The 553 test file has no differential guard of the kind "never refuses less than the base". Every regression above is a shape the base refused. A corpus test (each shape refused at the merge-base stays refused) would have caught B1–B3, M1(a) and M2.
 - **R3** Still unseen as deploys by `_runs_deploy`, at the base as at the head: `run: env -S "fly deploy"` (quoted `-S` string) and `run: nice -n 5 2>&1 fly deploy` (`split_line` splits at `>&`, so the command is cut at the redirection).
+
+## Round 2
+
+**Head:** `6bc67ac38c5866540f1e30bb7ce679cf63553031` (the review tree checked out detached there; code delta `c4a0ad1..6bc67ac` in `scripts/deploy_gate.py` and `tests/unit/test_deploy_gate_553.py`). **Verdict: MINOR.** No change in the range now makes the gate refuse less than the base `799efe5` does, on any shape this seat can reproduce in a real shell.
+
+**Method.**
+- A differential probe runs the base reader against the round-2 reader, read as `unnamed_starts` now reads it (`new=True` and `new=False`, the findings unioned). It covered 251 workflow texts: every round-1 probe, plus every multi-line string holding `run` in `tests/unit/test_deploy_gate_5*.py`. One case is refused at the base and passed at the head: `timeout 60 -s KILL scripts/*.sh`, which is not a real start (see the union check below).
+- Every round-1 BLOCKING shape, driven through the real entry point (`_dispatched` + `_deploy`, the gate judging `fly deploy`), now exits 2.
+- The D-239 suites pass: `test_deploy_gate_553.py`, `549*`, `522*`, `541*`, `556`, `dispatch` give **266 passed**.
+- `make deploy-check` prints `workflows: nightly-hosted.yml read, 37 run command(s), no start of a file without its name (D-239)`, the same count as at the base.
+
+### Dispositions
+- **B1 — fixed.**
+  - `scripts/deploy_gate.py:1028-1033`: `_strip_comment` now treats `$'`, `${` and `$(` as openers.
+  - `:1036-1039`: the closers and the backtick toggle are tracked.
+  - `:1040`: a `#` at depth or inside backticks is not a comment.
+  - `:1069`: the comment strip runs in the new reading only.
+  - Probes `param-hash`, `ansi-c-quote` and `backtick-comment` refuse (real gate exit 2). Tests: `tests/unit/test_deploy_gate_553.py` `REVIEW_REFUSED` `hash-in-*`.
+- **B2 — fixed by the union.**
+  - `:1132`: the descriptor pop runs in the new reading only.
+  - `:1269-1274`: the old reading keeps the digits, and either reading's start is a finding.
+  - Probes `timeout-space-redir`, `nice-n-redir` and `python-W-space-redir` refuse. Tests: `REVIEW_REFUSED` `*-then-redirect`.
+- **B3 — fixed.**
+  - `:219`: `env` no longer counts `-S`/`--split-string` as valued, so `env -S 'bash scripts/*.sh'` and `env -S "$CMD"` refuse again (exit 2).
+  - `_runs_deploy("run: env -S fly deploy --remote-only", [["fly","deploy"]])` is `True` again.
+  - Test: `test_env_split_string_still_names_a_deploy_workflow`.
+  - `sudo -h` was dropped from the valued set (`:221`). This is harmless: real sudo refuses `-h host cmd` unless it is listing.
+- **M1 — fixed.**
+  - `:956-990`: `_yaml_quoted` decodes in one pass from YAML's escape table (`:892-894`), including `\x`, `\u` and `\U`.
+  - An escape YAML refuses returns None and so refuses (`:981`).
+  - A trailing comment after the closing quote is allowed (`:989-991`).
+  - `"bash scripts/\\t*.sh"` now reads `scripts/t*.sh` and refuses; `\x2a`, `*` and `\x24` refuse.
+- **M2 — fixed.**
+  - `:1222-1223`: the `W`/`X` cluster rule applies to `python*`/`pypy*` only, and in the new reading only.
+  - `perl -wX scripts/*.pl` refuses.
+  - The bare `-W`/`-X` in `STARTER_VALUED` (`:874`) still reads perl's flags as valued. That is pre-existing, and the base misses `perl -X scripts/*.pl` too: see R4.
+- **M3 — fixed, except tabs (invalid YAML, so not a hole).**
+  - `run :` and `"run" :` (`:881`), `? run` (`:885`, refused at `:1001`), and `&`/`!` values (refused at `:1002`) are now placed or refused.
+  - A folded value is read line by line as well as joined (`:936`), so the blank-line and more-indented shapes refuse.
+  - `BASH_ENV` in a flow mapping is read (`:888`).
+  - A shell cluster holding `o` anywhere takes a value (`:1222`).
+  - `{fd}` is popped as a descriptor (`:1134`).
+  - Each one is in `REVIEW_REFUSED`.
+- **M4 — fixed.**
+  - `ENV` is dropped (`:886-889`, `_STARTUP_WORD`), so `env:` / `ENV: ${{ inputs.environment }}` passes (exit 0).
+  - A quoted value followed by a comment passes.
+  - Tests: `REVIEW_QUIET`.
+- **R1, R3 — not blocking.** Both were missed at the base too and neither is a regression. R1 (`BASH_ENV` through `$GITHUB_ENV`) is a class D-239 and D-242 do not name: file it, or add a line to D-239's mitigation. R3 is outside #553's reader.
+- **R2 — taken** as the class fix: the union at `:1269-1274`.
+
+### The union and the count (the coordinator's two questions)
+- **Is the old reading the base reader? Yes, except for three shared pieces.**
+  - `new=False` drops the comment strip (`:1069`), the descriptor pop (`:1132`) and the new clusters (`:1220-1223`). It reads the raw value (`:915-916`) and joins a folded value (`:937-938`).
+  - Three pieces are shared by both readings and changed since the base:
+    1. `_RUN_KEY`'s column now counts `- `. The base ended a `- run: |` block at the dash's column, the head at the key's. PyYAML rejects block content at column 7 or 8 under `      - run: |`, so the head drops no line YAML keeps.
+    2. The early `BASH_ENV` return in `_unnamed_shapes` returns only when it holds a finding.
+    3. `_program_position`'s per-wrapper sets: the only base-refused case they lose is `timeout 60 -s KILL x`. GNU `timeout` parses with a leading `+` in its getopt string, so options after the duration are not its own, and the program it runs is `-s`, not `x`. This is not a start.
+  - No hole found.
+- **Does `runs` count each command once? Not quite, and only for folded values: R5.** `runs += new` (`:1272`) counts the new reading only, so the old reading does not double the count. `nightly-hosted.yml` reads 37, as at the base. But a folded (`>`) value is read twice in the new reading (`:936`: line by line, then joined), so its commands count twice. The probe `folded-count`, two `echo` lines, gives `runs=3`.
+
+### Round 2 findings
+
+#### BLOCKING
+- none
+
+#### MINOR
+- **M5** `scripts/deploy_gate.py:915-917`, `:956-990` — a decoded `\n` is not a command break. `_yaml_quoted` turns a YAML `\n` escape into a newline, but `_run_values` keeps the result as one line, and `shlex` reads the newline as a blank, not a command separator. So `run: "echo hi\nbash scripts/\x2a.sh"` passes the gate: real gate exit 0. PyYAML reads that value as `echo hi` / `bash scripts/*.sh`, and bash starts the pattern. This is not a regression, since the base passed it too: the raw word holds no `*`. The hole is in the new quoted reader, and needs both a `\n` escape and an escaped pattern or expansion character (`\x2a`, `\x24`, `*`). A literal `*` or `$` is caught by the old reading. Remedy: `out.append((i, quoted.split("\n")))` at `:917`, plus a test.
+
+#### Risks queued
+- **R4** Pre-existing, not a regression. `STARTER_VALUED`'s bare `-W`/`-X` (`:874`) makes `perl -X scripts/*.pl` and `ruby -W scripts/*.rb` pass at the base and at the head. `bash -oc pipefail 'scripts/*.sh'` also passes at both: the `c` cluster rule (`:1212`) takes `pipefail` as the `-c` string. A per-interpreter valued table would close both.
+- **R5** `:936`, `:1272`: the #556 run count counts a folded value's commands twice in the new reading. This is evidence accuracy, not a loosening: the nightly has no folded `run:` and still reads 37.
