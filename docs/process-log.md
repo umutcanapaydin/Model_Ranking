@@ -1826,3 +1826,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red: 40 blobs whose ids start `17`, then the `gc --auto` the commit would start, in the foreground: packed. A control shows a plain repository packs the same commit, so the test can go red.
 - Fix: the shared `Repo` sets `gc.auto=0` and `maintenance.auto=false`; `test_deploy_gate_518`, which builds its own sha256 repository, passes both on its git calls.
 - Lesson: a "flaky under load" test may be deterministic in a hidden input; measure what differs between a failing and a passing run (here, the hashes) before blaming the machine.
+
+## 2026-11-02 · fix/issue-552-silent-source-notice — a source silent for 7 nights is named to the owner
+
+- #552, D-243 (D-240 clause 3): a source whose last arrival (D-156) is 7 or more days old must reach the owner; until now it showed only where the owner ran `make test` on a fresh artifact.
+- Fix, the refresh half: `silent_sources(last_ok, at)` in `app.workflows.refresh` (7 days, `SILENT_DAYS`), and the record's additive field `silent`, `{source: last arrival}`, on every kind of night. An unreadable stamp, or one more than a day ahead, is named: an arrival no one can date is never taken for a recent one.
+- `scripts/silent_sources.py` (standard library, no network) prints the names, or with `--issue` the one issue as one line of JSON; a record with no readable `silent` exits 2, never "none silent".
+- The workflow half is the owner's: `docs/proposals/nightly-silent-sources.md` carries the `make owner-bundle` patch (both workflow copies) and the one command. The issue is posted by a separate `notice` job, the only one with `issues: write`, so the refresh job's permissions stay as D-217 holds them; the step never fails the refresh job, so it never holds the deploy back.
+- Red test: 8 days named, 6 not, on the rule and through `write_status` on published, unchanged, failed and refused nights; the script's two modes; 4 unreadable records refused.
+- Lesson: a notice whose step can fail is a new way to stop the deploy; put it last, make it unable to fail the job, and give its write permission a job of its own.
