@@ -9,8 +9,9 @@ fixed release could only turn the gate red for good, or be worked around. Each l
 and pip-audit is told `--ignore-vuln <id>` for each. A line is what git shows as one: a line holding a control,
 separator or format character is red, comment or not. An entry past its expiry, with an expiry more than 90
 days out, a field missing or malformed, or an id twice, turns the leg red -- before its twelve-hour memory is
-asked. The agent never adds an entry (AGENTS.md §3: an agent never waives a scanner finding); the owner's
-merge is the review, and a change to this file routes to no security review (the owner's trim).
+asked. The agent never adds an entry (AGENTS.md §3: an agent never waives a scanner finding). In model_ranking a
+change to this file is a policy edit, a security review in either mode, and code to the deploy gate (#562, D-244),
+not v7.3's "the owner's merge is the review".
 
     python3 scripts/deps_accept.py    # prints the pip-audit flags; a bad entry: FAIL lines on stderr, exit 1
 Exit: 0 every entry whole and current (or no file: nothing accepted) · 1 an entry that is not.
