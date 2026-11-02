@@ -1756,3 +1756,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red test: a small suite under the project's own pyproject with `-n 4` and no `PYTEST_ADDOPTS`; the eight marked cases ran on gw0 to gw3. A second test runs `--dist load` to show the measure can go red.
 - Fix: `--dist loadgroup` in pyproject's `addopts`; a run with no `-n` ignores it (measured).
 - Lesson: a flag set in one runner's environment holds only for that runner; put a test-suite promise in the suite's own config, where every runner reads it.
+
+## 2026-11-02 · fix/issue-554-short-name-reads — the default branch by its full ref, in three more places
+
+- #545 moved the deploy gate's policy readers to full refs; three short-name reads were left (the fixes-1101 review's M5 and R1, the release delta's M13). git resolves `origin/main` to `refs/tags/origin/main` first, and `main` to `refs/tags/main`.
+- `scripts/deploy_hosted_engine.sh`: the tip check fetched `origin main` and compared HEAD with `git rev-parse origin/main`; a tag `origin/main` at an unmerged HEAD passed it. It now fetches into `refs/remotes/origin/main` explicitly and reads it with `show-ref --verify`.
+- `conformance/test-commit-identity.py`: a tag `main` at HEAD emptied `base..HEAD`, so AI attribution on the branch passed; the base is now `refs/heads/main`, named `main` in its messages (its self-test case j reads the name).
+- Makefile `closes`: `origin/HEAD` now through `show-ref --verify`, with a shape test over every Makefile line.
+- The first red test for the deploy script passed for the wrong reason: the data-builder check refused first, and `origin/main` was in the output as git's ambiguity warning. The test now names the builder and asserts the tip check's own sentence.
+- The guard half (refusing a tag that shadows a default-branch name, R3) is the owner's: it rides on #561's patch. `scripts/standup.sh` reads the same way, display only: #566.
+- Lesson: a red test that asserts a word the output may carry for another reason is not red for the reason; make every other check pass first, and assert the refusing check's own sentence.

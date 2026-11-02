@@ -517,7 +517,7 @@ closes:  ## every filled wave-close checklist, closure report and run record in 
 # (`make deploy-check`) holds the milestone Tester's verdict for the next release.
 # v7.2: with CLOSES_CHANGED set (check-fast), only the close records changed on the branch are graded.
 	@n=0; rc=0; only=; if [ -n "$$CLOSES_CHANGED" ]; then \
-	  only=$$(git diff --name-only $$(git merge-base HEAD origin/HEAD 2>/dev/null || echo HEAD) 2>/dev/null; \
+	  only=$$(git diff --name-only $$(git merge-base HEAD $$(git show-ref --verify --hash refs/remotes/origin/HEAD 2>/dev/null) 2>/dev/null || echo HEAD) 2>/dev/null; \
 	    git ls-files -o --exclude-standard 2>/dev/null); fi; \
 	pick() { [ -f "$$1" ] && { [ -z "$$CLOSES_CHANGED" ] || printf '%s\n' "$$only" | grep -qxF "$$1"; }; }; \
 	for f in docs/plans/m*-wave-*-close.md; do pick "$$f" || continue; n=$$((n+1)); \
