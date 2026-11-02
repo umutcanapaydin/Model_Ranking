@@ -81,6 +81,7 @@ def _staging_ready(tmp: Path, base_lines: tuple[str, ...], change_lines: tuple[s
     root, env = tmp / "p", _env(tmp)
     root.mkdir()
     _git(root, env, "init", "-q", "-b", "main")
+    _git(root, env, "remote", "add", "origin", "https://github.com/o/r.git")  # #563: CI is asked of origin's repository
     _write(root, "docs/project-brief.md", _brief(*base_lines))
     _write(root, "src/a.py", "a = 1\n")
     head = _commit(root, env, "base")
@@ -128,6 +129,7 @@ def _tests_changed(tmp: Path, base_lines: tuple[str, ...], change_lines: tuple[s
     root, env = tmp / "p", _env(tmp, gh)
     root.mkdir()
     _git(root, env, "init", "-q", "-b", "main")
+    _git(root, env, "remote", "add", "origin", "https://github.com/o/r.git")  # #563: CI is asked of origin's repository
     _write(root, "docs/project-brief.md", _brief("- **Deploy commands:** `./deploy.sh prod`", *base_lines))
     _write(root, "src/a.py", "a = 1\n")
     _write(root, "tests/test_app.py", "def test_x():\n    assert 1\n")
