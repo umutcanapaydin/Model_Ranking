@@ -12,11 +12,11 @@ date: 2026-11-02
 **Independent:** yes. This seat wrote none of the range and read it in its own work tree, detached at the commit under review, with its own venv.
 **Date:** 2026-11-02
 **Release range:** 9ec7a46..73cd898
-**Reviewed head:** 73cd89847e64019d14e0cfe7859ff27e7ae27994
+**Reviewed head:** 23af2a7f0ea0bee50c435af3aa18b2419f0961f7
 **Risk tier:** MEDIUM. The brief's `Paths that make a change HIGH:` is `none` (docs/project-brief.md:110), but the change edits a deploy-gate control, so this review reads it as a control (fail direction, what can steer it). No auth, PII, payment or migration path is touched, so the §11 senior-review line does not apply.
 
 ## Verdict
-MINOR
+PASS (round 2, at 23af2a7: M1 resolved; round 1 was MINOR)
 
 ## Findings
 
@@ -67,3 +67,20 @@ MINOR
 ## Risks queued
 - **R1** scripts/deploy_gate.py:270-283 — this applies when the owner writes the `Security-invariant tests:` line, which D-241 clause 7 deferred. The tests of the controls themselves are not code by path: 38 files in `tests/unit/` match `deploy_gate|guard|brief_fields|review_need`, among them `test_deploy_gate_563.py`. They become `test-and-ci` unless the line names them, and `conformance/` is `test-and-ci` by rule (:280). Scenario: the line is written as `tests/test_tenant_*.py`. A later change deletes the `-R` assertion at test_deploy_gate_563.py:65 and the loose-regex negative case M1 asks for. CI goes green (the weakened test still passes), and the change re-opens neither release verdict, so the next loosening of `ci_green` can ship with its guarding test already gone. Remedy, at the time the line is written: name the control tests (at least `tests/unit/test_deploy_gate_*.py`, the guard's and `brief_fields`' tests), and record the choice in that ADR. This is the issue's third remedy line, made concrete.
 - **R2** scripts/deploy_gate.py:422-425 — pre-existing and unchanged by this fix: `gh` is still resolved from `PATH`, and its configuration from `GH_CONFIG_DIR`, `XDG_CONFIG_HOME` or `HOME`. A gh config can set `http_unix_socket`; probed with gh 2.100.0, it routes the API call through the named socket. `HTTPS_PROXY`, `SSL_CERT_FILE` and `SSL_CERT_DIR` can route it through a proxy the caller trusts. Any of these, written outside the repository and present in the environment the gate runs in, can answer "green" for any `-R`. They need write access to the user's environment or home configuration, which the change under evaluation does not have. Hardening options, if the class is ever made live (R1): call `gh` by an absolute path resolved once, and drop the proxy, CA and config-dir variables the way `GH_REPO` and `GH_HOST` are dropped.
+
+## Round 2
+
+Re-verified by the same seat at `23af2a7f0ea0bee50c435af3aa18b2419f0961f7`, in its own work tree (detached at that commit) and its own venv. Range since round 1: `73cd898..23af2a7`. It touches `tests/unit/test_deploy_gate_563.py`, `docs/process-log.md` (one line) and this file (round 1, committed unchanged). `scripts/`, `conformance/`, `.claude/` and `.github/` are untouched (`git diff --stat 73cd898..23af2a7`), so the round-1 reading of `scripts/deploy_gate.py` stands line for line.
+
+- **M1 — RESOLVED.**
+  - tests/unit/test_deploy_gate_563.py:77-86 adds `test_a_look_alike_origin_is_not_green`, parametrized over seven origins: `https://github.com.evil.com/o/r.git`, `https://github.com@evil.com/o/r.git`, `https://evil.com/github.com/o/r.git`, `https://github.com/o/r/x`, `git@github.com.evil.com:o/r.git`, `file:///srv/o/r.git` and `https://gitlab.com/o/r.git`. Each asserts `ci_green` is False and that the `gh` stub's log was never written, so `gh` was not asked.
+  - tests/unit/test_deploy_gate_563.py:56-57 adds `ssh://git@github.com/o/r.git` to the positive case, which asserts `-R github.com/o/r` with hostile `GH_REPO` and `GH_HOST`.
+  - Run here: `pytest tests/unit/test_deploy_gate_563.py tests/unit/test_deploy_gate_731_tester.py` 19 passed.
+  - Mutation check, done in a scratch copy of the commit's `scripts/` and test, never in the tree. Each loosening of `_GITHUB_URL` (scripts/deploy_gate.py:396-397) goes red:
+    - (A) any `github.com` followed by `/`, `:`, `@` or `.` anywhere in the URL: 5 of the 7 negative cases fail (all but `file://` and `gitlab.com`, which that mutant still refuses);
+    - (B) the `$` anchor dropped: the `o/r/x` case fails;
+    - (C) `/` allowed in the owner segment: the `o/r/x` case fails.
+  - All 4 positive cases and the no-origin case pass under every mutant, so the new cases are what catch the loosening. The regex cannot loosen unseen any more.
+- **R1 — FILED as #573.** Nothing is live while the brief lacks the `Security-invariant tests:` line (round 1, Q5), so it holds nothing up here.
+- **R2 — REFUSED in the PR's findings table:** it needs write access to the user's environment, not the repository. This seat accepts that disposition. The exposure predates #563, the fix leaves it as it was, and nothing the change under evaluation can write reaches `PATH`, the gh configuration directory or the proxy and CA variables. If #573 ever makes `ci_green` live, the hardening listed under R2 belongs in that change.
+- No new finding. The added test uses the same stub and fixtures as round 1. It adds no import, no dependency, no secret and no subprocess beyond `git` and the stub `gh`.
