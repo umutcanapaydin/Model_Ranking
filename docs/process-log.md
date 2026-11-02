@@ -1783,3 +1783,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The red test for "no dispatched workflow" committed a brief identical to the fixture's, which git refuses; it now asserts the fixture's brief dispatches nothing and checks as is.
 - Lesson: a count printed as evidence is only evidence once a test pins it to a known input; the first measured number here was wrong.
 - The Security-Reviewer (MINOR at `7f35a71`, `docs/reviews/fix-issue-556-security.md`): M1, a dispatched name no file answers to was printed as "read" -- now named apart as dispatched with no copy, with a test; R2, a missing read record stated "no dispatched deploy workflow" -- now says it is not recorded; R3, the test's control read a helper string -- it now reads the committed brief; R1, a CRLF copy counts twice, is #570.
+
+## 2026-11-02 · fix/issue-553-d239-reader-shapes — D-239's run reader reads what the shell reads
+
+- The fixes-1101 rest review's M1-M3 and the release delta Tester's descriptor class: nineteen planted shapes that start `scripts/*.sh` while `unnamed_starts` said nothing; three of them already refused.
+- The reader stays stdlib only (the guard runs the gate as `python3 -I -S`, so PyYAML is not there): each shape is read as the shell or YAML reads it, and what it cannot place refuses (D-239, fail closed).
+- M1: a shell comment is dropped before the value is split, quotes carried across lines, so an apostrophe, a trailing `\` or `<<` in it hides nothing.
+- M2: a digit word right before a redirection is its descriptor (`2>&1`, `2>/dev/null bash`); a shell option cluster ending in `o`/`O` (Python's in `W`/`X`) takes the next word; each wrapper's valued options per its own syntax, and `timeout`'s duration after them; `BASH_ENV`/`ENV` set for a command, exported, or under `env:`, by a name the step does not write, refuses.
+- M3: a quoted `run` key reads as the bare one; a quoted value is unquoted; a plain value continues on lines indented past its key; a flow mapping or a quote running past its line refuses.
+- The wrapper table also feeds the deploy-command matcher, which read `timeout -k 5 60 fly deploy` as the program `60`; that matcher now sees the deploy.
+- Lesson: a reader of another language's text must either parse it as that language does or refuse what it cannot; between the two lies a silent pass.
