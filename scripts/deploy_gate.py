@@ -1953,7 +1953,12 @@ def unnamed_starts(root: Path) -> list[str] | None:
         found: list[str] = []
         names, runs = sorted(deploy_workflows(root, declared(root), texts)), 0
         for name in names:
+            counted: set[str] = set()
             for text in dict.fromkeys(texts.get(name, [])):   # #556: an identical copy at a base adds no command
+                # #570: the tree's copy is read with its line endings normalised and a base's blob is not, so a CRLF
+                # workflow's copies differ; each is read for findings, but the evidence line counts a text once.
+                count = (normal := text.replace("\r\n", "\n")) not in counted
+                counted.add(normal)
                 # #553: a run value this reader cannot place refuses (D-239, fail closed), and so does a shell's
                 # startup file set under `env:` by a name it does not write.
                 found += [f"{name} line {n}: a run value this reader cannot read (a flow mapping, or a quote "
@@ -1971,7 +1976,7 @@ def unnamed_starts(root: Path) -> list[str] | None:
                     for start, lines in _run_values(text, new):
                         at = _moved(lines, new, top)
                         for line, words, stdin in _run_commands(lines, new):
-                            runs += new
+                            runs += new and count
                             found += [f"{name} line {start + line}: {shape} `{word}`"
                                       for shape, word in _unnamed_shapes(words, stdin, new, at)]
                 low = text.lower().splitlines()

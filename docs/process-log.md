@@ -1880,3 +1880,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R14 of run 1102's release delta: `scripts/prune_merged.py` gave `origin/main` to `merge-base` by short name, where a tag `origin/main` wins. The red test needed `origin/HEAD` absent: git 2.48+ makes it on fetch, and with it `symbolic-ref --short` already disambiguates. With `remote.origin.followRemoteHEAD=never`, a tag at an unmerged branch's tip got that branch deleted while a stacked child was checked out.
 - The fix reads each candidate with `show-ref --verify` and compares by commit; the branch is read as `refs/heads/<name>`.
 - Lesson: the reachable shape of a name-shadowing bug depends on the git version's own defaults; the red test pins the configuration it needs.
+
+## 2026-11-04 · fix/issue-570-crlf-count — the D-239 evidence line counts a CRLF workflow's commands once
+
+- R1 of the #556 security review: the tree's copy of a workflow is read as text (line endings normalised) and a base's from its blob (kept), so a CRLF workflow's copies differ and the count ran twice: one command read `2 run command(s)`.
+- Every distinct copy is still read for findings; the count skips a copy whose text, with `\r\n` read as `\n`, was counted already. Evidence wording only: what the gate refuses is unchanged.
+- Lesson: two readers of one file that decode it differently make "distinct copies" a property of the reader, not of the file.
