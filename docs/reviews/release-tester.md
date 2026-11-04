@@ -18,12 +18,12 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-03 (the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-04 (the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+**Commit range:** this round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
 (`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
 `7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
 (`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 0238db51c6e93f67757e15ae8b22afb85f1f29ad (the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** a937ff95e686d1c13cc9b673d8f47657a8af3fc1 (the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -55,7 +55,7 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- 0 BLOCKING open, 1 MINOR open (M1, new). The run-1102 delta round (below, `1a5fec0..970ffea`, eleven
+MINOR -- (2026-11-04: the #588 delta round `0238db5..a937ff9` is PASS, no new finding; the MINOR below is the run-1102 round's M1, still open; see "Delta round 2026-11-04 (#588)" at the end.) 0 BLOCKING open, 1 MINOR open (M1, new). The run-1102 delta round (below, `1a5fec0..970ffea`, eleven
 fixes and the #561 records, D-242 to D-244) found every acceptance criterion proven by a citing test that goes red when
 its code is reverted, all green at `970ffea`; `make check` green (pytest 5472 passed, 37 skipped; swift-test 734;
 client-decls 4 configurations). 67 faults injected into the range's changed code: 35 killed by the range's own tests, 21
@@ -1974,3 +1974,18 @@ mock appeared. No new external integration; `silent_sources.py` is stdlib-only a
   escape table (`:45,51`; `:45` is a control that kills no fault, see F16); D-242's `pushd`, `working-directory:`, depth, information options and
   deno/bun subcommands (`:59-91`); #552's future bound, zone-less stamps, `days`, sorting, script refusals and quoting
   (`:107-146`); #566's `origin/master` (`:161`); #555's closure-review glob (`:181`).
+
+## Delta round 2026-11-04 (#588) (0238db5..a937ff9)
+
+Verdict: PASS. Code files in range: `tests/unit/test_release_delta_1102_tester.py` (explicit `ids=`),
+`tests/unit/test_issue_588_param_ids.py` (new). The rest is docs and merge commits.
+
+- Criterion (#588: no node id may overflow a Linux environment string): `tests/unit/test_issue_588_param_ids.py:21`
+  collects the file and asserts every node id plus the `PYTEST_CURRENT_TEST` overhead stays under 131,072 bytes. GREEN.
+- Red to green: with the `5557acb` copy of the old test file in my worktree, the new test FAILED (1 failed); at
+  `a937ff9` both files pass (25 passed = 24 cases + 1). The file was restored byte-identical.
+- No case dropped, no assertion changed: the diff `5557acb..e53eb89` of the old test file is one comment and `ids=` with
+  five ids for five parametrized inputs; the function body is untouched.
+- CI on PR #564 at `a937ff9`: test (py3.12) and test (py3.14), install-and-governance, dep-audit, secret-scan all pass.
+- Not run: full `make check` (the range is test-only; the two files were run directly).
+- BLOCKING: none. MINOR: none new.
