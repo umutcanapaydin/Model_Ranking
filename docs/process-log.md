@@ -1874,3 +1874,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Tester PASS at `0c76d5c`. The ids-only change drops no case, and the red test was red at `5557acb` and green at `a937ff9`. Security: this round passes with nothing new, and the file stays MINOR for M14/M15, which #561's bundle closes. The run file's policy-edit signal was read as data.
 - The Tester's seat could not commit from `.claude/worktrees/`: the commit hook's guard tests refuse there. Its staged verdict was committed from a worktree under the scratchpad.
 - Lesson: a seat's worktree goes outside `.claude/`, or its commit hook cannot run; and a run file that claims "deploy-check passes" is true only at the head it names.
+
+## 2026-11-04 · fix/issue-587-prune-full-ref — prune_merged reads the default branch by its full ref
+
+- R14 of run 1102's release delta: `scripts/prune_merged.py` gave `origin/main` to `merge-base` by short name, where a tag `origin/main` wins. The red test needed `origin/HEAD` absent: git 2.48+ makes it on fetch, and with it `symbolic-ref --short` already disambiguates. With `remote.origin.followRemoteHEAD=never`, a tag at an unmerged branch's tip got that branch deleted while a stacked child was checked out.
+- The fix reads each candidate with `show-ref --verify` and compares by commit; the branch is read as `refs/heads/<name>`.
+- Lesson: the reachable shape of a name-shadowing bug depends on the git version's own defaults; the red test pins the configuration it needs.
