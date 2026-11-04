@@ -222,8 +222,10 @@ def main() -> int:
     if "--base" in argv:
         base = argv[argv.index("--base") + 1]
     else:
-        base = next((b for b in ("main", "master")
-                     if sh(["git", "rev-parse", "--verify", "--quiet", b])[0] == 0), "HEAD")
+        # #554 (R1): the branch by its full ref. `main` alone resolves to `refs/tags/main` first, and a tag of that
+        # name at HEAD emptied `base..HEAD`, the range graded below.
+        base = next((f"refs/heads/{b}" for b in ("main", "master")
+                     if sh(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{b}"])[0] == 0), "HEAD")
     _, fp = sh(["git", "log", "--first-parent", "--format=%H", base, "-n", "200"])
     first_parent = set(fp.splitlines())
     if not first_parent:
@@ -284,15 +286,16 @@ def main() -> int:
     for b in bad:
         print(f"  FAIL {b}")
     exempt = (f", {pre_epoch} pre-{AI_EPOCH} AI-attributed commit(s) exempt" if pre_epoch else "")
-    inherited = (f", {carried} AI-attributed commit(s) already on `{base}` and outside this "
+    shown = base.removeprefix("refs/heads/")   # #554: read by its full ref, named as people name it
+    inherited = (f", {carried} AI-attributed commit(s) already on `{shown}` and outside this "
                  f"branch's scope" if carried else "")
-    scope = (f"attribution scope {base}..HEAD = {len(ai_pop)} commit(s)" if ai_pop else
-             f"attribution scope {base}..HEAD is EMPTY -- HEAD adds nothing over `{base}`, so the "
+    scope = (f"attribution scope {shown}..HEAD = {len(ai_pop)} commit(s)" if ai_pop else
+             f"attribution scope {shown}..HEAD is EMPTY -- HEAD adds nothing over `{shown}`, so the "
              f"attribution half graded nothing HERE; it grades on the branch, before the merge")
     print(f"test-commit-identity {'FAIL' if bad else 'PASS'}: {n} commit(s), {len(bad)} "
           f"violation(s) [identity population {rng}; {scope}; owner chain = first-parent of "
-          f"{base}; {len(known)} known human identit{'y' if len(known) == 1 else 'ies'} derived from "
-          f"`{base}`{exempt}{inherited}]")
+          f"{shown}; {len(known)} known human identit{'y' if len(known) == 1 else 'ies'} derived from "
+          f"`{shown}`{exempt}{inherited}]")
     return 1 if bad else 0
 
 

@@ -454,7 +454,8 @@ def _merged(root: pathlib.Path, commit: str) -> bool:
 def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str | None:
     """Where the wave starts: the latest of these that the end's history holds -- the milestone's base on main,
     the merge base with the previous milestone's closure branch (`origin/closure/m<N-1>` or `closure/m<N-1>`,
-    the M21 repo review's M2: a milestone stacked on an unmerged closure), and the commit that added the
+    the M21 repo review's M2: a milestone stacked on an unmerged closure) at the commit that last wrote its closure
+    record (#555), and the commit that added the
     previous wave's close. A plan's `**Base:**` line is not read: a docs-only edit must not narrow a range
     (the M21 closure fixes review's M5)."""
     candidates = [next((b for tip in _default_tips(root) if (b := _git(root, "merge-base", end, tip))), None)]
@@ -462,8 +463,13 @@ def _wave_base(root: pathlib.Path, ids: re.Match[str] | None, end: str) -> str |
         milestone, wave = int(ids.group(1)), int(ids.group(2))
         # #548: read by full ref, as `_default_tips` does: a short name let a planted tag choose the closure
         closures = (f"refs/remotes/origin/closure/m{milestone - 1}", f"refs/heads/closure/m{milestone - 1}")
+        # #555: a closure counts only through the record it carries, and the wave starts no later than the commit
+        # that last wrote it: a branch made or moved to the close's end otherwise moved the base there.
+        records = (f"docs/closure-report-m{milestone - 1}.md", f"docs/reviews/m{milestone - 1}-tester.md",
+                   f":(glob)docs/reviews/m{milestone - 1}-closure*.md")
         candidates.append(next((b for ref in closures if (sha := brief_fields.exact_ref(root, ref))
-                                and (b := _git(root, "merge-base", end, sha))), None))
+                                and (rec := (_git(root, "log", "-1", "--format=%H", sha, "--", *records) or "").strip())
+                                and (b := _git(root, "merge-base", end, rec))), None))
         if wave > 1:
             rel = f"docs/plans/m{milestone}-wave-{wave - 1}-close.md"
             added = (_git(root, "log", "--diff-filter=A", "--format=%H", end, "--", rel) or "").splitlines()

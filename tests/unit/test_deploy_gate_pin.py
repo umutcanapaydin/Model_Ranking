@@ -30,6 +30,10 @@ class Repo:
         self.root = root
         root.mkdir(parents=True)
         self.git("init", "-q", "-b", "main")
+        # #568: no automatic packing -- several fixtures forge a loose object by its path, and `git commit`'s detached
+        # `gc --auto` packed them on the runs whose hashes crossed its threshold.
+        self.git("config", "gc.auto", "0")
+        self.git("config", "maintenance.auto", "false")
 
     def git(self, *args: str) -> str:
         return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false", *args],

@@ -1749,3 +1749,121 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The plan branch is cut from the upgrade's head (`1a5fec0`), so the run file is graded by v7.3.1's `run_check`; it merges after #559.
 - The run starts in a new session after #559 merges, since the guard pin changed.
 - Lesson: ask a `work-issue`'s decisions as one plain question with its default, not as five; the owner answers the default when the metaphor makes it clear.
+
+## 2026-11-02 · fix/issue-557-xdist-loadgroup — the `serial` group holds under every `-n` run
+
+- The release delta Tester's M1: `xdist_group("serial")` needs `--dist loadgroup`. check-fast already passes it (`PYTEST_PARALLEL`), but `make test`, the merge gate, and CI's `pytest -n auto` read only pyproject's options, so the group spread over four workers there.
+- Red test: a small suite under the project's own pyproject with `-n 4` and no `PYTEST_ADDOPTS`; the eight marked cases ran on gw0 to gw3. A second test runs `--dist load` to show the measure can go red.
+- Fix: `--dist loadgroup` in pyproject's `addopts`; a run with no `-n` ignores it (measured).
+- Lesson: a flag set in one runner's environment holds only for that runner; put a test-suite promise in the suite's own config, where every runner reads it.
+
+## 2026-11-02 · fix/issue-554-short-name-reads — the default branch by its full ref, in three more places
+
+- #545 moved the deploy gate's policy readers to full refs; three short-name reads were left (the fixes-1101 review's M5 and R1, the release delta's M13). git resolves `origin/main` to `refs/tags/origin/main` first, and `main` to `refs/tags/main`.
+- `scripts/deploy_hosted_engine.sh`: the tip check fetched `origin main` and compared HEAD with `git rev-parse origin/main`; a tag `origin/main` at an unmerged HEAD passed it. It now fetches into `refs/remotes/origin/main` explicitly and reads it with `show-ref --verify`.
+- `conformance/test-commit-identity.py`: a tag `main` at HEAD emptied `base..HEAD`, so AI attribution on the branch passed; the base is now `refs/heads/main`, named `main` in its messages (its self-test case j reads the name).
+- Makefile `closes`: `origin/HEAD` now through `show-ref --verify`, with a shape test over every Makefile line.
+- The first red test for the deploy script passed for the wrong reason: the data-builder check refused first, and `origin/main` was in the output as git's ambiguity warning. The test now names the builder and asserts the tip check's own sentence.
+- The guard half (refusing a tag that shadows a default-branch name, R3) is the owner's: it rides on #561's patch. `scripts/standup.sh` reads the same way, display only: #566.
+- Lesson: a red test that asserts a word the output may carry for another reason is not red for the reason; make every other check pass first, and assert the refusing check's own sentence.
+
+## 2026-11-02 · fix/issue-555-closure-ref — a closure branch counts through its record
+
+- The fixes-1101 review's R2: `wave_check._wave_base` took a local `closure/m<N-1>` wherever it stood, so a branch a session made at the close's end moved the wave's start there and the close read an empty range. #548 had closed only the tag route.
+- Fix: a closure branch (origin's or local) counts only through the closure record its history carries (`docs/closure-report-m<N-1>.md`, `docs/reviews/m<N-1>-tester.md` or `docs/reviews/m<N-1>-closure*.md`, the names this project's closures wrote), and the wave starts no later than the commit that last wrote it. Moving the branch past its record moves nothing; a wider range is the safe side.
+- `test_wave_check_548.py`'s control made a closure branch with no record, the very shape #555 calls the bug; its fixture now writes an m1 Tester record first, and asserts the same base.
+- Lesson: a branch name is a pointer anyone can move; anchor a range on a record the history wrote, not on where a ref stands.
+
+## 2026-11-02 · fix/issue-556-deploy-check-d239-line — a D-239 pass prints its evidence
+
+- The fixes-1101 rest review's R4: when D-239's check found nothing, `make deploy-check` printed nothing for it, so a PASS carried no sign the dispatched deploy workflows were read.
+- Fix: one line on a pass, `workflows: <names> read, <n> run command(s), no start of a file without its name (D-239)`, or `no dispatched deploy workflow` when the brief dispatches none. On this tree: `nightly-hosted.yml read, 148 run command(s)`.
+- The first count read 4 for a step of 2 commands: the gate reads the tree's copy and each protected base's, and they were identical. An identical copy is now read once, which also halves the work.
+- `test_deploy_gate_base_policy.py` counted the verdict lines (`[None] * 3`); the new line is one more `None`, so both counts grew by one, each with a comment.
+- The red test for "no dispatched workflow" committed a brief identical to the fixture's, which git refuses; it now asserts the fixture's brief dispatches nothing and checks as is.
+- Lesson: a count printed as evidence is only evidence once a test pins it to a known input; the first measured number here was wrong.
+- The Security-Reviewer (MINOR at `7f35a71`, `docs/reviews/fix-issue-556-security.md`): M1, a dispatched name no file answers to was printed as "read" -- now named apart as dispatched with no copy, with a test; R2, a missing read record stated "no dispatched deploy workflow" -- now says it is not recorded; R3, the test's control read a helper string -- it now reads the committed brief; R1, a CRLF copy counts twice, is #570.
+
+## 2026-11-02 · fix/issue-562-deps-accept-review — a dependency waiver is a policy edit
+
+- The v7.3.1 upgrade's security delta, M16: `.deps-accept` (the advisories `make deps` waives, "only the owner adds an entry") was a record to the deploy gate and routed to no review (v7.3 A20, the owner's trim), and the agent can write it, so an agent's waiver could reach a deploy unreviewed.
+- Fix, triage's default: as `data/accepted-cuts.yaml` is (D-221 clause 4). `review_need.EXCEPTION_FILES` holds it, so a change to it is a security review in either mode; the deploy gate counts it as code. A test holds the path equal to the one `scripts/deps_accept.py` reads.
+- `conformance/test-review-need-mode.py` had a v7.3 case pinning the old routing (`none`, `change class: record`); it now pins the new one. This diverges from upstream DevFlow on purpose; the guard half (refusing the agent's write) would be the owner's, and is not needed with this default.
+- Lesson: an upstream trim can undo a project's own rule for a file of the same class; read each trimmed path against the project's exception list at the upgrade.
+- The Security-Reviewer (MINOR at `c212fe1`, `docs/reviews/fix-issue-562-security.md`): M1, the file's own header and `scripts/deps_accept.py`'s docstring still said "the owner's merge is the review" -- both now name D-244; R2, no ADR recorded the override of upstream's trim -- D-244, in its own commit before the doc fix; R1, a waiver in the Makefile's `deps:` recipe or in `deps_accept.py` is no policy edit -- filed.
+
+## 2026-11-02 · fix/issue-563-ci-green-repo — the deploy gate asks this repository's CI, by name
+
+- The v7.3.1 upgrade's security delta, R13 (dormant): `ci_green` ran `gh run list` with no `-R`, so `GH_REPO`, `GH_HOST` or `gh repo set-default` could point it at another repository's CI; a green run there would let a test-and-CI change pass without re-opening the verdicts.
+- Fix: `-R github.com/<owner>/<repo>` read from `origin`'s URL (https, ssh or scp form), and `GH_REPO` and `GH_HOST` dropped from `gh`'s environment. An origin that names no GitHub repository is not green, and `gh` is not asked: fail closed, so a test change counts as code.
+- Red test: a `gh` stub that answers green only for `-R github.com/o/r`, with `GH_REPO=evil/other` and `GH_HOST` set.
+- Two fixtures built repositories with no origin and now added one: `tests/unit/test_deploy_gate_731_tester.py` and DevFlow's `conformance/test-deploy-classes.py` (75 cases pass).
+- Not covered: the issue's third remedy line ("check which tests the line names") is unclear without a brief that declares `Security-invariant tests:`; commented on #563.
+- Lesson: a call that reads its target from the caller's environment is policy by another name; name the target from the repository itself and strip the variables that could rename it.
+- The Security-Reviewer (MINOR at `73cd898`, `docs/reviews/fix-issue-563-security.md`): M1, no test refused a look-alike origin and the ssh form was untested -- seven look-alikes now refuse without asking `gh`, and `ssh://` is a positive case; R1, once `Security-invariant tests:` is declared the gate's own control tests would count as test-and-CI -- #573; R2, `gh`'s own config or proxy variables can reroute its call -- refused: it needs write access to the user's environment, not the repository, and every other check of the gate trusts that environment too.
+
+## 2026-11-02 · fix/issue-553-d239-reader-shapes — D-239's run reader reads what the shell reads
+
+- The fixes-1101 rest review's M1-M3 and the release delta Tester's descriptor class: nineteen planted shapes that start `scripts/*.sh` while `unnamed_starts` said nothing; three of them already refused.
+- The reader stays stdlib only (the guard runs the gate as `python3 -I -S`, so PyYAML is not there): each shape is read as the shell or YAML reads it, and what it cannot place refuses (D-239, fail closed).
+- M1: a shell comment is dropped before the value is split, quotes carried across lines, so an apostrophe, a trailing `\` or `<<` in it hides nothing.
+- M2: a digit word right before a redirection is its descriptor (`2>&1`, `2>/dev/null bash`); a shell option cluster ending in `o`/`O` (Python's in `W`/`X`) takes the next word; each wrapper's valued options per its own syntax, and `timeout`'s duration after them; `BASH_ENV`/`ENV` set for a command, exported, or under `env:`, by a name the step does not write, refuses.
+- M3: a quoted `run` key reads as the bare one; a quoted value is unquoted; a plain value continues on lines indented past its key; a flow mapping or a quote running past its line refuses.
+- The wrapper table also feeds the deploy-command matcher, which read `timeout -k 5 60 fly deploy` as the program `60`; that matcher now sees the deploy.
+- Lesson: a reader of another language's text must either parse it as that language does or refuse what it cannot; between the two lies a silent pass.
+- The Security-Reviewer, round 1 BLOCKING at `c4a0ad1` (`docs/reviews/fix-issue-553-security.md`): three of the new readings refused less than the reader before them -- B1, the comment strip took a `#` inside `${...}`, `$'...'` or backticks; B2, the descriptor pop took the value before a redirection after whitespace (`timeout 60 >/dev/null x`); B3, `env -S` read as a valued option. The fix that closes the class: each run value is read both as before #553 and as now, and every start either finds refuses, so a new reading can only add refusals (the review's R2). Each finding also fixed in its own reading, with the review's every probe as a test: the comment strip skips `${`, `$(`, `$'` and backticks; `env -S` and `sudo -h` are no longer valued; YAML escapes are decoded in one pass with `\x`/`\u`; `-W`/`-X` take a value for Python only; `run :`, `? run`, tags and anchors, a folded value line by line, `BASH_ENV` in a flow mapping, `-oe` and `{fd}>` are read; `ENV` is no longer a startup file (only an interactive sh reads it) and a quoted value may carry a comment (M4).
+
+## 2026-11-02 · fix/issue-566-standup-full-ref — the standup compares with the real default branch
+
+- Found while fixing #554: `scripts/standup.sh` chose the decisions it compares by short name (`origin/HEAD origin/main ... main master`), and a tag of that name came first, so "ADRs awaiting the owner's merge" could list none. Display only; no gate reads it.
+- Red: a tag `origin/HEAD` at the branch tip, and with no `origin/HEAD` a tag `origin/main`, each hid the branch's ADR.
+- Fix: each candidate by its full ref through `show-ref --verify --hash`, then the decisions at that commit. `conformance/test-adr-status.py` and `test-standup.py` still pass; on this tree it lists D-244, which waits for the owner's merge.
+- Lesson: every reader of the default branch is a reader of policy for someone; the display ones drift last because no gate fails on them.
+
+## 2026-11-02 · fix/issue-568-loose-fixture — the forged-object fixtures stay loose
+
+- `test_deploy_gate_493` and `_494` failed now and then with "the fixture's objects are loose", and passed alone. Measured cause, not load: `git commit` starts `git gc --auto`, which packs every loose object once `objects/17/` holds more than 6700/256 of them, and does it detached, in the background -- so a large fixture commit whose hashes cross the threshold is packed while the test reads it.
+- Red: 40 blobs whose ids start `17`, then the `gc --auto` the commit would start, in the foreground: packed. A control shows a plain repository packs the same commit, so the test can go red.
+- Fix: the shared `Repo` sets `gc.auto=0` and `maintenance.auto=false`; `test_deploy_gate_518`, which builds its own sha256 repository, passes both on its git calls.
+- Lesson: a "flaky under load" test may be deterministic in a hidden input; measure what differs between a failing and a passing run (here, the hashes) before blaming the machine.
+
+## 2026-11-02 · fix/issue-552-silent-source-notice — a source silent for 7 nights is named to the owner
+
+- #552, D-243 (D-240 clause 3): a source whose last arrival (D-156) is 7 or more days old must reach the owner; until now it showed only where the owner ran `make test` on a fresh artifact.
+- Fix, the refresh half: `silent_sources(last_ok, at)` in `app.workflows.refresh` (7 days, `SILENT_DAYS`), and the record's additive field `silent`, `{source: last arrival}`, on every kind of night. An unreadable stamp, or one more than a day ahead, is named: an arrival no one can date is never taken for a recent one.
+- `scripts/silent_sources.py` (standard library, no network) prints the names, or with `--issue` the one issue as one line of JSON; a record with no readable `silent` exits 2, never "none silent".
+- The workflow half is the owner's: `docs/proposals/nightly-silent-sources.md` carries the `make owner-bundle` patch (both workflow copies) and the one command. The issue is posted by a separate `notice` job, the only one with `issues: write`, so the refresh job's permissions stay as D-217 holds them; the step never fails the refresh job, so it never holds the deploy back.
+- Red test: 8 days named, 6 not, on the rule and through `write_status` on published, unchanged, failed and refused nights; the script's two modes; 4 unreadable records refused.
+- Lesson: a notice whose step can fail is a new way to stop the deploy; put it last, make it unable to fail the job, and give its write permission a job of its own.
+
+## 2026-11-02 · fix/issue-551-d239-unread-starts — D-242: the starts D-239 left unread refuse too
+
+- #551, the owner's ruling D-242 ("turn them all away", *translated*): D-239's mitigation named five classes the deploy gate did not read; the four with code now refuse every deploy while a dispatched deploy workflow holds one. The fifth, what a started script itself runs, stays residue.
+- Red: 95 planted shapes refused nothing; 26 quiet shapes (`shell: bash`, `python -m pip`, `uv run` given a script by its name, a `make` target whose recipe names its file, a Makefile variable that expands to such a name) passed before and pass after.
+- Clause 1: a `shell:` key that is not plain `bash` or `sh` -- a step's, or a workflow's or job's `defaults: run:`, block or flow -- and a `runs-on:` naming Windows or an expression (PowerShell is a Windows runner's default).
+- Clause 2: a shell or interpreter with no file operand and no `<` naming one, `-`, or a shell's `-s` (a pipe, a here-document, a here-string). An absent operand counts only in the reading after #553: the one before it drops a plain value's continuation lines (`bash` on one line, its script's name on the next), which the #553 quiet test caught.
+- Clause 3: `uv run`/`uvx`/`uv tool run`, `poetry run`, `npx`, and `deno run`/`bun run`, read as a command in turn past their options (an option the table does not know may take a value, so the word after it is read too); `make`'s targets, prerequisites and `$(MAKE)` calls, read from the Makefile in the tree and at each protected base (`-C`, `-f`, includes, `.DEFAULT_GOAL`, `VAR=` on the command line), each recipe line expanded and read as run text. What it cannot place -- a Makefile, include or target it cannot read, a variable defined twice, a `cd` or `working-directory:` before `make`, `--eval`, a non-POSIX `SHELL` -- refuses.
+- Clause 4: every option D-239 stops reading at (`-c`, `-e`, `-p`, `--eval`, `--print`) now refuses, plus each interpreter's own (Python's `-Bc`, perl's and ruby's clusters, `-E`, php's `-r`, pwsh's `-Command`, `deno eval`).
+- D-242's reading is a second function beside D-239's (`_d242_shapes`), whose findings are added to D-239's unchanged ones, so it can only refuse more. `make deploy-check` still reads 37 run commands in `nightly-hosted.yml` and finds none.
+- Lesson: a rule that refuses on an absence (no operand) is only as good as the reader that might have dropped the word; key it to the reader that reads as the shell does, and keep presence rules on every reading.
+
+## 2026-11-02 · fix/issue-561-guard-owner-patch — the guard's M14, M15 and #554's R3, as an owner bundle
+
+- #561 is the owner's file (`.claude/hooks/bash_guard.py`), so the change was built on an export of `fe2542b`, outside any work tree, and handed over as `make owner-bundle`'s patch with one command; #554's R3 (a tag named like a default branch) rides in it.
+- M14 took three tries. Returning "unknown" from the `for` binder for a blank-holding word, and leaving such a value unexpanded, each made the conformance corpus refuse less (2, then 5 misses) and were reverted. Splitting every unquoted word in place passed every corpus, and the security seat still found it BLOCKING: a quoted blank, zsh's unsplit `$k` and `export d=$v` read as split let `git -c $k"=a b" push origin main` through.
+- The fix that holds: the split reading is judged in addition to the reading as written, on a snapshot of the guard's state, so it can only add a refusal -- the same construction as #553's reader. Round 2 MINOR; 945 judge calls and 213 probe commands, none refused at the base and allowed by the patch.
+- Lesson: a control's corpus passing is not "refuses no less"; any new reading of untrusted text goes in beside the old one, never in its place, and a differential against the base proves it.
+
+## 2026-11-03 · integration/run-1102 — run 1102 closed: twelve rows stacked, one stop for the owner's guard bundle
+
+- Every planned issue is stacked (#557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551) and #561 is a reviewed owner bundle (a `control-change` stop); #566 and #568 were found inside the run and joined its queue.
+- Security review caught two fixes that refused less than the code they replaced: #553's first reader (BLOCKING: a comment strip, a descriptor pop and `env -S`) and #561's first guard split (BLOCKING: a quoted blank, zsh, `export`). Both now read the new way in addition to the old one, so a new reading can only add a refusal; differentials over 251, 486 and 945 inputs found none refusing less.
+- The release delta at the integration head: Tester MINOR (67 faults, 21 new tests) and Security MINOR, both at `0238db5`; `make deploy-check` passes, so the merge does not stop the nightly.
+- Nine low follow-ups came from the run's own reviews; they are the next run, not this one.
+- Lesson: when a control learns to read more, the old reading stays beside the new one; the only safe change to a refusing reader is one that cannot refuse less, and a differential against the base is how to show it.
+
+## 2026-11-04 · fix/issue-588-long-param-id — a 200,000-character parametrize id turned CI red on Linux only
+
+- The integration PR #564 went red in CI (`test` on py3.12 and py3.14) after the release delta Tester at `0238db5` added a case parametrized with `"[" * 200000` and no id. pytest puts the node id in `PYTEST_CURRENT_TEST`; the test's subprocess inherits it, and Linux `execve` refuses any string above `MAX_ARG_STRLEN` (131,072 bytes). The Mac has no per-string limit, so `make check-fast` and the pre-push gate stayed green.
+- Red first (`5557acb`): a test that collects that file's node ids and fails on any too long for a Linux environment string. The fix is explicit `ids=` on the parametrize; test-only, the script under test is unchanged. Across `tests` and `conformance` the longest node id is now 426 characters.
+- Lesson: a green local gate on macOS does not prove a Linux CI green; a parametrize input that is large must carry an explicit id, or the input itself becomes the node id.

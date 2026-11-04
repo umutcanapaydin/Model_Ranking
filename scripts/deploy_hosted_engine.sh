@@ -73,8 +73,11 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 # A release is main's tip, read fresh: an older main commit, or a stale origin/main, is refused (the
 # second W5 review's R5).
-git fetch -q origin main || { echo "[deploy] refused: could not fetch origin/main" >&2; exit 1; }
-if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+# #554 (M5, M13): main's tip is read by its full ref. `git rev-parse origin/main` tries `refs/tags/origin/main` first,
+# so a tag of that name at any HEAD passed this check -- on the nightly runner too, whose checkout fetches every tag.
+git fetch -q origin +refs/heads/main:refs/remotes/origin/main || { echo "[deploy] refused: could not fetch origin/main" >&2; exit 1; }
+MAIN_TIP="$(git show-ref --verify --hash refs/remotes/origin/main)" || { echo "[deploy] refused: refs/remotes/origin/main cannot be read after the fetch" >&2; exit 1; }
+if [ "$(git rev-parse --verify HEAD)" != "$MAIN_TIP" ]; then
   echo "[deploy] refused: HEAD is not the tip of origin/main; a release is what main holds (pull, then deploy)" >&2
   exit 1
 fi

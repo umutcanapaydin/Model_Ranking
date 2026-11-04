@@ -59,6 +59,8 @@ class Repo:
         self.pool, self.running = pool, []
         self.ci("success")
         self.git("init", "-q")
+        # model_ranking #563: the gate asks GitHub about the repository `origin` names, never another.
+        self.git("remote", "add", "origin", "https://github.com/o/r.git")
 
     def settle(self) -> None:
         concurrent.futures.wait(self.running)
