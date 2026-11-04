@@ -1886,3 +1886,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R1 of the #556 security review: the tree's copy of a workflow is read as text (line endings normalised) and a base's from its blob (kept), so a CRLF workflow's copies differ and the count ran twice: one command read `2 run command(s)`.
 - Every distinct copy is still read for findings; the count skips a copy whose text, with `\r\n` read as `\n`, was counted already. Evidence wording only: what the gate refuses is unchanged.
 - Lesson: two readers of one file that decode it differently make "distinct copies" a property of the reader, not of the file.
+
+## 2026-11-04 · fix/issue-572-waiver-policy — a waiver written into the deps recipe or its reader is a policy edit
+
+- R1 of the #562 security review: `--ignore-vuln` added to the Makefile's `deps:` recipe, or a change to `scripts/deps_accept.py`, named no policy token, so light mode routed it to no review although D-244 makes a waiver policy.
+- `deps_accept` and `ignore-vuln` join `POLICY_TOKENS`: a changed Makefile line or a gate script naming either is a security review in either mode. A red test for each, and a control that an unrelated Makefile target stays unrouted.
+- Lesson: an exception file guarded by path is only half the class; every other place that can say the same waiver needs the same routing.
