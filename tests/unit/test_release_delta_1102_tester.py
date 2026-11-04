@@ -128,8 +128,10 @@ def _script(*args: str) -> subprocess.CompletedProcess[str]:
                           text=True, timeout=60, check=False)
 
 
+# Explicit ids (#588): an id holding the 200,000-bracket input overflows PYTEST_CURRENT_TEST on Linux.
 @pytest.mark.parametrize("content", ["[]", '{"silent": {"arena": 5}}', '{"silent": {"arena": null}}',
-                                     "[" * 200000, None])
+                                     "[" * 200000, None],
+                         ids=["list", "number-arrival", "null-arrival", "deep-nesting", "undecodable"])
 def test_552_the_script_refuses_what_is_not_a_map_of_strings(tmp_path: Path, content: str | None) -> None:
     """Faults: a non-object record taken for "no silent source"; a non-string arrival accepted; the recursion error
     of a deeply nested file left as a traceback; an undecodable file left as a traceback."""
