@@ -45,9 +45,9 @@ def test_576_r3_a_wrapped_deploy_makes_its_workflow_a_deploy_workflow(tmp_path: 
     """Not dispatched by the brief: the workflow is a deploy workflow only because a line runs the declared command,
     so its pattern start refuses only once that line is seen as one."""
     repo = _installed(tmp_path)
+    brief = (repo.root / "docs" / "project-brief.md").read_text(encoding="utf-8")
+    assert brief == _brief("fly deploy"), "the control: the brief declares fly deploy and dispatches no workflow"
     _reviewed_workflow(repo, STEP.format(f"      - run: {deploy}\n      - run: bash scripts/*.sh\n"))
-    repo.write("docs/project-brief.md", _brief("fly deploy"))
-    repo.commit("the brief declares fly deploy")
     code, out = _deploy(repo)
     assert code == 2 and "release.yml" in out, out
 
