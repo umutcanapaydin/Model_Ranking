@@ -950,7 +950,8 @@ def _run_values(text: str, new: bool = True) -> list[tuple[int, list[str]]]:
             if not new:
                 out.append((i, [value]))
             elif (quoted := _yaml_quoted(value)) is not None:
-                out.append((i, [quoted]))
+                # #576 M5: a decoded `\n` breaks the line as the shell reads it; shlex would read it as a blank
+                out.append((i, quoted.split("\n")))
             else:
                 start = i
                 i, plain = _plain_continued(lines, i, column, value)
@@ -1257,7 +1258,16 @@ def _starter_shapes(program: str, run: list[str], stdin: list[str], new: bool = 
     j = 1
     while j < len(run) and run[j].startswith(("-", "+")) and run[j] not in ("-", "+", "--"):
         if shell and re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", run[j]):
-            return _shapes_in(run[j + 1], new, where) if j + 1 < len(run) else []
+            found = _shapes_in(run[j + 1], new, where) if j + 1 < len(run) else []
+            if not new:
+                return found
+            # #576 R4: the shell's command string is its first operand after every option and option value
+            # (`bash -oc pipefail '<cmd>'`); read beside the word after `-c`, so this only adds a finding.
+            k = j + (2 if re.search("[oO]", run[j]) else 1)
+            while k < len(run) and run[k].startswith(("-", "+")) and run[k] not in ("-", "+", "--"):
+                k += 2 if (run[k] in STARTER_VALUED or re.fullmatch(r"[-+][A-Za-z]*[oO][A-Za-z]*", run[k])) else 1
+            k += 1 if k < len(run) and run[k] == "--" else 0
+            return found + (_shapes_in(run[k], new, where) if j + 1 < k < len(run) else [])
         if not shell and run[j] in STARTER_CODE:
             return []
         if not shell and run[j].startswith("-m"):
@@ -1948,6 +1958,16 @@ def _linked(root: Path, rel: str) -> str | None:
     return inside if target.exists() and inside != rel else None
 
 
+def _github_env_startup(name: str, start: int, lines: list[str]) -> list[str]:
+    """#576 R1: a run value that writes `BASH_ENV` into `$GITHUB_ENV` (echo, printf, a here-document) makes every
+    later step's bash start the file it names, which no step writes; read wide, as one finding per value."""
+    joined = "\n".join(lines)
+    if "BASH_ENV" in joined and "GITHUB_ENV" in joined:
+        return [f"{name} line {start}: `BASH_ENV` written to `$GITHUB_ENV`, so every later step's bash starts the "
+                "file it names"]
+    return []
+
+
 def unnamed_starts(root: Path) -> list[str] | None:
     """#549 (D-239): each place a dispatched deploy workflow (the tree's copy and each protected base's) starts a file
     without writing its name -- a pattern, a name built at run time, a symlink to a tree file --, as `<workflow> line
@@ -1982,10 +2002,14 @@ def unnamed_starts(root: Path) -> list[str] | None:
                 # `working-directory:` or a `cd` in the run value moved it.
                 top = _Where(root, None if _WORKING_DIRECTORY.search(text) else ".")
                 for new in (True, False):
-                    for start, lines in _run_values(text, new):
+                    values = _run_values(text, new)
+                    # #576 R5: a folded value is read line by line and then joined; the count takes the last reading
+                    last = {start: k for k, (start, _) in enumerate(values)}
+                    for k, (start, lines) in enumerate(values):
                         at = _moved(lines, new, top)
+                        found += _github_env_startup(name, start, lines) if new else []
                         for line, words, stdin in _run_commands(lines, new):
-                            runs += new and count
+                            runs += new and count and last[start] == k
                             found += [f"{name} line {start + line}: {shape} `{word}`"
                                       for shape, word in _unnamed_shapes(words, stdin, new, at)]
                 low = text.lower().splitlines()
@@ -2544,13 +2568,22 @@ def _runs_deploy(text: str, decl: list[list[str]]) -> bool:
     """Whether a line of a workflow file runs a declared deploy command: a `run:` value, or a line of its block,
     with a `\\` continuation joined. Read wide on purpose: a line that only looks like one makes the workflow a
     deploy, which refuses more."""
-    for words in _line_commands(text):
-        at = len(words) - len(_program_position(words))
-        if at < len(words):
-            program = os.path.basename(words[at]).lower()
-            words = [*words[:at], SAME_PROGRAM.get(program, words[at]), *words[at + 1:]]
-        if any(matches(words, d, any_order=True) for d in decl):
-            return True
+    for line_words in _line_commands(text):
+        # #576 R3: a word holding blanks (`env -S "fly deploy"`) is read as its words too, and the command is tried
+        # from every word on, since a redirection (`nice -n 5 2>&1 fly deploy`) cuts the split line before it.
+        expanded: list[str] = []
+        for word in line_words:
+            try:
+                expanded += shlex.split(word) if any(ch.isspace() for ch in word) else [word]
+            except ValueError:
+                expanded += word.split()
+        for words in [line_words, *(expanded[k:] for k in range(len(expanded)))]:
+            at = len(words) - len(_program_position(words))
+            if at < len(words):
+                program = os.path.basename(words[at]).lower()
+                words = [*words[:at], SAME_PROGRAM.get(program, words[at]), *words[at + 1:]]
+            if any(matches(words, d, any_order=True) for d in decl):
+                return True
     return False
 
 

@@ -1898,3 +1898,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R1 of the #563 security review, latent: once the brief writes `Security-invariant tests:`, a test the line does not name counts as test-and-CI, so a change to the gate's own control tests would re-open no verdict while CI is green.
 - `change_class` now treats a test whose file name names a policy module (`deploy_gate`, `review_need`, `brief_fields`, `_` or `-`) as code. The module list moved into `deploy_gate` and `review_need` imports it, so the two cannot drift; a test holds them equal.
 - Lesson: a classification an owner can widen by writing one line must keep the gate's own tests out of the widening.
+
+## 2026-11-04 · fix/issue-576-reader-residue — what the #553 review left in D-239's reader
+
+- M5: a double-quoted `run:` value's decoded `\n` is now a line break, not a blank shlex skips. R1: a run value that writes `BASH_ENV` into `$GITHUB_ENV` refuses. R3: `_runs_deploy` reads a blank-holding word (`env -S "fly deploy"`) as its words and tries the command from every word, since a redirection cuts the split line. R4: `bash -oc pipefail '<cmd>'` reads the first operand after `-o`'s value, beside the old word after `-c`. R5: a folded value's commands are counted once, by its last (joined) reading.
+- `perl -X` and `ruby -W` already refuse on main (D-242's reading); they stay as regression cases.
+- The first red commit's R3 case was red for the wrong reason: it rewrote a brief the fixture already held, so the commit failed. A second `test:` commit fixed it, checked red against the old gate (`0 == 2`) before the fix.
+- Every new reading sits beside the old one, so it only adds a finding; the real nightly still reads 37 commands with no finding.
+- Lesson: check *why* a new test is red before committing it; a fixture error is red too.
