@@ -181,5 +181,10 @@ You need an Apple Developer Program membership (99 USD a year) for TestFlight.
   so ask the agent for it as a pull request, merge it, `git pull`, and deploy again.
 - **The app says it cannot reach the engine:** the address it asked is on the failure screen. A
   TestFlight build must show `https://model-ranking.fly.dev`.
+- **Signing or the upload is blocked by "PLA Update available":** Apple has published a new Program
+  License Agreement, and nothing signs or uploads until the Account Holder accepts it. Sign in at
+  https://developer.apple.com/account, accept the agreement shown at the top of the page, then archive
+  or upload again. (Seen for build 7: the agreement updated on 2026-10-29 blocked signing until it
+  was accepted.)
 - **The upload is refused for the icon:** the icon must be 1024 pixels with no transparency
   (`ios/ModelRanking/Assets.xcassets/AppIcon.appiconset/AppIcon.png`, a placeholder you may replace).
