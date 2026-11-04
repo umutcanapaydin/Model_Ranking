@@ -1867,3 +1867,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The integration PR #564 went red in CI (`test` on py3.12 and py3.14) after the release delta Tester at `0238db5` added a case parametrized with `"[" * 200000` and no id. pytest puts the node id in `PYTEST_CURRENT_TEST`; the test's subprocess inherits it, and Linux `execve` refuses any string above `MAX_ARG_STRLEN` (131,072 bytes). The Mac has no per-string limit, so `make check-fast` and the pre-push gate stayed green.
 - Red first (`5557acb`): a test that collects that file's node ids and fails on any too long for a Linux environment string. The fix is explicit `ids=` on the parametrize; test-only, the script under test is unchanged. Across `tests` and `conformance` the longest node id is now 426 characters.
 - Lesson: a green local gate on macOS does not prove a Linux CI green; a parametrize input that is large must carry an explicit id, or the input itself becomes the node id.
+
+## 2026-11-04 · review/release-1104 — the release delta for #588, so the hosted engine can deploy for the owner's testing
+
+- #564 merged with #588's two test files after the reviewed head `0238db5`, so `make deploy-check` failed and the nightly could not deploy. The owner chose to run the reviews once, at the deploy, instead of per fix.
+- Tester PASS at `0c76d5c`. The ids-only change drops no case, and the red test was red at `5557acb` and green at `a937ff9`. Security: this round passes with nothing new, and the file stays MINOR for M14/M15, which #561's bundle closes. The run file's policy-edit signal was read as data.
+- The Tester's seat could not commit from `.claude/worktrees/`: the commit hook's guard tests refuse there. Its staged verdict was committed from a worktree under the scratchpad.
+- Lesson: a seat's worktree goes outside `.claude/`, or its commit hook cannot run; and a run file that claims "deploy-check passes" is true only at the head it names.
