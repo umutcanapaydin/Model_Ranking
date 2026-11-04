@@ -289,15 +289,24 @@ def invariant_hit(path: str, globs: list[str]) -> bool:
     return any(fnmatch.fnmatch(path, g) or ("/" not in g and fnmatch.fnmatch(name, g)) for g in globs)
 
 
+#: The modules that read the policy fields, or decide from them (#283); `review_need` routes a change to one as a
+#: policy edit. #573: a test of one is the gate's own control test, so it is code whatever the brief's
+#: `Security-invariant tests:` line says -- otherwise writing that line would let the gate's tests change unreviewed.
+POLICY_MODULES = ("review_need", "deploy_gate", "brief_fields")
+_POLICY_TEST = re.compile(r"(?:^|/)[^/]*(?:" + "|".join(m.replace("_", "[_-]") for m in POLICY_MODULES)
+                          + r")[^/]*$")
+
+
 def change_class(path: str, invariants: list[str] | None = None) -> str:
     """`record`, `test-and-ci` or `code` -- the ONE classification of a changed path (harvest Q2, the owner's
     ruling of 2026-10-28) that the deploy gate, `closure_check.py` and `make review-need` read. A record is
     `is_deploy_record`'s. Test-and-CI is a test outside the tooling directories, or `conformance/`: the checks
     CI runs that the agent may edit (a workflow is the owner's and stays code). A security-invariant test the
-    brief names is code, and so is every test while `invariants` is None (a brief without the line)."""
+    brief names is code, and so is every test while `invariants` is None (a brief without the line), and a
+    test of a policy module always (#573)."""
     if is_deploy_record(path):
         return "record"
-    if invariants is None or invariant_hit(path, invariants):
+    if invariants is None or invariant_hit(path, invariants) or _POLICY_TEST.search(path):
         return "code"
     if path.startswith("conformance/") or (
             TEST_PATH.search(path) and not (path in CODE_FILES or path.startswith(CODE_DIRS))):

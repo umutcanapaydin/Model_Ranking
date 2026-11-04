@@ -1892,3 +1892,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R1 of the #562 security review: `--ignore-vuln` added to the Makefile's `deps:` recipe, or a change to `scripts/deps_accept.py`, named no policy token, so light mode routed it to no review although D-244 makes a waiver policy.
 - `deps_accept` and `ignore-vuln` join `POLICY_TOKENS`: a changed Makefile line or a gate script naming either is a security review in either mode. A red test for each, and a control that an unrelated Makefile target stays unrouted.
 - Lesson: an exception file guarded by path is only half the class; every other place that can say the same waiver needs the same routing.
+
+## 2026-11-04 · fix/issue-573-policy-tests — a policy module's test is code to the deploy gate whatever the invariant line says
+
+- R1 of the #563 security review, latent: once the brief writes `Security-invariant tests:`, a test the line does not name counts as test-and-CI, so a change to the gate's own control tests would re-open no verdict while CI is green.
+- `change_class` now treats a test whose file name names a policy module (`deploy_gate`, `review_need`, `brief_fields`, `_` or `-`) as code. The module list moved into `deploy_gate` and `review_need` imports it, so the two cannot drift; a test holds them equal.
+- Lesson: a classification an owner can widen by writing one line must keep the gate's own tests out of the widening.
