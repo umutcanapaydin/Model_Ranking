@@ -112,7 +112,10 @@ EXCEPTION_FILES = ("data/accepted-cuts.yaml", "docs/devflow-pin.txt", ".deps-acc
 #: `security-globs:` line or a policy field's label. A script under POLICY_READER_DIRS that names one, at either end
 #: of the range, is a policy script; in LINE_POLICY_PATHS (the Makefile, the plans) only a changed line naming one
 #: is a policy edit, so an unrelated Makefile change is not.
-POLICY_TOKENS = (*POLICY_MODULES, "review-need", "deploy-check", "security-globs", *brief_fields.POLICY_FIELDS)
+#: #572 (D-244): a dependency waiver written outside `.deps-accept` -- an `--ignore-vuln` flag in the `deps:` recipe,
+#: or a change to `scripts/deps_accept.py`, the reader that turns `.deps-accept` into those flags -- is policy too.
+POLICY_TOKENS = (*POLICY_MODULES, "review-need", "deploy-check", "security-globs", "deps_accept", "ignore-vuln",
+                 *brief_fields.POLICY_FIELDS)
 POLICY_PATTERN = re.compile("|".join(re.escape(token) for token in POLICY_TOKENS))
 #: The security review's M4: the readers are searched for wherever gate code lives, less the line-read files.
 LINE_POLICY_PATHS = ("Makefile", "docs/plans")
