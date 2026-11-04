@@ -1861,3 +1861,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The release delta at the integration head: Tester MINOR (67 faults, 21 new tests) and Security MINOR, both at `0238db5`; `make deploy-check` passes, so the merge does not stop the nightly.
 - Nine low follow-ups came from the run's own reviews; they are the next run, not this one.
 - Lesson: when a control learns to read more, the old reading stays beside the new one; the only safe change to a refusing reader is one that cannot refuse less, and a differential against the base is how to show it.
+
+## 2026-11-04 · fix/issue-588-long-param-id — a 200,000-character parametrize id turned CI red on Linux only
+
+- The integration PR #564 went red in CI (`test` on py3.12 and py3.14) after the release delta Tester at `0238db5` added a case parametrized with `"[" * 200000` and no id. pytest puts the node id in `PYTEST_CURRENT_TEST`; the test's subprocess inherits it, and Linux `execve` refuses any string above `MAX_ARG_STRLEN` (131,072 bytes). The Mac has no per-string limit, so `make check-fast` and the pre-push gate stayed green.
+- Red first (`5557acb`): a test that collects that file's node ids and fails on any too long for a Linux environment string. The fix is explicit `ids=` on the parametrize; test-only, the script under test is unchanged. Across `tests` and `conformance` the longest node id is now 426 characters.
+- Lesson: a green local gate on macOS does not prove a Linux CI green; a parametrize input that is large must carry an explicit id, or the input itself becomes the node id.
