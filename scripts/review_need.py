@@ -84,6 +84,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import brief_fields  # noqa: E402
 from deploy_gate import (  # noqa: E402
+    POLICY_MODULES,
     TEST_PATH,
     TEST_PATHSPECS,
     change_class,
@@ -95,9 +96,8 @@ PRODUCT_THRESHOLD = 130
 #: The gate code's places: a directory, or one file. GATE_CODE and the policy readers' search are both made from it.
 GATE_ROOTS = ("scripts/", "conformance/", ".claude/", ".codex/", ".githooks/", ".github/", "Makefile", "stack.mk")
 GATE_CODE = re.compile("^(" + "|".join(re.escape(r) + ("" if r.endswith("/") else "$") for r in GATE_ROOTS) + ")")
-#: The modules that read the policy fields, or decide from them (#283): a change to one is a policy edit. Each is
-#: also a token below, so a script that names one is a policy reader too (#319).
-POLICY_MODULES = ("review_need", "deploy_gate", "brief_fields")
+#: POLICY_MODULES (from deploy_gate, #573: one list): a change to one is a policy edit. Each is also a token below, so
+#: a script that names one is a policy reader too (#319).
 POLICY_SCRIPTS = tuple(f"scripts/{name}.py" for name in POLICY_MODULES)
 #: D-221 clause 4 (#418): an exception to a product safety guard is policy too. `data/accepted-cuts.yaml` lets the
 #: refresh excuse rows a board loses, so any change to it is a security review in either mode.
