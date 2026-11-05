@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** b7bdb38d32314daea4b4a6de501b7542be454632 (release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** 797e73770571593ba5101e50af9027cf00ae067d (the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2032,4 +2032,13 @@ file without its name (D-239)`. Its two FAIL lines are only the reviewed heads s
 
 ## MINOR
 - M1 (run-1102 round) carried, unchanged. No new MINOR.
+
+## Delta 2026-11-06 (dd34695, the version bump)
+
+Independent: yes. `dd34695` changes `pyproject.toml` (`version` 1.0.0), `src/app/adapter/main.py` (`APP_VERSION`
+1.0.0) and the four build configurations of `ios/ModelRanking.xcodeproj/project.pbxproj` (`MARKETING_VERSION` 1.0.0,
+`CURRENT_PROJECT_VERSION` 8), plus the run file. The diff is exactly those values; no other file reads them. The one
+test that does, `tests/unit/test_app_version.py` (`/health` serves the package's version; the package is not older
+than the newest `docs/releases/` record), is 2 passed. It will keep passing when `docs/releases/v1.0.0.md` lands
+(1.0.0 >= 1.0.0) and fails closed if the record names a later version. No finding; the verdict stands.
 
