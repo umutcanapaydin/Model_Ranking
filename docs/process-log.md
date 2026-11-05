@@ -1921,3 +1921,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - M2's claims (only `notice` writes issues, only on main, no checkout and no action) are held by `tests/unit/test_nightly_notice_580.py`. It applies the proposal's patch to a scratch copy until the installed workflow holds the job, so it never reads nothing.
 - The deploy gate's readers find no unnamed start in the patched workflow. The owner row moved to the new sha; the apply owes the security verdict, which the release review before v1 writes.
 - Lesson: a test of a change the agent may not make can still run against the change, by applying the proposed patch to a scratch copy.
+
+## 2026-11-05 · fix/issue-582-guard-bundle — #582's guard follow-ups as one bundle with #561's, and a differential test
+
+- The guard is the owner's, so #561's reviewed bundle (`4a1a5ac2`, not yet applied) and #582's M1 go out as one patch, `b233e259...`, built on an export of main with #561's applied. M1 refuses a default-branch-named tag by a brace expansion (`git tag {main,HEAD}`), a pattern refspec from outside `refs/tags/` into it (`refs/heads/*:refs/tags/*`), and a direct write of `.git/refs/tags/main` (the `.git` write rule, so `cp` and `tee` too). `git fetch --tags` and `refs/tags/*:refs/tags/*` stay allowed.
+- R2 is `tests/unit/test_bash_guard_never_refuses_less.py`: the protected base's guard and this tree's judge every command literal in the guard's corpora (1605), as the hook does, and a command the base refuses and the head allows fails. Run against the bundle's guard, it found none.
+- M3 (the split reading refuses some correct quoted-blank commands) is refused in a sentence on the issue: it errs toward refusing, and narrowing it is exactly the change R2 exists to catch.
+- Lesson: when the owner holds two pending bundles for one file, ship one patch that carries both, so the owner applies, re-pins and restarts once.
