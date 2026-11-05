@@ -1935,3 +1935,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - R2 is `tests/unit/test_bash_guard_never_refuses_less.py`: the protected base's guard and this tree's judge every command literal in the guard's corpora (1605), as the hook does, and a command the base refuses and the head allows fails. Run against the bundle's guard, it found none.
 - M3 (the split reading refuses some correct quoted-blank commands) is refused in a sentence on the issue: it errs toward refusing, and narrowing it is exactly the change R2 exists to catch.
 - Lesson: when the owner holds two pending bundles for one file, ship one patch that carries both, so the owner applies, re-pins and restarts once.
+
+## 2026-11-05 · fix/issue-593-gc-race — #568's control test raced git's background gc
+
+- PR #592's CI failed once on py3.12, in `test_loose_fixture_568.py`'s control: its `git commit` ran `gc --auto` detached, the test's foreground `gc --auto` found that gc's lock and skipped, and the assertion read `objects/pack/` before the background gc wrote the pack. It is the race #568 removed from the fixtures, left in the control.
+- Every git call in the control now passes `gc.autoDetach=false`. A race has no deterministic red: the CI failure is the red, and the fixed run is the green.
+- Lesson: a control that shows a race can go red must not itself race; fix the race wherever its trigger is, not only where it was first seen.
