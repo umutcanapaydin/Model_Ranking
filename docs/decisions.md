@@ -6804,3 +6804,29 @@ is one more way a step runs a file the gate cannot name.
 commands directly, with the files they start named; the refusal says which word to change.
 
 **Revisit when:** a deploy workflow needs `make` and running its recipe's commands directly is not workable.
+
+## D-246 — v1.0.0 is the next release: the hosted engine and a TestFlight build, its review run once overnight
+
+**Owner ruling:** 2026-11-06, in chat, for run v100: *"v1.0.0"*, *"the server + TestFlight"* and *"fix it and have it
+re-reviewed"* *(translated)*, each the default offered
+
+**Context.** After #592 merged, every open issue the agent can work is closed (#561 and #586 wait on the owner's two
+bundles). The owner moved the Tester and Security reviews to one run at the release (2026-11-04), and asked for a night
+run that prepares the first live version.
+
+**Decision.**
+1. **The release is `v1.0.0`**, after `v0.1.0` and `v0.2.0`; its record is `docs/releases/v1.0.0.md` on
+   `release/v1.0.0`.
+2. **Live means the hosted engine and a TestFlight build.** An App Store submission is a later, separate step.
+3. **The release review runs once** in run v100: the Tester, then the Security-Reviewer, whose verdict also names
+   both owner bundles' patches. A BLOCKING is fixed red→green and re-reviewed by the same seat; a third BLOCKING on one
+   finding stops the run for the owner. A low finding is noted in the verdict, not filed.
+4. **Nothing deploys in the run.** The owner tags `v1.0.0`, applies the two bundles, deploys and uploads the build.
+
+**Rationale.** The owner's defaults: one review at the release rather than one per fix, and a first version that is
+what the owner already deploys and tests.
+
+**Mitigation if violated:** a release reviewed per fix again grows the queue it reviews (11 → 20 issues, 2026-11-04);
+a run that deployed would ship without the owner's signature.
+
+**Revisit when:** the owner submits to the App Store, or a review in the run stops on a third BLOCKING.
