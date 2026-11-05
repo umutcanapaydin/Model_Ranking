@@ -4,7 +4,7 @@ Mode: light
 Started: 2026-11-06
 Ended: open
 Integration branch: none · PR: none
-Plan PR: none
+Plan PR: #595
 Rulings: D-246
 Cost: n/a
 
