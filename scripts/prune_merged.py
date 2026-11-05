@@ -8,7 +8,8 @@ row in `docs/owner-actions.md`); this deletes the local copies, and nothing else
 
 After `git fetch --prune origin`, a local branch is deleted only when all three hold:
   * its upstream is on origin and is gone;
-  * its tip is on the default branch (origin/HEAD, else origin/main, else origin/master): its work is merged;
+  * its tip is on the default branch (origin/HEAD, else origin/main, else origin/master, each read by its full
+    ref, #587): its work is merged;
   * `git branch -d` agrees -- git's own check, against HEAD once the upstream is gone, which also refuses a
     branch a worktree has checked out. Run from the default branch, pulled (`/post-merge` §2 does).
 Any other branch stays, and one whose upstream is gone says why.
@@ -30,7 +31,8 @@ import shutil
 import subprocess
 import sys
 
-DEFAULTS = ("origin/HEAD", "origin/main", "origin/master")
+# Full refs, read exactly (#587, R14): a short name goes through git's lookup, where a tag `origin/main` wins.
+DEFAULTS = ("refs/remotes/origin/HEAD", "refs/remotes/origin/main", "refs/remotes/origin/master")
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
@@ -85,13 +87,16 @@ def main(argv: list[str]) -> int:
         fetched = git("fetch", "--prune", "--quiet", "origin")
         if fetched.returncode:
             return cannot(f"`git fetch --prune origin` failed: {first_line(fetched)}")
-        default = next((ref for ref in DEFAULTS
-                        if git("rev-parse", "-q", "--verify", f"{ref}^{{commit}}").returncode == 0), None)
-        if default is None:
+        found = next(((ref, sha) for ref in DEFAULTS
+                      if (sha := git("show-ref", "--verify", "--hash", ref).stdout.strip())), None)
+        if found is None:
             return cannot("no default branch to compare with (origin/HEAD, origin/main, origin/master); "
                           "`git remote set-head origin --auto` names it")
-        if default == "origin/HEAD":
-            default = git("symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD").stdout.strip() or default
+        ref, default_sha = found
+        default = ref.removeprefix("refs/remotes/")             # its name in what this prints; git reads the sha
+        if ref == "refs/remotes/origin/HEAD":
+            target = git("symbolic-ref", "-q", "refs/remotes/origin/HEAD").stdout.strip()
+            default = target.removeprefix("refs/remotes/") if target.startswith("refs/remotes/") else default
         current = git("branch", "--show-current").stdout.strip()
         deleted = kept = untouched = 0
         listed = git("for-each-ref", "--format=%(refname:short)%00%(upstream)", "refs/heads")
@@ -129,14 +134,14 @@ def main(argv: list[str]) -> int:
             print(f"prune-merged: kept {name} -- it is checked out here; switch to the default branch first")
             kept += 1
             continue
-        on_default = git("merge-base", "--is-ancestor", name, default).returncode
+        on_default = git("merge-base", "--is-ancestor", f"refs/heads/{name}", default_sha).returncode
         if on_default != 0:
             why = "its tip is not on" if on_default == 1 else "cannot tell whether its tip is on"
             print(f"prune-merged: kept {name} -- upstream gone, {why} {default}: squash-merged or never merged "
                   "(/post-merge §2)")
             kept += 1
             continue
-        tip = git("rev-parse", "--short", name).stdout.strip()
+        tip = git("rev-parse", "--short", f"refs/heads/{name}").stdout.strip()
         removed = git("branch", "-d", name)
         if removed.returncode:
             print(f"prune-merged: kept {name} -- git branch -d refused: {first_line(removed)}")

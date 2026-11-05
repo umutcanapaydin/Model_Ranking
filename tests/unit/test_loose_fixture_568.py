@@ -42,10 +42,12 @@ def test_the_threshold_packs_a_repository_that_does_not_turn_it_off(tmp_path: Pa
 
     root = tmp_path / "plain"
     root.mkdir()
-    git = ["git", "-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false"]
+    # #593: the commit's own `gc --auto` in the foreground too -- detached, it raced the assertion below (and the
+    # explicit `gc --auto` found its lock and skipped)
+    git = ["git", "-c", "user.name=t", "-c", "user.email=t@x", "-c", "commit.gpgsign=false", "-c", "gc.autoDetach=false"]
     subprocess.run([*git, "init", "-q"], cwd=root, check=True, capture_output=True)
     for i, body in enumerate(_blobs_in_17(40)):
         (root / f"f{i}.txt").write_bytes(body)
-    for args in (["add", "-A"], ["commit", "-q", "-m", "x"], ["-c", "gc.autoDetach=false", "gc", "--auto"]):
+    for args in (["add", "-A"], ["commit", "-q", "-m", "x"], ["gc", "--auto"]):
         subprocess.run([*git, *args], cwd=root, check=True, capture_output=True)
     assert list((root / ".git" / "objects" / "pack").glob("*.pack"))

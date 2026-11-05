@@ -1881,3 +1881,63 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `docs/release-testflight.md` §3 now names the symptom ("PLA Update available") and the fix.
 - Two review worktrees left under `.claude/worktrees/` (one with its own `.venv`) turned `make check-fast`'s records leg red: conformance scans them. The guard rightly refused to discard their staged verdicts, so the owner removed them. Seats now get a worktree under the scratchpad.
 - Lesson: an outside account step that blocks a release goes in the release runbook the day it is met; a reviewer's worktree belongs outside the repository tree.
+
+## 2026-11-04 · fix/issue-587-prune-full-ref — prune_merged reads the default branch by its full ref
+
+- R14 of run 1102's release delta: `scripts/prune_merged.py` gave `origin/main` to `merge-base` by short name, where a tag `origin/main` wins. The red test needed `origin/HEAD` absent: git 2.48+ makes it on fetch, and with it `symbolic-ref --short` already disambiguates. With `remote.origin.followRemoteHEAD=never`, a tag at an unmerged branch's tip got that branch deleted while a stacked child was checked out.
+- The fix reads each candidate with `show-ref --verify` and compares by commit; the branch is read as `refs/heads/<name>`.
+- Lesson: the reachable shape of a name-shadowing bug depends on the git version's own defaults; the red test pins the configuration it needs.
+
+## 2026-11-04 · fix/issue-570-crlf-count — the D-239 evidence line counts a CRLF workflow's commands once
+
+- R1 of the #556 security review: the tree's copy of a workflow is read as text (line endings normalised) and a base's from its blob (kept), so a CRLF workflow's copies differ and the count ran twice: one command read `2 run command(s)`.
+- Every distinct copy is still read for findings; the count skips a copy whose text, with `\r\n` read as `\n`, was counted already. Evidence wording only: what the gate refuses is unchanged.
+- Lesson: two readers of one file that decode it differently make "distinct copies" a property of the reader, not of the file.
+
+## 2026-11-04 · fix/issue-572-waiver-policy — a waiver written into the deps recipe or its reader is a policy edit
+
+- R1 of the #562 security review: `--ignore-vuln` added to the Makefile's `deps:` recipe, or a change to `scripts/deps_accept.py`, named no policy token, so light mode routed it to no review although D-244 makes a waiver policy.
+- `deps_accept` and `ignore-vuln` join `POLICY_TOKENS`: a changed Makefile line or a gate script naming either is a security review in either mode. A red test for each, and a control that an unrelated Makefile target stays unrouted.
+- Lesson: an exception file guarded by path is only half the class; every other place that can say the same waiver needs the same routing.
+
+## 2026-11-04 · fix/issue-573-policy-tests — a policy module's test is code to the deploy gate whatever the invariant line says
+
+- R1 of the #563 security review, latent: once the brief writes `Security-invariant tests:`, a test the line does not name counts as test-and-CI, so a change to the gate's own control tests would re-open no verdict while CI is green.
+- `change_class` now treats a test whose file name names a policy module (`deploy_gate`, `review_need`, `brief_fields`, `_` or `-`) as code. The module list moved into `deploy_gate` and `review_need` imports it, so the two cannot drift; a test holds them equal.
+- Lesson: a classification an owner can widen by writing one line must keep the gate's own tests out of the widening.
+
+## 2026-11-04 · fix/issue-576-reader-residue — what the #553 review left in D-239's reader
+
+- M5: a double-quoted `run:` value's decoded `\n` is now a line break, not a blank shlex skips. R1: a run value that writes `BASH_ENV` into `$GITHUB_ENV` refuses. R3: `_runs_deploy` reads a blank-holding word (`env -S "fly deploy"`) as its words and tries the command from every word, since a redirection cuts the split line. R4: `bash -oc pipefail '<cmd>'` reads the first operand after `-o`'s value, beside the old word after `-c`. R5: a folded value's commands are counted once, by its last (joined) reading.
+- `perl -X` and `ruby -W` already refuse on main (D-242's reading); they stay as regression cases.
+- The first red commit's R3 case was red for the wrong reason: it rewrote a brief the fixture already held, so the commit failed. A second `test:` commit fixed it, checked red against the old gate (`0 == 2`) before the fix.
+- Every new reading sits beside the old one, so it only adds a finding; the real nightly still reads 37 commands with no finding.
+- Lesson: check *why* a new test is red before committing it; a fixture error is red too.
+
+## 2026-11-05 · fix/issue-583-make-refused — a deploy workflow that runs make refuses (D-245), and so do the rest of #583's unread starts
+
+- The owner ruled to refuse `make` rather than patch the Makefile reader through #583's eleven gaps (D-245, superseding D-242 clause 3's `make` half). The reader, about 570 lines, is deleted. `make`/`gmake` now refuse by name, so do stdin by path, `sudo -s`/`-i` and `busybox <shell>`, an interpreter's code option anywhere before `-m`/`--`, an expansion in a runner's option value, a runner started as a Python module, and the runners outside D-242's list.
+- D-242's seven "a named recipe passes" cases became refused cases, a tightening the ruling asked for.
+- The first reading of clause 3 refused the real nightly: `python -m pip install -e .` held `-e`. The scan now stops at Python's `-m`; `test_the_real_nightly_workflow_stays_quiet` caught it before a commit.
+- `wave-check-all` refused the first branch: D-245 had landed in the same commit as its test, after a docs commit the hook stopped. The unpushed branch was rebuilt in order: the ADR, the red tests, then the fix.
+- Lesson: a test of the real workflow is the guard against a refusal widened too far, and a decision commit must stand alone before the code it governs.
+
+## 2026-11-05 · fix/issue-580-notice-bundle — the silent-sources bundle rebuilt from its security review
+
+- The workflow is the owner's, so the fix is the proposal: `docs/proposals/nightly-silent-sources.md` now carries patch `9d89f61f...`. M1: the refresh job's silent step is `continue-on-error`, so it cannot skip the deploy. M3: the header names three jobs. R2: the notice job fixes the title and every other field, and takes only the body out of the script's JSON (`jq -r '.body'`, `--body-file`).
+- M2's claims (only `notice` writes issues, only on main, no checkout and no action) are held by `tests/unit/test_nightly_notice_580.py`. It applies the proposal's patch to a scratch copy until the installed workflow holds the job, so it never reads nothing.
+- The deploy gate's readers find no unnamed start in the patched workflow. The owner row moved to the new sha; the apply owes the security verdict, which the release review before v1 writes.
+- Lesson: a test of a change the agent may not make can still run against the change, by applying the proposed patch to a scratch copy.
+
+## 2026-11-05 · fix/issue-582-guard-bundle — #582's guard follow-ups as one bundle with #561's, and a differential test
+
+- The guard is the owner's, so #561's reviewed bundle (`4a1a5ac2`, not yet applied) and #582's M1 go out as one patch, `b233e259...`, built on an export of main with #561's applied. M1 refuses a default-branch-named tag by a brace expansion (`git tag {main,HEAD}`), a pattern refspec from outside `refs/tags/` into it (`refs/heads/*:refs/tags/*`), and a direct write of `.git/refs/tags/main` (the `.git` write rule, so `cp` and `tee` too). `git fetch --tags` and `refs/tags/*:refs/tags/*` stay allowed.
+- R2 is `tests/unit/test_bash_guard_never_refuses_less.py`: the protected base's guard and this tree's judge every command literal in the guard's corpora (1605), as the hook does, and a command the base refuses and the head allows fails. Run against the bundle's guard, it found none.
+- M3 (the split reading refuses some correct quoted-blank commands) is refused in a sentence on the issue: it errs toward refusing, and narrowing it is exactly the change R2 exists to catch.
+- Lesson: when the owner holds two pending bundles for one file, ship one patch that carries both, so the owner applies, re-pins and restarts once.
+
+## 2026-11-05 · fix/issue-593-gc-race — #568's control test raced git's background gc
+
+- PR #592's CI failed once on py3.12, in `test_loose_fixture_568.py`'s control: its `git commit` ran `gc --auto` detached, the test's foreground `gc --auto` found that gc's lock and skipped, and the assertion read `objects/pack/` before the background gc wrote the pack. It is the race #568 removed from the fixtures, left in the control.
+- Every git call in the control now passes `gc.autoDetach=false`. A race has no deterministic red: the CI failure is the red, and the fixed run is the green.
+- Lesson: a control that shows a race can go red must not itself race; fix the race wherever its trigger is, not only where it was first seen.
