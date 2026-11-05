@@ -6720,6 +6720,8 @@ started script's own starts stay exemptible, as D-239 says.
 **Revisit when:** a deploy workflow needs one of the refused shapes, or a started script is found starting a tree
 file the surface does not hold.
 
+**Status:** clause 3's `make` half superseded by D-245
+
 ## D-243 — A source silent for seven nights opens an issue for the owner
 
 **Status:** proposed
@@ -6768,3 +6770,37 @@ reach a deploy unreviewed. The routing change costs one security review per waiv
 
 **Revisit when:** the guard refuses the agent's write to `.deps-accept`, or the owner rules that the merge alone
 reviews a waiver.
+
+## D-245 — A deploy workflow that runs `make` refuses every deploy, and so do the rest of #583's unread starts
+
+**Owner ruling:** 2026-11-05, in chat, on #583: *"refuse make entirely"* *(translated)*, chosen over patching the
+Makefile reader item by item or leaving #583 open
+
+**Context.** D-242 clause 3 had the deploy gate read `make`'s recipes as run text, "because `make` is how the nightly
+runs most steps". It does not: `nightly-hosted.yml` runs no `make` (the #551 security review's R1). Reading a Makefile
+as `make` does means reading conditionals, pattern and implicit rules, `$(shell ...)`, the environment's overrides and
+`MAKEFLAGS`, and its expansion is exponential in the worst case: #583 lists eleven gaps (M1-M7, R1-R4), none
+reachable today, and every one more reading the reader would have to learn.
+
+**Decision.**
+1. **A dispatched deploy workflow that runs `make` or `gmake` refuses every deploy**, with a named reason; the
+   Makefile is no longer read. This supersedes D-242 clause 3's `make` half; its `uv run`, `npx`, `poetry run` half
+   stands.
+2. **A program read from standard input by a path** (`/dev/stdin`, `/dev/fd/0`, `/proc/self/fd/0`) refuses, as `-`
+   does (D-242 clause 2); so do `sudo -s`/`-i` and `busybox <shell>`, which start a shell reading standard input.
+3. **An interpreter's code option anywhere in its words** refuses (`python --check-hash-based-pycs always -c`,
+   `node --input-type module -e`, `php -d x=1 -r`), not only before its first operand (D-242 clause 4). Read wide: a
+   script's own `-c` argument refuses too.
+4. **A runner's option value the gate cannot read** (an expansion: `npx -p "$PKG"`, `uvx --from "$X"`) refuses, and
+   so does a runner started as a Python module (`python -m uv`).
+5. **The runners outside D-242's list** (`pipx run`, `npm exec`, `pnpm dlx`, `yarn dlx`, `bunx`, `hatch run`,
+   `pdm run`, `tox`, `nox`) refuse: they start what they fetch or configure, which the gate does not read.
+
+**Rationale.** D-239 and D-242 are fail closed, and the owner's ruling on D-242 was to turn every unread start away.
+Refusing `make` costs nothing on today's nightly and removes a reader that would never be complete; each other class
+is one more way a step runs a file the gate cannot name.
+
+**Mitigation if violated:** a future deploy workflow that needs `make` or a refused runner is refused and must run its
+commands directly, with the files they start named; the refusal says which word to change.
+
+**Revisit when:** a deploy workflow needs `make` and running its recipe's commands directly is not workable.
