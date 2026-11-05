@@ -222,6 +222,12 @@ RUNNER_QUIET: dict[str, tuple[str, dict[str, str]]] = {
     "npx-named": ("      - run: npx --yes cowsay hi\n", {}),
     "poetry-run-named": ("      - run: poetry run python scripts/ship_it.py \"$1\"\n", {}),
     "python-module": ("      - run: python -m pip install x\n", {}),
+}
+
+
+#: D-245 clause 1 (superseding D-242 clause 3's `make` half, #583): a `make` refuses even when its recipe names
+#: its file. These were D-242's quiet cases; they stay, as refused ones.
+MAKE_NAMED_REFUSED: dict[str, tuple[str, dict[str, str]]] = {
     "make-named": ("      - run: make ship\n", {"Makefile": ".PHONY: ship\nship:\n\tbash scripts/ship_it.sh\n"}),
     "make-variable-named": ("      - run: make ship\n",
                             {"Makefile": "# the deploy\nSCRIPT ?= scripts/ship_it.sh\nRUN = bash $(SCRIPT)\n"
@@ -238,9 +244,16 @@ RUNNER_QUIET: dict[str, tuple[str, dict[str, str]]] = {
 }
 
 
+@pytest.mark.parametrize(("step", "files"), list(MAKE_NAMED_REFUSED.values()), ids=list(MAKE_NAMED_REFUSED))
+def test_a_make_whose_recipe_names_its_file_refuses_too(tmp_path: Path, step: str, files: dict[str, str]) -> None:
+    """covers #583, D-245 clause 1: the Makefile is not read, so a named recipe refuses as an unnamed one does."""
+    code, out = _deploy(_planted(tmp_path, STEP.format(step), files))
+    assert code == 2 and "D-245" in out, out
+
+
 @pytest.mark.parametrize(("step", "files"), list(RUNNER_QUIET.values()), ids=list(RUNNER_QUIET))
 def test_a_runner_or_recipe_that_names_its_file_stays_quiet(tmp_path: Path, step: str, files: dict[str, str]) -> None:
-    """covers #551, D-242 clause 3: a starter, a runner or a recipe naming its file passes."""
+    """covers #551, D-242 clause 3: a starter or a runner naming its file passes (a recipe no longer: D-245)."""
     code, out = _deploy(_planted(tmp_path, STEP.format(step), files))
     assert code == 0, out
 
