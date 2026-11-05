@@ -3,7 +3,7 @@
 Mode: light
 Started: 2026-11-06
 Ended: open
-Integration branch: none · PR: none
+Integration branch: `integration/run-v100` · PR: #596
 Plan PR: #595
 Rulings: D-246
 Cost: n/a
@@ -12,13 +12,13 @@ Cost: n/a
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | f2c3808 | issues | running |
 
 ## Waves
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-594 | release/v1.0.0 | none | none | queued |
+| issue-594 | release/v1.0.0 | none | none | running |
 
 ## Stops
 
