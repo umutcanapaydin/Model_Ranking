@@ -1906,3 +1906,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The first red commit's R3 case was red for the wrong reason: it rewrote a brief the fixture already held, so the commit failed. A second `test:` commit fixed it, checked red against the old gate (`0 == 2`) before the fix.
 - Every new reading sits beside the old one, so it only adds a finding; the real nightly still reads 37 commands with no finding.
 - Lesson: check *why* a new test is red before committing it; a fixture error is red too.
+
+## 2026-11-05 · fix/issue-583-make-refused — a deploy workflow that runs make refuses (D-245), and so do the rest of #583's unread starts
+
+- The owner ruled to refuse `make` rather than patch the Makefile reader through #583's eleven gaps (D-245, superseding D-242 clause 3's `make` half). The reader, about 570 lines, is deleted. `make`/`gmake` now refuse by name, so do stdin by path, `sudo -s`/`-i` and `busybox <shell>`, an interpreter's code option anywhere before `-m`/`--`, an expansion in a runner's option value, a runner started as a Python module, and the runners outside D-242's list.
+- D-242's seven "a named recipe passes" cases became refused cases, a tightening the ruling asked for.
+- The first reading of clause 3 refused the real nightly: `python -m pip install -e .` held `-e`. The scan now stops at Python's `-m`; `test_the_real_nightly_workflow_stays_quiet` caught it before a commit.
+- `wave-check-all` refused the first branch: D-245 had landed in the same commit as its test, after a docs commit the hook stopped. The unpushed branch was rebuilt in order: the ADR, the red tests, then the fix.
+- Lesson: a test of the real workflow is the guard against a refusal widened too far, and a decision commit must stand alone before the code it governs.
