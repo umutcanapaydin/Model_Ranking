@@ -1914,3 +1914,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The first reading of clause 3 refused the real nightly: `python -m pip install -e .` held `-e`. The scan now stops at Python's `-m`; `test_the_real_nightly_workflow_stays_quiet` caught it before a commit.
 - `wave-check-all` refused the first branch: D-245 had landed in the same commit as its test, after a docs commit the hook stopped. The unpushed branch was rebuilt in order: the ADR, the red tests, then the fix.
 - Lesson: a test of the real workflow is the guard against a refusal widened too far, and a decision commit must stand alone before the code it governs.
+
+## 2026-11-05 · fix/issue-580-notice-bundle — the silent-sources bundle rebuilt from its security review
+
+- The workflow is the owner's, so the fix is the proposal: `docs/proposals/nightly-silent-sources.md` now carries patch `9d89f61f...`. M1: the refresh job's silent step is `continue-on-error`, so it cannot skip the deploy. M3: the header names three jobs. R2: the notice job fixes the title and every other field, and takes only the body out of the script's JSON (`jq -r '.body'`, `--body-file`).
+- M2's claims (only `notice` writes issues, only on main, no checkout and no action) are held by `tests/unit/test_nightly_notice_580.py`. It applies the proposal's patch to a scratch copy until the installed workflow holds the job, so it never reads nothing.
+- The deploy gate's readers find no unnamed start in the patched workflow. The owner row moved to the new sha; the apply owes the security verdict, which the release review before v1 writes.
+- Lesson: a test of a change the agent may not make can still run against the change, by applying the proposed patch to a scratch copy.
