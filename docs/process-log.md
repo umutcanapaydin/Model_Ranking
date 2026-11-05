@@ -1941,3 +1941,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - PR #592's CI failed once on py3.12, in `test_loose_fixture_568.py`'s control: its `git commit` ran `gc --auto` detached, the test's foreground `gc --auto` found that gc's lock and skipped, and the assertion read `objects/pack/` before the background gc wrote the pack. It is the race #568 removed from the fixtures, left in the control.
 - Every git call in the control now passes `gc.autoDetach=false`. A race has no deterministic red: the CI failure is the red, and the fixed run is the green.
 - Lesson: a control that shows a race can go red must not itself race; fix the race wherever its trigger is, not only where it was first seen.
+
+## 2026-11-06 · release/v1.0.0 — run v100: v1.0.0's release review once, and its record
+
+- The owner's night run (D-246): the Tester, then Security, once, over everything since the last reviewed heads, and both owner bundles. The Tester PASSed the round, then two deltas: the version bump (1.0.0, build 8) and M20. Security came out MINOR: a differential over 19,154 strings found nothing refusing or routing less.
+- Security's M20 was real: the nightly bundle's own `continue-on-error` would have turned the owner's PR red, because the shape test banned it anywhere. Red test, then the ban narrowed to the refresh job's `silent` step. Both seats re-verified it, with seven mutations still failing. R15: `owner_bundle.py` reads only the first `Reviewed patch` line in a file, so bundle `9d89f61f` got its own verdict file.
+- M17-M19 are noted in the verdict and not filed, by the owner's rule. No issue was opened in the run.
+- Found while writing the owner's order: the deploy gate does not exempt a reviewed owner bundle, so the owner deploys v1.0.0 first, applies the bundles after, and a delta review then confirms the merged bytes.
+- Lesson: one review at the release, with low findings noted and not filed, ended the queue growing on itself; and a bundle's own tests must run against the bundle before the owner applies it.
