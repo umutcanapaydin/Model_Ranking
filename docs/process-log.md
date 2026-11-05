@@ -1875,6 +1875,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's seat could not commit from `.claude/worktrees/`: the commit hook's guard tests refuse there. Its staged verdict was committed from a worktree under the scratchpad.
 - Lesson: a seat's worktree goes outside `.claude/`, or its commit hook cannot run; and a run file that claims "deploy-check passes" is true only at the head it names.
 
+## 2026-11-04 · enhancement/testflight-pla-note — build 7 was blocked by an unaccepted Apple agreement
+
+- The owner deployed `e724cce` (nightly by hand, `/health` = `release-e724cce`, 0.2.0) and uploaded build 7 to TestFlight. Signing was blocked until the Program License Agreement updated on 2026-10-29 was accepted at developer.apple.com/account.
+- `docs/release-testflight.md` §3 now names the symptom ("PLA Update available") and the fix.
+- Two review worktrees left under `.claude/worktrees/` (one with its own `.venv`) turned `make check-fast`'s records leg red: conformance scans them. The guard rightly refused to discard their staged verdicts, so the owner removed them. Seats now get a worktree under the scratchpad.
+- Lesson: an outside account step that blocks a release goes in the release runbook the day it is met; a reviewer's worktree belongs outside the repository tree.
+
 ## 2026-11-04 · fix/issue-587-prune-full-ref — prune_merged reads the default branch by its full ref
 
 - R14 of run 1102's release delta: `scripts/prune_merged.py` gave `origin/main` to `merge-base` by short name, where a tag `origin/main` wins. The red test needed `origin/HEAD` absent: git 2.48+ makes it on fetch, and with it `symbolic-ref --short` already disambiguates. With `remote.origin.followRemoteHEAD=never`, a tag at an unmerged branch's tip got that branch deleted while a stacked child was checked out.
