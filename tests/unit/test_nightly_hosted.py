@@ -470,7 +470,15 @@ def test_every_action_is_pinned_to_a_commit_and_nothing_is_allowed_to_fail() -> 
     text = PROPOSAL.read_text(encoding="utf-8")
     uses = re.findall(r"uses:\s*(\S+)", text)
     assert uses and all(re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", u) for u in uses), uses
-    assert "continue-on-error" not in text and "pull_request_target" not in text
+    assert "pull_request_target" not in text
+    # Nothing may fail quietly, but the one step D-243 says never holds the deploy back: the refresh job's
+    # `silent` step (#580 M1; the v1.0.0 security round's M20). A job-level key, or the key on any other step, fails.
+    jobs = yaml.safe_load(text)["jobs"]
+    allowed = [(name, step.get("id")) for name, job in jobs.items() for step in job.get("steps", [])
+               if "continue-on-error" in step]
+    assert all("continue-on-error" not in job for job in jobs.values()), "a job is allowed to fail"
+    assert allowed in ([], [("refresh", "silent")]), allowed
+    assert text.count("continue-on-error") == len(allowed), "continue-on-error outside a step's key"
 
 
 def _installed_is_the_proposal(installed: Path, proposal: Path) -> None:
