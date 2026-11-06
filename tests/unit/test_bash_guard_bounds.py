@@ -1304,3 +1304,91 @@ def test_a_refspec_that_may_land_under_refs_replace_is_the_owners(guard: ModuleT
     for sub in ("fetch", "pull", "push"):
         assert guard._moves_owner_ref(sub, ["origin", spec], "", given) == guard.OWNER_REF, (sub, spec)
     assert guard._moves_owner_ref("fetch", ["origin", "refs/heads/*:refs/remotes/origin/*"], "", given) is None
+
+
+# --- #561 (the v7.3.1 upgrade's security delta, M14 and M15) and #554's R3 ---------------------------------------
+
+@pytest.mark.parametrize("template", [
+    "bash -c 'for d in \"/tmp/x/a {repo}\"; do rm -rf $d; done'",
+    "sh -c 'for d in \"/tmp/x/a {repo}\"; do rm -rf $d; done'",
+    "bash -c 'for b in \"fix/a main\"; do git push origin --delete $b; done'",
+    "bash -c 'd=\"/tmp/x/a {repo}\"; rm -rf $d'",
+])
+def test_a_word_holding_a_blank_is_not_one_argument(guard: ModuleType, repo: Path, template: str) -> None:
+    """#561 (M14): bash splits an unquoted `$d` whose value holds a blank, so the guard does not read it as one."""
+    command = template.format(repo=repo)
+    assert _bash(guard, command, repo), command
+
+
+@pytest.mark.parametrize("command", [
+    "for d in /tmp/x/a /tmp/x/b; do rm -rf $d; done", "d=/tmp/x/a; rm -rf $d",
+])
+def test_a_literal_loop_or_assignment_with_no_blank_still_reads(guard: ModuleType, repo: Path, command: str) -> None:
+    """#561: the A3 relaxation stands for words with no blank -- a scratch path is still allowed."""
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize(("command", "where"), [
+    ("echo x > .codex/hooks.json", "."), ("cp x .codex/hooks.json", "."), ("rm -rf .codex", "."),
+])
+def test_a_write_into_a_work_trees_codex_is_refused(guard: ModuleType, repo: Path, command: str, where: str) -> None:
+    """#561 (M15): `.codex/` is the owner's, as `.claude/` and `.githooks/` are (D-241 clause 1)."""
+    assert _bash(guard, command, repo / where), command
+
+
+def test_the_write_and_edit_hook_refuses_codex(guard: ModuleType, repo: Path) -> None:
+    """#561 (M15)."""
+    assert guard.judge_file({"tool_input": {"file_path": ".codex/hooks.json"}, "cwd": str(repo)})
+
+
+@pytest.mark.parametrize("command", [
+    "git tag main", "git tag origin/main", "git tag origin/HEAD", "git tag refs/remotes/origin/main",
+    "git tag -a main -m x", "git tag -f master HEAD~1", "git update-ref refs/tags/main HEAD",
+    "git update-ref refs/tags/origin/main HEAD", "git push origin tag origin/main", "git push origin refs/tags/main",
+    "git push origin HEAD:refs/tags/origin/HEAD",
+    # #582 M1: a brace expansion, a pattern refspec into refs/tags/, a tag file written directly
+    "git tag {main,HEAD}", "git tag {master,b}", "git fetch origin 'refs/heads/*:refs/tags/*'",
+    "git fetch origin +refs/heads/*:refs/tags/b/*", "git fetch origin '+refs/heads/*:refs/tags/*'",
+])
+def test_a_tag_named_like_the_default_branch_is_refused(guard: ModuleType, repo: Path, command: str) -> None:
+    """#561, #554's R3: git's short-name lookup answers such a tag before the branch. (`update-ref` under
+    `refs/tags/` may already meet the protected-ref rule first; either refusal holds.)"""
+    why = _bash(guard, command, repo)
+    assert why and ("#554" in why or command.startswith("git update-ref")), (command, why)
+
+
+@pytest.mark.parametrize("command", [
+    "git tag -d main", "git tag maintenance", "git tag release-main", "git push origin tag build-6",
+    "git tag {a,b}", "git fetch --tags", "git fetch origin 'refs/tags/*:refs/tags/*'",
+])
+def test_other_tags_and_deleting_a_shadowing_one_are_allowed(guard: ModuleType, repo: Path, command: str) -> None:
+    assert _bash(guard, command, repo) is None, command
+
+
+@pytest.mark.parametrize("command", [
+    "echo abc > .git/refs/tags/main", "printf x >> .git/refs/tags/origin/HEAD", "cp x .git/refs/tags/master",
+    "tee .git/refs/tags/main < x",
+])
+def test_582_a_tag_file_named_like_the_default_branch_is_not_written(guard: ModuleType, repo: Path,
+                                                                    command: str) -> None:
+    """#582 M1: writing `.git/refs/tags/main` makes the tag without `git tag`; the .git write rule refuses it."""
+    why = _bash(guard, command, repo)
+    assert why and "refs/tags/" in why, (command, why)
+
+
+def test_582_another_tag_file_is_written(guard: ModuleType, repo: Path) -> None:
+    """The control: only a name a default branch's lookup answers is refused."""
+    assert _bash(guard, "echo x > .git/refs/tags/v1-notes", repo) is None
+
+
+@pytest.mark.parametrize("template", [
+    "k=user.name; git -c $k\"=a b\" push origin main", "k=user.name; git -c $k\"=a b\" reset --hard",
+    "k=user.name; git -c $k\"=a b\" branch -D main", "k=user.name; git -c $k\"=a b\" tag main",
+    "k='user.name=a b'; git -c $k push origin main", "r=o/r; gh -R $r\"/a b\" pr merge 5",
+    "bash -c 'v=\"/tmp/x/a {repo}\"; export d=$v; rm -rf $d'",
+])
+def test_the_split_reading_never_refuses_less(guard: ModuleType, repo: Path, template: str) -> None:
+    """#561's security review, B1 and B2: the split reading is judged besides the one as written, so what the guard
+    refused before it still refuses -- a quoted blank, zsh's unsplit `$k`, `export d=$v`."""
+    command = template.format(repo=repo)
+    assert _bash(guard, command, repo), command
