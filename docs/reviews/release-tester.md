@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** be481092081db1d9c027166b935033a15f9f0114 (the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** a1cfb8f84743665d6b06b49cf18b63a5e6ab4521 (the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2071,3 +2071,32 @@ re-spelling board fails; file restored, `git status` clean. The cuts test is wea
 `endswith`), not in meaning. I did not rerun the refresh; the coordinator's local reproduction (exit 3 without, digest
 `c2230c86` with) stands as reported. No finding; the verdict stands.
 
+## Delta 2026-11-06d (the owner's bundles, D-247 retired)
+
+**Range:** `be48109..a1cfb8f`. **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: MINOR**, 0 BLOCKING,
+1 MINOR (M2 below; M1 of the run-1102 round stays open). Reviewed head `a1cfb8f84743665d6b06b49cf18b63a5e6ab4521`; no test added.
+
+- **PR #599 (`13e2459`), the nightly bundle.** The patch extracted from `docs/proposals/nightly-silent-sources.md` has
+  sha256 `9d89f61fc7184fb7aeda42f763c96b612c9abdc07cbf09933b547a32f4a7fb8d` (= the reviewed `9d89f61f`), and `cmp` against
+  `git diff 13e2459^ 13e2459 -- .github/workflows/nightly-hosted.yml scripts/ci/nightly-hosted.yml` is byte-identical (166 lines).
+  `test_nightly_hosted.py` and `test_nightly_notice_580.py` pass.
+- **PR #600 (`5994fe3`), the guard bundle.** `git diff 5994fe3^ 5994fe3` has sha256
+  `b233e259839070dcdee47387b2849e9e14366e8d4828af5b3b1021141881b345`, equal to `build/owner-bundle/b233e2598390.patch`.
+  `test_bash_guard_bounds.py` and `test_bash_guard_never_refuses_less.py` pass; `conformance/test-bash-guard.py`: PASS, 840 calls, 0 wrong verdicts.
+  The live guard also blocked two of my own probes (a `$(...)` program word, an `rm -rf`) as intended.
+- **`d8710b5`, INV-10.** `WRITERS` gains `nightly-hosted.yml`. Mutation 1: `contents: write` planted at the top of `ci.yml`
+  -> `test_every_workflow_reads_only_but_the_issue_agent` goes RED; restored byte-identical (md5). Mutation 2: `contents: write`
+  in the nightly's refresh job -> that INV-10 test stays GREEN, but `test_nightly_hosted.py` goes RED (1 failed, 50 passed);
+  restored byte-identical. So no fault stays green overall.
+- **M2 (MINOR).** `tests/unit/test_security_surface.py:37-41,53-55`: the allowlist is per file name. The comment says "`issues: write`
+  only, in its own job", but `workflow_problems` does not enforce it: any job of `nightly-hosted.yml` may hold any write scope as far as
+  INV-10 goes. The nightly tests currently cover the gap, so nothing is exposed; narrowing the entry to (job, scope) would make the
+  invariant say what its text says. Not filed (the owner's rule).
+- **Mine, red -> green.** `ad7dacc` (`test_the_committed_file_holds_no_re_spelling_once_a_night_published_the_new_names`): RED at
+  `ad7dacc` (1 failed, 106 passed, `tests/unit/test_accepted_respellings.py:341`); GREEN at `a1cfb8f`, which empties the re-spellings in
+  `data/accepted-cuts.yaml` and names two writers in INV-10. The old 14/16-pair test was replaced as its own docstring said (D-247 clause 2),
+  not weakened to green: the night of 2026-11-06 (`release-756fcb3`) published the names.
+- **Suite.** The seven files above plus `test_security_surface.py`: 1084 passed (the 60 percent coverage floor trips only because a
+  subset ran). `make deploy-check` at `a1cfb8f` prints: `workflows: nightly-hosted.yml read, 58 run command(s), no start of a file without its name (D-239)`;
+  its two FAIL lines are for the heads `6e538d9` (security) and `be48109` (tester), which this verdict advances for the tester; the security
+  verdict is the Security-Reviewer's.
