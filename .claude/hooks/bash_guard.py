@@ -324,6 +324,7 @@ Stdlib only, Python 3.11 or later.
 from __future__ import annotations
 
 import codecs
+import copy
 import fnmatch
 import glob
 import json
@@ -551,7 +552,7 @@ GH_VALUED = {"-R", "--repo", "--hostname", "-X", "--method", "-f", "--field", "-
 GH_MUTATING = {"PUT", "PATCH", "POST", "DELETE"}
 #: The owner's hooks and settings: the directories of these names at a work tree's root (the M21 closure
 #: security seat's S3; `protected`).
-OWNED = (".claude", ".githooks")
+OWNED = (".claude", ".githooks", ".codex")  # #561 (M15): `.codex/` is the owner's too (D-241 clause 1)
 #: Programs that change each path they are given, and those that change only their destination.
 CHANGES_EVERY = {"rm", "mv", "tee", "touch", "chmod", "chown", "chgrp", "truncate", "unlink", "rmdir", "shred", "mkdir"}
 CHANGES_LAST = {"cp", "ln", "install", "rsync", "dd", "ditto"}
@@ -568,7 +569,7 @@ READ_ONLY_FLY = {("version",), ("help",), ("status",), ("logs",), ("auth", "whoa
 DESTRUCTIVE = "BLOCKED: destructive command (C.9, permission-matrix.md S5). Escalate to the owner instead."
 RESTORE = ("BLOCKED: `git restore` without --staged, or with --worktree, discards uncommitted work "
            "(permission-matrix.md S5). Revert in place, or use --staged to unstage only.")
-HOLDS_OWNED = ("BLOCKED: `{path}` holds a git work tree's .claude/ or .githooks/, the owner's hooks and settings; "
+HOLDS_OWNED = ("BLOCKED: `{path}` holds a git work tree's .claude/, .githooks/ or .codex/, the owner's hooks and settings; "
                "removing or moving it removes them (#282, OWNER APPROVAL). To drop a throwaway worktree, use "
                "`git worktree remove <path>`.")
 UNWALKED = ("BLOCKED: `{path}` is too large or unreadable to tell whether it holds a git work tree's .claude/ or "
@@ -627,6 +628,9 @@ PROTECTED_REF = ("BLOCKED: the agent never moves or deletes the protected branch
                  "under `origin/` or a remote's default branch, where the deploy gate reads its base (AGENTS.md S3, "
                  "#318, #533): only a plain `git fetch origin` or `git pull` of origin moves them, and the default "
                  "branch is the human's.")
+SHADOW_REF = ("BLOCKED: a tag named like a default branch (`main`, `origin/main`, `refs/remotes/origin/HEAD`) is "
+              "answered first by git's short-name lookup, so it chooses what a check reads as the default branch "
+              "(#554, #561). Name the tag otherwise; deleting one locally (`git tag -d`) is allowed.")
 OWNER_REF = ("BLOCKED: a `v*` tag names a release, and a `refs/replace/` ref moves every merge-base the deploy "
              "gate measures from; the owner makes, moves and deletes both, in their own terminal (#410, D-223 "
              "clause 5). Listing them (`git tag -l`, `git replace -l`) is allowed.")
@@ -1694,9 +1698,62 @@ def judge_command(cmd: Command, depth: int) -> str | None:
             _bound(name)
             SCOPE[name] = UNKNOWN
     for variant in _defaults(cmd) or [cmd]:
+        # #561 (M14): bash splits every unquoted `$d` after the program too -- `d="/tmp/x/a $HOME"; rm -rf $d`
+        # removes two paths, `for b in "fix/a main"; do git push origin --delete $b; done` deletes `main`. That
+        # reading is judged IN ADDITION to the one as written, on a copy of this text's state, so it can only add a
+        # refusal (its review's B1: zsh does not split, and a quoted blank is one word).
+        if (split := _split_variant(variant)) is not None:
+            saved = _snapshot()
+            try:
+                why = _judge_command_once(split, depth)
+            finally:
+                _restore(saved)
+            if why:
+                return why
         if (why := _judge_command_once(variant, depth)):
             return why
     return None
+
+
+#: #561: the state a judgement writes, kept apart while the split reading is judged.
+_STATE = ("CWD", "HERE", "REACHED", "SEEN", "FORS", "FLOW", "WORLD", "EVALED", "SCOPE", "NAMEREF", "CANDIDATES",
+          "REMOTE", "TOPS", "TRUST", "FOLLOWED", "DEFAULTS")
+
+
+def _snapshot() -> dict[str, object]:
+    return {name: copy.deepcopy(globals()[name]) for name in _STATE}
+
+
+def _restore(saved: dict[str, object]) -> None:
+    for name, value in saved.items():
+        held = globals()[name]
+        if isinstance(held, list):
+            held[:] = value  # type: ignore[index]
+        else:
+            held.clear()
+            held.update(value)  # type: ignore[arg-type]
+
+
+def _split_variant(cmd: Command) -> Command | None:
+    """#561 (M14): `cmd` with each unquoted expansion after its program split on blanks (space, tab, newline -- what
+    bash's default IFS splits on), or None when there is none to split or the program keeps its words whole (`export
+    d=$v`, `declare`, `local`, `typeset`, `readonly`: the #561 review's B2)."""
+    words = cmd.words
+    start = 0
+    while start < len(words) and (ASSIGNMENT.match(words[start].text) or words[start].text in KEYWORDS):
+        start += 1
+    if start >= len(words) or os.path.basename(_expand(words[start].text)) in SETTERS | {"alias", "let"}:
+        return None
+    split: list[Word] = []
+    for k, w in enumerate(words):
+        value = _expand(w.text) if k > start and w.bare else ""
+        parts = [t for t in re.split(r"[ \t\n]+", value) if t] if re.search(r"[ \t\n]", value) else []
+        split += [Word(t, glob=any(c in t for c in "*?[")) for t in parts] if parts else [w]
+    if len(split) == len(words):
+        return None
+    variant = copy.copy(cmd)
+    variant.words = split
+    return variant
 
 
 def _judge_command_once(cmd: Command, depth: int) -> str | None:
@@ -2336,6 +2393,8 @@ def _git_rest(rest: list[str], itself: bool = False) -> bool:
             or rest in (["config"], ["config.worktree"], ["commondir"], ["packed-refs"], ["shallow"])
             or rest[:2] in (["refs", "remotes"], ["refs", "replace"]) or (len(rest) == 3 and rest[:2] == ["refs", "heads"]
                                                    and rest[2] in PROTECTED)
+            # #582 M1: a tag file named like a default branch (`.git/refs/tags/main`), which git's lookup answers first
+            or (len(rest) >= 3 and rest[:2] == ["refs", "tags"] and _shadows_default("/".join(rest[2:])))
             or (len(rest) == 3 and rest[0] == "worktrees" and rest[2] in ("config", "config.worktree", "commondir"))):
         return True
     return rest[:1] == ["modules"] and any(_git_rest(rest[k:]) for k in range(2, len(rest)))
@@ -3548,6 +3607,16 @@ def _moves_default(sub: str, rest: list[str], letters: str, given: Callable[...,
     return None
 
 
+def _shadows_default(name: str) -> bool:
+    """#561 (#554's R3): a tag named like a default branch's ref (`main`, `origin/main`, `refs/remotes/origin/HEAD`,
+    any path ending `main`, `master` or `HEAD`), which git's short-name lookup answers before the branch."""
+    # #582 M1: a brace expansion is each of its words (`git tag {main,HEAD}` makes `main` and `HEAD`)
+    if (m := re.search(r"\{([^{}]*,[^{}]*)\}", name)):
+        return any(_shadows_default(name[:m.start()] + alt + name[m.end():]) for alt in m.group(1).split(","))
+    tail = name.lstrip("+").casefold().removeprefix("refs/tags/").rstrip("/").rsplit("/", 1)[-1]
+    return tail in ("main", "master", "head")
+
+
 def _owner_ref(name: str, under: tuple[str, ...] = ("tags/v", "replace/")) -> bool:
     """A ref under `refs/tags/v` or `refs/replace/` (#410), in any case git may store it in."""
     return name.lstrip("+").casefold().removeprefix("refs/").startswith(under)
@@ -3608,14 +3677,30 @@ def _moves_owner_ref(sub: str, rest: list[str], letters: str, given: Callable[..
         if not deleting and listing:
             return None
         named = names if deleting else names[:1]
+        if not deleting and any(_shadows_default(n) for n in named):
+            return SHADOW_REF
         return OWNER_REF if any(n.casefold().startswith("v") or "$" in n or "`" in n for n in named) else None
     if sub == "update-ref":
-        return OWNER_REF if any(_owner_ref(r) for r in _plain(rest, {"-m"})) else None
+        refs = _plain(rest, {"-m"})
+        if any(r.casefold().startswith("refs/tags/") and _shadows_default(r) for r in refs[:1]):
+            return SHADOW_REF
+        return OWNER_REF if any(_owner_ref(r) for r in refs) else None
     if sub in ("fetch", "pull", "push"):
         # Every plain word, the remote's too: none is named under `refs/replace/`, and `--repo=<it>` leaves the
         # first word a refspec.
         specs = _plain(rest, FETCH_VALUED if sub != "push" else {"--receive-pack", "--exec", "--repo", "-o",
                                                                    "--push-option"})
+        # #561 (#554's R3): a tag pushed under a default branch's name, as `tag <name>` or a refspec into refs/tags/
+        if sub == "push" and any((prev == "tag" and _shadows_default(sp)) or (
+                sp.rsplit(":", 1)[-1].lstrip("+").casefold().startswith("refs/tags/")
+                and _shadows_default(sp.rsplit(":", 1)[-1])) for prev, sp in zip(["", *specs], specs)):
+            return SHADOW_REF
+        # #582 M1: a refspec that maps refs from outside refs/tags/ into it by a pattern (`refs/heads/*:refs/tags/*`)
+        # makes a tag of every branch, `main` among them, or into a tag named like one
+        if any(":" in sp and (dst := sp.rsplit(":", 1)[-1].lstrip("+").casefold()).startswith("refs/tags/") and (
+                _shadows_default(dst) or ("*" in dst and not sp.lstrip("+").casefold().startswith("refs/tags/")))
+               for sp in specs):
+            return SHADOW_REF
         # #529: a pattern that may land there too (`refs/*:refs/*`); a fetch's spec with no `:` stores nothing.
         return OWNER_REF if any(_owner_ref(sp.rsplit(":", 1)[-1], ("replace/",)) or (
             (":" in sp or sub == "push") and _lands(sp.rsplit(":", 1)[-1], (), ("refs/replace/",))) for sp in specs) else None
