@@ -18,12 +18,12 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-04 (the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-06 (release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+**Commit range:** this round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
 (`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
 `7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
 (`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** a937ff95e686d1c13cc9b673d8f47657a8af3fc1 (the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** a2412472a801bd910ea4c8a81392e5db9103542f (the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -55,7 +55,7 @@ Makefile). The hand fault injection below stands in: 37 faults, 30 killed on the
 killed after this review's tests.
 
 ## Verdict
-MINOR -- (2026-11-04: the #588 delta round `0238db5..a937ff9` is PASS, no new finding; the MINOR below is the run-1102 round's M1, still open; see "Delta round 2026-11-04 (#588)" at the end.) 0 BLOCKING open, 1 MINOR open (M1, new). The run-1102 delta round (below, `1a5fec0..970ffea`, eleven
+MINOR -- (2026-11-06: the release round v1.0.0 `a937ff9..b7bdb38` is PASS with no new BLOCKING and no new finding; the one MINOR open is still the run-1102 round's M1; see "Release round v1.0.0 (run v100)" at the end.) (2026-11-04: the #588 delta round `0238db5..a937ff9` is PASS, no new finding; the MINOR below is the run-1102 round's M1, still open; see "Delta round 2026-11-04 (#588)" at the end.) 0 BLOCKING open, 1 MINOR open (M1, new). The run-1102 delta round (below, `1a5fec0..970ffea`, eleven
 fixes and the #561 records, D-242 to D-244) found every acceptance criterion proven by a citing test that goes red when
 its code is reverted, all green at `970ffea`; `make check` green (pytest 5472 passed, 37 skipped; swift-test 734;
 client-decls 4 configurations). 67 faults injected into the range's changed code: 35 killed by the range's own tests, 21
@@ -1989,3 +1989,65 @@ Verdict: PASS. Code files in range: `tests/unit/test_release_delta_1102_tester.p
 - CI on PR #564 at `a937ff9`: test (py3.12) and test (py3.14), install-and-governance, dep-audit, secret-scan all pass.
 - Not run: full `make check` (the range is test-only; the two files were run directly).
 - BLOCKING: none. MINOR: none new.
+
+## Release round v1.0.0 (run v100) (a937ff9..b7bdb38)
+
+Independent: yes (I wrote none of the range). Worktree `review/v100-tester` at `b7bdb38`; no test added, so the
+reviewed head is `b7bdb38d32314daea4b4a6de501b7542be454632`. Author/reviewer family not recorded (fallback: none
+available to this seat).
+
+**Suite.** The ten test files of the range (`test_prune_merged_587`, `test_deploy_gate_570/573/576/583/551`,
+`test_review_need_572`, `test_nightly_notice_580`, `test_bash_guard_never_refuses_less`, `test_loose_fixture_568`):
+189 passed (the coverage-floor line in that subset run is a subset artifact, not a failure).
+
+**Criteria, each proven and red on reversal (mutation in my worktree, restored by string replace, `git status` clean):**
+- #587 `scripts/prune_merged.py` DEFAULTS back to short names: `test_prune_merged_587.py` 2 failed.
+- #572 `scripts/review_need.py` `deps_accept`/`ignore-vuln` tokens removed: `test_review_need_572.py` 2 failed.
+- #573 `deploy_gate.POLICY_MODULES` without `deploy_gate`: `test_deploy_gate_573.py` 4 failed.
+- #570 CRLF normalised count removed: `test_deploy_gate_570.py` 1 failed.
+- #576 R5 (`last[start] == k`) and R1 (`BASH_ENV` into `$GITHUB_ENV`): `test_deploy_gate_576.py` 1 and 2 failed.
+- #583 `STDIN_PATHS` emptied (3 failed), `SHELL_WRAPPERS` emptied (2 failed), `busybox` branch off (1 failed):
+  `test_deploy_gate_583.py`.
+- #580 the patch's `continue-on-error: true` flipped: `test_580_m1_...` failed (the test applies the proposal's patch
+  to a scratch copy; never empty).
+- #593 is a race fix in a test; no deterministic mutation exists. It passed in the full run. Not a finding.
+
+**#551 change (D-245).** The diff of `tests/unit/test_deploy_gate_551.py` moves the seven `make-*` cases out of
+`RUNNER_QUIET` into `MAKE_NAMED_REFUSED`, same inputs, and asserts `code == 2 and "D-245" in out`. No input dropped,
+no assertion loosened: it only tightens. The rest of `RUNNER_QUIET` is unchanged.
+
+**Real nightly.** `make deploy-check` printed `workflows: nightly-hosted.yml read, 37 run command(s), no start of a
+file without its name (D-239)`. Its two FAIL lines are only the reviewed heads still at `0c76d5c` (security) and
+`a937ff9` (tester); this verdict moves the tester's.
+
+**Owner bundles.**
+- `b233e2598390.patch`: sha256 matched `b233e259839070dcdee47387b2849e9e14366e8d4828af5b3b1021141881b345`. Applied to
+  a scratch `git archive` of `b7bdb38` committed as `main`, patch committed on a branch (so the differential's
+  protected base is main's guard). `test_bash_guard_bounds.py` + `test_bash_guard_never_refuses_less.py`: 907 passed;
+  `conformance/test-bash-guard.py`: PASS, 840 calls, 0 wrong verdicts. The differential ran with a real base.
+- `9d89f61f` (nightly notice): `test_nightly_notice_580.py` applies it to a scratch copy: 6 passed.
+
+## BLOCKING
+- none
+
+## MINOR
+- M1 (run-1102 round) carried, unchanged. No new MINOR.
+
+## Delta 2026-11-06 (dd34695, the version bump)
+
+Independent: yes. `dd34695` changes `pyproject.toml` (`version` 1.0.0), `src/app/adapter/main.py` (`APP_VERSION`
+1.0.0) and the four build configurations of `ios/ModelRanking.xcodeproj/project.pbxproj` (`MARKETING_VERSION` 1.0.0,
+`CURRENT_PROJECT_VERSION` 8), plus the run file. The diff is exactly those values; no other file reads them. The one
+test that does, `tests/unit/test_app_version.py` (`/health` serves the package's version; the package is not older
+than the newest `docs/releases/` record), is 2 passed. It will keep passing when `docs/releases/v1.0.0.md` lands
+(1.0.0 >= 1.0.0) and fails closed if the record names a later version. No finding; the verdict stands.
+
+## Delta 2026-11-06b (M20) (5566380..a241247)
+
+Independent: yes. Red at `5566380`: with `tests/unit/test_nightly_hosted.py` as it was there, `test_580_m20_...` fails
+(1 failed). Green at `a241247`: that test plus all of `test_nightly_hosted.py`, 51 passed. The narrowed ban, mutated on
+a scratch copy of the installed workflow (which already holds the `notice` job and passes): `continue-on-error` on
+another step of `refresh` fails (`[('refresh', None)]`); a job-level key fails ("a job is allowed to fail"); the word
+in a comment fails (the count check). `pull_request_target` and the pin check are untouched. Nothing else weakened. No
+finding; the verdict stands.
+

@@ -83,3 +83,15 @@ def test_580_r2_the_title_is_fixed_and_only_the_body_is_the_refreshs(jobs: dict[
 def test_580_m3_the_header_names_three_jobs(workflow_text: str) -> None:
     header = workflow_text.split("\nname:", 1)[0]
     assert "Two jobs" not in header and "Three jobs" in header and "notice" in header, header
+
+
+def test_580_m20_the_patched_workflow_passes_the_nightly_shape_rules(workflow_text: str, tmp_path: Path,
+                                                                    monkeypatch: pytest.MonkeyPatch) -> None:
+    """The v1.0.0 security round's M20: the shape test banned `continue-on-error` anywhere, so applying the bundle
+    turned the owner's own PR red. The patched workflow passes the nightly's shape rules as they stand here."""
+    from . import test_nightly_hosted
+
+    patched = tmp_path / "nightly-hosted.yml"
+    patched.write_text(workflow_text, encoding="utf-8")
+    monkeypatch.setattr(test_nightly_hosted, "PROPOSAL", patched)
+    test_nightly_hosted.test_every_action_is_pinned_to_a_commit_and_nothing_is_allowed_to_fail()
