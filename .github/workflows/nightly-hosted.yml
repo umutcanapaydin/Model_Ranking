@@ -4,7 +4,7 @@
 # (AGENTS.md section 3): `cp scripts/ci/nightly-hosted.yml .github/workflows/`. tests/unit/test_nightly_hosted.py
 # holds this file's shape, and holds the installed copy equal to it once it exists.
 #
-# Two jobs, and only the second holds a secret (D-217 clause 2):
+# Three jobs; only `deploy` holds a secret (D-217 clause 2), and only `notice` may write issues (D-243):
 #   refresh  fetches and parses every source, builds the artifact, and keeps it as `hosted-state` for the
 #            next night's carry-forward (D-156); then derives the public copy and its stamp, `hosted-public`.
 #            No secret; the checkout keeps no credential; the token that reads the previous state reaches
@@ -15,7 +15,10 @@
 #            It runs in the `fly-production` environment, which only `main` may deploy from, and the token
 #            is that environment's secret, never the repository's: a run dispatched on another branch
 #            cannot reach it (the #387 security review's B1).
-# Both jobs run only on main.
+#   notice   opens one issue for the sources silent for 7 or more nights, or comments on the open one
+#            (D-243 clause 2). It holds `issues: write` and nothing else, checks nothing out and uses no
+#            action; its title is fixed here, and only the body comes from the refresh (#580 R2).
+# Every job runs only on main.
 # A failed night uploads and deploys nothing: Fly keeps serving the last good image, the last good state stands.
 name: nightly-hosted
 
@@ -41,6 +44,7 @@ jobs:
       actions: read
     outputs:
       outcome: ${{ steps.night.outputs.outcome }}
+      silent: ${{ steps.silent.outputs.notice }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
@@ -104,6 +108,49 @@ jobs:
             build/hosted/build.txt
           retention-days: 1
           if-no-files-found: error
+      - name: The sources silent for 7 or more nights (D-243)
+        # Last, and on a failed or refused night too: a night that serves nothing new is when a source's
+        # silence grows. It never fails the job, so it never holds the deploy back.
+        id: silent
+        if: ${{ !cancelled() }}
+        continue-on-error: true  # #580 M1: under bash -e a failure here would skip the deploy
+        run: |
+          record="$RUNNER_TEMP/state/advisor.db.refresh.json"
+          if python3 scripts/silent_sources.py --issue "$record" > "$RUNNER_TEMP/silent.json"; then
+            python3 scripts/silent_sources.py "$record"
+            echo "notice=$(cat "$RUNNER_TEMP/silent.json")" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::the silent sources could not be read from the refresh record (D-243)"
+          fi
+
+  notice:
+    # D-243 clause 2: one issue for the silent sources, opened once and commented on each night after, so a
+    # silence that lasts is one issue. Its own job: the refresh job's token never holds `issues: write`.
+    needs: refresh
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/main' && needs.refresh.outputs.silent != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open the silent-sources issue, or comment on the open one
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTICE: ${{ needs.refresh.outputs.silent }}
+        run: |
+          # #580 R2: the title and every other field are fixed here; only the body comes from the refresh
+          printf '%s\n' "$NOTICE" | jq -r '.body' > "$RUNNER_TEMP/notice.md"
+          title='Sources silent for 7 or more nights'
+          open=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --author app/github-actions \
+            --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" -R "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/notice.md"
+            echo "commented on issue #$open"
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body-file "$RUNNER_TEMP/notice.md"
+            echo "opened the silent-sources issue"
+          fi
 
   deploy:
     needs: refresh
