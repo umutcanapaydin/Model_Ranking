@@ -17,3 +17,46 @@
 # Retired (#477): text_to_image, LMArena's 2026-10-26 re-spelling, 27 pairs (D-228). The hosted nights of
 # 2026-10-27 and 2026-10-28 published the new names, so the entry was inert; the entry is in git at `747b63c`.
 cuts: []
+respellings:
+  - board: image_to_video
+    decision: D-247
+    reason: LMArena re-spelled the board from slugs to display names on 2026-11-05 and kept all 48 models;
+      these 14 names derive a new model id
+    until: 2026-12-06
+    pairs:
+      "hunyuan-video-1.5": "HunyuanVideo 1.5"
+      "kling-v2.1-master": "Kling 2.1 Master"
+      "kling-v2.1-standard": "Kling 2.1 Standard"
+      "kling-v3-pro": "Kling 3.0 Pro"
+      "pika-v2.2": "Pika 2.2"
+      "ray-3": "Luma Ray3"
+      "ray2": "Luma Ray2"
+      "seedance-v1-lite": "Seedance 1.0 Lite"
+      "seedance-v1-pro": "Seedance 1.0 Pro"
+      "seedance-v1.5-pro": "Seedance 1.5 Pro"
+      "wan-v2.2-a14b": "Wan 2.2 A14B"
+      "wan2.5-i2v-preview": "Wan 2.5 Preview"
+      "wan2.6-i2v": "Wan 2.6"
+      "wan2.7-i2v": "Wan 2.7"
+  - board: text_to_video
+    decision: D-247
+    reason: LMArena re-spelled the board from slugs to display names on 2026-11-05 and kept all 48 models;
+      these 16 names derive a new model id
+    until: 2026-12-06
+    pairs:
+      "grok-imagine-video-1.5-agent": "Grok Imagine Video 1.5"
+      "hunyuan-video-1.5": "HunyuanVideo 1.5"
+      "kandinsky-5.0-t2v-lite": "Kandinsky 5.0 Video Lite"
+      "kandinsky-5.0-t2v-pro": "Kandinsky 5.0 Video Pro"
+      "kling-v2.1-master": "Kling 2.1 Master"
+      "mochi-v1": "Mochi 1"
+      "pika-v2.2": "Pika 2.2"
+      "ray-3": "Luma Ray3"
+      "ray2": "Luma Ray2"
+      "seedance-v1-lite": "Seedance 1.0 Lite"
+      "seedance-v1-pro": "Seedance 1.0 Pro"
+      "seedance-v1.5-pro": "Seedance 1.5 Pro"
+      "wan-v2.2-a14b": "Wan 2.2 A14B"
+      "wan2.5-t2v-preview": "Wan 2.5 Preview"
+      "wan2.6-t2v": "Wan 2.6"
+      "wan2.7-t2v": "Wan 2.7"

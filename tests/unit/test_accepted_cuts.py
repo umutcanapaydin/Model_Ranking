@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import importlib.util
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -86,7 +87,8 @@ def test_the_committed_file_holds_no_cut_once_epochs_chess_cut_is_retired() -> N
     """D-221 clause 1 (#418): the epoch_chess cut is retired once both served artifacts hold Epoch's
     published board (the Mac at `release-55cf42e`, the hosted engine at `release-2a68ca4`)."""
     assert refresh.load_accepted_cuts(ACCEPTED_CUTS_FILE) == {}
-    assert ACCEPTED_CUTS_FILE.read_text(encoding="utf-8").rstrip().endswith("cuts: []")
+    # D-247: the file now carries a `respellings` list after `cuts`, so the empty list is read, not its position
+    assert re.search(r"^cuts: \[\]$", ACCEPTED_CUTS_FILE.read_text(encoding="utf-8"), re.M)
 
 
 @pytest.mark.parametrize("raw", [
