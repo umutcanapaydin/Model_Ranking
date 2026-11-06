@@ -34,7 +34,11 @@ def tracked(*suffixes: str) -> list[Path]:
 # --- INV-10: CI least privilege --------------------------------------------------------------------
 
 #: The one workflow allowed to write, and why. A second needs its own entry and its reason.
-WRITERS = {"issue-agent.yml": "opens a draft PR from a triaged issue; branch protection keeps main"}
+WRITERS = {
+    "issue-agent.yml": "opens a draft PR from a triaged issue; branch protection keeps main",
+    "nightly-hosted.yml": "its `notice` job opens or comments on the silent-sources issue (D-243): "
+                          "`issues: write` only, in its own job; the refresh job stays read-only",
+}
 
 
 def workflow_problems(name: str, text: str) -> list[str]:
