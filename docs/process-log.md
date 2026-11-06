@@ -1957,3 +1957,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red→green on the real data: the 01:44 state with the CI's own refresh, run locally, refused exactly as the night did (exit 3, 14 and 16 of 48). With the entry it published (`c2230c86`, the same candidate digest as CI's), and the largest board change dropped to 1 of 11.
 - The entry is code to the deploy gate, so the PR carries a Tester and Security delta; otherwise the merge would move the refusal from the data guard to the deploy gate.
 - Lesson: a board guard that fires on a whole snapshot's change is answered row by row. Measure the read, then the names, and only then choose cut, re-spelling or fix.
+
+## 2026-11-06 · fix/retire-d247-inv10 — D-247's entries retired, INV-10 names the second writer, and the delta over the owner's two bundles
+
+- v1.0.0 went live (run 42206427322, `release-756fcb3`), and that night published LMArena's 2026-11-05 video names, so D-247's two re-spelling entries were inert. They are retired (D-247 clause 2), and the test that pinned them now pins none, red first. Past 2026-12-06 they would have refused every night (the security delta's R17).
+- The owner merged both bundles: #599 (nightly notice `9d89f61f`, D-243) and #600 (guard `b233e259`, #561 and #582). The #580 bundle had not updated INV-10's test, so the owner added the notice job to `WRITERS` in their own commit (`d8710b5`); `docs/security-invariants.md` INV-10 now says two writers are by design.
+- The same delta review covers the merged bundle bytes against the reviewed patches, `d8710b5`, INV-10's text and this retirement, so `make deploy-check` passes again before tonight's night.
+- Lesson: a bundle that adds a workflow writer must carry the invariant test's allowlist with it; the review read the patch, not the invariant it touched.

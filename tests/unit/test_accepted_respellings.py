@@ -334,13 +334,11 @@ def test_a_key_written_twice_fails_closed(raw: str) -> None:
         refresh.parse_accepted_cuts(raw, today=TODAY, decisions=LOG)
 
 
-def test_the_committed_file_holds_only_d247s_video_re_spellings() -> None:
-    """#477 (1): text_to_image's D-228 entry was retired once the nights published its new names. D-247 (2026-11-06)
-    accepts LMArena's 2026-11-05 video re-spelling: 14 pairs on image_to_video and 16 on text_to_video, until
-    2026-12-06. Retire them, and this test with them, once a night publishes the new names (D-247 clause 2)."""
-    accepted = refresh.load_accepted_respellings(ACCEPTED_CUTS_FILE)
-    assert {board: len(pairs) for board, pairs in accepted.items()} == {"image_to_video": 14, "text_to_video": 16}
-    assert "until: 2026-12-06" in ACCEPTED_CUTS_FILE.read_text(encoding="utf-8")
+def test_the_committed_file_holds_no_re_spelling_once_a_night_published_the_new_names() -> None:
+    """#477 (1): text_to_image's D-228 entry was retired once the nights published its new names. D-247 clause 2:
+    the hosted night of 2026-11-06 (run 42206427322, `release-756fcb3`) published LMArena's 2026-11-05 video names,
+    so the image_to_video and text_to_video entries are inert, and past 2026-12-06 they would fail every night."""
+    assert refresh.load_accepted_respellings(ACCEPTED_CUTS_FILE) == {}
 
 
 def test_the_suite_reads_no_committed_policy_by_default() -> None:
