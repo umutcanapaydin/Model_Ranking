@@ -1949,3 +1949,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - M17-M19 are noted in the verdict and not filed, by the owner's rule. No issue was opened in the run.
 - Found while writing the owner's order: the deploy gate does not exempt a reviewed owner bundle, so the owner deploys v1.0.0 first, applies the bundles after, and a delta review then confirms the merged bytes.
 - Lesson: one review at the release, with low findings noted and not filed, ended the queue growing on itself; and a bundle's own tests must run against the bundle before the owner applies it.
+
+## 2026-11-06 · fix/video-respelling-1105 — v1.0.0's first deploy refused on LMArena's video re-spelling (D-247)
+
+- The owner's v1.0.0 night (run 42171802970) refused before the deploy: the image_to_video and text_to_video boards would lose 14 and 16 of 48 rows (D-159). Measured as the owner asked, the read side first: each board's `latest` split is exactly 50 rows (`num_rows_total: 50`), all published 2026-11-05. The 01:44 night read the 2026-09-22 snapshot, 48 each. The read is whole, so this is no reader bug.
+- No model left. LMArena moved both boards from slugs to display names, and every one of the 47 old names has its new spelling. 14 and 16 of them derive a new model id (a dropped `v`, an added `Luma`, a dropped `i2v`/`t2v`, `HunyuanVideo`), so the guard read them as lost. A cut would drop those models' history; D-228's re-spelling keeps each row as the model it was, under a cut's terms (D-247, until 2026-12-06).
+- Red→green on the real data: the 01:44 state with the CI's own refresh, run locally, refused exactly as the night did (exit 3, 14 and 16 of 48). With the entry it published (`c2230c86`, the same candidate digest as CI's), and the largest board change dropped to 1 of 11.
+- The entry is code to the deploy gate, so the PR carries a Tester and Security delta; otherwise the merge would move the refusal from the data guard to the deploy gate.
+- Lesson: a board guard that fires on a whole snapshot's change is answered row by row. Measure the read, then the names, and only then choose cut, re-spelling or fix.

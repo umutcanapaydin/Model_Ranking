@@ -6830,3 +6830,36 @@ what the owner already deploys and tests.
 a run that deployed would ship without the owner's signature.
 
 **Revisit when:** the owner submits to the App Store, or a review in the run stops on a third BLOCKING.
+
+## D-247 — LMArena's 2026-11-05 video re-spelling is accepted pair by pair on image_to_video and text_to_video
+
+**Owner ruling:** 2026-11-06, in chat: *"if the read is complete and LMArena published a new snapshot: list the lost
+models, prepare a short-lived accepted-cut PR under D-221; I will merge it"* *(translated)*. Measured, nothing was lost:
+every lost row is a re-spelling, so the instrument is D-228's re-spelling, a cut's sibling under the same terms.
+
+**Context.** The hosted night the owner started on 2026-11-06 (run 42171802970) refused: "image_to_video's board would
+lose 14 of 48 rows", "text_to_video's board would lose 16 of 48 rows" (D-159). Measured against LMArena's dataset:
+- The read is whole: each board's `latest` split holds exactly 50 rows (`num_rows_total: 50`), all `overall`, all
+  published 2026-11-05. The 01:44 night read the 2026-09-22 snapshot, 48 rows each, and published it.
+- No model left either board. Each of the 47 old names has its new spelling in the new snapshot, which also adds
+  `Gemini Omni 1.2 Flash` and `SkyReels V4`. LMArena moved both boards from slugs to display names (`veo-3` ->
+  `Veo 3`), as it did on text_to_image on 2026-10-26 (D-228).
+- Most new spellings derive the same model id. 14 and 16 do not: a dropped `v` (`kling-v2.1-master` ->
+  `Kling 2.1 Master`), an added vendor (`ray2` -> `Luma Ray2`), a dropped `i2v`/`t2v` (`wan2.6-i2v` -> `Wan 2.6`),
+  a joined name (`hunyuan-video-1.5` -> `HunyuanVideo 1.5`), `t2v` read as `Video` (Kandinsky), and the `-agent` suffix
+  dropped from Grok Imagine Video 1.5.
+
+**Decision.**
+1. **`data/accepted-cuts.yaml` gains two `respellings` entries**, `image_to_video` (14 pairs) and `text_to_video`
+   (16 pairs), each naming this ADR, a reason, and `until: 2026-12-06` (30 days, D-223 clause 2). Each pair is one of
+   the rows the night read as lost, old raw name -> its new one.
+2. **They are retired** once a night publishes the new names, as D-228's entry was (#477): the entry is then inert.
+3. **No cut:** a cut would excuse the rows as lost and drop these models' history; a re-spelling keeps each row as the
+   model it was.
+
+**Rationale.** It is the measured shape D-228 exists for; the guard did its job, and the remedy names each pair.
+
+**Mitigation if violated:** a pair that is not a re-spelling changes nothing (D-228 clause 2), so a wrong pair leaves
+the row judged as lost; the entry expires by itself on 2026-12-06.
+
+**Revisit when:** a night publishes the new names (retire the entry), or LMArena re-spells another board.
