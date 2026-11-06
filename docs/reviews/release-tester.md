@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** a2412472a801bd910ea4c8a81392e5db9103542f (the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** be481092081db1d9c027166b935033a15f9f0114 (the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2050,4 +2050,24 @@ a scratch copy of the installed workflow (which already holds the `notice` job a
 another step of `refresh` fails (`[('refresh', None)]`); a job-level key fails ("a job is allowed to fail"); the word
 in a comment fails (the count check). `pull_request_target` and the pin check are untouched. Nothing else weakened. No
 finding; the verdict stands.
+
+## Delta 2026-11-06c (D-247 re-spelling) (ec4d855..be48109)
+
+Independent: yes. No test added; the reviewed head is `be481092081db1d9c027166b935033a15f9f0114`.
+
+**Pairs.** I joined all 30 pairs of the two D-228 entries in `data/accepted-cuts.yaml` against `video_diff.json`'s
+`lost_detail` (old slug) and `gained_detail` (new name). Every old name and every new name exists; each pair has the
+same organization, a rating within 6 points (most 0-1), and the same or a slightly grown vote count (the 72% on
+text_to_video `wan2.7-t2v` is votes accrued over the two months between the splits). Rank moves +2 in every pair (two
+new entries above). Two notes, no finding: `wan2.7-i2v` and `wan2.7-t2v` change organization label `wan` to `alibaba`
+(the other Wan rows were `alibaba` already, so it is a label cleanup); `grok-imagine-video-1.5-agent` ->
+`Grok Imagine Video 1.5` is the only xai 1.5 row on that board in the new split (votes 1218 -> 1260, rating 1492 ->
+1486), and the Kandinsky `t2v-lite`/`t2v-pro` -> `Video Lite`/`Video Pro` pairs match on votes (1474 = 1474; 2019 -> 2026)
+and are the only Kandinsky rows. So every pair is a true re-spelling, none a different model.
+
+**Tests.** `test_accepted_cuts.py` and `test_accepted_respellings.py`: 107 passed. Mutating the data file: a dropped pair
+fails (the 14/16 count), an added cut fails (2 tests: `load_accepted_cuts == {}` and the `^cuts: \[\]$` line), an extra
+re-spelling board fails; file restored, `git status` clean. The cuts test is weaker only in position (a line regex, not
+`endswith`), not in meaning. I did not rerun the refresh; the coordinator's local reproduction (exit 3 without, digest
+`c2230c86` with) stands as reported. No finding; the verdict stands.
 
