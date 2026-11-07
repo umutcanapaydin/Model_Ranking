@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** a1cfb8f84743665d6b06b49cf18b63a5e6ab4521 (the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** bd843fd1492568281290aa8650201be6fd8ff86d (the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2100,3 +2100,52 @@ re-spelling board fails; file restored, `git status` clean. The cuts test is wea
   subset ran). `make deploy-check` at `a1cfb8f` prints: `workflows: nightly-hosted.yml read, 58 run command(s), no start of a file without its name (D-239)`;
   its two FAIL lines are for the heads `6e538d9` (security) and `be48109` (tester), which this verdict advances for the tester; the security
   verdict is the Security-Reviewer's.
+
+## Delta 2026-11-08 (D-248, the privacy policy)
+
+**Range:** `2a218b5..541d9ae`. **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: MINOR**, 0 BLOCKING,
+3 MINOR (M3-M5 below; M1/M2 of earlier rounds keep their state). Reviewed head `541d9ae55eecddd74414e8d56435f6b8a2e2b54e`; no test added
+(I worked in my own worktree at `541d9ae` with its own venv from `requirements/dev.lock`; removed after).
+
+- **Red -> green.** `tests/unit/test_privacy_page.py` at `cba9fd1`: 3 failed (the page, the claims, the image); at `541d9ae`: 3 passed.
+  Citing tests per D-248 clause: clause 1 (the page, its claims) `test_privacy_page.py:21-29,32-36`; clause 2 (`--no-access-log` in every
+  uvicorn `CMD`) `test_privacy_page.py:39-42`; the six-route set `test_api_v1.py:541-542`. Clause 3 (word matching kept) is a
+  non-change, nothing to test.
+- **Mutations** (all restored; md5 of `Dockerfile` and `main.py` equal before and after, `git status` clean):
+  `--no-access-log` removed from the CMD -> `test_the_engine_image_keeps_no_request_log` RED (1 failed, 2 passed);
+  "no tracking and no analytics" and "could not answer" dropped from the page -> RED (2 failed, 1 passed);
+  an extra route `/extra` added -> `test_api_v1.py` RED (1 failed, 28 passed); `/privacy` removed from `DECLARED_ROUTES` -> RED (1 failed);
+  the CSP header removed from the response -> **stays GREEN** (32 passed): see M3.
+- **Host allowlist, limiter, headers** (a throwaway probe test, removed): with `MODEL_RANKING_ALLOWED_HOSTS=model-ranking.fly.dev`,
+  `/privacy` to `Host: evil.example` is 400; to the listed host 200 with `X-Content-Type-Options: nosniff` (the `_no_sniff` middleware,
+  `main.py` after `_known_host`) and the CSP `default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'`; with a limit of 3, the
+  4th and 5th requests from one `Fly-Client-IP` are 429 while `/health` stays 200. So `/privacy` is counted like every non-health route.
+- **The policy against the code.** True: the app sends only `GET /v1/recommendations?task=&budget=` and `/v1/boards`
+  (`ios/ModelRanking/Engine/EngineClient.swift:267-278,289-299`), never the typed words; the only network address is the engine's
+  (`EngineClient.swift:208`); on the device it keeps `@AppStorage("language")` (`ContentView.swift:87`), the standings in Caches
+  (`StandingsStore.swift:53`, purgeable, not backed up), and the gap register in Application Support with `.completeFileProtection`
+  and `isExcludedFromBackup` (`FrontDoor.swift:405-432`), capped at 200 entries of 200 characters (`FrontDoor.swift:340,342`). The
+  Xcode project has no package reference or third-party framework (`project.pbxproj`: no `XCRemoteSwiftPackageReference`); no
+  other store (`KeptAnswers` lives inside `StandingsStore`'s file). `PrivacyInfo.xcprivacy` agrees: no tracking, no collected data,
+  UserDefaults declared (CA92.1, the language). The engine's own log lines name no address (`main.py:320,730,794,838,1540`); no
+  `fly.toml` or script overrides the CMD, so `--no-access-log` reaches production.
+- **M3 (MINOR).** `src/app/adapter/main.py` (the `privacy` handler): no test asserts the page's `Content-Security-Policy` header; deleting it
+  leaves all 32 tests green. Add one assertion on the header in `test_privacy_page.py`. Not filed (the owner's rule).
+- **M4 (MINOR).** The "What the app sends" section omits a third request: `GET /v1/categories`, with no query
+  (`ContentView.swift:1188`, `EngineClient.swift:285`). It carries no personal data, so nothing is untrue about the promise, but the
+  sentence "the standings of every board, and for a question two ids" is not the complete list; add "the list of task categories".
+- **M5 (MINOR).** "counts each network address's requests for one minute ... and then forgets them": the count resets each minute,
+  but the key stays in the in-memory table until the table fills (`RATE_WINDOW_KEYS = 10_000`, `main.py:305-311`) or the process
+  restarts. Never written to a log or file, so the privacy claim holds; the word "forgets" is loose. Also, the policy's "no device
+  identifier" and "200 characters" have no test holding them (page text only).
+- **Suite.** `test_privacy_page.py`, `test_api_v1.py`, `test_engine_host.py`, `test_rate_limit.py`: 90 passed (coverage floor off for the subset);
+  `conformance/test-documented-skills.py`: PASS, 458 references, 0 dangling (the `.skill-refs-allow` entry works).
+
+### Re-verify 2026-11-08 (541d9ae..bd843fd)
+
+**Verdict: PASS** (M3, M4, M5 closed). Reviewed head `bd843fd1492568281290aa8650201be6fd8ff86d`. Same seat, fresh worktree and venv; no test added.
+
+- **Red -> green.** At `200a492`, `test_privacy_page.py`: 2 failed (`test_the_policy_lists_every_request_the_app_makes`, `test_the_policy_says_what_the_limiter_holds_and_for_how_long`), 4 passed. At `bd843fd` all green; with `test_api_v1.py`, `test_engine_host.py`, `test_rate_limit.py`: 93 passed.
+- **M3.** The CSP test passes at `200a492` by design (existing behaviour). Mutation: the CSP header removed from the handler -> 1 failed, 5 passed (RED); restored, md5 identical, `git status` clean.
+- **M4.** The page now names "the list of task kinds it ranks", which is the `/v1/categories` request (`EngineClient.swift:285`).
+- **M5.** "the count starts again every minute, and the address is dropped when the table fills or the engine restarts" matches `main.py:305-311` (stale windows are deleted at `RATE_WINDOW_KEYS`) and the in-memory-only table. True against the code. The diff `541d9ae..bd843fd` touches only the page text and the test file.
