@@ -1964,3 +1964,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The owner merged both bundles: #599 (nightly notice `9d89f61f`, D-243) and #600 (guard `b233e259`, #561 and #582). The #580 bundle had not updated INV-10's test, so the owner added the notice job to `WRITERS` in their own commit (`d8710b5`); `docs/security-invariants.md` INV-10 now says two writers are by design.
 - The same delta review covers the merged bundle bytes against the reviewed patches, `d8710b5`, INV-10's text and this retirement, so `make deploy-check` passes again before tonight's night.
 - Lesson: a bundle that adds a workflow writer must carry the invariant test's allowlist with it; the review read the patch, not the invariant it touched.
+
+## 2026-11-08 · enhancement/appstore-privacy — the App Store privacy policy at the engine's /privacy, no request log (D-248)
+
+- The App Store submission needs a privacy policy URL. The owner ruled it lives on the engine (`/privacy`, a sixth declared route, a static page with a no-script CSP), the image starts uvicorn with `--no-access-log` so "no log of who asked" holds, and v1 keeps word matching where the device has no Apple Intelligence.
+- Writing the page against the code, not memory, found a store the session's notes had missed: the app keeps the questions it could not answer on the device (REQ-GAP-001, 200 entries, file-protected, out of backups). The page and D-248's context name it; "Data Not Collected" still holds, since nothing leaves the device.
+- The Tester's delta found three wording-level gaps (an unnamed `/v1/categories` request, a limiter that "forgets" while its key stays until the table fills, an unheld CSP); worked red→green before the security delta, because a privacy policy is a claim to App Review and to readers.
+- The four unlicensed-source question went to the owner's own review and four permission emails; METR, the only board of `long-tasks`, stays until its reply (removing it removes the surface).
+- Lesson: a policy page is a test of the code's data flows; derive every sentence from a file:line, and the one store nobody remembered shows up.
