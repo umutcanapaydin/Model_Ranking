@@ -6870,9 +6870,10 @@ the row judged as lost; the entry expires by itself on 2026-12-06.
 *"keep word matching in v1 (recommended)"* *(translated)*, each the default offered; the access log goes with the
 first, since the policy says the engine keeps no log of who asked.
 
-**Context.** App Store Connect asks every app for a privacy policy URL. The app collects nothing: it keeps one setting
-on the device (`language`), sends the engine two ids per question (`task`, `budget`) and never the question (D-160), and
-its privacy manifest declares no tracking and no data collected. The repository has no web page of its own, and the
+**Context.** App Store Connect asks every app for a privacy policy URL. The app collects nothing: it keeps on the device its
+language setting, a cache of the public standings and the register of questions it could not answer (REQ-GAP-001,
+file-protected, out of backups, cleared by the reader), sends the engine two ids per question (`task`, `budget`) and
+never the question (D-160), and its privacy manifest declares no tracking and no data collected. The repository has no web page of its own, and the
 hosted engine on Fly.io is the one address it already runs (D-222). uvicorn's access log, on by default, wrote every
 request line to the service log with the client's address; the rate limiter keeps a client's address in memory for at
 most a minute and logs none (the W5 review's M4). Golden Rule 2 says a device without Apple Intelligence gets another
@@ -6880,7 +6881,7 @@ LLM, and word matching is a fallback; the app has no second LLM yet.
 
 **Decision.**
 1. **The engine serves its privacy policy at `/privacy`**, one static English HTML page in the engine's code: what the
-   app keeps (one setting, on the device), what a question sends (`task` and `budget` ids, never the words), what the
+   app keeps on the device (the setting, the standings cache, the unanswered questions), what a question sends (`task` and `budget` ids, never the words), what the
    engine keeps (no account, no tracking, no analytics, no request log; the rate limiter's one-minute count), who hosts
    it (Fly.io), and where to ask (the repository's GitHub issues). It is the URL App Store Connect is given.
 2. **The image starts uvicorn with `--no-access-log`**, so the policy's "no request log" holds for the engine's own

@@ -43,7 +43,7 @@ from typing import Any
 import anyio.to_thread
 from fastapi import FastAPI, Query
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.adapter import nightly
 from app.workflows.categories import CATEGORIES, CategorySpec
@@ -132,6 +132,9 @@ DECLARED_ROUTES: frozenset[str] = frozenset(
         # FIFTH, at M17-W4 under D-167: every board's standings as positions, which the phone
         # fetches whatever the question is and keeps, to combine on the device (D-160, #61).
         f"/{API_VERSION}/boards",
+        # SIXTH, for the App Store submission under D-248: the privacy policy App Store Connect links,
+        # a static page beside the code whose behaviour it describes.
+        "/privacy",
     }
 )
 
@@ -1412,6 +1415,76 @@ def health() -> dict[str, str]:
     schedule = _NIGHTLY.get("schedule")
     body.update(schedule.report() if schedule is not None else {"refresh": "off"})
     return body
+
+
+#: D-248: the privacy policy App Store Connect is given. Static, English, and held claim by claim by
+#: `tests/unit/test_privacy_page.py`: change what the app sends or what the engine keeps, and this changes too.
+PRIVACY_POLICY = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model Ranking: Privacy Policy</title>
+<style>
+body { font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 42rem;
+       margin: 0 auto; padding: 1.5rem 1rem 3rem; color: #1d1d1f; background: #fff; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.15rem; margin-top: 1.8rem; }
+a { color: #0066cc; } code { font-size: 0.95em; }
+@media (prefers-color-scheme: dark) { body { color: #f5f5f7; background: #000; } a { color: #2997ff; } }
+</style>
+</head>
+<body>
+<h1>Privacy Policy</h1>
+<p>Model Ranking is a free iOS app that helps you choose an AI model for a task from published benchmark results.
+It has no account, no ads, no tracking and no analytics. This page says what it does with data.
+Last updated: 8 November 2026.</p>
+
+<h2>Your question never leaves your device</h2>
+<p>You type a question; the app reads it on your iPhone, with Apple Intelligence where your device has it and by
+matching words where it does not. The words you type are never sent anywhere.</p>
+
+<h2>What the app sends</h2>
+<p>To show a list, the app asks the Model Ranking engine for public benchmark data: the standings of every board,
+and for a question, two ids naming the kind of task (<code>task</code>, for example <code>coding</code>) and a price
+range (<code>budget</code>, for example <code>low</code>). Nothing else is sent: no account, no device identifier, no
+location, no contacts, and not your question.</p>
+
+<h2>What the app keeps on your device</h2>
+<ul>
+<li>The language you chose for the app.</li>
+<li>A copy of the public standings, so the app works between updates. Your device may clear it at any time.</li>
+<li>The questions the app could not answer (at most 200, each cut to 200 characters), so you can see what it does
+not cover yet. They are kept only on this device, encrypted while it is locked and left out of backups. You can
+clear them in the app at any time.</li>
+</ul>
+<p>All of it is removed when you delete the app.</p>
+
+<h2>What the engine keeps</h2>
+<p>The engine keeps no log of who asked what. To stop one client from flooding it, it counts each network address's
+requests for one minute, in memory only, and then forgets them. It writes no address to any log or file.</p>
+
+<h2>Hosting</h2>
+<p>The engine runs on Fly.io, which carries its network traffic and may keep its own operational records under
+<a href="https://fly.io/legal/privacy-policy">Fly.io's privacy policy</a>.</p>
+
+<h2>Children</h2>
+<p>The app collects no personal data from anyone, children included.</p>
+
+<h2>Changes and contact</h2>
+<p>If this changes, this page changes first. Questions:
+<a href="https://github.com/umutcanapaydin/Model_Ranking/issues">github.com/umutcanapaydin/Model_Ranking/issues</a>.</p>
+</body>
+</html>
+"""
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy() -> HTMLResponse:
+    """D-248: the privacy policy, a fixed page; it reads no database and no request."""
+    response = HTMLResponse(PRIVACY_POLICY)
+    # The page runs no script and loads nothing but its own inline style.
+    response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"
+    return response
 
 
 def _artifact_facts() -> tuple[dict[str, int | None], dict[str, float | None]]:

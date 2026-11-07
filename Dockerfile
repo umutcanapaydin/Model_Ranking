@@ -56,7 +56,9 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import os,sys,urllib.request as u; h=(os.environ.get('MODEL_RANKING_ALLOWED_HOSTS') or '127.0.0.1').split(',')[0].strip(); sys.exit(0 if u.urlopen(u.Request('http://127.0.0.1:8080/health', headers={'Host': h})).status==200 else 1)"
 
-CMD ["uvicorn", "app.adapter.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# D-248: no access log. uvicorn's default wrote every request line with the client's address, and the
+# privacy policy at /privacy says the engine keeps no log of who asked.
+CMD ["uvicorn", "app.adapter.main:app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]
 
 # M19-W5: the hosted engine, the stage `fly.toml` builds. It carries the public artifact, which
 # `scripts/deploy_hosted_engine.sh` builds on the owner's Mac (ingestion never runs here, D-116), so a

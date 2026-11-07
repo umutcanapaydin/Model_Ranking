@@ -70,3 +70,4 @@ filter	Hugging Face datasets-server endpoint, quoted in docs/fixpack-1.md
 app	a container filesystem path (/app) in the M7 security review's path-traversal probes
 data	a container filesystem path (/data) in the M7 security review
 nonexistent	a deliberately absent path in the M11 security review's negative test
+privacy	the engine's privacy-policy route (D-248), the URL App Store Connect is given

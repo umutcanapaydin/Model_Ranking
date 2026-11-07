@@ -1,8 +1,8 @@
 """App Store submission (D-248): the privacy policy App Store Connect asks for, at the hosted engine's own `/privacy`, and
 an engine whose request log names no client.
 
-The app sends the engine two ids per question (`task`, `budget`), never the question (D-160), and keeps one setting
-on the device. The policy says so, names the hosting provider, and gives a contact. uvicorn's access log wrote every
+The app sends the engine two ids per question (`task`, `budget`), never the question (D-160), and keeps on the device
+its language, a standings cache and the questions it could not answer (REQ-GAP-001). The policy says so, names the hosting provider, and gives a contact. uvicorn's access log wrote every
 request line with a client address, so the image starts it with `--no-access-log`, and the policy's "keeps no log of
 who asked" is true.
 # covers D-248
@@ -33,6 +33,7 @@ def test_the_engine_serves_its_privacy_policy() -> None:
 def test_the_policy_names_what_a_question_sends_and_nothing_more() -> None:
     text = TestClient(main.app).get("/privacy").text
     assert "task" in text and "budget" in text
+    assert "could not answer" in text and "clear them" in text  # the gap register is named, not hidden
     assert not re.search(r"\b(analytics|advertis\w*|third-party SDK)\b", text.replace("no analytics", "")), text
 
 

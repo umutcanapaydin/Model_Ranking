@@ -538,7 +538,8 @@ def test_the_shipped_surface_is_exactly_the_declared_surface(client: TestClient)
     # adding a route costs two edits instead of one.
     # FIVE since M17-W4 (D-167): `/v1/boards`, every board's standings as positions, fetched by the
     # phone whatever the question is (D-160).
-    expected = {"/health", "/v1/categories", "/v1/recommendations", "/v1/budgets", "/v1/boards"}
+    # SIX since D-248: `/privacy`, the static privacy policy App Store Connect links.
+    expected = {"/health", "/v1/categories", "/v1/recommendations", "/v1/budgets", "/v1/boards", "/privacy"}
     shipped = {path for path, _ in _all_routes(adapter.app)}
     assert (
         shipped == expected
