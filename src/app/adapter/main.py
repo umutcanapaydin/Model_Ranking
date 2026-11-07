@@ -1444,10 +1444,10 @@ Last updated: 8 November 2026.</p>
 matching words where it does not. The words you type are never sent anywhere.</p>
 
 <h2>What the app sends</h2>
-<p>To show a list, the app asks the Model Ranking engine for public benchmark data: the standings of every board,
-and for a question, two ids naming the kind of task (<code>task</code>, for example <code>coding</code>) and a price
-range (<code>budget</code>, for example <code>low</code>). Nothing else is sent: no account, no device identifier, no
-location, no contacts, and not your question.</p>
+<p>To show a list, the app asks the Model Ranking engine for public benchmark data: the list of task kinds it ranks,
+the standings of every board, and for a question, two ids naming the kind of task (<code>task</code>, for example
+<code>coding</code>) and a price range (<code>budget</code>, for example <code>low</code>). Nothing else is sent: no
+account, no device identifier, no location, no contacts, and not your question.</p>
 
 <h2>What the app keeps on your device</h2>
 <ul>
@@ -1461,7 +1461,8 @@ clear them in the app at any time.</li>
 
 <h2>What the engine keeps</h2>
 <p>The engine keeps no log of who asked what. To stop one client from flooding it, it counts each network address's
-requests for one minute, in memory only, and then forgets them. It writes no address to any log or file.</p>
+requests per minute, in memory only; the count starts again every minute, and the address is dropped when the table
+fills or the engine restarts. It writes no address to any log or file.</p>
 
 <h2>Hosting</h2>
 <p>The engine runs on Fly.io, which carries its network traffic and may keep its own operational records under
