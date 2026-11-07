@@ -1,0 +1,42 @@
+"""App Store submission (D-248): the privacy policy App Store Connect asks for, at the hosted engine's own `/privacy`, and
+an engine whose request log names no client.
+
+The app sends the engine two ids per question (`task`, `budget`), never the question (D-160), and keeps one setting
+on the device. The policy says so, names the hosting provider, and gives a contact. uvicorn's access log wrote every
+request line with a client address, so the image starts it with `--no-access-log`, and the policy's "keeps no log of
+who asked" is true.
+# covers D-248
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from app.adapter import main
+
+REPO = Path(__file__).resolve().parents[2]
+
+
+def test_the_engine_serves_its_privacy_policy() -> None:
+    answer = TestClient(main.app).get("/privacy")
+    assert answer.status_code == 200, answer.text
+    assert answer.headers["content-type"].startswith("text/html")
+    text = answer.text
+    for claim in ("Privacy Policy", "Model Ranking", "never leaves your device", "no account",
+                  "no tracking", "Apple Intelligence", "Fly.io", "github.com/umutcanapaydin/Model_Ranking/issues"):
+        assert claim in text, claim
+
+
+def test_the_policy_names_what_a_question_sends_and_nothing_more() -> None:
+    text = TestClient(main.app).get("/privacy").text
+    assert "task" in text and "budget" in text
+    assert not re.search(r"\b(analytics|advertis\w*|third-party SDK)\b", text.replace("no analytics", "")), text
+
+
+def test_the_engine_image_keeps_no_request_log() -> None:
+    """The policy's 'no log of who asked': uvicorn's access log is off in the image every stage inherits."""
+    commands = re.findall(r"^CMD \[(.*)\]$", (REPO / "Dockerfile").read_text(encoding="utf-8"), re.M)
+    assert commands and all('"--no-access-log"' in c for c in commands if '"uvicorn"' in c), commands
