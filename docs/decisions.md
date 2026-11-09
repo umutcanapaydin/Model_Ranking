@@ -6863,3 +6863,38 @@ lose 14 of 48 rows", "text_to_video's board would lose 16 of 48 rows" (D-159). M
 the row judged as lost; the entry expires by itself on 2026-12-06.
 
 **Revisit when:** a night publishes the new names (retire the entry), or LMArena re-spells another board.
+
+## D-248 — The App Store submission: a privacy policy at the engine's `/privacy`, no request log, word matching kept
+
+**Owner ruling:** 2026-11-07, in chat, preparing the App Store submission: *"/privacy on the server (recommended)"* and
+*"keep word matching in v1 (recommended)"* *(translated)*, each the default offered; the access log goes with the
+first, since the policy says the engine keeps no log of who asked.
+
+**Context.** App Store Connect asks every app for a privacy policy URL. The app collects nothing: it keeps on the device its
+language setting, a cache of the public standings and the register of questions it could not answer (REQ-GAP-001,
+file-protected, out of backups, cleared by the reader), sends the engine two ids per question (`task`, `budget`) and
+never the question (D-160), and its privacy manifest declares no tracking and no data collected. The repository has no web page of its own, and the
+hosted engine on Fly.io is the one address it already runs (D-222). uvicorn's access log, on by default, wrote every
+request line to the service log with the client's address; the rate limiter keeps a client's address in memory for at
+most a minute and logs none (the W5 review's M4). Golden Rule 2 says a device without Apple Intelligence gets another
+LLM, and word matching is a fallback; the app has no second LLM yet.
+
+**Decision.**
+1. **The engine serves its privacy policy at `/privacy`**, one static English HTML page in the engine's code: what the
+   app keeps on the device (the setting, the standings cache, the unanswered questions), what a question sends (`task` and `budget` ids, never the words), what the
+   engine keeps (no account, no tracking, no analytics, no request log; the rate limiter's one-minute count), who hosts
+   it (Fly.io), and where to ask (the repository's GitHub issues). It is the URL App Store Connect is given.
+2. **The image starts uvicorn with `--no-access-log`**, so the policy's "no request log" holds for the engine's own
+   lines; Fly.io's edge is the host's, and the policy names it.
+3. **v1 keeps word matching** as the understanding on a device without Apple Intelligence; a second LLM for those
+   devices is a later version's work, and Golden Rule 2's "never the plan" stands for it.
+
+**Rationale.** The policy lives beside the code whose behaviour it describes, at an address that already serves, with a
+test holding each claim; no second site to keep in step. Adding an LLM provider before the first submission would add a
+data flow the policy would then have to describe, for devices the owner's testers do not use.
+
+**Mitigation if violated:** a policy that promises what the engine does not do is an App Review and a trust defect; the
+test `tests/unit/test_privacy_page.py` fails when the page loses a claim or the image logs requests again.
+
+**Revisit when:** the app sends anything beyond the two ids, a second LLM provider is added (the policy names it), or
+the engine moves off Fly.io.

@@ -125,7 +125,7 @@ so, and a required source fails the build.
 
 ### 2.3 The engine
 
-`src/app/adapter/main.py` is a FastAPI application run by uvicorn. It declares exactly five
+`src/app/adapter/main.py` is a FastAPI application run by uvicorn. It declares exactly six
 routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 
 | Route | What it serves | ADRs |
@@ -135,6 +135,7 @@ routes (`DECLARED_ROUTES`), all GET, and turns the docs and OpenAPI routes off.
 | `/v1/recommendations?task=&budget=` | One answer per surface: up to three picks, each with its model's id (`model_id`, D-182), with the facts the client words in its own language, and the full ranking in the engine's order, with source health and evidence dating. Each notice has its fact: `close_call_fact`, an empty answer's `unavailable_reason_code`, a source's `reason`. `task=coding` answers on both coding surfaces and neither leads (Ruling A) | D-115, D-125, D-136, D-176 |
 | `/v1/budgets` | The budget caps (`low` $2, `medium` $8 per 1M blended tokens, `unlimited`) and the blend weights | D-134 |
 | `/v1/boards` | Every board's standings as positions, never scores, and each model's name, vendor, blended price and accessibility. No parameters. Built once per artifact | D-167, D-173 |
+| `/privacy` | The privacy policy App Store Connect links: a fixed English HTML page, no script, read from no database | D-248 |
 
 - **The adapter computes nothing.** The numbers come from `app.workflows` (`recommend`, `rank`,
   `standings`). The adapter decides what is published through explicit allowlists
