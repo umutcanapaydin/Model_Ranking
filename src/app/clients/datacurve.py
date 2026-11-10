@@ -33,8 +33,9 @@ SITE_URL = "https://deepswe.datacurve.ai/"
 #: D-250 clause 3: the newest leaderboard the page loads, never a version older than the last read by hand.
 VERSION_FLOOR = (1, 1)
 _TIMEOUT_S = 60.0
-#: The leaderboard path the page loads, as its HTML names it.
-_LEADERBOARD_PATH = re.compile(r"/artifacts/v(\d+(?:\.\d+)*)/leaderboard-live\.json")
+#: The leaderboard path the page loads, as its HTML names it. Each part is at most six digits: a longer one is no
+#: real version, and past 4,300 digits `int` raises a `ValueError` the build does not catch (the security delta's M24).
+_LEADERBOARD_PATH = re.compile(r"/artifacts/v(\d{1,6}(?:\.\d{1,6}){0,3})/leaderboard-live\.json")
 #: The benchmark a leaderboard row must name.
 _LEADERBOARD_SOURCE = "deep-swe"
 #: D-216 clause 3: a row that states no effort ran at its model's default and stands at `agentic-coding`'s level.

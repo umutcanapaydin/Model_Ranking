@@ -39,8 +39,9 @@ RELEASE_FLOOR = "2026-10-14"
 #: The key of `categories.json` that weights the overall (D-250 clause 2), never a category.
 WEIGHTS_KEY = "_overall_weights"
 _TIMEOUT_S = 60.0
-#: The page's own script, as its HTML loads it (`./static/js/main.<hash>.js`).
-_SCRIPT = re.compile(r'<script[^>]*\ssrc="(?:\./|/)?(static/js/main\.[0-9a-f]+\.js)"')
+#: The page's own script, as its HTML loads it (`./static/js/main.<hash>.js`). No `<script[^>]*` prefix: that
+#: scan is quadratic in a page of many unclosed openings (the security delta's M23), and the path alone is unique.
+_SCRIPT = re.compile(r'\ssrc="(?:\./|/)?(static/js/main\.[0-9a-f]+\.js)"')
 #: The script's release list: an array of quoted eight-digit dates.
 _RELEASES = re.compile(r'\[\s*"\d{8}"(?:\s*,\s*"\d{8}")*\s*\]')
 
