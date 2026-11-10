@@ -2183,3 +2183,16 @@ Reviewed head (full): 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4
   a surviving surface, never to nothing or a crash). The router measurement (`make model-tier`) was not rerun for the removal either. Not filed.
 - **M7 (MINOR, LOW).** `tests/unit/test_categories.py:394-401` still tests `_window_problem("minutes", ...)` with a docstring about "the
   long-tasks numbers"; the function is generic, so the test stays valid, but it now cites a removed surface. Reword to a neutral absolute scale.
+
+### Re-verify 2026-11-10 (30c1aeb..7a1e6d0)
+
+**Verdict: PASS** (M6, M7 closed). Reviewed head `7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733`. Same seat, fresh worktree and venv; no test added.
+
+- **M6.** `swift test --filter RemovedSurfaceRoutingTests` at `7a1e6d0`: 3 tests, 0 failures. They hold clause 5: `long-tasks` keeps no hint or
+  example in either language (`RemovedSurfaceRoutingTests.swift:19-23`), `namedSurface` never names it (`:26-31`), and with `TieredRouter(model: nil)`
+  three long-job questions (two English, one Turkish) each reach a served surface (`:34-39`).
+- **Mutation.** A `"long-tasks"` hint re-added to `CategoryHints` in `Router.swift` -> `testLongTasksKeepsNoHintAndNoExamples` RED
+  (1 failed of 3, `XCTAssertNil failed`); file restored, md5 equal before and after, `git status` clean. (My first revert deleted the wrong line;
+  I restored the file from the committed blob and the md5 then matched. The worktree was throwaway.)
+- **Manifest.** 732 entries, none without a test source; the only source-side extra is the `OfflineObserver` helper, not a test.
+- **M7.** The docstring in `tests/unit/test_categories.py` now says "A minutes scale's numbers ... (its board left with D-249; the rule is generic)"; test body unchanged.
