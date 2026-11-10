@@ -198,3 +198,30 @@ def test_the_credits_and_citations_name_the_board_not_a_release() -> None:
         [credit] = rank.credits_for([citation])
         assert pinned not in citation and pinned not in str(credit["data"]), source
     assert not hasattr(board_tables, "LIVEBENCH_RELEASE_DATE")
+
+
+@pytest.mark.respx(assert_all_called=False)
+def test_a_hostile_page_fails_livebench_in_linear_time(respx_mock: respx.MockRouter) -> None:
+    """Clause 4 (security delta 2026-11-10b, M23): a page of many `<script` openings that load nothing fails the
+    source at once. A pattern quadratic in the page ran past the build's kill on a page of a few megabytes, which
+    loses the night for every source, not this one."""
+    import time
+
+    respx_mock.get(LB_SITE).mock(return_value=httpx.Response(200, text="<script " * 12_000))
+    started = time.monotonic()
+    with pytest.raises(SourceError):
+        LiveBenchClient().fetch_raw()
+    assert time.monotonic() - started < 2.0
+
+
+@pytest.mark.respx(assert_all_called=False)
+def test_a_version_past_any_real_length_fails_deepswe_not_the_night(respx_mock: respx.MockRouter) -> None:
+    """Clauses 3 and 4 (security delta 2026-11-10b, M24): a version of 5,000 digits is past Python's integer
+    conversion limit; it fails the source as `SourceError`, never a `ValueError` the build does not catch."""
+    page = '"/artifacts/v' + "9" * 5_000 + '/leaderboard-live.json"'
+    respx_mock.get(DC_SITE).mock(return_value=httpx.Response(200, text=page))
+    artifacts = respx_mock.get(url__startswith="https://deepswe.datacurve.ai/artifacts/").mock(
+        return_value=httpx.Response(200))
+    with pytest.raises(SourceError):
+        DatacurveClient().fetch_raw()
+    assert not artifacts.called
