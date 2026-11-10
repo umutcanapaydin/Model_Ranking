@@ -157,3 +157,4 @@ ios/EngineTests/Golden/golden-questions.json  # #289 (D-202 clause 2): the golde
 ios/EngineTests/UnsureLanguageTests.swift  # #273, #218: asserts how questions in other languages (Kurmanji, Albanian) and short Turkish ones are read, by their words, for the reason ReadingTests does
 ios/EngineTests/TaskBeforeGeneralWordsTests.swift # #295 (D-208): asserts Turkish questions by the verb clause before
                                   # their "yapay zeka"; the Turkish grammar is what the rule reads
+ios/EngineTests/RemovedSurfaceRoutingTests.swift  # D-249 clause 5: routes a Turkish long-job question by its words, for the reasons LanguageTests and ReadingTests do

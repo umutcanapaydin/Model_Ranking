@@ -391,8 +391,8 @@ def _window_problem(metric: str, window: float, floor: float, leader: float | No
 
 
 def test_the_window_rule_reads_each_scale_by_its_own_form() -> None:
-    """D-238 clause 5 (D-163 clause 2): the comparison's logic, on fixtures. The long-tasks numbers of the
-    #379 calibration pass; an absolute window that reaches below its floor fails, and so do the old rule's
+    """D-238 clause 5 (D-163 clause 2): the comparison's logic, on fixtures. A minutes scale's numbers from the
+    #379 calibration pass (its board left with D-249; the rule is generic); an absolute window that reaches below its floor fails, and so do the old rule's
     failures on a percentage or Elo scale."""
     assert _window_problem("minutes", 401.5, 223.7, 718.8) is None
     assert _window_problem("minutes", 401.5, 223.7, 600.0) is not None   # 198.5 is below the floor
