@@ -1980,3 +1980,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The live artifact the older release built holds METR's rows until a night publishes a new one, so removal is not only a code delete: `board_tables.REMOVED_SOURCES` names the source, the public copy drops its rows, and the refresh record forgets its last arrival so D-243's notice does not name it silent from the eighth night.
 - The local `advisor.db` held 26 METR rows the new code refused ("metric 'minutes' has no declared direction"); backed up to the session's scratchpad and the rows deleted, the same state the next built artifact has.
 - Lesson: removing a source is a data migration as well as a code delete; ask what the live artifact, the public copy and the run record still hold, and test each.
+
+## 2026-11-10 · enhancement/follow-releases — LiveBench and DeepSWE follow the release their site names each night (D-250)
+
+- The owner asked for every source to stay current. Three were pinned: LiveBench (2026-10-14), DeepSWE (`v1.1`) and ARC-AGI-2 (a committed derivation). Reading LiveBench's page script showed two newer releases already out (2026-10-25, 2026-11-06), so the app was two behind without anyone being told.
+- Each site names its current data on its own page, so the clients now read that page each night and take the newest release, never older than the last one read by hand; a page that names none fails the source and the refresh carries the last good rows (D-156, D-243).
+- The newer LiveBench releases weight the overall (`_overall_weights`), which the parser refused; it now computes the page's weighted mean, checked against the site's own release note (84.88 against "84.9"). The newest release ranks 33 models, against 49 in the pinned one.
+- ARC-AGI-2 stays pinned: its derivation reads about 4,300 files, and the weekly contract test already fails when its dataset moves.
+- Lesson: a pinned source goes stale without anyone being told; follow the release the publisher's own page names, and have the parser refuse an unknown format so the night is carried, not wrong.

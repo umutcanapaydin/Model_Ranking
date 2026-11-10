@@ -151,10 +151,23 @@ def test_deepswe_reads_the_leaderboard_its_page_loads(respx_mock: respx.MockRout
 
 @pytest.mark.respx(assert_all_called=False)
 def test_deepswe_takes_the_newest_version_its_page_names(respx_mock: respx.MockRouter) -> None:
-    """Clause 3: a page naming `v1.1` and `v1.10` reads `v1.10` (versions compare as numbers, not text)."""
+    """Clause 3: a page naming `v1.1` and `v1.10` reads `v1.10`, the newest (numeric order: the test below)."""
     page = _fixture("datacurve", "page.html") + '"/artifacts/v1.10/leaderboard-live.json"'
     respx_mock.get(DC_SITE).mock(return_value=httpx.Response(200, text=page))
     old = respx_mock.get(_leaderboard("v1.1")).mock(return_value=httpx.Response(200, text="{}"))
+    new = respx_mock.get(_leaderboard("v1.10")).mock(
+        return_value=httpx.Response(200, text=_fixture("datacurve", "leaderboard-live.json")))
+    DatacurveClient().fetch_raw()
+    assert new.called and not old.called
+
+
+@pytest.mark.respx(assert_all_called=False)
+def test_deepswe_compares_versions_as_numbers_v1_10_beats_v1_9(respx_mock: respx.MockRouter) -> None:
+    """Clause 3 (tester, 2026-11-10b): `v1.9` and `v1.10` -- text order puts `1.9` last, numeric order `1.10`."""
+    page = (_fixture("datacurve", "page.html")
+            + '"/artifacts/v1.9/leaderboard-live.json" "/artifacts/v1.10/leaderboard-live.json"')
+    respx_mock.get(DC_SITE).mock(return_value=httpx.Response(200, text=page))
+    old = respx_mock.get(_leaderboard("v1.9")).mock(return_value=httpx.Response(200, text="{}"))
     new = respx_mock.get(_leaderboard("v1.10")).mock(
         return_value=httpx.Response(200, text=_fixture("datacurve", "leaderboard-live.json")))
     DatacurveClient().fetch_raw()
