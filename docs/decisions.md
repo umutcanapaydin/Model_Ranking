@@ -4569,7 +4569,6 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | `text_to_video` | `arena_text_to_video` |
    | `image_to_video` | `arena_image_to_video` |
    | `video_edit` | `arena_video_edit` |
-   | `long-tasks` | `metr_time_horizons` |
 
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after
@@ -4631,6 +4630,8 @@ for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 
 **Amended by D-216 (2026-10-21)**: clause 1's table -- `agentic-coding`'s family is `datacurve_deepswe`, `terminalbench_4`, `arena_agent`: Datacurve's own DeepSWE board in place of Epoch's copy (#265).
 
 **Amended by D-219 (2026-10-22, proposed)**: clause 1's table -- `computer-use` adds `osworld_verified`, `everyday` adds `simplebench` and `livebench`, and `long-tasks` is METR's time-horizon board alone (#379).
+
+**Amended by D-249 (2026-11-10)**: clause 1's table -- `long-tasks` and its family are removed with METR, whose page reserves all rights.
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -6911,7 +6912,7 @@ the engine moves off Fly.io.
 2026-11-07 drew no answer; the 2026-11-08 ruling had been to wait for METR's reply and remove it before the submission
 if none came.
 
-**Amends** D-218 clause 2 and D-219 (its METR row) · supersedes nothing else.
+**Amends** D-188 clause 1's families table, D-218 clause 2 and D-219 (its METR row) · supersedes nothing else.
 
 **Context.** D-219 served METR's Time Horizon 1.1 file under D-215: no licence and no terms were published, and
 `metr.org/terms` answered 404. METR's page now reads "All rights reserved". D-215 admits attributed public numbers

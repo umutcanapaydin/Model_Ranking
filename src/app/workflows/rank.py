@@ -26,7 +26,6 @@ from app.workflows.board_tables import (
     EPOCH_EXTERNAL_ATTRIBUTION,
     LIVEBENCH_RELEASE_DATE,
     LIVEBENCH_SITE_URL,
-    METR_SITE_URL,
     OSWORLD_SITE_URL,
     RETIRED_EXTERNAL_ATTRIBUTION,
     SIMPLEBENCH_SITE_URL,
@@ -71,8 +70,6 @@ DATACURVE_ATTRIBUTION = f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE l
 #: #379 (D-219): OSWorld-Verified's workbook, under the CC BY-SA 4.0 licence its site states.
 OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard, {OSWORLD_SITE_URL} "
                        "(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/)")
-#: #379 (D-219): METR's time horizons. METR publishes no licence; its public numbers are used with this credit (D-215).
-METR_ATTRIBUTION = f"Time-horizon scores: METR's Time Horizon 1.1, {METR_SITE_URL}"
 #: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
 LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release {LIVEBENCH_RELEASE_DATE}), {LIVEBENCH_SITE_URL}"
 #: #379 (D-219): SimpleBench's leaderboard. No licence on its site; its public numbers are used with this credit.
@@ -86,7 +83,6 @@ ATTRIBUTIONS = (
     ARC_ATTRIBUTION,
     DATACURVE_ATTRIBUTION,
     OSWORLD_ATTRIBUTION,
-    METR_ATTRIBUTION,
     LIVEBENCH_ATTRIBUTION,
     SIMPLEBENCH_ATTRIBUTION,
     EPOCH_ATTRIBUTION,
@@ -128,7 +124,6 @@ SOURCE_ATTRIBUTION: dict[str, str] = {
     "arc_agi_2": ARC_ATTRIBUTION,
     "datacurve_deepswe": DATACURVE_ATTRIBUTION,
     "osworld_verified": OSWORLD_ATTRIBUTION,
-    "metr_time_horizons": METR_ATTRIBUTION,
     "livebench": LIVEBENCH_ATTRIBUTION,
     "simplebench": SIMPLEBENCH_ATTRIBUTION,
     "epoch_swe_bench_verified": EPOCH_ATTRIBUTION,
@@ -171,7 +166,6 @@ CREDITS_BY_ATTRIBUTION: dict[str, tuple[str, ...]] = {
     ARC_ATTRIBUTION: ("arc_prize", "arc_prize_solutions"),
     DATACURVE_ATTRIBUTION: ("datacurve_site",),
     OSWORLD_ATTRIBUTION: ("osworld",),
-    METR_ATTRIBUTION: ("metr",),
     LIVEBENCH_ATTRIBUTION: ("livebench",),
     SIMPLEBENCH_ATTRIBUTION: ("simplebench",),
     EPOCH_ATTRIBUTION: ("epoch",),

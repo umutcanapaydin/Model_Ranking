@@ -60,18 +60,6 @@ def test_real_osworld_verified_workbook_satisfies_parser_contract() -> None:
     assert all(0 <= r.score <= 100 and r.harness == "OSWorld (100 steps)" for r in rows)
 
 
-def test_real_metr_time_horizons_satisfy_parser_contract() -> None:
-    """REQ-SRC-013 acceptance (#379, D-219): METR's live Time Horizon 1.1 file, from METR's own host with no token,
-    parses whole, above the floor."""
-    from app.clients.metr import MetrClient, parse_metr
-    from app.workflows.sources import REMOTE_SOURCES
-
-    rows, skipped = parse_metr(MetrClient().fetch_raw())
-    floor = next(s for s in REMOTE_SOURCES if s.name == "metr_time_horizons").minimum_rows
-    assert len(rows) >= floor and skipped == 0, f"{len(rows)} rows, {skipped} skipped"
-    assert all(r.score >= 0 and r.metric == "minutes" for r in rows)
-
-
 def test_real_livebench_release_satisfies_parser_contract() -> None:
     """REQ-SRC-013 acceptance (#379, D-219): LiveBench's pinned release, live from its own host, parses above the
     floor. When LiveBench moves the release, this fails and the pin moves with a new calibration of the count."""

@@ -130,9 +130,8 @@ def test_arena_is_the_only_optional_source() -> None:
         # board fetched from Hugging Face with the owner's token, which CI's contract build never holds.
         "datacurve_deepswe",
         # #379 (D-219 clause 2): each board it serves is optional, ruled by its own ADR. None is a surface's only
-        # evidence but METR's, and a failed night is carried by the refresh (D-156).
+        # evidence, and a failed night is carried by the refresh (D-156).
         "osworld_verified",
-        "metr_time_horizons",
         "livebench",
         "simplebench",
     }, (
