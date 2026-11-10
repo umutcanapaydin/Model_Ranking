@@ -2149,3 +2149,37 @@ re-spelling board fails; file restored, `git status` clean. The cuts test is wea
 - **M3.** The CSP test passes at `200a492` by design (existing behaviour). Mutation: the CSP header removed from the handler -> 1 failed, 5 passed (RED); restored, md5 identical, `git status` clean.
 - **M4.** The page now names "the list of task kinds it ranks", which is the `/v1/categories` request (`EngineClient.swift:285`).
 - **M5.** "the count starts again every minute, and the address is dropped when the table fills or the engine restarts" matches `main.py:305-311` (stale windows are deleted at `RATE_WINDOW_KEYS`) and the in-memory-only table. True against the code. The diff `541d9ae..bd843fd` touches only the page text and the test file.
+
+## Delta 2026-11-10 (D-249, METR removed)
+
+**Range:** `bd843fd..32d7d70`. **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: MINOR**, 0 BLOCKING,
+2 MINOR (M6, M7 below; M1-M5 of earlier rounds keep their state). Reviewed head `32d7d70` (full sha below); no test added
+(own worktree at `32d7d70`, own venv from `requirements/dev.lock`, removed after).
+
+Reviewed head (full): 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4
+
+- **Red -> green.** `tests/unit/test_metr_removed.py` at `13a814d`: 8 failed; at `32d7d70`: 8 passed.
+- **Citing test per D-249 clause.** Clause 1 (not declared, no surface, no family, `/v1` 400 and omitted from `/v1/categories`):
+  `test_metr_removed.py:35-44,59-67`. Clause 2 (credit and attribution deleted, a surviving row refused): `:47-56`; the boot check
+  `standings_problem` on an artifact holding one METR row returns "unattributed evidence source 'metr_time_horizons'" (a clean refusal, fail
+  closed, no crash; probed with a throwaway script). Clause 3 (public copy drops the rows; `LEFT_OUT` stays empty): `:70-84`. Clause 4
+  (refresh record forgets the last arrival, no silent notice): `:87-99`. Clause 5 (long-job questions read as the nearest surface): **no test
+  holds it**, see M6. The app files carry no `long-tasks` string: `:102-104`.
+- **Fault injection** (each restored in place; md5 of `public.py` and `refresh.py` equal before and after, `git status` clean):
+  `REMOVED_SOURCES` dropped from the `derive` source set in `public.py` -> `test_the_public_copy_drops_every_row_of_a_removed_source` RED
+  (1 failed, 7 passed); `_forget_removed(...)` call in `refresh.py` replaced by `pass` ->
+  `test_the_refresh_record_forgets_a_removed_sources_last_arrival` RED (1 failed, 7 passed).
+- **Deleted tests are not weakened.** The deleted `test_metr.py`, `LongTasksRoutingTests.swift` (5 tests, also removed from the manifest) and the
+  METR fixture test the removed source and surface only; the manifest (729 entries) matches the test sources one to one.
+- **Suite.** test_metr_removed, categories, families, credits (+cover_citations), sources, public_artifact, refresh*, api_v1, nightly_hosted,
+  calibrate_surface, category_titles and `tests/integration`: 398 passed, 30 skipped, 0 failed. (A first run showed 13 `test_nightly_hosted`
+  failures: `No module named 'app'` in the script's child process because the fresh venv lacked the editable install; after
+  `pip install -e .` all 67 pass. Environment, not code.) `make swift-test-parallel` did not finish in my seat (shared machine, cold build); not
+  claimed. The Swift side is checked by the manifest comparison above and by grep: no `long-tasks`, `LongTasks` or `minutes` unit remains in `ios/`.
+- **Leftovers grep** (`metr`, `long-tasks`, `LongTasks`, `minutes`, `time horizon`): only ADRs, process log, research and review history,
+  README/architecture/prd removal notes, and the two items below.
+- **M6 (MINOR).** D-249 clause 5 (a question about a long unattended job reads as the nearest surface) has no test: the deleted Swift routing
+  tests were the only ones touching it and nothing replaces them (e.g. a router test that "run it overnight on a twelve hour job" resolves to
+  a surviving surface, never to nothing or a crash). The router measurement (`make model-tier`) was not rerun for the removal either. Not filed.
+- **M7 (MINOR, LOW).** `tests/unit/test_categories.py:394-401` still tests `_window_problem("minutes", ...)` with a docstring about "the
+  long-tasks numbers"; the function is generic, so the test stays valid, but it now cites a removed surface. Reword to a neutral absolute scale.
