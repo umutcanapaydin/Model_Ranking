@@ -80,10 +80,9 @@ CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
 REMOVED_SOURCES: dict[str, str] = {
     "metr_time_horizons": "METR's page reserves all rights and its permission email drew no answer (D-249)",
 }
-#: #379 (D-219): LiveBench's site, and the release `everyday` reads, pinned and named once: the client builds its
-#: addresses from it, and the credit and the citation name it.
+#: #379 (D-219): LiveBench's site. D-250: the client reads the newest release the site serves, so the credit and the
+#: citation name the board, and each row's date names its release.
 LIVEBENCH_SITE_URL = "https://livebench.ai/"
-LIVEBENCH_RELEASE_DATE = "2026-10-14"
 #: #379 (D-219): SimpleBench's site, whose leaderboard file `everyday` reads.
 SIMPLEBENCH_SITE_URL = "https://simple-bench.com/"
 #: How a publisher that states no licence is credited (D-215).
@@ -155,13 +154,13 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            "https://github.com/arcprize/ARC-AGI-2/blob/main/LICENSE", "Copyright 2019 ARC Prize Foundation."),
     # D-216 (#265): Datacurve's own leaderboard, in place of Epoch's copy of it. It publishes no licence; its
     # numbers are used with this credit under D-215.
-    Credit("datacurve_site", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard (v1.1), as its site publishes it",
+    Credit("datacurve_site", "Datacurve", "\u00a9 Datacurve. DeepSWE leaderboard, as its site publishes it",
            DATACURVE_SITE_URL, "\u00a9 Datacurve; no licence published. Public numbers, used with attribution (D-215)",
            None),
     # #379 (D-219 clauses 1 and 4): the site states CC BY-SA 4.0, and the workbook is served from it.
     Credit("osworld", "XLANG Lab (OSWorld)", "OSWorld-Verified leaderboard: the general models' runs at 100 steps",
            OSWORLD_SITE_URL, "CC BY-SA 4.0", CC_BY_SA_4_URL),
-    Credit("livebench", "LiveBench (Abacus.AI and its co-authors)", f"LiveBench 2.0, release {LIVEBENCH_RELEASE_DATE}",
+    Credit("livebench", "LiveBench (Abacus.AI and its co-authors)", "LiveBench 2.0, the newest release its site serves",
            LIVEBENCH_SITE_URL, NO_LICENCE_D215, None),
     Credit("simplebench", "SimpleBench Team", "SimpleBench leaderboard: each model's AVG@5 score", SIMPLEBENCH_SITE_URL,
            NO_LICENCE_D215, None),

@@ -29,6 +29,11 @@ def _dc():  # imported lazily, so this file collects before the module exists
     return importlib.import_module("app.clients.datacurve")
 
 
+def _page() -> str:
+    """Datacurve's page as recorded 2026-11-10: it loads the `v1.1` leaderboard (D-250 clause 3)."""
+    return (FIXTURES / "page.html").read_text(encoding="utf-8")
+
+
 def _live(board: object | None = None) -> str:
     text = (FIXTURES / "leaderboard-live.json").read_text(encoding="utf-8")
     return text if board is None else json.dumps(board)
@@ -95,13 +100,15 @@ def test_the_client_reads_the_leaderboard_with_no_token_from_its_own_host(
     """covers REQ-SRC-012 (D-216 clauses 1 and 5): one public file, no `Authorization` header even with a token in the
     environment, and the Hugging Face dataset is never asked."""
     monkeypatch.setenv("HF_TOKEN", "stand-in-token-for-tests")
+    page = respx_mock.get(SITE).mock(return_value=httpx.Response(200, text=_page()))
     site = respx_mock.get(LIVE).mock(return_value=httpx.Response(200, text=_live()))
     hub = respx_mock.get(HUB_JOBS).mock(return_value=httpx.Response(200, json=[]))
     client = _dc().DatacurveClient()
-    assert (client.name, client.url, tuple(client.hosts)) == ("datacurve_deepswe", LIVE, ("deepswe.datacurve.ai",))
+    assert (client.name, client.url, tuple(client.hosts)) == ("datacurve_deepswe", SITE, ("deepswe.datacurve.ai",))
     rows, skipped = _parse(client.fetch_raw())
     assert (len(rows), skipped) == (70, 0)
     assert site.call_count == 1 and "authorization" not in site.calls.last.request.headers
+    assert page.call_count == 1 and "authorization" not in page.calls.last.request.headers
     assert not hub.called
 
 
@@ -117,6 +124,7 @@ def test_a_site_that_fails_fails_the_source_and_nothing_else_is_asked(
     night's rows (`test_datacurve_move.py` holds that); no other host and no dataset is read."""
     from app.clients.protocols import SourceError
 
+    respx_mock.get(SITE).mock(return_value=httpx.Response(200, text=_page()))
     respx_mock.get(LIVE).mock(return_value=answer)
     elsewhere = respx_mock.get("https://elsewhere.example.net/leaderboard-live.json").mock(
         return_value=httpx.Response(200, text=_live()))

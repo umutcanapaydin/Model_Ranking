@@ -24,7 +24,6 @@ from app.workflows.board_tables import (
     DATACURVE_SITE_URL,
     EPOCH_ATTRIBUTION,
     EPOCH_EXTERNAL_ATTRIBUTION,
-    LIVEBENCH_RELEASE_DATE,
     LIVEBENCH_SITE_URL,
     OSWORLD_SITE_URL,
     RETIRED_EXTERNAL_ATTRIBUTION,
@@ -71,7 +70,7 @@ DATACURVE_ATTRIBUTION = f"DeepSWE scores \u00a9 Datacurve: Datacurve's DeepSWE l
 OSWORLD_ATTRIBUTION = (f"OSWorld-Verified scores: the OSWorld team's leaderboard, {OSWORLD_SITE_URL} "
                        "(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/)")
 #: #379 (D-219): LiveBench 2.0's release. No data licence published; its public numbers are used with this credit.
-LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (release {LIVEBENCH_RELEASE_DATE}), {LIVEBENCH_SITE_URL}"
+LIVEBENCH_ATTRIBUTION = f"LiveBench scores: LiveBench 2.0 (the newest release), {LIVEBENCH_SITE_URL}"
 #: #379 (D-219): SimpleBench's leaderboard. No licence on its site; its public numbers are used with this credit.
 SIMPLEBENCH_ATTRIBUTION = f"SimpleBench scores: the SimpleBench Team's leaderboard, {SIMPLEBENCH_SITE_URL}"
 ATTRIBUTIONS = (
