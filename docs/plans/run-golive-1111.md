@@ -3,7 +3,7 @@
 Mode: light
 Started: 2026-11-11
 Ended: open
-Integration branch: `integration/run-golive-1111` · PR: none
+Integration branch: `integration/run-golive-1111` · PR: #608
 Plan PR: #607
 Rulings: D-251, D-252
 Cost: n/a
@@ -18,8 +18,8 @@ Cost: n/a
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-605 | fix/issue-605-accept-growth | none | none | running |
-| issue-606 | release/v1.1.0 | none | none | queued |
+| issue-605 | fix/issue-605-accept-growth | #609 | none | stacked |
+| issue-606 | release/v1.1.0 | none | none | running |
 
 ## Stops
 
