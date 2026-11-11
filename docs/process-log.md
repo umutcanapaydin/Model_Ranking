@@ -1988,3 +1988,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The newer LiveBench releases weight the overall (`_overall_weights`), which the parser refused; it now computes the page's weighted mean, checked against the site's own release note (84.88 against "84.9"). The newest release ranks 33 models, against 49 in the pinned one.
 - ARC-AGI-2 stays pinned: its derivation reads about 4,300 files, and the weekly contract test already fails when its dataset moves.
 - Lesson: a pinned source goes stale without anyone being told; follow the release the publisher's own page names, and have the parser refuse an unknown format so the night is carried, not wrong.
+
+## 2026-11-11 · fix/issue-605-accept-growth — an addition the owner accepted, name by name, is not growth (D-251)
+
+- The hosted night of 2026-11-11 refused (run 42938869001). Terminal-Bench 4.0, `computer-use`'s own board, took 10 names the served artifact never held: a batch of submission files its publisher merged at once. Every night would refuse the same way, and D-249's METR removal could not deploy.
+- `data/accepted-cuts.yaml` could excuse a loss (D-220) or a re-spelling (D-228), never growth. It now has an `additions` list under a cut's terms (ADR, reason, `until:` at most 30 days out). A listed name's new rows leave the growth count on that board alone, and on a surface's own board its model leaves the ranked count too. A model is excused only when every name it has on the board is listed (#478), and rows the served board holds are never touched, so an addition cannot hide a loss.
+- The entry names the 10 raw names, measured against the served state of 2026-11-10 (run 42751550585's `hosted-state`), until 2026-11-25. The 11th new row is a second `glm-5.3-flash` submission (1 of 32), which the guard passes as ordinary growth.
+- Proof on real data: the real `python -m app.workflows.refresh --fetch-epoch` on a copy of that served state, with this code, published. 19 surfaces answer (`long-tasks` gone), Terminal-Bench 32 rows, every source fetched, and the largest board change was 1 of 12.
+- Lesson: a guard that says "published by hand" needs the hand's path written down before the first night it fires. Otherwise the refusal blocks every release behind it.

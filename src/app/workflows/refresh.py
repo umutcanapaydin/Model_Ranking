@@ -323,14 +323,16 @@ def parse_accepted_cuts(
 
 
 def _accepted_doc(raw: str) -> dict[str, list[object]]:
-    """The file: `cuts`, a list, and beside it, optionally, `respellings`, a list (D-228 clause 1)."""
+    """The file: `cuts`, a list, and beside it, optionally, `respellings` (D-228 clause 1) and `additions`
+    (D-251 clause 1), each a list."""
     try:
         doc = safe_load_bounded(raw, what="the accepted cuts (data/accepted-cuts.yaml)", unique_keys=True)
     except yaml.YAMLError as exc:
         raise AcceptedCutError(f"accepted cuts: unparseable YAML: {exc}") from exc
-    if (not isinstance(doc, dict) or set(doc) not in ({"cuts"}, {"cuts", "respellings"})
+    if (not isinstance(doc, dict) or "cuts" not in doc or not set(doc) <= {"cuts", "respellings", "additions"}
             or not all(isinstance(entries, list) for entries in doc.values())):
-        raise AcceptedCutError("accepted cuts: the file is `cuts`, a list, and optionally `respellings`, a list")
+        raise AcceptedCutError("accepted cuts: the file is `cuts`, a list, and optionally `respellings` and "
+                               "`additions`, each a list")
     return doc
 
 
@@ -483,6 +485,90 @@ def _moved_spellings(spellings: Spellings, ids: Mapping[str, str]) -> Spellings:
         target = ids.get(model, model)
         moved[target] = moved.get(target, frozenset()) | names
     return moved
+
+
+#: D-251 (#605): names the owner accepted as new on one board, under a cut's terms.
+_ADDITION_KEYS = {"board", "decision", "reason", "until", "names"}
+
+
+def parse_accepted_additions(
+    raw: str, *, today: dt.date | None = None, decisions: str | None = None
+) -> dict[str, frozenset[str]]:
+    """Each board's accepted additions: the raw names it may gain without the growth guards counting them
+    (D-251). A surface names its own board, a declared board its source. Anything that is not the schema
+    raises, as a cut does."""
+    doc = _accepted_doc(raw)
+    known = set(CATEGORIES) | {board.source for board in declared_boards.uncovered()}
+    accepted: dict[str, frozenset[str]] = {}
+    for entry in doc.get("additions", []):
+        if decisions is None:
+            decisions = _decision_log()
+        board, names = _checked_addition(entry, known, today or dt.datetime.now(tz=dt.UTC).date(), decisions)
+        if board in accepted:
+            raise AcceptedCutError(f"accepted cuts: {board!r}'s additions are named twice")
+        accepted[board] = names
+    return accepted
+
+
+def _checked_addition(entry: object, known: set[str], today: dt.date, decisions: str) -> tuple[str, frozenset[str]]:
+    """One addition, its every field checked: a non-empty list of distinct names, each with a letter or digit."""
+    if not isinstance(entry, dict) or set(entry) != _ADDITION_KEYS:
+        raise AcceptedCutError(f"accepted cuts: each addition has exactly {sorted(_ADDITION_KEYS)}")
+    board, decision, reason, until, names = (entry[key] for key in ("board", "decision", "reason", "until", "names"))
+    if not isinstance(board, str) or board not in known:
+        raise AcceptedCutError(f"accepted cuts: {board!r} is neither a surface nor a declared board")
+    _check_terms(board, decision, reason, until, today, decisions)
+    if (not isinstance(names, list) or not names or len(set(map(str, names))) != len(names)
+            or not all(isinstance(name, str) and spelling_key(name) for name in names)):
+        raise AcceptedCutError(f"accepted cuts: {board}'s names are not a list of distinct names, each with a "
+                               "letter or digit")
+    return board, frozenset(names)
+
+
+def load_accepted_additions(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozenset[str]]:
+    """The committed additions (D-251). A missing file accepts none; an unreadable one raises."""
+    if not path.exists():
+        return {}
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise AcceptedCutError(f"accepted cuts: {path} cannot be read: {exc}") from exc
+    return parse_accepted_additions(raw)
+
+
+def added(
+    candidate: ServingSummary, live: ServingSummary | None, accepted: Mapping[str, frozenset[str]]
+) -> ServingSummary:
+    """The candidate as the growth guards judge it under the additions the owner accepted (D-251 clause 1).
+
+    On each named board, a listed name's rows leave the count, and only where they are new: a linked row
+    whose model the served board does not hold and every one of whose names on the candidate board is
+    listed (#478: a name is accepted, a model is not), or an unlinked row whose key the served board does not
+    hold. On a surface's own board its model leaves the surface's ranked models too. A board the served
+    artifact does not hold is returning and passes already; it is left as it is. Rows the served board
+    holds are never touched, so an addition cannot excuse a loss. The digest is the candidate's: what is
+    published is unchanged. A first artifact has nothing to add to."""
+    if live is None:
+        return candidate
+    board, boards, models = dict(candidate.board), dict(candidate.boards), dict(candidate.models)
+    for name, names in sorted(accepted.items()):
+        for subject, rows_by, served_by, ranked in ((OWN_BOARD, board, live.board, models),
+                                                    (DECLARED_BOARD, boards, live.boards, None)):
+            served = served_by.get(name)
+            if name not in rows_by or not served:
+                continue
+            served_models = {row.model for row in served if isinstance(row, LinkedRow)}
+            served_keys = {row.key for row in served if isinstance(row, UnlinkedRow)}
+            keys = {spelling_key(raw) for raw in names} - served_keys
+            spellings = candidate.spellings.get(subject.format(name=name), {})
+            leaving = {model for model, raws in spellings.items()
+                       if model not in served_models and raws and raws <= names}
+            rows_by[name] = frozenset(
+                row for row in rows_by[name]
+                if not (row.model in leaving if isinstance(row, LinkedRow) else row.key in keys))
+            if ranked is not None and name in ranked:
+                ranked[name] = ranked[name] - (leaving - live.models.get(name, frozenset()))
+    return dataclasses.replace(candidate, board=board, boards=boards, models=models)
 
 
 #: D-223 clause 2 (#429): a cut is a short exception; renewing it past this takes a new ADR.
@@ -1853,6 +1939,8 @@ def _cycle(
             return record(outcome, EXIT_FAILED)
         # D-228 (#475): a re-spelling the owner accepted is judged as the rows it was. The digest stays.
         fresh = respelled(fresh, live, load_accepted_respellings())
+        # D-251 (#605): an addition the owner accepted, name by name, is not counted as growth. The digest stays.
+        fresh = added(fresh, live, load_accepted_additions())
 
         baseline = _served_without(target, set(expired)) if expired and live else live
         renamed = tuple(display_changes(live, fresh) + board_respellings(live, fresh)) if live is not None else ()
