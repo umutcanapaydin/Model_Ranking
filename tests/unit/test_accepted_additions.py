@@ -259,3 +259,67 @@ def test_a_malformed_additions_list_fails_the_night(tmp_path: Path, monkeypatch:
     _on_disk(tmp_path, monkeypatch, _both_boards().replace("D-251", "D-25"))
     with pytest.raises(refresh.AcceptedCutError):
         _night(tmp_path)
+
+
+
+# --- Release Tester, run golive-1111: the two shapes the first tests did not reach.
+
+def _arrive_ranked(count: int) -> Change:
+    """`count` models neither board had, PRICED so the surface ranks them (as the real night's Terminal-Bench
+    batch was: "10 of 31 models"), one row each on `coding`'s own board."""
+    def change(conn: sqlite3.Connection) -> None:
+        for i in range(count):
+            model = f"fresh-{i}"
+            conn.execute("INSERT OR IGNORE INTO models (id, display, vendor) VALUES (?, ?, 'Probe')",
+                         (model, f"Fresh {i}"))
+            conn.execute("INSERT OR IGNORE INTO px_median (model_id, in_m, out_m) VALUES (?, 2.0, 6.0)", (model,))
+            conn.execute(
+                "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+                " source_url, observed_at) VALUES (?, ?, 'swebench', 'SWE-bench Verified', '% resolved', 50,"
+                " 'none', 'unspecified', 'fixture://x', 't')", (model, f"Fresh {i}"))
+    return change
+
+
+def test_an_accepted_addition_leaves_the_surfaces_ranked_models_too(tmp_path: Path) -> None:
+    """The night of 2026-11-11 refused on "10 of 31 models" as well as on rows (#605). Naming the rows
+    alone must clear the models guard on the surface's own board, and without it that guard must fire."""
+    (tmp_path / "a").mkdir()
+    control = _judged(tmp_path / "a", _arrive_ranked(5), {})
+    assert any(r.startswith(f"{OWN} would be 5 of 17 models") for r in control), control
+    (tmp_path / "b").mkdir()
+    assert _judged(tmp_path / "b", _arrive_ranked(5), {OWN: _names(0, 1, 2, 3, 4)}) == []
+
+
+def _arrive_unlinked(count: int) -> Change:
+    """`count` rows on `SLICE`'s board that the reconcile linked to no model (`model_id` NULL)."""
+    def change(conn: sqlite3.Connection) -> None:
+        conn.executemany(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+            " source_url, observed_at) VALUES (NULL, ?, ?, ?, 'elo', 50, 'arena-crowd', 'unspecified',"
+            " 'fixture://x', 't')", [(f"Fresh {i}", SLICE.source, SLICE.benchmark) for i in range(count)])
+    return change
+
+
+def test_unlinked_rows_are_excused_by_their_listed_names_only(tmp_path: Path) -> None:
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    (tmp_path / "c").mkdir()
+    assert _judged(tmp_path / "a", _arrive_unlinked(5), {}) != []
+    assert _judged(tmp_path / "b", _arrive_unlinked(5), {SLICE.source: _names(0, 1, 2, 3, 4)}) == []
+    assert _judged(tmp_path / "c", _arrive_unlinked(8), {SLICE.source: _names(0, 1)}) != []
+
+
+def test_an_unlinked_row_the_served_board_holds_is_not_excused(tmp_path: Path) -> None:
+    """Served holds `Fresh 0..1` unlinked; the candidate adds 3 more, and `Fresh 0..1` are listed: listing a
+    key the served board holds excuses nothing, so the 3 genuinely new rows of 20 stay counted."""
+    (tmp_path / "a").mkdir()
+    base = _arrive_unlinked(2)
+
+    def more(conn: sqlite3.Connection) -> None:
+        conn.executemany(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+            " source_url, observed_at) VALUES (NULL, ?, ?, ?, 'elo', 50, 'arena-crowd', 'unspecified',"
+            " 'fixture://x', 't')", [(f"New {i}", SLICE.source, SLICE.benchmark) for i in range(5)])
+
+    reasons = _judged(tmp_path / "a", more, {SLICE.source: _names(0, 1)}, base=base)
+    assert any("5 of 19" in r for r in reasons), reasons
