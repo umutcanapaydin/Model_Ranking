@@ -61,8 +61,8 @@ def test_real_osworld_verified_workbook_satisfies_parser_contract() -> None:
 
 
 def test_real_livebench_release_satisfies_parser_contract() -> None:
-    """REQ-SRC-013 acceptance (#379, D-219): LiveBench's pinned release, live from its own host, parses above the
-    floor. When LiveBench moves the release, this fails and the pin moves with a new calibration of the count."""
+    """REQ-SRC-013 acceptance (#379, D-219, D-250): the newest release LiveBench's page names, live from its own
+    host, parses above the floor. A page or a release in a new format fails this within a week."""
     from app.clients.livebench import LiveBenchClient, parse_livebench
     from app.workflows.sources import REMOTE_SOURCES
 

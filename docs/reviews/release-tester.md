@@ -18,12 +18,12 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-10 (the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-10 (the delta 2026-11-10c `53b16b8..5df7fa9`, M23 and M24; the re-verify 2026-11-10b `bce930e..53b16b8`; the delta 2026-11-10b `7a1e6d0..bce930e`, D-250 releases followed; the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** the re-verify `30c1aeb..7a1e6d0` (`enhancement/remove-metr`: M6, M7); the delta `bd843fd..32d7d70` (D-249, METR removed); the release round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+**Commit range:** the delta `53b16b8..5df7fa9` (M23, M24 fixes); the re-verify `bce930e..53b16b8` (M8, M9); the delta `7a1e6d0..bce930e` (`enhancement/follow-releases`, D-250: LiveBench and DeepSWE follow their site's release); the re-verify `30c1aeb..7a1e6d0` (`enhancement/remove-metr`: M6, M7); the delta `bd843fd..32d7d70` (D-249, METR removed); the release round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
 (`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
 `7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
 (`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733 (the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** 5df7fa928a6d70260c7a94211a316214dc917cc2 (the delta 2026-11-10c, `53b16b8..5df7fa9`; before it 53b16b811196ea444e07193f797a56ea090062cd: the re-verify 2026-11-10b, `bce930e..53b16b8`; before it bce930e6dd68027bb85d562b8f71f9409f3cad5e: the delta 2026-11-10b, `7a1e6d0..bce930e`, D-250 releases followed; before it 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733: the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2196,3 +2196,104 @@ Reviewed head (full): 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4
   I restored the file from the committed blob and the md5 then matched. The worktree was throwaway.)
 - **Manifest.** 732 entries, none without a test source; the only source-side extra is the `OfflineObserver` helper, not a test.
 - **M7.** The docstring in `tests/unit/test_categories.py` now says "A minutes scale's numbers ... (its board left with D-249; the rule is generic)"; test body unchanged.
+
+## Delta 2026-11-10b (D-250, releases followed)
+
+**Range:** `7a1e6d0..bce930e` (code: `fe276e9` red test, `bce930e` feat; `32a58b0` the ADR). **Independent:** yes (`seat: independent`); I wrote none of
+the range. **Verdict: MINOR**, 0 BLOCKING, 3 MINOR (M8, M9, M10) and 1 LOW (M11). Reviewed head `bce930e6dd68027bb85d562b8f71f9409f3cad5e`.
+Own worktree at `bce930e`, own venv from `requirements/dev.lock` plus `pip install -e .` (Python 3.14.0 here; the project says 3.11+), removed after.
+
+Reviewed head (full): bce930e6dd68027bb85d562b8f71f9409f3cad5e
+
+I added one test (M9) to the main tree, **uncommitted**: `tests/unit/test_follow_releases.py`. Tests count as code for the deploy gate, so once the
+author commits it the head moves past `bce930e` and the gate wants a delta over that test-only commit.
+
+- **Red -> green.** `tests/unit/test_follow_releases.py` at `fe276e9`: 14 failed, 10 passed. At `bce930e`: 24 passed. With my M9 test: 25 passed.
+- **Citing test per D-250 clause.**
+  - Clause 1 (newest release, floor, rows dated by release): `test_follow_releases.py:54-66` (reads 2026-11-06, pinned file never fetched,
+    `run_date` 2026-11-06), `:69-80` (older than floor, none, not-a-date), `:132-139` (payload without a date).
+  - Clause 2 (weighted overall; any other weights shape fails): `:106-110` (82.0 by hand), `:113-120` (the recorded Long Agentic 2.0 / Coding 1.5 /
+    Design 1.5 release), `:123-129` (7 bad shapes).
+  - Clause 3 (DeepSWE reads the path the page names, newest, floor v1.1): `:143-149`, `:153-161`, and the floor at `:164-176` (shifted down by my M9 insert).
+  - Clause 4 (an unfindable release fails the source, no other host): `:69-80`, `:83-88` (no script), `:91-99` (redirect off host, other host not
+    called), `:164-176`.
+  - Clause 5 (credit and citation name no release): `:179-187`.
+  - Clause 6 (ARC-AGI-2 stays pinned): **no test cites D-250.** It is held by the older `tests/unit/test_arc_agi_2.py` (`REVISION` pinned, `:18`, `:56`) and the
+    weekly contract test `tests/integration/test_scores_contract.py:87-97`, which fails when the dataset's `sha` moves. The range does not touch the ARC client,
+    so I count it held; see M11.
+- **Fault injection** (script on the worktree; each change reverted by string replacement and the md5 of the file compared before and after, identical every time; `git status` clean):
+  - Floor dropped in LiveBench `newest_release` -> RED (`only-older-than-the-floor`; 1 failed, 70 passed).
+  - LiveBench `max` -> `min` -> RED (`test_livebench_reads_the_newest_release_its_page_names`; 1 failed).
+  - Weights ignored (weight 1 everywhere) -> RED (two weighted tests; 2 failed).
+  - Floor dropped in DeepSWE `newest_leaderboard` -> RED (`only-older-than-v1.1`; 1 failed).
+  - **DeepSWE versions compared as strings -> STAYED GREEN (71 passed).** The only two-version test pairs `v1.1` with `v1.10`, and as text `1.1` < `1.10` too,
+    so it passes for the wrong reason (its docstring claims it proves numeric order). That is **M9**. I wrote
+    `test_deepswe_compares_versions_as_numbers_v1_10_beats_v1_9` (`v1.9` and `v1.10`; text order picks `1.9`). With the string compare re-injected it is RED
+    (1 failed, 24 passed); clean 25 passed; md5 of `datacurve.py` equal before and after.
+- **Test integrity.** The edits to `test_livebench.py` and `test_datacurve.py` remove only assertions about the pinned release and the fixed URL, `TABLE_URL` and
+  `RELEASE_DATE` (superseded by D-250); no negative test is deleted or weakened.
+- **Contract tests** (`RUN_CONTRACT_TESTS=1 pytest tests/integration/test_scores_contract.py -k "livebench or datacurve"`): 2 passed, 6 deselected.
+- **Against the real sites (read 2026-11-10).**
+  - The page script `main.c61c63f5.js` lists `["20261014","20261025","20261106"]`; the client takes 2026-11-06. That release's `categories.json` carries
+    `_overall_weights` {Long Agentic 2.0, Coding 1.5, Design 1.5}. Our parse: 33 rows, 0 skipped, top `claude-fable-5.2` 84.88, `gpt-6-astra` 84.45.
+  - The page's own text says Fable 5.2 at xhigh scores "84.9" overall; ours is 84.88, which rounds to it. The page's code (`En`: weighted sum over the weight sum of the suites
+    with a score, then `toFixed(2)`) is the computation the parser reproduces. Ours is stricter in two places: the page ignores a bad weights entry where we fail the source (safe),
+    and the page ranks a model whose suite is blank ("still running ... contributes nothing to Overall") on the suites it has, where we skip the row (M10). Today no row is skipped.
+  - DeepSWE: the page names `/artifacts/v1.1/leaderboard-live.json` only; the client reads it.
+- **The drop in models and the nightly guard (M8).** Parsing the three releases on the site today gives 55 ranked rows (2026-10-14; I could not reproduce the 49 the code comments give),
+  32 (2026-10-25) and 33 (2026-11-06). Against the 2026-10-14 raw names, 23 of 55 (42%) are absent from 2026-11-06 and 1 is new. `degradations` -> `_mostly_lost`
+  (`refresh.py:213`, `MAX_SURFACE_LOSS = 0.25`, D-164 clause 2) refuses a declared board that loses 25% of its rows, and `data/accepted-cuts.yaml` holds `cuts: []`. By the code and
+  the live numbers (I did not run the guard on a built artifact) the first night is very likely **refused**, and a refused night freezes the whole artifact, not only LiveBench.
+  The `minimum_rows=24` floor (`sources.py:318-323`) is not the problem: it is 73% of today's 33 and 75% of the 32 of 2026-10-25, so it still catches a truncated file. But the
+  board has moved 55 -> 32 -> 33 in four weeks, so "half the recorded board" is a poor proxy for it.
+- **Suite.** test_follow_releases 25 passed (with M9), test_livebench 26, test_datacurve 21, test_datacurve_move 7, test_credits 40, test_credits_cover_citations 2,
+  test_sources 12, test_categories 18 passed 1 skipped, test_api_v1 29: 0 failed.
+
+- **M8 (MINOR, affects the first night).** D-250 does not say what the first night does to the D-164 guard. By the numbers above LiveBench's board loses about 42% of its rows the night
+  the client first reads 2026-11-06, over the 25% limit, so the refresh will most likely refuse the publish (and every night after, while the old rows are the baseline) until the owner
+  either names the 23 lost raw names in `data/accepted-cuts.yaml` (D-220 clause 3; a change to that file goes to a security review, `scripts/review_need.py` EXCEPTION_FILES) or publishes by
+  hand as the guard's text says. Decide before the nightly runs: a cut entry (with `until:`) on this branch, or an owner-actions row. A later release may shrink the board again.
+- **M9 (MINOR, fixed in the working tree).** The DeepSWE version-compare test did not tell numeric from text order (above). The new test is uncommitted; the author commits it.
+- **M10 (MINOR, LOW).** The parser skips a row with any blank category cell (`livebench.py:190-195`), while the page ranks it on the categories it has. Today `skipped` is 0, so no
+  effect; when a release is mid-run, a model the site ranks will be absent from us. D-250 clause 2 says "as the page computes it" and is silent on blanks: say so in the ADR or test the skip.
+- **M11 (LOW).** Clause 6 has no test citing D-250 (held by `test_arc_agi_2.py` and the contract test; fine). The `minimum_rows=24` comment in `sources.py:317` says "49 models" for a
+  release that has 55 rows on the site; reword once M8 is settled.
+
+### Re-verify 2026-11-10b (bce930e..53b16b8)
+
+**Verdict: MINOR** (0 BLOCKING; M8 withdrawn, M9 closed; M10 and M11 stand, LOW). Reviewed head `53b16b811196ea444e07193f797a56ea090062cd`. Same seat; fresh worktree at
+`53b16b8` with its own venv, removed after. `git diff bce930e 53b16b8` touches only `tests/unit/test_follow_releases.py`, `docs/reviews/release-tester.md` and `docs/process-log.md`: no source file.
+
+- **M8 refuted; I withdraw it.** `app.workflows.boards.declared()` (`boards.py:27-31`) returns only `ARENA_SLICES` and `EPOCH_BOARDS`, and `serving_summary` (`refresh.py:901`) guards two
+  things: each surface's own board (its primary) and the declared boards no surface ranks on. LiveBench is neither; it is a family board of `everyday` (`families.py:26`). My first-round reading
+  took the D-164 guard to cover every source. I reproduced the coordinator's check on a copy of the local `advisor.db` (scratchpad `a.db`, 55 livebench rows at 2026-10-14; the main tree's file not touched): a second copy
+  had its livebench rows replaced by the live 2026-11-06 parse through `ingest_livebench` (33 rows, 0 skipped). `degradations(a, b, {})` returned `[]`, `upward_anomalies(a, b, a)` returned `[]`; no key with "livebench"
+  in `board` or `boards`. The first night is not refused for this reason. The `minimum_rows=24` floor stays right as assessed.
+- **Side observation, agreed.** The two summaries' digests were equal: a LiveBench-only change does not alter the digest, so it does not publish by itself; the new rows ride out with the next night in which a
+  guarded board, a surface or a price moves. That holds for every family board and predates this range. **M12 (LOW, not filed):** worth a line in D-250 or the architecture notes, since "follow the newest release
+  each night" reads as "published each night"; if the owner wants LiveBench alone to publish, hash the family boards' rows in `serving_summary`.
+- **M9 closed.** At `53b16b8` `test_deepswe_compares_versions_as_numbers_v1_10_beats_v1_9` is green clean (`test_follow_releases.py` 25 passed; with test_livebench and test_datacurve 72 passed). With the DeepSWE
+  `max(usable)` replaced by a string-keyed max it is RED (1 failed, 24 passed); reverted in place, md5 of `datacurve.py` `4e276a63b3e63041cc8b3b942c92c8f1` before and after, `git status` clean. The coordinator's two edits
+  (a line wrapped under 120 characters, a docstring sentence no longer claiming numeric order for `v1.1`/`v1.10`) change no assertion.
+- **Still standing (LOW):** M10 (blank cells skip a row, `livebench.py:190-195`), M11 (clause 6 has no D-250 citing test; the `sources.py:317` comment says 49 models for a release with 55 rows).
+
+## Delta 2026-11-10c (M23, M24 fixes)
+
+**Range:** `53b16b8..5df7fa9` (code: `c70806a` red tests, `5df7fa9` fix). **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: PASS**, 0 BLOCKING, 0 new findings.
+Reviewed head `5df7fa928a6d70260c7a94211a316214dc917cc2`. Fresh worktree at `5df7fa9` with its own venv, removed after. The source diff is two lines of regex
+(`src/app/clients/livebench.py:42-44`, `src/app/clients/datacurve.py:36-38`); no test added by me.
+
+Reviewed head (full): 5df7fa928a6d70260c7a94211a316214dc917cc2
+
+- **Red -> green.** At `c70806a`, `test_follow_releases.py`, `test_livebench.py` and `test_datacurve.py` together: 2 failed (`test_a_hostile_page_fails_livebench_in_linear_time`,
+  `test_a_version_past_any_real_length_fails_deepswe_not_the_night`), 72 passed. At `5df7fa9`: 74 passed (`test_follow_releases.py` alone: 27 passed).
+- **Fault injection** (each fix reverted by string replacement in the worktree, suite run, put back; md5 equal before and after, `git status` clean):
+  - M23: the `<script[^>]*` prefix put back on `_SCRIPT` -> only `test_a_hostile_page_fails_livebench_in_linear_time` RED (1 failed, 73 passed).
+  - M24: `\d{1,6}(?:\.\d{1,6}){0,3}` put back to `\d+(?:\.\d+)*` -> only `test_a_version_past_any_real_length_fails_deepswe_not_the_night` RED (1 failed, 73 passed).
+  - (My first script run overwrote the two files by a read after truncating; I restored both from the `5df7fa9` blob in the throwaway worktree, checked the md5s against the
+    committed ones, then re-ran the injections with a fixed script. The main tree was not involved.)
+- **Contract tests against the live pages:** `RUN_CONTRACT_TESTS=1 pytest tests/integration/test_scores_contract.py -k "livebench or datacurve"`: 2 passed, 6 deselected. The tightened patterns
+  still read the real LiveBench script path and DeepSWE's `v1.1`.
+- **R26 (the security seat's LOW).** The M23 test asserts under 2 s; the fixed code takes well under 0.1 s on this machine (the whole file runs in 0.25 s), and the old pattern is the failing case, so the margin
+  is wide on the passing side. Not a test-completeness finding.
+- **Still standing from the earlier rounds (LOW):** M10, M11, M12.

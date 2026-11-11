@@ -1,7 +1,9 @@
 """DeepSWE from Datacurve's own leaderboard: client + parser (REQ-SRC-012, D-216).
 
 It replaces Epoch's copy of the board (`epoch_deepswe_external`), which publishes no licence (#265). Datacurve's site
-loads its leaderboard as one JSON file (`LEADERBOARD_URL`, DeepSWE v1.1): one row a configuration, with its model,
+loads its leaderboard as one JSON file (`/artifacts/<version>/leaderboard-live.json`, DeepSWE v1.1 on 2026-11-10);
+each night the client reads the path the page names and takes the newest version, never one older than
+`VERSION_FLOOR` (D-250). The file holds one row a configuration, with its model,
 harness, stated `reasoning_effort` and Pass@1. It is public, so no token is read or sent, and it publishes no licence:
 its numbers are used under D-215, attributed to Datacurve with its link.
 
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from typing import Any
 
 from app.clients.protocols import SourceError, fetch_bounded
@@ -27,23 +30,45 @@ SOURCE_NAME = "datacurve_deepswe"
 BENCHMARK = "DeepSWE"
 METRIC = "% resolved"
 SITE_URL = "https://deepswe.datacurve.ai/"
-LEADERBOARD_URL = "https://deepswe.datacurve.ai/artifacts/v1.1/leaderboard-live.json"
+#: D-250 clause 3: the newest leaderboard the page loads, never a version older than the last read by hand.
+VERSION_FLOOR = (1, 1)
 _TIMEOUT_S = 60.0
+#: The leaderboard path the page loads, as its HTML names it. Each part is at most six digits: a longer one is no
+#: real version, and past 4,300 digits `int` raises a `ValueError` the build does not catch (the security delta's M24).
+_LEADERBOARD_PATH = re.compile(r"/artifacts/v(\d{1,6}(?:\.\d{1,6}){0,3})/leaderboard-live\.json")
 #: The benchmark a leaderboard row must name.
 _LEADERBOARD_SOURCE = "deep-swe"
 #: D-216 clause 3: a row that states no effort ran at its model's default and stands at `agentic-coding`'s level.
 DEFAULT_EFFORT = "high"
 
 
+def leaderboard_url(version: tuple[int, ...]) -> str:
+    """The leaderboard file of one version, on the site's own host."""
+    return f"https://deepswe.datacurve.ai/artifacts/v{'.'.join(map(str, version))}/leaderboard-live.json"
+
+
+def newest_leaderboard(page: str, *, source: str = SOURCE_NAME) -> tuple[int, ...]:
+    """The newest leaderboard version the page loads, never older than the floor (D-250 clause 3)."""
+    named = {tuple(int(part) for part in found.split(".")) for found in _LEADERBOARD_PATH.findall(page)}
+    usable = [version for version in named if version >= VERSION_FLOOR]
+    if not usable:
+        msg = f"{source}: the page loads no leaderboard at or past v{'.'.join(map(str, VERSION_FLOOR))}"
+        raise SourceError(msg)
+    return max(usable)
+
+
 class DatacurveClient:
-    """Production RawSource for Datacurve's DeepSWE leaderboard (D-001): one public file, from its own host."""
+    """Production RawSource for Datacurve's DeepSWE leaderboard (D-001, D-250): the page, then the one public file
+    it loads, both from the site's own host."""
 
     name = SOURCE_NAME
-    url = LEADERBOARD_URL
+    url = SITE_URL
     hosts: tuple[str, ...] = ("deepswe.datacurve.ai",)
 
     def fetch_raw(self) -> str:
-        return fetch_bounded(LEADERBOARD_URL, self.name, _TIMEOUT_S, hosts=self.hosts)
+        page = fetch_bounded(SITE_URL, self.name, _TIMEOUT_S, hosts=self.hosts)
+        version = newest_leaderboard(page, source=self.name)
+        return fetch_bounded(leaderboard_url(version), self.name, _TIMEOUT_S, hosts=self.hosts)
 
 
 def parse_datacurve(raw: str, *, source: str = SOURCE_NAME) -> tuple[list[ScoreRow], int]:

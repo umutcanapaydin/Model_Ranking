@@ -2,8 +2,9 @@
 
 LiveBench publishes each release as static files on its own site: `table.csv`, one row per model and one column per
 suite, and `categories.json`, each category's columns. Its page computes the overall score in the browser and stores
-none: "mean of category averages". D-219 clause 2 reads release 2026-10-14 (LiveBench 2.0), pinned as Datacurve's
-`v1.1` is, and computes the overall the way the page states it, rounded to two places as the page rounds. LiveBench
+none: "mean of category averages". D-219 clause 2 read release 2026-10-14 (LiveBench 2.0); D-250 reads the newest
+release the site serves (`test_follow_releases.py`), and computes the overall the way the page states it, rounded to
+two places as the page rounds. LiveBench
 publishes no data licence; its public numbers are used under D-215 with its credit. The fixture is the release as
 published on 2026-10-22 (`tests/fixtures/livebench/`).
 """
@@ -22,6 +23,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "livebench"
 SITE = "https://livebench.ai/"
 TABLE = "https://livebench.ai/data/20261014/table.csv"
 CATEGORIES = "https://livebench.ai/data/20261014/categories.json"
+SCRIPT = "https://livebench.ai/static/js/main.c61c63f5.js"
 
 
 def _lb():  # imported lazily, so this file collects before the module exists
@@ -36,8 +38,17 @@ def _categories() -> str:
     return (FIXTURES / "categories.json").read_text(encoding="utf-8")
 
 
+def _serve_the_page_naming_the_recorded_release(respx_mock: respx.MockRouter) -> None:
+    """The page and its script, as recorded 2026-11-10, with the release list cut to the release the fixture is."""
+    script = (FIXTURES / "page-script.js").read_text(encoding="utf-8").replace(
+        '["20261014","20261025","20261106"]', '["20261014"]')
+    respx_mock.get(SITE).mock(return_value=httpx.Response(
+        200, text=(FIXTURES / "page.html").read_text(encoding="utf-8")))
+    respx_mock.get(SCRIPT).mock(return_value=httpx.Response(200, text=script))
+
+
 def _raw(table: str | None = None, categories: str | None = None) -> str:
-    return json.dumps({"table": _table() if table is None else table,
+    return json.dumps({"release": "2026-10-14", "table": _table() if table is None else table,
                        "categories": json.loads(_categories() if categories is None else categories)})
 
 
@@ -94,15 +105,17 @@ def test_a_release_that_is_not_the_board_fails_the_source(raw: str) -> None:
 
 
 @pytest.mark.respx(assert_all_called=False)
-def test_the_client_reads_both_files_of_the_pinned_release_from_its_own_host(
+def test_the_client_reads_both_files_of_the_release_its_page_names_from_its_own_host(
     respx_mock: respx.MockRouter, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """covers REQ-SRC-013 (D-219 clause 2): two public files of release 2026-10-14, no `Authorization` header."""
+    """covers REQ-SRC-013 (D-219 clause 2, D-250 clause 1): two public files of the release the page names, no
+    `Authorization` header."""
     monkeypatch.setenv("HF_TOKEN", "stand-in-token-for-tests")
+    _serve_the_page_naming_the_recorded_release(respx_mock)
     table = respx_mock.get(TABLE).mock(return_value=httpx.Response(200, text=_table()))
     cats = respx_mock.get(CATEGORIES).mock(return_value=httpx.Response(200, text=_categories()))
     client = _lb().LiveBenchClient()
-    assert (client.name, client.url, tuple(client.hosts)) == ("livebench", TABLE, ("livebench.ai",))
+    assert (client.name, client.url, tuple(client.hosts)) == ("livebench", SITE, ("livebench.ai",))
     rows, _ = _parse(client.fetch_raw())
     assert len(rows) == 49
     assert table.call_count == 1 and cats.call_count == 1
@@ -120,6 +133,7 @@ def test_a_site_that_fails_fails_the_source_and_no_other_host_is_asked(
     """covers REQ-SRC-013: no fallback; the refresh carries the previous night's rows (D-156)."""
     from app.clients.protocols import SourceError
 
+    _serve_the_page_naming_the_recorded_release(respx_mock)
     respx_mock.get(TABLE).mock(return_value=answer)
     respx_mock.get(CATEGORIES).mock(return_value=httpx.Response(200, text=_categories()))
     elsewhere = respx_mock.get("https://elsewhere.example.net/table.csv").mock(
@@ -157,9 +171,8 @@ def test_livebench_is_credited_for_its_public_numbers_with_its_link() -> None:
     [credit] = rank.credits_for([citation])
     assert credit == {**credit, "url": SITE, "licence_url": None}
     assert "D-215" in str(credit["licence"])
-    # The release the client reads is the one the credit and the citation name: one fact, kept once.
-    assert _lb().RELEASE_DATE in str(credit["data"]) and _lb().RELEASE_DATE in citation
-    assert _lb().TABLE_URL == TABLE
+    # D-250 clause 5: the credit names the board; the release read is each row's date.
+    assert "LiveBench 2.0" in str(credit["data"]) and "LiveBench 2.0" in citation
 
 
 def test_the_registered_ingest_stores_each_row() -> None:
@@ -209,6 +222,7 @@ def test_categories_nested_past_the_recursion_limit_fail_the_source(respx_mock: 
     """covers REQ-SRC-013, D-121 (the queue-1021 integration review's M2): the client's own `json.loads` too."""
     from app.clients.protocols import SourceError
 
+    _serve_the_page_naming_the_recorded_release(respx_mock)
     respx_mock.get(TABLE).mock(return_value=httpx.Response(200, text=_table()))
     respx_mock.get(CATEGORIES).mock(return_value=httpx.Response(200, text="[" * 100_000))
     with pytest.raises(SourceError, match=r"categories\.json"):

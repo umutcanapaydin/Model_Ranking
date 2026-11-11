@@ -5735,6 +5735,8 @@ host, is a failed night, carried like any other: the client's tests hold both.
 **Revisit when:** Datacurve publishes a licence or terms for its leaderboard, moves it to a new version (`v1.2`), or
 objects to this use; or the default runs need a label of their own.
 
+**Amended by D-250 (2026-11-10)**: the leaderboard's `v1.1` path is no longer pinned: the client reads the path the site's page loads, never a version older than v1.1.
+
 ## D-217 — The hosted engine is refreshed and deployed each night by a GitHub Actions workflow, not from the Mac
 
 **Status:** proposed. Revised once before merge on 2026-10-21, on the Security-Reviewer's round 1 (`docs/reviews/fix-issue-387-security.md`): the token became an environment's secret only `main` reaches (B1), starting the workflow by hand became a deploy command (M1), and clauses 2, 3 and the revisit say what the review found (M3, M4, R2, R4).
@@ -5933,6 +5935,8 @@ whole board, GDPval's leaderboard returns, OSWorld 2.0 ranks 15 models); LiveBen
 version; the app takes payment (D-215's revisit).
 
 **Amended by D-249 (2026-11-10)**: the METR row's verdict is reversed: METR's page reserves all rights, and `metr_time_horizons` is no longer declared or built.
+
+**Amended by D-250 (2026-11-10)**: clause 2's LiveBench pin is lifted: the client reads the newest release the site serves, never older than 2026-10-14, and computes the overall by the release's own weights.
 
 ## D-220 — A board row's spelling is read past case and punctuation, and a cut the owner accepted is not a loss
 
@@ -6947,6 +6951,55 @@ attribution turns any surviving row into a refusal, the fail-closed direction fo
 
 **Revisit when:** METR answers yes in writing (a new ADR puts the source and the surface back, superseding clauses 1
 and 2), or a licensed board of long autonomous work ranks at least 15 models (D-218 clause 3).
+
+## D-250 — LiveBench and DeepSWE follow the release their publisher's site serves, each night; ARC-AGI-2 stays pinned
+
+**Owner ruling:** 2026-11-10, in chat, shown that three sources are pinned and change only by a code edit: *"of course
+add it; as new versions come we need to update them too; their licences are fine, we did our research"*
+*(translated)*. D-216's ruling already asked the same of Datacurve: *"let's keep ourselves up to date"*.
+
+**Amends** D-219 clause 2 (the LiveBench pin) and D-216 (the `v1.1` path) · supersedes nothing.
+
+**Context.** LiveBench (release 2026-10-14), Datacurve's DeepSWE (`v1.1`) and ARC Prize's ARC-AGI-2 public evaluation
+(a committed derivation at a pinned revision) were pinned: fetched each night, but a new release needed a code edit.
+On 2026-11-10 LiveBench's site served three releases, 2026-10-14, 2026-10-25 and 2026-11-06, so the app was two
+behind. Each site names its current data on its own page: LiveBench's page script lists its releases
+(`["20261014","20261025","20261106"]`), and Datacurve's page loads `/artifacts/v1.1/leaderboard-live.json`. The newer
+LiveBench releases add `_overall_weights` to `categories.json` (Long Agentic 2.0, Coding 1.5, Design 1.5, every other
+category 1), and the page's overall is now "the weighted mean" of the category averages; the parser refused that key.
+ARC-AGI-2's scores are derived from about 4,300 files, past Hugging Face's anonymous rate, so a nightly derivation is
+not possible; its dataset has not moved since 2026-06-04.
+
+**Decision.**
+1. **LiveBench follows its newest release.** Each night the client reads the release list the site's own page script
+   names, takes the newest, and fetches that release's `table.csv` and `categories.json` from `livebench.ai`. A release
+   older than 2026-10-14 (the last one read by hand) is never taken. Rows are dated by the release read.
+2. **LiveBench's overall is computed as the page computes it:** the mean of each category's average, weighted by the
+   release's `_overall_weights` where it names one (a weight applies only to a named category, finite and above zero;
+   any other category weighs 1), rounded to two places. A release without the key is the plain mean, as before. A
+   weights entry of any other shape fails the source.
+3. **DeepSWE follows the leaderboard the site loads.** Each night the client reads the `/artifacts/<version>/
+   leaderboard-live.json` path Datacurve's page names, takes the newest version named, never older than `v1.1`, and
+   fetches it from the same host.
+4. **A release that cannot be found fails the source that night**, never the night: an unreachable page, a page that
+   names no release, a release older than the floor, or a redirect off the site's host. The refresh carries the last
+   good rows (D-156) and the silent-sources notice names a source failing 7 nights (D-243). The weekly contract run
+   parses the release each site names, so a new format turns it red within a week.
+5. **The credit and the citation name the board, not a release:** the release a row came from is its date
+   (LiveBench) or the leaderboard the site served that night (DeepSWE).
+6. **ARC-AGI-2 stays pinned** to its committed derivation; the weekly contract test already fails when the dataset
+   moves past its revision (REQ-SRC-012), and a move is re-derived by hand.
+
+**Rationale.** The owner's goal is the newest numbers every night; both publishers name their current data on the
+same page a reader sees, so following it is reading the board as published. Failing the source rather than falling
+back to the pinned release keeps a format change visible, as D-216 ruled for Datacurve's site.
+
+**Mitigation if violated:** a page script that stops naming its releases, or names them in another shape, fails
+LiveBench every night: the carry holds its rows for 30 days and D-243's issue names it after 7.
+`tests/unit/test_livebench.py` and `tests/unit/test_datacurve.py` hold the discovery, the floor and the weights.
+
+**Revisit when:** either site publishes a machine-readable release index, LiveBench changes how its overall is
+computed, or ARC Prize moves its public-evaluation dataset.
 
 ## D-251 — Terminal-Bench 4.0's batch of new submissions is accepted, name by name, until 2026-11-25
 
