@@ -2005,3 +2005,13 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Fix: the serving summary keeps the ids each budget offers, so `added` takes the accepted arrivals out of all three counts. A listed name now excuses one row.
 - Red tests first: 4 red, then 43 green. The real refresh on the served copy of 2026-11-10 still publishes. D-251's text now names the board the file names, `computer-use` (R28).
 - Lesson: an exception to a guard has to be subtracted from every count that guard family reads, not only from the one that refused.
+
+## 2026-11-12 · integration/run-golive-1111 — run golive-1111: the go-live night, one PR (D-251, D-252)
+
+- The owner asked on the evening of 2026-11-11 (*translated*): "let's set up a night run, we finish everything tonight and go live tomorrow morning". Six questions were asked once, and every answer took its default (D-251, D-252).
+- The night of 2026-11-11 had refused, so nothing merged after 2026-11-10 could deploy, METR's removal included. #605's fix makes the night publish again, measured by the real refresh on a copy of the served state.
+- The release review ran once, at the integration head.
+  - The Tester's delta found two untested judgements and closed them with its own tests.
+  - The Security-Reviewer's delta found M25 and M26 in the new exception, fixed red→green the same night and re-verified PASS by the same seat; the Tester's delta of the fix PASSed. `make deploy-check` PASS at `946a89e`.
+- The release (#610) carries the version and build 9, the App Store listing in English and Turkish, the owner's four go-live rows, and the release record. #611 retires D-251's entry before it expires.
+- Lesson: when a night is refused, measure the source the guard names before anything else. One fetch and one parse showed a genuine upstream batch, so the decision the owner had to make was clear in minutes.
