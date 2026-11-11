@@ -5,7 +5,7 @@ Started: 2026-11-11
 Ended: open
 Integration branch: none · PR: none
 Plan PR: none
-Rulings: none
+Rulings: D-251, D-252
 Cost: n/a
 
 ## Milestones, in order

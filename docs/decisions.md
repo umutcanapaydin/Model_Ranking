@@ -6947,3 +6947,58 @@ attribution turns any surviving row into a refusal, the fail-closed direction fo
 
 **Revisit when:** METR answers yes in writing (a new ADR puts the source and the surface back, superseding clauses 1
 and 2), or a licensed board of long autonomous work ranks at least 15 models (D-218 clause 3).
+
+## D-251 — Terminal-Bench 4.0's batch of new submissions is accepted, name by name, until 2026-11-25
+
+**Owner ruling:** 2026-11-11, in chat, for run golive-1111
+
+**Context.** The hosted night of 2026-11-11 (run 42938869001) refused: `computer-use`'s board, Terminal-Bench
+4.0 (`terminalbench_4`), would be 11 of 32 rows the served artifact has never seen (34%, over D-132's quarter as
+D-159 applies it to a surface's own board). Measured the same day (#605): the 32 rows are submission files in
+the publisher's own repository (`harbor-framework/terminal-bench`, `leaderboard/submissions`). Seven are dated
+after the served evidence date of 2026-09-29; the rest are older files merged upstream in the same batch.
+`data/accepted-cuts.yaml` could excuse a loss (D-220, D-221) or a re-spelling (D-228) but not growth, so every
+night would refuse and nothing merged after 2026-11-10 (D-249 among it) would reach the hosted engine.
+
+**Decision.**
+1. `data/accepted-cuts.yaml` gains an optional `additions:` list beside `cuts:` and `respellings:`, under a cut's
+   terms: each entry names one declared board, this ADR, why, an `until:` date and exactly the raw names it
+   accepts. An accepted name is judged by the growth guards as already seen on that board only. Any name not
+   listed counts as before, and an entry past its `until:` date, or without one, fails the refresh.
+2. One entry: `terminalbench_4`, the names the 2026-11-11 night counted as never seen, `until: 2026-11-25`.
+3. The proof is the real `refresh()` publishing on a copy of the served state with the entry, and refusing
+   without it. Once a night has published the names, a PR retires the entry, as #477 retired D-228's.
+
+**Rationale.** D-132 refuses and never judges; the owner looked and accepted. A named list, like D-228's, keeps
+the acceptance to the rows looked at. Raising the limit would accept the next batch unseen.
+
+**Mitigation if violated:** an `additions` entry that excused a name it does not list, or a board it does not
+name, fails `tests/unit/test_accepted_additions.py`; a change to `data/accepted-cuts.yaml` goes to a security
+review (`scripts/review_need.py`, EXCEPTION_FILES).
+
+**Revisit when:** a second board needs an addition within a month (then the growth limit itself is measured
+again, D-132's "what ordinary movement actually is"), or 2026-11-25 arrives with the entry still in the file.
+
+## D-252 — v1.1.0 is the App Store submission: its version, its sources and its listing
+
+**Owner ruling:** 2026-11-11, in chat, for run golive-1111
+
+**Decision.**
+1. The engine and the app are `1.1.0` (tag `v1.1.0`), the app's build is `9`. Build 8 predates D-249's removal of
+   `long-tasks` from the app.
+2. LiveBench, Datacurve's DeepSWE and SimpleBench have not answered the permission emails of 2026-11-07. They stay
+   under D-215 (attributed public numbers whose terms do not forbid non-commercial use), as the owner ruled on
+   2026-11-07, and the App Review notes say so.
+3. The App Store listing is written in English and in Turkish (the app ships `tr.lproj`): `docs/app-store-listing.md`,
+   and the Turkish text in its own file, allowed in `.language-allow` with its reason. The app's name is
+   `Model Ranking`. The support URL is the repository's GitHub issues page, the contact `/privacy` already names
+   (D-248). The category is Developer Tools, secondary Productivity. The app is free and rated 4+.
+
+**Rationale.** One version number everywhere; the owner's earlier source ruling still holds; the support contact
+matches the privacy page, so the listing names no second channel nobody watches.
+
+**Mitigation if violated:** a listing field that disagrees with the app (name, version, privacy answers) is
+caught by App Review or by the owner pasting it; the listing file is the one place it is written.
+
+**Revisit when:** a publisher answers no (that source leaves, as D-249 did METR's), or App Review asks for a
+support contact that needs no account (an email goes on `/privacy` and in the listing).
