@@ -80,7 +80,7 @@ from app.workflows.serving_bounds import (
 )
 from app.workflows.standings import board_standings
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 # CI/build sets APP_BUILD to the image tag or git SHA; defaults to "unknown".
 APP_BUILD = os.environ.get("APP_BUILD", "unknown")
 
