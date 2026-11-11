@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "model-ranking"
-version = "1.0.0"
+version = "1.1.0"
 description = "LLM benchmark + pricing aggregation and deterministic recommendation engine"
 readme = "README.md"
 requires-python = ">=3.11"             # seed C.2: range, not point version
