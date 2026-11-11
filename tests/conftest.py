@@ -318,3 +318,4 @@ def _no_committed_policy(tmp_path_factory: pytest.TempPathFactory, monkeypatch: 
     path.write_text("cuts: []\n", encoding="utf-8")
     monkeypatch.setattr(refresh.load_accepted_cuts, "__defaults__", (path,))
     monkeypatch.setattr(refresh.load_accepted_respellings, "__defaults__", (path,))
+    monkeypatch.setattr(refresh.load_accepted_additions, "__defaults__", (path,))

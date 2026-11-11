@@ -21,3 +21,25 @@
 # The hosted night of 2026-11-06 (`release-756fcb3`) published the new names, so the entries were inert; they are
 # in git at `756fcb3`.
 cuts: []
+# Additions the owner accepted (D-251, #605): raw names one board may gain without the growth guards (D-132, D-159)
+# counting them as new, under a cut's terms; the list is optional, `additions:` beside `cuts:`. A name is judged as
+# already seen only where it is new, and a model only when every name it has on that board is listed. Retire the
+# entry once a night has published the names, before its `until:` date fails every night.
+additions:
+  - board: computer-use
+    decision: D-251
+    reason: >-
+      Terminal-Bench 4.0's publisher merged a batch of submission files at once (measured 2026-11-11 against the
+      served artifact of 2026-11-10, run 42751550585); the hosted night of 2026-11-11 refused them as 10 of 31 new
+    until: 2026-11-25
+    names:
+      - anthropic/claude-haiku-5-5
+      - meta/muse-wonder-1.0
+      - moonshotai/kimi-k3.1-pro
+      - openai/gpt-5.4-mini
+      - openai/gpt-6.1-terra
+      - openrouter/mistralai/mistral-large-4-0
+      - openrouter/nvidia/nemotron-3.5-super-vl
+      - openrouter/reflection/beam-1.0-501b-a23b
+      - openrouter/thinkingmachines/inkling
+      - openrouter/thinkingmachines/inkling-small
