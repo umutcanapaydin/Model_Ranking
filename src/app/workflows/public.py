@@ -21,6 +21,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
+from app.workflows.board_tables import REMOVED_SOURCES
 from app.workflows.rank import build_price_medians
 from app.workflows.schema import open_readonly
 
@@ -65,7 +66,8 @@ def derive(source: Path, target: Path) -> dict[str, int]:
     """Write `target`: a copy of `source` with every row of a `LEFT_OUT` source removed and the
     price medians rebuilt from the prices kept. `source` is never written. Returns the rows removed
     per table. The copy is made in a temporary file beside `target` and moved into place only once
-    it is complete, so a failure leaves no half-derived artifact to deploy."""
+    it is complete, so a failure leaves no half-derived artifact to deploy. D-249: a removed source's rows
+    (`REMOVED_SOURCES`) go as a left-out one's do, so a live artifact an older release built serves none."""
     if source.resolve() == target.resolve():
         raise ValueError("the public artifact is derived beside the built one, never over it")
     handle, raw = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".deriving", dir=target.parent)
@@ -80,7 +82,7 @@ def derive(source: Path, target: Path) -> dict[str, int]:
             finally:
                 built.close()
             removed = {}
-            sources = json.dumps(sorted(LEFT_OUT))
+            sources = json.dumps(sorted(LEFT_OUT.keys() | REMOVED_SOURCES.keys()))
             copied = LEFT_OUT.keys() | RETIRED_COPIES.keys()
             with conn:
                 for table, statement in _REMOVE.items():

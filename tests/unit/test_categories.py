@@ -131,8 +131,6 @@ def test_categories_are_data_not_code(monkeypatch: pytest.MonkeyPatch) -> None:
         "text_to_video",
         "image_to_video",
         "video_edit",
-        # #379 (D-218 clause 2): METR's time horizons, one map entry.
-        "long-tasks",
 }
     for spec in CATEGORIES.values():
         assert spec.primary_benchmark and spec.metric and spec.primary_source
@@ -303,10 +301,6 @@ def test_a_category_ranks_on_the_board_it_names_and_reads_the_metric_that_board_
     # D-194 (#265): TB 4.0's client declares the benchmark and metric its rows carry.
     boards[terminalbench.SOURCE_NAME] = Declared(terminalbench.BENCHMARK, terminalbench.METRIC)
     boards[arc_prize.SOURCE_NAME] = Declared(arc_prize.BENCHMARK, arc_prize.METRIC)
-    # #379 (D-219): METR's client declares the benchmark and metric `long-tasks` reads.
-    from app.clients import metr
-
-    boards[metr.SOURCE_NAME] = Declared(metr.BENCHMARK, metr.METRIC)
     checked = 0
     for name, spec in CATEGORIES.items():
         board = boards.get(spec.primary_source)
@@ -397,8 +391,8 @@ def _window_problem(metric: str, window: float, floor: float, leader: float | No
 
 
 def test_the_window_rule_reads_each_scale_by_its_own_form() -> None:
-    """D-238 clause 5 (D-163 clause 2): the comparison's logic, on fixtures. The long-tasks numbers of the
-    #379 calibration pass; an absolute window that reaches below its floor fails, and so do the old rule's
+    """D-238 clause 5 (D-163 clause 2): the comparison's logic, on fixtures. A minutes scale's numbers from the
+    #379 calibration pass (its board left with D-249; the rule is generic); an absolute window that reaches below its floor fails, and so do the old rule's
     failures on a percentage or Elo scale."""
     assert _window_problem("minutes", 401.5, 223.7, 718.8) is None
     assert _window_problem("minutes", 401.5, 223.7, 600.0) is not None   # 198.5 is below the floor
@@ -484,7 +478,6 @@ def test_every_surface_names_the_source_its_board_arrives_on() -> None:
         "text_to_video": "arena_text_to_video",
         "image_to_video": "arena_image_to_video",
         "video_edit": "arena_video_edit",
-        "long-tasks": "metr_time_horizons",  # #379 (D-219): METR's own time-horizon file
     }
     assert set(pairs) == set(CATEGORIES), "a surface was added or removed without pinning its source"
     for surface, source in pairs.items():

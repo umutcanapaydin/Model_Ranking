@@ -1972,3 +1972,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's delta found three wording-level gaps (an unnamed `/v1/categories` request, a limiter that "forgets" while its key stays until the table fills, an unheld CSP); worked red→green before the security delta, because a privacy policy is a claim to App Review and to readers.
 - The four unlicensed-source question went to the owner's own review and four permission emails; METR, the only board of `long-tasks`, stays until its reply (removing it removes the surface).
 - Lesson: a policy page is a test of the code's data flows; derive every sentence from a file:line, and the one store nobody remembered shows up.
+
+## 2026-11-10 · enhancement/remove-metr — METR's time horizons and the long-tasks surface leave the app before the App Store submission (D-249)
+
+- None of the four permission emails of 2026-11-07 drew an answer, and METR's page reserves all rights, so the owner ruled it out (Golden Rule 1). `long-tasks` had no other board, so the surface left with it: engine, families (D-188's table), the iOS router and Language, the router probes; `/v1` now refuses `task=long-tasks`.
+- The credit and attribution are deleted, not retired: an artifact still holding METR's rows is refused at boot rather than credited.
+- The live artifact the older release built holds METR's rows until a night publishes a new one, so removal is not only a code delete: `board_tables.REMOVED_SOURCES` names the source, the public copy drops its rows, and the refresh record forgets its last arrival so D-243's notice does not name it silent from the eighth night.
+- The local `advisor.db` held 26 METR rows the new code refused ("metric 'minutes' has no declared direction"); backed up to the session's scratchpad and the rows deleted, the same state the next built artifact has.
+- Lesson: removing a source is a data migration as well as a code delete; ask what the live artifact, the public copy and the run record still hold, and test each.

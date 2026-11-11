@@ -4569,7 +4569,6 @@ refinement. The engine serves 63 boards; coding alone has eight related ones.
    | `text_to_video` | `arena_text_to_video` |
    | `image_to_video` | `arena_image_to_video` |
    | `video_edit` | `arena_video_edit` |
-   | `long-tasks` | `metr_time_horizons` |
 
 2. **Coverage.** A model enters the combined list when at least half of the family's boards rank it,
    rounded up, and at least one. With two boards, either is enough; "and at least two" was dropped after
@@ -4631,6 +4630,8 @@ for the best model (M20-W5, `docs/research/m20-w5-family-probe.md` §4; the M20 
 **Amended by D-216 (2026-10-21)**: clause 1's table -- `agentic-coding`'s family is `datacurve_deepswe`, `terminalbench_4`, `arena_agent`: Datacurve's own DeepSWE board in place of Epoch's copy (#265).
 
 **Amended by D-219 (2026-10-22, proposed)**: clause 1's table -- `computer-use` adds `osworld_verified`, `everyday` adds `simplebench` and `livebench`, and `long-tasks` is METR's time-horizon board alone (#379).
+
+**Amended by D-249 (2026-11-10)**: clause 1's table -- `long-tasks` and its family are removed with METR, whose page reserves all rights.
 
 ## D-189 — What a model is: a release its maker names, and an id that keeps its meaning
 
@@ -5843,6 +5844,8 @@ moves to a public release (then the state's retention and the deploy cadence are
 - a new surface's board drops below 15 models (clauses 2 and 3);
 - the public release is cut (clause 5).
 
+**Amended by D-249 (2026-11-10)**: clause 2's `long-tasks` surface is removed with METR, its only board.
+
 ---
 
 ## D-219 — #379's new boards, read under D-215: four served, six skipped, each for its reason
@@ -5928,6 +5931,8 @@ night's report.
 **Revisit when:** a skipped board's terms or data change (HLE's publishers post a file, Vending-Bench 2 publishes its
 whole board, GDPval's leaderboard returns, OSWorld 2.0 ranks 15 models); LiveBench publishes a new release; METR publishes a new time-horizon
 version; the app takes payment (D-215's revisit).
+
+**Amended by D-249 (2026-11-10)**: the METR row's verdict is reversed: METR's page reserves all rights, and `metr_time_horizons` is no longer declared or built.
 
 ## D-220 — A board row's spelling is read past case and punctuation, and a cut the owner accepted is not a loss
 
@@ -6898,3 +6903,47 @@ test `tests/unit/test_privacy_page.py` fails when the page loses a claim or the 
 
 **Revisit when:** the app sends anything beyond the two ids, a second LLM provider is added (the policy names it), or
 the engine moves off Fly.io.
+
+---
+
+## D-249 — METR's time horizons leave the app before the App Store submission, and `long-tasks` with them
+
+**Owner ruling:** 2026-11-10, in chat: *"let's remove METR"* *(translated)*, after the permission emails of
+2026-11-07 drew no answer; the 2026-11-08 ruling had been to wait for METR's reply and remove it before the submission
+if none came.
+
+**Amends** D-188 clause 1's families table, D-218 clause 2 and D-219 (its METR row) · supersedes nothing else.
+
+**Context.** D-219 served METR's Time Horizon 1.1 file under D-215: no licence and no terms were published, and
+`metr.org/terms` answered 404. METR's page now reads "All rights reserved". D-215 admits attributed public numbers
+whose terms do not forbid non-commercial use; a reservation of all rights is such a term, and App Review can ask an app
+for proof of permission to show third-party content (guideline 5.2.2). METR's file is `long-tasks`'s only board, so the
+surface cannot stay without it. The other three publishers written to (LiveBench, Datacurve, SimpleBench) state no
+reservation and stay under D-215. No clean replacement exists today: MirrorCode (Epoch AI's own, CC BY) ranked 8
+models when last surveyed, Vending-Bench 2 and FrontierSWE state no licence, and Epoch's copy of METR's file is METR's
+data, not Epoch's (`docs/research/source-expansion-2026-09-23.md`, `docs/research/data-licences-2026-10-04.md`).
+
+**Decision.**
+1. **`metr_time_horizons` is no longer declared or built**, and the `long-tasks` surface, its family and its router
+   hints go with it: `/v1/categories` stops naming it, `/v1/boards` stops publishing it, and `/v1/recommendations`
+   refuses `task=long-tasks` as it refuses any unknown task. A public-contract change this ADR covers, as D-215's
+   `epoch_webdev` was.
+2. **Its attribution and credit are deleted, not retired.** Unlike D-215's duplicates, METR's numbers must never be
+   served again, so an artifact that still holds its rows is refused by `attributions_for` rather than credited.
+3. **The public copy never carries its rows:** `app.workflows.public` removes every row of a removed source
+   (`board_tables.REMOVED_SOURCES`, each with its reason) from the copy it derives each night, so the first nights,
+   whose live artifact an older release built, serve no METR row either. `LEFT_OUT` stays empty (the kept state is
+   public, `test_nightly_hosted.py`).
+4. **The refresh record forgets a removed source:** its last arrival is dropped from `sources_last_ok`, so the
+   silent-sources notice (D-243) does not name it every night.
+5. **A question about a long unattended job** now reads as the nearest surface the router finds; no list is composed
+   for it until a licensed board exists.
+
+**Rationale.** Golden Rule 1 outranks a surface: no source stays unlicensed at v1. Deleting rather than retiring the
+attribution turns any surviving row into a refusal, the fail-closed direction for a licence control.
+
+**Mitigation if violated:** a METR row in a served artifact makes `/v1/boards` refuse (no attribution) and fails
+`tests/unit/test_metr_removed.py`, which holds the declaration, the surface, the credit and the public copy.
+
+**Revisit when:** METR answers yes in writing (a new ADR puts the source and the surface back, superseding clauses 1
+and 2), or a licensed board of long autonomous work ranks at least 15 models (D-218 clause 3).

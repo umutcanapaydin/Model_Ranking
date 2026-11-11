@@ -50,6 +50,7 @@ from app.clients import epoch_bundle
 from app.clients.protocols import cycle_budget, cycle_ends
 from app.workflows import access
 from app.workflows import boards as declared_boards
+from app.workflows.board_tables import REMOVED_SOURCES
 from app.workflows.build import CARRY_TABLES
 from app.workflows.build import main as build_main
 from app.workflows.categories import CATEGORIES
@@ -1176,6 +1177,14 @@ def _another_release_built(target: Path) -> bool:
     return read_status(status_path(target)).get("served_built_by") != built_by
 
 
+def _forget_removed(*records: dict[str, str] | dict[str, str | None]) -> None:
+    """D-249 clause 4: a removed source never arrives again, so its last arrival would be named silent every
+    night (D-243); it leaves every per-source record of the cycle."""
+    for record in records:
+        for removed in REMOVED_SOURCES:
+            record.pop(removed, None)
+
+
 def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float) -> Path:
     """Record this cycle. REQ-REF-004.
 
@@ -1249,6 +1258,7 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         for name in outcome.arrived:
             expired_now.pop(name, None)
     carried_now = {k: v for k, v in carried_now.items() if k not in expired_now}
+    _forget_removed(last_ok, carried_now, expired_now)
 
     payload = {
         "at": at,

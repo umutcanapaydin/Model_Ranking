@@ -84,9 +84,10 @@ both derive from that list:
 - **#379's boards (D-219), each from its publisher's own host, optional and read with no token:**
   `osworld_verified` (OSWorld-Verified's workbook, CC BY-SA 4.0 as its site states, read with the standard library;
   `src/app/clients/osworld.py`) in `computer-use`'s family; `livebench` (LiveBench 2.0's pinned release;
-  `src/app/clients/livebench.py`) and `simplebench` (`src/app/clients/simplebench.py`) in `everyday`'s; and
-  `metr_time_horizons` (METR's Time Horizon 1.1; `src/app/clients/metr.py`), the only board of `long-tasks`. The
-  last three publish no licence and are used with attribution under D-215.
+  `src/app/clients/livebench.py`) and `simplebench` (`src/app/clients/simplebench.py`) in `everyday`'s. The
+  last two publish no licence and are used with attribution under D-215. METR's time horizons, served from
+  D-219 as `long-tasks`'s only board, were removed with that surface by D-249: METR's page reserves all rights.
+  A removed source's rows never reach the public copy (`board_tables.REMOVED_SOURCES`, `app.workflows.public`).
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked

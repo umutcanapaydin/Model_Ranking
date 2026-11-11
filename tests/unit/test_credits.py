@@ -236,7 +236,6 @@ def test_every_publishers_licence_is_the_one_the_ruling_and_the_record_give() ->
         "terminal_bench": ("Apache-2.0", "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),
         # #379 (D-219 clause 1): the licence each new publisher's site states, as read on 2026-10-22.
         "osworld": ("CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"),
-        "metr": ("No licence published. Public numbers, used with attribution (D-215)", None),
         "livebench": ("No licence published. Public numbers, used with attribution (D-215)", None),
         "simplebench": ("No licence published. Public numbers, used with attribution (D-215)", None),
         "helm": ("Apache-2.0 (the HELM repository, D-193); each report as its authors published it",

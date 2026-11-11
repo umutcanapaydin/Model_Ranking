@@ -74,8 +74,12 @@ DATACURVE_SITE_URL = "https://deepswe.datacurve.ai/"
 #: #379 (D-219): the OSWorld team's site, whose workbook `computer-use`'s second board reads.
 OSWORLD_SITE_URL = "https://osworld-v1.xlang.ai/"
 CC_BY_SA_4_URL = "https://creativecommons.org/licenses/by-sa/4.0/"
-#: #379 (D-219): METR's time-horizon page, whose file `long-tasks` ranks on.
-METR_SITE_URL = "https://metr.org/time-horizons/"
+#: D-249: sources taken out of the app, each with its reason. Never declared, attributed or credited again: an
+#: artifact that still holds a row of one is refused by `attributions_for`, and the public copy drops its rows
+#: (`app.workflows.public`), as the refresh record drops its last arrival (`app.workflows.refresh`).
+REMOVED_SOURCES: dict[str, str] = {
+    "metr_time_horizons": "METR's page reserves all rights and its permission email drew no answer (D-249)",
+}
 #: #379 (D-219): LiveBench's site, and the release `everyday` reads, pinned and named once: the client builds its
 #: addresses from it, and the credit and the citation name it.
 LIVEBENCH_SITE_URL = "https://livebench.ai/"
@@ -161,7 +165,6 @@ CREDITS: dict[str, Credit] = {credit.id: credit for credit in (
            LIVEBENCH_SITE_URL, NO_LICENCE_D215, None),
     Credit("simplebench", "SimpleBench Team", "SimpleBench leaderboard: each model's AVG@5 score", SIMPLEBENCH_SITE_URL,
            NO_LICENCE_D215, None),
-    Credit("metr", "METR", "Time Horizon 1.1: each model's 50% time horizon", METR_SITE_URL, NO_LICENCE_D215, None),
     Credit("terminal_bench", "Terminal-Bench (Harbor)", "Terminal-Bench 4.0 leaderboard submissions",
            "https://github.com/harbor-framework/terminal-bench", "Apache-2.0",
            "https://github.com/harbor-framework/terminal-bench/blob/main/LICENSE"),

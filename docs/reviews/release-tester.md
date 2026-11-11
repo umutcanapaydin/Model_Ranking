@@ -4,7 +4,7 @@ id: release-tester
 status: draft
 seat: independent
 process_version: v7.2
-date: 2026-10-31
+date: 2026-11-10
 ---
 # Release Tester Review
 
@@ -18,12 +18,12 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-06 (release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-10 (the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** this round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+**Commit range:** the re-verify `30c1aeb..7a1e6d0` (`enhancement/remove-metr`: M6, M7); the delta `bd843fd..32d7d70` (D-249, METR removed); the release round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
 (`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
 `7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
 (`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** bd843fd1492568281290aa8650201be6fd8ff86d (the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733 (the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2149,3 +2149,50 @@ re-spelling board fails; file restored, `git status` clean. The cuts test is wea
 - **M3.** The CSP test passes at `200a492` by design (existing behaviour). Mutation: the CSP header removed from the handler -> 1 failed, 5 passed (RED); restored, md5 identical, `git status` clean.
 - **M4.** The page now names "the list of task kinds it ranks", which is the `/v1/categories` request (`EngineClient.swift:285`).
 - **M5.** "the count starts again every minute, and the address is dropped when the table fills or the engine restarts" matches `main.py:305-311` (stale windows are deleted at `RATE_WINDOW_KEYS`) and the in-memory-only table. True against the code. The diff `541d9ae..bd843fd` touches only the page text and the test file.
+
+## Delta 2026-11-10 (D-249, METR removed)
+
+**Range:** `bd843fd..32d7d70`. **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: MINOR**, 0 BLOCKING,
+2 MINOR (M6, M7 below; M1-M5 of earlier rounds keep their state). Reviewed head `32d7d70` (full sha below); no test added
+(own worktree at `32d7d70`, own venv from `requirements/dev.lock`, removed after).
+
+Reviewed head (full): 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4
+
+- **Red -> green.** `tests/unit/test_metr_removed.py` at `13a814d`: 8 failed; at `32d7d70`: 8 passed.
+- **Citing test per D-249 clause.** Clause 1 (not declared, no surface, no family, `/v1` 400 and omitted from `/v1/categories`):
+  `test_metr_removed.py:35-44,59-67`. Clause 2 (credit and attribution deleted, a surviving row refused): `:47-56`; the boot check
+  `standings_problem` on an artifact holding one METR row returns "unattributed evidence source 'metr_time_horizons'" (a clean refusal, fail
+  closed, no crash; probed with a throwaway script). Clause 3 (public copy drops the rows; `LEFT_OUT` stays empty): `:70-84`. Clause 4
+  (refresh record forgets the last arrival, no silent notice): `:87-99`. Clause 5 (long-job questions read as the nearest surface): **no test
+  holds it**, see M6. The app files carry no `long-tasks` string: `:102-104`.
+- **Fault injection** (each restored in place; md5 of `public.py` and `refresh.py` equal before and after, `git status` clean):
+  `REMOVED_SOURCES` dropped from the `derive` source set in `public.py` -> `test_the_public_copy_drops_every_row_of_a_removed_source` RED
+  (1 failed, 7 passed); `_forget_removed(...)` call in `refresh.py` replaced by `pass` ->
+  `test_the_refresh_record_forgets_a_removed_sources_last_arrival` RED (1 failed, 7 passed).
+- **Deleted tests are not weakened.** The deleted `test_metr.py`, `LongTasksRoutingTests.swift` (5 tests, also removed from the manifest) and the
+  METR fixture test the removed source and surface only; the manifest (729 entries) matches the test sources one to one.
+- **Suite.** test_metr_removed, categories, families, credits (+cover_citations), sources, public_artifact, refresh*, api_v1, nightly_hosted,
+  calibrate_surface, category_titles and `tests/integration`: 398 passed, 30 skipped, 0 failed. (A first run showed 13 `test_nightly_hosted`
+  failures: `No module named 'app'` in the script's child process because the fresh venv lacked the editable install; after
+  `pip install -e .` all 67 pass. Environment, not code.) `make swift-test-parallel` did not finish in my seat (shared machine, cold build); not
+  claimed. The Swift side is checked by the manifest comparison above and by grep: no `long-tasks`, `LongTasks` or `minutes` unit remains in `ios/`.
+- **Leftovers grep** (`metr`, `long-tasks`, `LongTasks`, `minutes`, `time horizon`): only ADRs, process log, research and review history,
+  README/architecture/prd removal notes, and the two items below.
+- **M6 (MINOR).** D-249 clause 5 (a question about a long unattended job reads as the nearest surface) has no test: the deleted Swift routing
+  tests were the only ones touching it and nothing replaces them (e.g. a router test that "run it overnight on a twelve hour job" resolves to
+  a surviving surface, never to nothing or a crash). The router measurement (`make model-tier`) was not rerun for the removal either. Not filed.
+- **M7 (MINOR, LOW).** `tests/unit/test_categories.py:394-401` still tests `_window_problem("minutes", ...)` with a docstring about "the
+  long-tasks numbers"; the function is generic, so the test stays valid, but it now cites a removed surface. Reword to a neutral absolute scale.
+
+### Re-verify 2026-11-10 (30c1aeb..7a1e6d0)
+
+**Verdict: PASS** (M6, M7 closed). Reviewed head `7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733`. Same seat, fresh worktree and venv; no test added.
+
+- **M6.** `swift test --filter RemovedSurfaceRoutingTests` at `7a1e6d0`: 3 tests, 0 failures. They hold clause 5: `long-tasks` keeps no hint or
+  example in either language (`RemovedSurfaceRoutingTests.swift:19-23`), `namedSurface` never names it (`:26-31`), and with `TieredRouter(model: nil)`
+  three long-job questions (two English, one Turkish) each reach a served surface (`:34-39`).
+- **Mutation.** A `"long-tasks"` hint re-added to `CategoryHints` in `Router.swift` -> `testLongTasksKeepsNoHintAndNoExamples` RED
+  (1 failed of 3, `XCTAssertNil failed`); file restored, md5 equal before and after, `git status` clean. (My first revert deleted the wrong line;
+  I restored the file from the committed blob and the md5 then matched. The worktree was throwaway.)
+- **Manifest.** 732 entries, none without a test source; the only source-side extra is the `OfflineObserver` helper, not a test.
+- **M7.** The docstring in `tests/unit/test_categories.py` now says "A minutes scale's numbers ... (its board left with D-249; the rule is generic)"; test body unchanged.
