@@ -539,18 +539,24 @@ def load_accepted_additions(path: Path = ACCEPTED_CUTS_PATH) -> dict[str, frozen
 def added(
     candidate: ServingSummary, live: ServingSummary | None, accepted: Mapping[str, frozenset[str]]
 ) -> ServingSummary:
-    """The candidate as the growth guards judge it under the additions the owner accepted (D-251 clause 1).
+    """The candidate as the guards judge it under the additions the owner accepted (D-251 clause 1).
 
     On each named board, a listed name's rows leave the count, and only where they are new: a linked row
     whose model the served board does not hold and every one of whose names on the candidate board is
     listed (#478: a name is accepted, a model is not), or an unlinked row whose key the served board does not
-    hold. On a surface's own board its model leaves the surface's ranked models too. A board the served
-    artifact does not hold is returning and passes already; it is left as it is. Rows the served board
-    holds are never touched, so an addition cannot excuse a loss. The digest is the candidate's: what is
-    published is unchanged. A first artifact has nothing to add to."""
+    hold. A listed name excuses ONE row, the one the owner looked at: a model arriving under two listed names
+    excuses two of its rows, and the rest of a flood under one name stays counted (the release security
+    delta's M26; D-159's flood rule). On a surface's own board its model leaves the surface's ranked models
+    too, and the counts the loss guards read (`surfaces`, `eligible`) with it, so an accepted arrival cannot
+    stand in for a served model that left (M25). A board the served artifact does not hold is returning and
+    passes already; it is left as it is. Rows the served board holds are never touched, so an addition cannot
+    excuse a loss. The digest is the candidate's: what is published is unchanged. A first artifact has
+    nothing to add to."""
     if live is None:
         return candidate
     board, boards, models = dict(candidate.board), dict(candidate.boards), dict(candidate.models)
+    surfaces = dict(candidate.surfaces)
+    eligible = {name: dict(counts) for name, counts in candidate.eligible.items()}
     for name, names in sorted(accepted.items()):
         for subject, rows_by, served_by, ranked in ((OWN_BOARD, board, live.board, models),
                                                     (DECLARED_BOARD, boards, live.boards, None)):
@@ -559,16 +565,23 @@ def added(
                 continue
             served_models = {row.model for row in served if isinstance(row, LinkedRow)}
             served_keys = {row.key for row in served if isinstance(row, UnlinkedRow)}
-            keys = {spelling_key(raw) for raw in names} - served_keys
+            keys = Counter(key for key in map(spelling_key, names) if key not in served_keys)
             spellings = candidate.spellings.get(subject.format(name=name), {})
-            leaving = {model for model, raws in spellings.items()
+            leaving = {model: len(raws) for model, raws in spellings.items()
                        if model not in served_models and raws and raws <= names}
             rows_by[name] = frozenset(
                 row for row in rows_by[name]
-                if not (row.model in leaving if isinstance(row, LinkedRow) else row.key in keys))
+                if not (row.copy < leaving.get(row.model, 0) if isinstance(row, LinkedRow)
+                        else row.copy < keys[row.key]))
             if ranked is not None and name in ranked:
-                ranked[name] = ranked[name] - (leaving - live.models.get(name, frozenset()))
-    return dataclasses.replace(candidate, board=board, boards=boards, models=models)
+                gone = (ranked[name] & leaving.keys()) - live.models.get(name, frozenset())
+                ranked[name] = ranked[name] - gone
+                surfaces[name] = surfaces.get(name, 0) - len(gone)
+                offered = candidate.eligible_models.get(name, {})
+                for budget, count in eligible.get(name, {}).items():
+                    eligible[name][budget] = count - len(gone & offered.get(budget, frozenset()))
+    return dataclasses.replace(candidate, board=board, boards=boards, models=models, surfaces=surfaces,
+                               eligible=eligible)
 
 
 #: D-223 clause 2 (#429): a cut is a short exception; renewing it past this takes a new ADR.
@@ -978,6 +991,9 @@ class ServingSummary:
     displays: dict[str, str] = dataclasses.field(default_factory=dict)
     #: How many models carry an accessibility value the phone filters on (#42, D-173 clause 3).
     accessible: int = 0
+    #: surface -> budget -> the ids of the models `eligible` counts, so an accepted addition is taken out of
+    #: the loss counts as it is out of the growth count (D-251; the release security delta's M25).
+    eligible_models: dict[str, dict[str, frozenset[str]]] = dataclasses.field(default_factory=dict)
 
     @property
     def answering(self) -> int:
@@ -1016,6 +1032,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     digest = hashlib.sha256()
     surfaces: dict[str, int] = {}
     eligible: dict[str, dict[str, int]] = {}
+    eligible_models: dict[str, dict[str, frozenset[str]]] = {}
     names: dict[str, frozenset[str]] = {}
     prices: dict[str, float] = {}
     boards: dict[str, frozenset[BoardRow]] = {}
@@ -1044,7 +1061,10 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         # change reads as "nothing a user would notice" and is never published.
         digest.update(f"floor:{name}:{derived_floor(conn, spec)}\n".encode())
         surfaces[name] = len(rows)
-        eligible[name] = {b: len(eligible_for(spec, rows, b)) for b in sorted(BUDGETS)}
+        offered = {b: {id(row) for row in eligible_for(spec, rows, b)} for b in sorted(BUDGETS)}
+        eligible[name] = {b: len(ids) for b, ids in offered.items()}
+        eligible_models[name] = {b: frozenset(model_id for model_id, row in ranked if id(row) in ids)
+                                 for b, ids in offered.items()}
         names[name] = frozenset(model_id for model_id, _ in ranked)
         displays.update((model_id, row.model) for model_id, row in ranked)
         boards[name], spellings[OWN_BOARD.format(name=name)] = board_identities(board_rows(conn, spec))
@@ -1083,6 +1103,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         spellings=spellings,
         displays=displays,
         accessible=len(accessibility_of),
+        eligible_models=eligible_models,
     )
 
 
