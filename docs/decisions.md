@@ -7015,10 +7015,15 @@ night would refuse and nothing merged after 2026-11-10 (D-249 among it) would re
 
 **Decision.**
 1. `data/accepted-cuts.yaml` gains an optional `additions:` list beside `cuts:` and `respellings:`, under a cut's
-   terms: each entry names one declared board, this ADR, why, an `until:` date and exactly the raw names it
-   accepts. An accepted name is judged by the growth guards as already seen on that board only. Any name not
-   listed counts as before, and an entry past its `until:` date, or without one, fails the refresh.
-2. One entry: `terminalbench_4`, the names the 2026-11-11 night counted as never seen, `until: 2026-11-25`.
+   terms: each entry names one board (a surface, for its own board, or a declared board's source), this ADR,
+   why, an `until:` date and exactly the raw names it accepts. An accepted name is judged by the growth guards
+   as already seen on that board only, and excuses one row, the one looked at. On a surface's own board its
+   model is taken out of the loss counts as well as the growth count, so an accepted arrival never stands in
+   for a served model that left (the release security delta's M25, M26). Any name not listed counts as
+   before, and an entry past its `until:` date, or without one, fails the refresh.
+2. One entry: `computer-use`, whose own board is Terminal-Bench 4.0 (`terminalbench_4`), with the 10 raw names
+   the served artifact of 2026-11-10 never held, `until: 2026-11-25`. The night's 11th new row is a second
+   submission of a model already served (1 of 32 rows), which the growth limit passes as ordinary movement.
 3. The proof is the real `refresh()` publishing on a copy of the served state with the entry, and refusing
    without it. Once a night has published the names, a PR retires the entry, as #477 retired D-228's.
 

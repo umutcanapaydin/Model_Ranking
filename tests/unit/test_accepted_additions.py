@@ -323,3 +323,70 @@ def test_an_unlinked_row_the_served_board_holds_is_not_excused(tmp_path: Path) -
 
     reasons = _judged(tmp_path / "a", more, {SLICE.source: _names(0, 1)}, base=base)
     assert any("5 of 19" in r for r in reasons), reasons
+
+
+# --- The release security delta 2026-11-11: M25 (an addition held up the loss counts) and M26 (one name, many rows).
+
+def _unpriced(*indexes: int) -> Change:
+    """The named served probes lose their price, so the surface stops ranking them while its board keeps their
+    rows: a loss of ranked models that only the count guards (`surfaces`, `eligible`) can see."""
+    def change(conn: sqlite3.Connection) -> None:
+        conn.executemany("DELETE FROM px_median WHERE model_id = ?", [(f"probe-{i:02d}",) for i in indexes])
+    return change
+
+
+def _both(*changes: Change) -> Change:
+    def change(conn: sqlite3.Connection) -> None:
+        for each in changes:
+            each(conn)
+    return change
+
+
+def test_m25_seven_served_models_leaving_the_ranking_are_refused_alone(tmp_path: Path) -> None:
+    """The control: 7 of 12 ranked models gone, nothing arriving."""
+    reasons = _judged(tmp_path, _unpriced(*range(7)), {})
+    assert any(r.startswith(f"{OWN} would lose 7 of 12 models") for r in reasons), reasons
+
+
+def test_m25_an_accepted_addition_does_not_hide_a_loss_of_ranked_models(tmp_path: Path) -> None:
+    """M25: the same loss with 5 listed arrivals. The arrivals are taken out of the growth count, so they are
+    taken out of the loss counts too: 12 - 7 + 5 ranked, judged as 5 of 12, still refused."""
+    reasons = _judged(tmp_path, _both(_unpriced(*range(7)), _arrive_ranked(5)), {OWN: _names(0, 1, 2, 3, 4)})
+    assert any(r.startswith(f"{OWN} would lose 7 of 12 models") for r in reasons), reasons
+
+
+def test_m25_an_accepted_addition_does_not_hide_a_budget_emptying(tmp_path: Path) -> None:
+    """M25's budget half: every served model leaves the ranking and 5 listed arrivals are offered at every budget.
+    Judged without the arrivals, the surface offers nothing where it offered 12."""
+    reasons = _judged(tmp_path, _both(_unpriced(*range(12)), _arrive_ranked(5)), {OWN: _names(0, 1, 2, 3, 4)})
+    assert any(r.startswith(f"{OWN} offered 12 models at the") for r in reasons), reasons
+
+
+def test_m25_an_addition_with_no_loss_still_publishes(tmp_path: Path) -> None:
+    assert _judged(tmp_path, _arrive_ranked(5), {OWN: _names(0, 1, 2, 3, 4)}) == []
+
+
+def _flood(count: int, *, linked: bool) -> Change:
+    """`count` rows under the one name `Fresh 0` on `SLICE`'s board, one per harness: copies of one new model, or
+    unlinked."""
+    def change(conn: sqlite3.Connection) -> None:
+        conn.executemany(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+            " source_url, observed_at) VALUES (?, 'Fresh 0', ?, ?, 'elo', 50, ?, 'unspecified', 'fixture://x', 't')",
+            [("fresh-0" if linked else None, SLICE.source, SLICE.benchmark, f"harness-{i}") for i in range(count)])
+    return change
+
+
+@pytest.mark.parametrize("linked", [True, False], ids=["copies-of-one-model", "unlinked"])
+def test_m26_one_listed_name_excuses_one_row_not_a_flood(tmp_path: Path, linked: bool) -> None:
+    """M26: 40 rows under the one listed name `Fresh 0`. A name excuses the row the owner looked at, so 39 of
+    51 judged rows are still new and the board is refused (D-159's flood rule)."""
+    reasons = _judged(tmp_path, _flood(40, linked=linked), {SLICE.source: _names(0)})
+    assert any(r.startswith(f"board {SLICE.source} would be 39 of 51 rows") for r in reasons), reasons
+
+
+@pytest.mark.parametrize("linked", [True, False], ids=["copies-of-one-model", "unlinked"])
+def test_m26_a_listed_name_still_excuses_its_one_row(tmp_path: Path, linked: bool) -> None:
+    """Four rows under `Fresh 0`, one listed: three of 15 judged rows are new, under the quarter."""
+    assert not [r for r in _judged(tmp_path, _flood(4, linked=linked), {SLICE.source: _names(0)})
+                if r.startswith(f"board {SLICE.source}")]

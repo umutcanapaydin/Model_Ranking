@@ -1996,3 +1996,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The entry names the 10 raw names, measured against the served state of 2026-11-10 (run 42751550585's `hosted-state`), until 2026-11-25. The 11th new row is a second `glm-5.3-flash` submission (1 of 32), which the guard passes as ordinary growth.
 - Proof on real data: the real `python -m app.workflows.refresh --fetch-epoch` on a copy of that served state, with this code, published. 19 surfaces answer (`long-tasks` gone), Terminal-Bench 32 rows, every source fetched, and the largest board change was 1 of 12.
 - Lesson: a guard that says "published by hand" needs the hand's path written down before the first night it fires. Otherwise the refusal blocks every release behind it.
+
+## 2026-11-11 · fix/issue-605-security-m25-m26 — an accepted addition is one row, and never stands in for a loss
+
+- The release security delta of run golive-1111 (`docs/reviews/release-security.md`, M25, M26) found two ways the D-251 exception excused more than the owner looked at.
+- M25: `added` took the listed models out of the growth count, but not out of `surfaces` and `eligible`, the only counts the loss guards read. So 7 of 12 served models leaving the ranking published when 5 listed models arrived.
+- M26: one listed name excused every row it arrived under, so a flood of 40 rows under one name published.
+- Fix: the serving summary keeps the ids each budget offers, so `added` takes the accepted arrivals out of all three counts. A listed name now excuses one row.
+- Red tests first: 4 red, then 43 green. The real refresh on the served copy of 2026-11-10 still publishes. D-251's text now names the board the file names, `computer-use` (R28).
+- Lesson: an exception to a guard has to be subtracted from every count that guard family reads, not only from the one that refused.
