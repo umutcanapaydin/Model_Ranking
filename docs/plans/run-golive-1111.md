@@ -3,8 +3,8 @@
 Mode: light
 Started: 2026-11-11
 Ended: open
-Integration branch: none · PR: none
-Plan PR: none
+Integration branch: `integration/run-golive-1111` · PR: none
+Plan PR: #607
 Rulings: D-251, D-252
 Cost: n/a
 
@@ -12,13 +12,13 @@ Cost: n/a
 
 | # | Milestone | Base | Plan | Status |
 |---|---|---|---|---|
-| 1 | queue | none | issues | queued |
+| 1 | queue | cb31a8e | issues | running |
 
 ## Waves
 
 | Wave | Branch | PR | Close record | Status |
 |---|---|---|---|---|
-| issue-605 | fix/issue-605-accept-growth | none | none | queued |
+| issue-605 | fix/issue-605-accept-growth | none | none | running |
 | issue-606 | release/v1.1.0 | none | none | queued |
 
 ## Stops
