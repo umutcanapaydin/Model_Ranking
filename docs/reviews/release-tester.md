@@ -2345,7 +2345,7 @@ Seat: worktree `$TMPDIR/golive-1111-tester` on `review/golive-1111-tester` cut f
 ### Suite
 
 - `tests/unit/test_accepted_additions.py`, `test_accepted_cuts.py`, `test_accepted_respellings.py` at `e854b57`: 139 passed (coverage floor message is the three-file subset's, not a failure). After my tests: `test_accepted_additions.py` 35 passed, `ruff` clean.
-- The full `tests/` run under `-n 4` did not finish in this seat (a busy machine, several other builds running): I do not claim it. The commit hook (`commit-msg` -> `make check-fast`) ran the gate on my test commit.
+- Full `tests/` under `-n 4` in this seat (run while I was still finishing the test file, so it holds most but not necessarily all of my three new tests): **5651 passed, 38 skipped, 0 failed** (24m46s). The commit hook (`commit-msg` -> `make check-fast`) then passed on the test commit `ac15329`. The 38 skips are the existing ones (for example `test_offline_run.py:77`, which needs an OS-level network namespace).
 - Contract tests are untouched by the range (no new integration).
 
 ### Still standing from earlier rounds (LOW)
