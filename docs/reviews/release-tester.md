@@ -18,12 +18,12 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-10 (the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-12 (the delta 2026-11-12 `ac15329..946a89e`; before it the delta 2026-11-11 `5df7fa9..ac15329`, D-251 and D-252, run golive-1111; before it the delta 2026-11-10c `53b16b8..5df7fa9`, M23 and M24; the re-verify 2026-11-10b `bce930e..53b16b8`; the delta 2026-11-10b `7a1e6d0..bce930e`, D-250 releases followed; the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
 2026-10-27, the nightly, hotfix-1026 and B5 rounds 2026-10-26, the full round 2026-10-25)
-**Commit range:** the re-verify `30c1aeb..7a1e6d0` (`enhancement/remove-metr`: M6, M7); the delta `bd843fd..32d7d70` (D-249, METR removed); the release round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
+**Commit range:** the delta `ac15329..946a89e` (M25, M26); before it the delta `5df7fa9..ac15329` (run golive-1111: #605 and D-251, #606 and D-252, with my test commit `ac15329`); before it the delta `53b16b8..5df7fa9` (M23, M24 fixes); the re-verify `bce930e..53b16b8` (M8, M9); the delta `7a1e6d0..bce930e` (`enhancement/follow-releases`, D-250: LiveBench and DeepSWE follow their site's release); the re-verify `30c1aeb..7a1e6d0` (`enhancement/remove-metr`: M6, M7); the delta `bd843fd..32d7d70` (D-249, METR removed); the release round `a937ff9..b7bdb38` (`main`, PR #591 and PR #592: #587, #570, #572, #573, #576, #583, #580, #582, #593); the earlier round `0238db5..a937ff9` (`main`, the merge of PR #564: #589); the earlier run-1102 round `1a5fec01cfe562b10f7a6040d45b121a60426bb7..970ffea` (`integration/run-1102`, draft PR #564: #557, #554, #555, #556, #562, #563, #553, #566, #568, #552, #551, #561; D-242, D-243, D-244); the round 2026-11-01b `918c227fdb6d3910bd750d74b43c0f571d4d16c0..7fad073d4cfb343141d300cf16d4094eb97fe2a5`
 (`upgrade/devflow-7.3.1`, draft PR #559: `e147b71` D-241, `ae37759` the owner's half, `bc5d9b8` the agent's half,
 `7fad073` main merged in; 85 code files); the round 2026-11-01 `6e6f5beb81fc12d29d51540fc132be230d8d880b..eaee56b`
 (`integration/fixes-1101`, draft PR #547: #526, #527, #545, #533, #529, #543, #546, #534, #541, #548, #549, #544, #528, #536, #530, #531, #525; D-234 to
@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733 (the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** 946a89ec493c085929c09cb12e707d0a1353b7ff (the delta 2026-11-12, `ac15329..946a89e`, M25 and M26 fixes, no test added; before it ac15329e3ea34977ce27846c116d5e29141eaa44: the delta 2026-11-11, `5df7fa9..ac15329`, D-251 and D-252, my test commit on `e854b57`; before it 5df7fa928a6d70260c7a94211a316214dc917cc2: the delta 2026-11-10c, `53b16b8..5df7fa9`; before it 53b16b811196ea444e07193f797a56ea090062cd: the re-verify 2026-11-10b, `bce930e..53b16b8`; before it bce930e6dd68027bb85d562b8f71f9409f3cad5e: the delta 2026-11-10b, `7a1e6d0..bce930e`, D-250 releases followed; before it 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733: the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2196,3 +2196,176 @@ Reviewed head (full): 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4
   I restored the file from the committed blob and the md5 then matched. The worktree was throwaway.)
 - **Manifest.** 732 entries, none without a test source; the only source-side extra is the `OfflineObserver` helper, not a test.
 - **M7.** The docstring in `tests/unit/test_categories.py` now says "A minutes scale's numbers ... (its board left with D-249; the rule is generic)"; test body unchanged.
+
+## Delta 2026-11-10b (D-250, releases followed)
+
+**Range:** `7a1e6d0..bce930e` (code: `fe276e9` red test, `bce930e` feat; `32a58b0` the ADR). **Independent:** yes (`seat: independent`); I wrote none of
+the range. **Verdict: MINOR**, 0 BLOCKING, 3 MINOR (M8, M9, M10) and 1 LOW (M11). Reviewed head `bce930e6dd68027bb85d562b8f71f9409f3cad5e`.
+Own worktree at `bce930e`, own venv from `requirements/dev.lock` plus `pip install -e .` (Python 3.14.0 here; the project says 3.11+), removed after.
+
+Reviewed head (full): bce930e6dd68027bb85d562b8f71f9409f3cad5e
+
+I added one test (M9) to the main tree, **uncommitted**: `tests/unit/test_follow_releases.py`. Tests count as code for the deploy gate, so once the
+author commits it the head moves past `bce930e` and the gate wants a delta over that test-only commit.
+
+- **Red -> green.** `tests/unit/test_follow_releases.py` at `fe276e9`: 14 failed, 10 passed. At `bce930e`: 24 passed. With my M9 test: 25 passed.
+- **Citing test per D-250 clause.**
+  - Clause 1 (newest release, floor, rows dated by release): `test_follow_releases.py:54-66` (reads 2026-11-06, pinned file never fetched,
+    `run_date` 2026-11-06), `:69-80` (older than floor, none, not-a-date), `:132-139` (payload without a date).
+  - Clause 2 (weighted overall; any other weights shape fails): `:106-110` (82.0 by hand), `:113-120` (the recorded Long Agentic 2.0 / Coding 1.5 /
+    Design 1.5 release), `:123-129` (7 bad shapes).
+  - Clause 3 (DeepSWE reads the path the page names, newest, floor v1.1): `:143-149`, `:153-161`, and the floor at `:164-176` (shifted down by my M9 insert).
+  - Clause 4 (an unfindable release fails the source, no other host): `:69-80`, `:83-88` (no script), `:91-99` (redirect off host, other host not
+    called), `:164-176`.
+  - Clause 5 (credit and citation name no release): `:179-187`.
+  - Clause 6 (ARC-AGI-2 stays pinned): **no test cites D-250.** It is held by the older `tests/unit/test_arc_agi_2.py` (`REVISION` pinned, `:18`, `:56`) and the
+    weekly contract test `tests/integration/test_scores_contract.py:87-97`, which fails when the dataset's `sha` moves. The range does not touch the ARC client,
+    so I count it held; see M11.
+- **Fault injection** (script on the worktree; each change reverted by string replacement and the md5 of the file compared before and after, identical every time; `git status` clean):
+  - Floor dropped in LiveBench `newest_release` -> RED (`only-older-than-the-floor`; 1 failed, 70 passed).
+  - LiveBench `max` -> `min` -> RED (`test_livebench_reads_the_newest_release_its_page_names`; 1 failed).
+  - Weights ignored (weight 1 everywhere) -> RED (two weighted tests; 2 failed).
+  - Floor dropped in DeepSWE `newest_leaderboard` -> RED (`only-older-than-v1.1`; 1 failed).
+  - **DeepSWE versions compared as strings -> STAYED GREEN (71 passed).** The only two-version test pairs `v1.1` with `v1.10`, and as text `1.1` < `1.10` too,
+    so it passes for the wrong reason (its docstring claims it proves numeric order). That is **M9**. I wrote
+    `test_deepswe_compares_versions_as_numbers_v1_10_beats_v1_9` (`v1.9` and `v1.10`; text order picks `1.9`). With the string compare re-injected it is RED
+    (1 failed, 24 passed); clean 25 passed; md5 of `datacurve.py` equal before and after.
+- **Test integrity.** The edits to `test_livebench.py` and `test_datacurve.py` remove only assertions about the pinned release and the fixed URL, `TABLE_URL` and
+  `RELEASE_DATE` (superseded by D-250); no negative test is deleted or weakened.
+- **Contract tests** (`RUN_CONTRACT_TESTS=1 pytest tests/integration/test_scores_contract.py -k "livebench or datacurve"`): 2 passed, 6 deselected.
+- **Against the real sites (read 2026-11-10).**
+  - The page script `main.c61c63f5.js` lists `["20261014","20261025","20261106"]`; the client takes 2026-11-06. That release's `categories.json` carries
+    `_overall_weights` {Long Agentic 2.0, Coding 1.5, Design 1.5}. Our parse: 33 rows, 0 skipped, top `claude-fable-5.2` 84.88, `gpt-6-astra` 84.45.
+  - The page's own text says Fable 5.2 at xhigh scores "84.9" overall; ours is 84.88, which rounds to it. The page's code (`En`: weighted sum over the weight sum of the suites
+    with a score, then `toFixed(2)`) is the computation the parser reproduces. Ours is stricter in two places: the page ignores a bad weights entry where we fail the source (safe),
+    and the page ranks a model whose suite is blank ("still running ... contributes nothing to Overall") on the suites it has, where we skip the row (M10). Today no row is skipped.
+  - DeepSWE: the page names `/artifacts/v1.1/leaderboard-live.json` only; the client reads it.
+- **The drop in models and the nightly guard (M8).** Parsing the three releases on the site today gives 55 ranked rows (2026-10-14; I could not reproduce the 49 the code comments give),
+  32 (2026-10-25) and 33 (2026-11-06). Against the 2026-10-14 raw names, 23 of 55 (42%) are absent from 2026-11-06 and 1 is new. `degradations` -> `_mostly_lost`
+  (`refresh.py:213`, `MAX_SURFACE_LOSS = 0.25`, D-164 clause 2) refuses a declared board that loses 25% of its rows, and `data/accepted-cuts.yaml` holds `cuts: []`. By the code and
+  the live numbers (I did not run the guard on a built artifact) the first night is very likely **refused**, and a refused night freezes the whole artifact, not only LiveBench.
+  The `minimum_rows=24` floor (`sources.py:318-323`) is not the problem: it is 73% of today's 33 and 75% of the 32 of 2026-10-25, so it still catches a truncated file. But the
+  board has moved 55 -> 32 -> 33 in four weeks, so "half the recorded board" is a poor proxy for it.
+- **Suite.** test_follow_releases 25 passed (with M9), test_livebench 26, test_datacurve 21, test_datacurve_move 7, test_credits 40, test_credits_cover_citations 2,
+  test_sources 12, test_categories 18 passed 1 skipped, test_api_v1 29: 0 failed.
+
+- **M8 (MINOR, affects the first night).** D-250 does not say what the first night does to the D-164 guard. By the numbers above LiveBench's board loses about 42% of its rows the night
+  the client first reads 2026-11-06, over the 25% limit, so the refresh will most likely refuse the publish (and every night after, while the old rows are the baseline) until the owner
+  either names the 23 lost raw names in `data/accepted-cuts.yaml` (D-220 clause 3; a change to that file goes to a security review, `scripts/review_need.py` EXCEPTION_FILES) or publishes by
+  hand as the guard's text says. Decide before the nightly runs: a cut entry (with `until:`) on this branch, or an owner-actions row. A later release may shrink the board again.
+- **M9 (MINOR, fixed in the working tree).** The DeepSWE version-compare test did not tell numeric from text order (above). The new test is uncommitted; the author commits it.
+- **M10 (MINOR, LOW).** The parser skips a row with any blank category cell (`livebench.py:190-195`), while the page ranks it on the categories it has. Today `skipped` is 0, so no
+  effect; when a release is mid-run, a model the site ranks will be absent from us. D-250 clause 2 says "as the page computes it" and is silent on blanks: say so in the ADR or test the skip.
+- **M11 (LOW).** Clause 6 has no test citing D-250 (held by `test_arc_agi_2.py` and the contract test; fine). The `minimum_rows=24` comment in `sources.py:317` says "49 models" for a
+  release that has 55 rows on the site; reword once M8 is settled.
+
+### Re-verify 2026-11-10b (bce930e..53b16b8)
+
+**Verdict: MINOR** (0 BLOCKING; M8 withdrawn, M9 closed; M10 and M11 stand, LOW). Reviewed head `53b16b811196ea444e07193f797a56ea090062cd`. Same seat; fresh worktree at
+`53b16b8` with its own venv, removed after. `git diff bce930e 53b16b8` touches only `tests/unit/test_follow_releases.py`, `docs/reviews/release-tester.md` and `docs/process-log.md`: no source file.
+
+- **M8 refuted; I withdraw it.** `app.workflows.boards.declared()` (`boards.py:27-31`) returns only `ARENA_SLICES` and `EPOCH_BOARDS`, and `serving_summary` (`refresh.py:901`) guards two
+  things: each surface's own board (its primary) and the declared boards no surface ranks on. LiveBench is neither; it is a family board of `everyday` (`families.py:26`). My first-round reading
+  took the D-164 guard to cover every source. I reproduced the coordinator's check on a copy of the local `advisor.db` (scratchpad `a.db`, 55 livebench rows at 2026-10-14; the main tree's file not touched): a second copy
+  had its livebench rows replaced by the live 2026-11-06 parse through `ingest_livebench` (33 rows, 0 skipped). `degradations(a, b, {})` returned `[]`, `upward_anomalies(a, b, a)` returned `[]`; no key with "livebench"
+  in `board` or `boards`. The first night is not refused for this reason. The `minimum_rows=24` floor stays right as assessed.
+- **Side observation, agreed.** The two summaries' digests were equal: a LiveBench-only change does not alter the digest, so it does not publish by itself; the new rows ride out with the next night in which a
+  guarded board, a surface or a price moves. That holds for every family board and predates this range. **M12 (LOW, not filed):** worth a line in D-250 or the architecture notes, since "follow the newest release
+  each night" reads as "published each night"; if the owner wants LiveBench alone to publish, hash the family boards' rows in `serving_summary`.
+- **M9 closed.** At `53b16b8` `test_deepswe_compares_versions_as_numbers_v1_10_beats_v1_9` is green clean (`test_follow_releases.py` 25 passed; with test_livebench and test_datacurve 72 passed). With the DeepSWE
+  `max(usable)` replaced by a string-keyed max it is RED (1 failed, 24 passed); reverted in place, md5 of `datacurve.py` `4e276a63b3e63041cc8b3b942c92c8f1` before and after, `git status` clean. The coordinator's two edits
+  (a line wrapped under 120 characters, a docstring sentence no longer claiming numeric order for `v1.1`/`v1.10`) change no assertion.
+- **Still standing (LOW):** M10 (blank cells skip a row, `livebench.py:190-195`), M11 (clause 6 has no D-250 citing test; the `sources.py:317` comment says 49 models for a release with 55 rows).
+
+## Delta 2026-11-10c (M23, M24 fixes)
+
+**Range:** `53b16b8..5df7fa9` (code: `c70806a` red tests, `5df7fa9` fix). **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: PASS**, 0 BLOCKING, 0 new findings.
+Reviewed head `5df7fa928a6d70260c7a94211a316214dc917cc2`. Fresh worktree at `5df7fa9` with its own venv, removed after. The source diff is two lines of regex
+(`src/app/clients/livebench.py:42-44`, `src/app/clients/datacurve.py:36-38`); no test added by me.
+
+Reviewed head (full): 5df7fa928a6d70260c7a94211a316214dc917cc2
+
+- **Red -> green.** At `c70806a`, `test_follow_releases.py`, `test_livebench.py` and `test_datacurve.py` together: 2 failed (`test_a_hostile_page_fails_livebench_in_linear_time`,
+  `test_a_version_past_any_real_length_fails_deepswe_not_the_night`), 72 passed. At `5df7fa9`: 74 passed (`test_follow_releases.py` alone: 27 passed).
+- **Fault injection** (each fix reverted by string replacement in the worktree, suite run, put back; md5 equal before and after, `git status` clean):
+  - M23: the `<script[^>]*` prefix put back on `_SCRIPT` -> only `test_a_hostile_page_fails_livebench_in_linear_time` RED (1 failed, 73 passed).
+  - M24: `\d{1,6}(?:\.\d{1,6}){0,3}` put back to `\d+(?:\.\d+)*` -> only `test_a_version_past_any_real_length_fails_deepswe_not_the_night` RED (1 failed, 73 passed).
+  - (My first script run overwrote the two files by a read after truncating; I restored both from the `5df7fa9` blob in the throwaway worktree, checked the md5s against the
+    committed ones, then re-ran the injections with a fixed script. The main tree was not involved.)
+- **Contract tests against the live pages:** `RUN_CONTRACT_TESTS=1 pytest tests/integration/test_scores_contract.py -k "livebench or datacurve"`: 2 passed, 6 deselected. The tightened patterns
+  still read the real LiveBench script path and DeepSWE's `v1.1`.
+- **R26 (the security seat's LOW).** The M23 test asserts under 2 s; the fixed code takes well under 0.1 s on this machine (the whole file runs in 0.25 s), and the old pattern is the failing case, so the margin
+  is wide on the passing side. Not a test-completeness finding.
+- **Still standing from the earlier rounds (LOW):** M10, M11, M12.
+
+## Delta 2026-11-11 (D-251, D-252: run golive-1111)
+
+**Range:** `5df7fa9..e854b57` (code: `11988ef` red, `b123a29` fix for #605; `86cc942` for #606; merges and run-file, ADR and record commits), plus my one test commit `ac15329`.
+**Independent:** yes (`seat: independent`); I wrote none of the range's code. **Verdict: MINOR** (0 BLOCKING; 1 test-completeness gap found by fault injection and closed by tests I added; 3 LOW noted, none filed per the owner's rule).
+Reviewed head (full): ac15329e3ea34977ce27846c116d5e29141eaa44
+
+Seat: worktree `$TMPDIR/golive-1111-tester` on `review/golive-1111-tester` cut from `e854b57`, the main clone's `.venv` with `PYTHONPATH` at the worktree (`app.__file__` resolved into it). Author family Claude / reviewer family Claude (no second family available).
+
+### #605 / D-251: acceptance criteria
+
+- **Clause 1** (an `additions:` list under a cut's terms: one declared board, this ADR, a reason, `until:`, the exact raw names; an unlisted name counts as before; past `until:` or without one fails): schema and expiry `tests/unit/test_accepted_additions.py` `test_an_addition_off_its_schema_fails_the_refresh` (13 parametrised cases: no `until`, past, over 30 days, unknown and non-ADR decision, unknown board, empty names, a name with no letter, a name twice, extra key, a board twice, not a list, unknown top-level key), `test_the_adr_must_name_the_board`; names judged: `test_accepted_additions_are_not_growth`, `test_a_new_name_no_addition_lists_still_counts`, `test_additions_named_for_one_board_excuse_nothing_on_another`, `test_a_model_with_a_name_not_listed_is_not_excused` (#478's lesson), `test_an_addition_never_excuses_a_loss`, `test_a_board_returning_is_untouched`, `test_a_first_artifact_has_nothing_to_add_to`. Through the real entry: `test_the_night_reads_the_additions_through_its_real_entry` (published with the file on disk, refused without it) and `test_a_malformed_additions_list_fails_the_night` (a malformed list raises, the night fails). Code: `refresh.py` `added`, `parse_accepted_additions`, wired after `respelled` in `_cycle`.
+- **Clause 2** (one entry, `terminalbench_4`, which is the board `computer-use` in the file, ten names, `until: 2026-11-25`): `test_the_committed_terminal_bench_addition_parses_until_its_expiry` pins the ten names, the board and that 2026-11-26 fails with "past". The expiry bites at parse: `2026-11-25` is the last good night, by the shared `_check_terms`.
+- **Clause 3** (proof is the real `refresh()` publishing on a copy of the served state, refusing without the entry): I reproduced it. `gh run download 42751550585 -n hosted-state` (read only), copied; `python -m app.workflows.refresh --db <copy> --fetch-epoch` on this tree: **exit 0, `"published": true`**, `surfaces_answering` 19, `largest_board_change` video_edit 1 of 12. The refusal without the entry is the hosted night 42938869001 itself (issue #605's log); I did not re-run it without the file.
+- **Mitigation clause** (an entry that excused an unlisted name or board fails the test file): confirmed by the injections below.
+
+### Fault injection on `refresh.added` (mine; one atomic sequence per row, string replace in the worktree, run `test_accepted_additions.py`, put back; md5 of `refresh.py` equal before and after, `git status` clean)
+
+| Injection | Result with the 32 tests of the range | After my tests |
+|---|---|---|
+| `added` returns the candidate (no-op) | RED | RED |
+| `raws <= names` to `raws & names` (a model excused by one listed name) | RED | RED |
+| drop `model not in served_models` (excuse a served model's row) | RED | RED |
+| the call in `_cycle` removed | RED | RED |
+| drop `if name not in rows_by or not served` (a returning board) | RED | RED |
+| `keys = {...} - served_keys` loses the subtraction (unlinked rows the served board holds) | **GREEN** | RED |
+| the surface's ranked models not reduced (`ranked[name] - ...` removed) | **GREEN** | RED |
+| `leaving - live.models.get(...)` to `leaving` | GREEN | GREEN (LOW L1) |
+
+- **M1 (MINOR, closed by the tests I added).** Two of `added`'s judgements had no test: the unlinked-row key filter, and the subtraction from the surface's own ranked models. The second is the half of the real refusal that said "10 of 31 models" (#605): the existing fixture's new models were never priced, so they never entered `candidate.models` (I printed both summaries), and the models guard was never exercised. New in `tests/unit/test_accepted_additions.py`: `test_an_accepted_addition_leaves_the_surfaces_ranked_models_too` (control fires "5 of 17 models" without the list, `[]` with it), `test_unlinked_rows_are_excused_by_their_listed_names_only`, `test_an_unlinked_row_the_served_board_holds_is_not_excused`. They are green on the code and RED under the two injections above (35 passed; 2 injections each fail 1). The code was right; the proof was missing.
+- **L1 (LOW, not filed).** `leaving - live.models.get(name, frozenset())` (`refresh.py`, the ranked-models line of `added`) subtracts a model the served surface already ranks but whose served row on this board is absent. I could not build a state where it matters (a ranked model with no row on its own board); an equivalent mutant as far as I can tell. A comment, or removing the term, would settle it.
+- **L2 (LOW, not filed).** A candidate linked row whose model is new to the served board is excused when its name is listed, even when the served board held that name as an unlinked row (a row that gained its link). That is the same new/lost pair the guards would otherwise read as one loss and one gain; the effect is only to make the night more permissive for a listed name, and the list is the owner's. Noted for the entry's retirement, not a defect.
+- **L3 (LOW).** `parse_accepted_cuts` and `parse_accepted_respellings` do not validate `additions` (each reads its own key), so a malformed additions entry fails the night only where `load_accepted_additions` runs. That is after the build in `_cycle`; it fails the night, as `test_a_malformed_additions_list_fails_the_night` shows. Fine.
+
+**Adversarial summary.** An addition cannot excuse a loss (rows leave only from the candidate, never the served set; `test_an_addition_never_excuses_a_loss`), nor a row the served board holds (served models and served unlinked keys are excluded; both now pinned), nor another board's rows (per-board dict; `test_additions_named_for_one_board_excuse_nothing_on_another`), nor a model with an unlisted name (`raws <= names`), and a returning board is left alone. The digest is the candidate's (asserted in `_judged`), so what is published is unchanged. No test file was deleted or weakened in the range (`git diff` of `tests/`: 2 files, additions only).
+
+### #606 / D-252: "Done when"
+
+- **Versions.** `pyproject.toml` 1.1.0, `src/app/adapter/main.py` `APP_VERSION` 1.1.0, all four Xcode build configurations `MARKETING_VERSION = 1.1.0` and `CURRENT_PROJECT_VERSION = 9` (diff checked; no stray 1.0.0 or 8 left in the project file).
+- **Listing names every first-submission field** (`docs/app-store-listing.md`): name (13/30), subtitle (29/30), categories, content rights, age rating questionnaire, price, promotional text (135/170), description (1,797/4,000), keywords (95/100), support URL, marketing URL (empty), copyright, privacy policy URL, App Privacy, export compliance, App Review (sign-in, contact, notes), the build. The Turkish file carries promotional text (150), description (1,791), keywords (91), name and subtitle (29), all within limits (computed).
+- **Claims against the app.** `ITSAppUsesNonExemptEncryption` is `<false/>` (`ios/Config/Info.plist:9-10`); `PrivacyInfo.xcprivacy` declares no tracking, no collected data, UserDefaults CA92.1 only; no web view or link opener (the only `UIApplication.shared.open` is the Settings door, `ios/ModelRanking/SettingsDoor.swift:11`), so "opens no web page" holds; the network use is `EngineClient` (`URLSession`, same-host redirects only); `FoundationModels` is used by the Router; `abstract` is "Puzzles" in `Language.swift:554`; `tr.lproj` is in the bundle (`InfoPlist.strings`, no string since D-222). The Credits screen's publisher text is data the engine serves, not checkable from the listing alone; the in-app credits list (`Models.swift`, `Language.swift`) exists. "A source whose page reserves all rights was removed" matches D-249 (METR).
+- **L4 (LOW, not filed).** The Turkish listing says the app is available in Turkish, while `tr.lproj` holds no Info.plist string; the in-app Turkish is `Language.swift`, so the claim is true of the UI, not of system dialogs. Not a factual error.
+- **Owner rows** (`docs/owner-actions.md`): the 2026-11-05 and 2026-11-06 rows marked done, the privacy check uses a GET, and four go-live rows (merge, tag and night, archive and upload build 9, listing and submit) were added; one command each.
+- `make deploy-check` reads this file's `**Reviewed head:**`: the range's code plus my test commit are at or before it.
+
+### Suite
+
+- `tests/unit/test_accepted_additions.py`, `test_accepted_cuts.py`, `test_accepted_respellings.py` at `e854b57`: 139 passed (coverage floor message is the three-file subset's, not a failure). After my tests: `test_accepted_additions.py` 35 passed, `ruff` clean.
+- Full `tests/` under `-n 4` in this seat (run while I was still finishing the test file, so it holds most but not necessarily all of my three new tests): **5651 passed, 38 skipped, 0 failed** (24m46s). The commit hook (`commit-msg` -> `make check-fast`) then passed on the test commit `ac15329`. The 38 skips are the existing ones (for example `test_offline_run.py:77`, which needs an OS-level network namespace).
+- Contract tests are untouched by the range (no new integration).
+
+### Still standing from earlier rounds (LOW)
+
+M10, M11, M12.
+
+### Delta 2026-11-12 (M25, M26 fixes)
+
+**Range:** `ac15329..946a89e` (code: `120bd71` red tests, `459fa2e` fix; the rest is the security verdict, the process log and D-251's text). **Independent:** yes (`seat: independent`); I wrote none of it. **Verdict: PASS**, 0 BLOCKING, 0 new findings. I added no test, so the reviewed head is the merge head.
+Reviewed head (full): 946a89ec493c085929c09cb12e707d0a1353b7ff
+
+- **Changed judgements and their tests** (`src/app/workflows/refresh.py`, `added` and `ServingSummary.eligible_models`; `tests/unit/test_accepted_additions.py`): M25, accepted arrivals leave `surfaces` and `eligible`: `test_m25_an_accepted_addition_does_not_hide_a_loss_of_ranked_models` ("lose 7 of 12 models" with 5 listed arrivals; control without them), `test_m25_an_accepted_addition_does_not_hide_a_budget_emptying`, `test_m25_an_addition_with_no_loss_still_publishes`; M26, one row per listed name: `test_m26_one_listed_name_excuses_one_row_not_a_flood` and `test_m26_a_listed_name_still_excuses_its_one_row`, each parametrised linked and unlinked.
+- **Fault injection** (each a string replace in the worktree, `test_accepted_additions.py` run, put back; md5 of `refresh.py` equal before and after, `git status` clean). Baseline 43 passed.
+  - the `surfaces[name] = ... - len(gone)` line removed -> RED (1 failed).
+  - the `eligible[name][budget]` subtraction removed -> RED (1 failed).
+  - the linked copy cap (`row.copy < leaving.get(...)`) back to `row.model in leaving` -> RED (1 failed).
+  - the unlinked copy cap (`row.copy < keys[row.key]`) back to `row.key in keys` -> RED (1 failed).
+  - `- live.models.get(name, frozenset())` dropped from `gone` -> GREEN: still the equivalent mutant of L1 (no state with a ranked model that has no served row on its own board). Unchanged LOW.
+- **No test weakened.** `git diff ac15329..946a89e -- tests` has no removed line; 67 lines added.
+- **The committed entry** still parses until its expiry: `test_the_committed_terminal_bench_addition_parses_until_its_expiry` is in the 43 green. D-251 now names `computer-use` as the board, matching the file.
+- **Real data again.** The same `hosted-state` copy of 2026-11-10 through `python -m app.workflows.refresh --fetch-epoch` on this head: `"published": true`, 19 surfaces answering, largest board change video_edit 1 of 12.
+- **Suite.** The refresh, accepted, respelling, board, arena, follow and serving tests under `tests/unit`: 1110 passed, 5 skipped (the Epoch bundle ones). The wider 5651-passed run of the earlier round covered the other files, whose code this range does not touch.
+- **Still standing (LOW):** L1 to L4, M10, M11, M12.

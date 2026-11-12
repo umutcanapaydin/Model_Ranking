@@ -4,15 +4,15 @@ id: release-security
 status: draft
 seat: independent
 process_version: v7.2
-date: 2026-11-10
+date: 2026-11-12
 ---
 # Security Review — release v0.2.0 (Stage 5.1, light mode, run v020)
 
 **Reviewer:** Security-Reviewer subagent (`.claude/agents/Security-Reviewer.md`; the profile, `AGENTS.md`, `docs/security-baseline.md` and `permission-matrix.md` read from `main`), Stage 5.1, light mode, dispatched by run v020 for release v0.2.0 at the release Tester's head
 **Independent:** yes. I wrote none of this range's code, tests or records, and none of its earlier reviews.
-**Date:** 2026-10-25; delta rounds 2026-10-26 (the nightly workflow, then hotfix-1026) and 2026-10-27 (the launchd guard retirement, build 6; then night-1027: D-227, D-228), and 2026-10-29 (run night-1028: D-229, build 7); and 2026-10-31 (run 1030 and fixes-1030: D-230, D-231; then fixes-1031: D-232, D-233); and 2026-11-01 (fixes-1101: D-234 to D-240); and 2026-11-02 (the DevFlow v7.2 to v7.3.1 upgrade, D-241); and 2026-11-03 (run 1102: D-242, D-243, D-244); and 2026-11-04 (#588: explicit parametrize ids); and 2026-11-06 (release v1.0.0, run v100: D-245, D-246, and two owner bundles); and 2026-11-06 again (delta 2026-11-06c, D-247; delta 2026-11-06d, the owner's bundles applied and D-247 retired); and 2026-11-08 (delta 2026-11-08, D-248: the privacy policy); and 2026-11-10 (delta 2026-11-10, D-249: METR removed)
-**Release range:** `471dd79d740f5054d7cc4c7916ca8d4162bfc199..7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733`: since v1.0.0's round (`..3b9b401`), the deltas `3b9b401..cb1117b` (round 2, M20), `ec4d855..6e538d9` (D-247), `6e538d9..5ab9c8b` (delta 2026-11-06d), `5ab9c8b..3edb8f3` (delta 2026-11-08, D-248) and `3edb8f3..7a1e6d0` (delta 2026-11-10, D-249); before them, the release below, then the deploy delta `6416d53..0222150` (the nightly workflow), then the deploy delta `0222150..9ef6448` (hotfix-1026: #459, #460, #461), then the deploy delta `9ef6448..50c4764` (#470's guard retirement, build 6, the Tester's `50c4764`), then the deploy delta `50c4764..718cae4` (night-1027: #473, #474, #476 and the Tester's round), then the deploy delta `718cae4..c29392c` (run night-1028: eleven issues on #483, build 7 and the Tester's round), then the deploy delta `c29392c..ed18de5` (run 1030 and fixes-1030: #496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501, #505, the owner's guard patch #497/#498, and the release Tester's two tests), then the deploy delta `ed18de5..6e6f5be` (fixes-1031: #517, #522, #518, #535 and the release Tester's three test files), then the deploy delta `6e6f5be..918c227` (fixes-1101, merged to `main` as `a4e605d`: seventeen issues, the owner's guard commit and the release Tester's seven test files), then the deploy delta `918c227..1a5fec0` (the DevFlow v7.3.1 upgrade on `upgrade/devflow-7.3.1`, draft PR #559: D-241, the owner's patch `ae37759`, the agent's half `bc5d9b8`, `main` merged in `7fad073`, the release Tester's `1a5fec0`), then the deploy delta `1a5fec0..0238db5` (run 1102 on `integration/run-1102`, draft PR #564: twelve issues, D-242 to D-244, and the release Tester's `0238db5`), then the deploy delta `0238db5..0c76d5c` (#588 and the run's close, merged to `main` as `a937ff9` by PR #564; the release Tester's verdict `0c76d5c`), then the release round v1.0.0 `0c76d5c..3b9b401` (run v100: #587, #570, #572, #573, #576, #583, #580, #582, #593 on `integration/lows-1104`, merged to `main` as `b7bdb38` by PR #592; D-246; the version bump `dd34695`; the release Tester's `3b9b401`), each read in its round at the end. First round: `471dd79d740f5054d7cc4c7916ca8d4162bfc199..6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` on `integration/run-v020` (draft PR #432), 66 commits, 86 files. `471dd79` is the reviewed head of the v0.1.0 verdict. `6416d53` is the release Tester's v0.2.0 verdict (MINOR, reviewed head `e87f9a9`).
-**Reviewed head:** 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733. This is the head of `enhancement/remove-metr` (D-249: METR's time horizons and the `long-tasks` surface removed), over `main` at `367601a` (PR #602); see "Delta 2026-11-10 (D-249, METR removed)" at the end. Before it: `3edb8f34f6f4f84f09b07d995c00bacbdbcf0af5`, the release Tester's delta 2026-11-08 on `enhancement/appstore-privacy` (D-248, the privacy policy at `/privacy` and `--no-access-log`), over `main` at `2a218b5`; see "Delta 2026-11-08 (D-248, the privacy policy)" at the end. Before it: `5ab9c8b082ff5e1e11c4336db32958e5d76202ee`, the release Tester's delta 2026-11-06d on `review/d1106-security`, over `main` at `278d273` (PRs #599 and #600 applied); see "Delta 2026-11-06d (the owner's bundles, D-247 retired)" at the end. Before it: `6e538d957e7143429b115d429303646dc14ee468`, which is the release Tester's D-247 re-spelling delta on `review/resp-security`, over `main` at `ec4d855` (v1.0.0); see "Delta 2026-11-06c (D-247 re-spelling)" at the end. Before it: `cb1117b7ead31cd92e56f037dd0e8b8742e16db0`, the release Tester's M20 delta verdict on `review/v100-security`; its code is the v1.0.0 round's plus M20's test-only fix (`5566380`, `a241247`). Round 2 added no test and changed no code. Earlier heads: `3b9b40139a39f82eff0694a4c603dfbde397a9e4` (the v1.0.0 round), `0c76d5c391b8906dd6beb954166b97090f9a1a73` (the #588 round), `0238db51c6e93f67757e15ae8b22afb85f1f29ad` (the run-1102 round), `1a5fec01cfe562b10f7a6040d45b121a60426bb7` (the upgrade round), `918c227fdb6d3910bd750d74b43c0f571d4d16c0` (the fixes-1101 round), `6e6f5beb81fc12d29d51540fc132be230d8d880b` (the fixes-1031 round), `ed18de5bef8ad54d501b8a268db9900073ab903f` (the run-1030 round), `c29392c6847ef1d3857711ed00bc8d9263efcd37` (the night-1028 round), `718cae416dc4b20ab9a39a10295b8e6b61aadfd9` (the night-1027 round), `50c4764bd94ffaa21201eaffaa6892f65c07e811` (the 2026-10-27 guard round), `9ef64482ae331c65491ef2675289b22caa5db0da` (the hotfix-1026 round), `0222150b195f2eba06fe33707c1124fcbd8ad70b` (the nightly-workflow round) and `6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` (the first round).
+**Date:** 2026-10-25; delta rounds 2026-10-26 (the nightly workflow, then hotfix-1026) and 2026-10-27 (the launchd guard retirement, build 6; then night-1027: D-227, D-228), and 2026-10-29 (run night-1028: D-229, build 7); and 2026-10-31 (run 1030 and fixes-1030: D-230, D-231; then fixes-1031: D-232, D-233); and 2026-11-01 (fixes-1101: D-234 to D-240); and 2026-11-02 (the DevFlow v7.2 to v7.3.1 upgrade, D-241); and 2026-11-03 (run 1102: D-242, D-243, D-244); and 2026-11-04 (#588: explicit parametrize ids); and 2026-11-06 (release v1.0.0, run v100: D-245, D-246, and two owner bundles); and 2026-11-06 again (delta 2026-11-06c, D-247; delta 2026-11-06d, the owner's bundles applied and D-247 retired); and 2026-11-08 (delta 2026-11-08, D-248: the privacy policy); and 2026-11-10 (delta 2026-11-10, D-249: METR removed); and 2026-11-10 again (delta 2026-11-10b, D-250: LiveBench and DeepSWE follow their releases; then its re-verify, M23 and M24 closed); and 2026-11-11 (delta 2026-11-11, D-251 and D-252: run golive-1111, release v1.1.0); and 2026-11-12 (its re-verify, M25 and M26 closed)
+**Release range:** `471dd79d740f5054d7cc4c7916ca8d4162bfc199..946a89ec493c085929c09cb12e707d0a1353b7ff`: since v1.0.0's round (`..3b9b401`), the deltas `3b9b401..cb1117b` (round 2, M20), `ec4d855..6e538d9` (D-247), `6e538d9..5ab9c8b` (delta 2026-11-06d), `5ab9c8b..3edb8f3` (delta 2026-11-08, D-248), `3edb8f3..7a1e6d0` (delta 2026-11-10, D-249) and `7a1e6d0..fe703c4` (delta 2026-11-10b, D-250) and `acb85a0..5df7fa9` (its re-verify: M23, M24) and `5df7fa9..09c8679` (delta 2026-11-11, D-251 and D-252: run golive-1111) and `09c8679..946a89e` (its re-verify: M25, M26); before them, the release below, then the deploy delta `6416d53..0222150` (the nightly workflow), then the deploy delta `0222150..9ef6448` (hotfix-1026: #459, #460, #461), then the deploy delta `9ef6448..50c4764` (#470's guard retirement, build 6, the Tester's `50c4764`), then the deploy delta `50c4764..718cae4` (night-1027: #473, #474, #476 and the Tester's round), then the deploy delta `718cae4..c29392c` (run night-1028: eleven issues on #483, build 7 and the Tester's round), then the deploy delta `c29392c..ed18de5` (run 1030 and fixes-1030: #496, #494, #488, #493, #500, #484, #510, #506, #511, #509, #503, #501, #505, the owner's guard patch #497/#498, and the release Tester's two tests), then the deploy delta `ed18de5..6e6f5be` (fixes-1031: #517, #522, #518, #535 and the release Tester's three test files), then the deploy delta `6e6f5be..918c227` (fixes-1101, merged to `main` as `a4e605d`: seventeen issues, the owner's guard commit and the release Tester's seven test files), then the deploy delta `918c227..1a5fec0` (the DevFlow v7.3.1 upgrade on `upgrade/devflow-7.3.1`, draft PR #559: D-241, the owner's patch `ae37759`, the agent's half `bc5d9b8`, `main` merged in `7fad073`, the release Tester's `1a5fec0`), then the deploy delta `1a5fec0..0238db5` (run 1102 on `integration/run-1102`, draft PR #564: twelve issues, D-242 to D-244, and the release Tester's `0238db5`), then the deploy delta `0238db5..0c76d5c` (#588 and the run's close, merged to `main` as `a937ff9` by PR #564; the release Tester's verdict `0c76d5c`), then the release round v1.0.0 `0c76d5c..3b9b401` (run v100: #587, #570, #572, #573, #576, #583, #580, #582, #593 on `integration/lows-1104`, merged to `main` as `b7bdb38` by PR #592; D-246; the version bump `dd34695`; the release Tester's `3b9b401`), each read in its round at the end. First round: `471dd79d740f5054d7cc4c7916ca8d4162bfc199..6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` on `integration/run-v020` (draft PR #432), 66 commits, 86 files. `471dd79` is the reviewed head of the v0.1.0 verdict. `6416d53` is the release Tester's v0.2.0 verdict (MINOR, reviewed head `e87f9a9`).
+**Reviewed head:** 946a89ec493c085929c09cb12e707d0a1353b7ff. This is the head of `integration/run-golive-1111` (draft PR #608) after the fix of M25 and M26 (`120bd71` red tests, `459fa2e` fix); see "Re-verify 2026-11-12 (M25, M26)" at the end. Before it: `09c86791f9786a455183cf2eca39b08879817632`, the same branch's head after the release Tester's delta 2026-11-11 (D-251: Terminal-Bench 4.0's accepted additions; D-252: v1.1.0, build 9, the App Store listing); see "Delta 2026-11-11 (D-251, D-252: run golive-1111)" at the end. Before it: `5df7fa928a6d70260c7a94211a316214dc917cc2`, the head of `enhancement/follow-releases` after the fixes of M23 and M24 (`c70806a` red tests, `5df7fa9` fix); see "Re-verify 2026-11-10b (acb85a0..5df7fa9)" at the end. Before it: `fe703c48bffb4bbbcfd185de831a46f7bed91ad0`, the same branch's head at the delta (D-250: LiveBench and DeepSWE read the newest release their site's own page names each night), stacked on `enhancement/remove-metr` (draft PR #603); see "Delta 2026-11-10b (D-250, releases followed)" at the end. Before it: `7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733`, the head of `enhancement/remove-metr` (D-249: METR's time horizons and the `long-tasks` surface removed), over `main` at `367601a` (PR #602); see "Delta 2026-11-10 (D-249, METR removed)" at the end. Before it: `3edb8f34f6f4f84f09b07d995c00bacbdbcf0af5`, the release Tester's delta 2026-11-08 on `enhancement/appstore-privacy` (D-248, the privacy policy at `/privacy` and `--no-access-log`), over `main` at `2a218b5`; see "Delta 2026-11-08 (D-248, the privacy policy)" at the end. Before it: `5ab9c8b082ff5e1e11c4336db32958e5d76202ee`, the release Tester's delta 2026-11-06d on `review/d1106-security`, over `main` at `278d273` (PRs #599 and #600 applied); see "Delta 2026-11-06d (the owner's bundles, D-247 retired)" at the end. Before it: `6e538d957e7143429b115d429303646dc14ee468`, which is the release Tester's D-247 re-spelling delta on `review/resp-security`, over `main` at `ec4d855` (v1.0.0); see "Delta 2026-11-06c (D-247 re-spelling)" at the end. Before it: `cb1117b7ead31cd92e56f037dd0e8b8742e16db0`, the release Tester's M20 delta verdict on `review/v100-security`; its code is the v1.0.0 round's plus M20's test-only fix (`5566380`, `a241247`). Round 2 added no test and changed no code. Earlier heads: `3b9b40139a39f82eff0694a4c603dfbde397a9e4` (the v1.0.0 round), `0c76d5c391b8906dd6beb954166b97090f9a1a73` (the #588 round), `0238db51c6e93f67757e15ae8b22afb85f1f29ad` (the run-1102 round), `1a5fec01cfe562b10f7a6040d45b121a60426bb7` (the upgrade round), `918c227fdb6d3910bd750d74b43c0f571d4d16c0` (the fixes-1101 round), `6e6f5beb81fc12d29d51540fc132be230d8d880b` (the fixes-1031 round), `ed18de5bef8ad54d501b8a268db9900073ab903f` (the run-1030 round), `c29392c6847ef1d3857711ed00bc8d9263efcd37` (the night-1028 round), `718cae416dc4b20ab9a39a10295b8e6b61aadfd9` (the night-1027 round), `50c4764bd94ffaa21201eaffaa6892f65c07e811` (the 2026-10-27 guard round), `9ef64482ae331c65491ef2675289b22caa5db0da` (the hotfix-1026 round), `0222150b195f2eba06fe33707c1124fcbd8ad70b` (the nightly-workflow round) and `6416d539b0a98bd1b9a23dc30a132b55ff9a92a5` (the first round).
 **Reviewed patch:** b233e259839070dcdee47387b2849e9e14366e8d4828af5b3b1021141881b345
 **Reviewed patch:** 9d89f61fc7184fb7aeda42f763c96b612c9abdc07cbf09933b547a32f4a7fb8d
 **Risk tier:** LOW by the brief: `docs/project-brief.md:110` declares no HIGH path. I read the range at MEDIUM depth because it edits the deploy gate, the brief reader, two deploy scripts and the nightly's process model. No auth, PII, payment or migration code is in the range, so the §11 senior-review trigger does not fire.
@@ -21,7 +21,7 @@ date: 2026-11-10
 > **This record replaces** the v0.1.0 verdict: the deploy delta `9208fd8..471dd79`, PASS, reviewed head `471dd79`. That text stays in git, at `git show 471dd79:docs/reviews/release-security.md`, together with the verdicts it extended at `9208fd8` and `660af4b`. This range closes the v0.1.0 MINORs it carried: #410, #411, #412, #417, #418 and #419. Their remaining edges are filed as #444 (from #410) or closed by #429 (from #418).
 
 ## Verdict
-MINOR -- (2026-11-10, delta 2026-11-10 `3edb8f3..7a1e6d0`: PASS for the delta, no new BLOCKING or MINOR; risks R20-R23 queued. No path serves or credits a METR number: the nightly's fresh build never carries an undeclared source, the public copy strips a removed source's rows, and the image carries its own derived copy, so the new engine never boots on the old artifact; see "Delta 2026-11-10 (D-249, METR removed)" at the end. The file stays MINOR for the carried M16-M19, M21 and M22. Before it, 2026-11-08, delta 2026-11-08 `5ab9c8b..3edb8f3`: MINOR, M22 new: with the access log off, a rate-limit refusal leaves no line in the service log; `/privacy` passes every middleware and adds no input, script or mutating route; see "Delta 2026-11-08 (D-248, the privacy policy)" at the end. Before it, 2026-11-06, delta 2026-11-06d `6e538d9..5ab9c8b`: MINOR, M21 new on INV-10's per-file `WRITERS`; M14 and M15 closed by the applied guard `b233e259`; R17 closed; see "Delta 2026-11-06d" at the end. Before it, 2026-11-06: the release round v1.0.0 `0c76d5c..3b9b401` is MINOR, and its round 2 `3b9b401..cb1117b` closes M20; see "Release round v1.0.0 (run v100)" and "Round 2 (M20)" at the end.) BLOCKING 0 · MAJOR 0 · MINOR 5 open (M14 and M15 carried, closed in the tree once the owner applies bundle `b233e259`; M17 and M18 on the deploy gate's D-245 reader; M19 on bundle `b233e259`; M20 closed by `a241247`) · NIT 0 · risks queued 7 open (R3, R4, R5, R8, R12, and R15, R16 new; R14 closed by #587). Nothing in the range makes the deploy gate refuse less or `review_need` route less: a differential of the `0c76d5c` reader against the `3b9b401` reader over 19,154 strings from both trees' tests and conformance cases finds no string the base refuses and the head allows, no lost `_runs_deploy` match and no path whose `change_class` drops. Both owner bundles are PASS or MINOR and carry a `**Reviewed patch:**` line above. M20 is closed: `tests/unit/test_nightly_hosted.py:473-481` now allows `continue-on-error` only on the `refresh` job's `silent` step, so the owner's PR applying `9d89f61f` is green. `scripts/owner_bundle.py:110` honours only the first `**Reviewed patch:**` line of a file (R15), so `9d89f61f` is accepted from its own verdict, `docs/reviews/owner-bundle-580-security.md`.
+MINOR -- (2026-11-12, re-verify 2026-11-12 `09c8679..946a89e`: PASS for the delta, M25 and M26 closed: an accepted arrival now leaves the loss counts (`surfaces`, `eligible`) as it leaves the growth count, so 7 or 3 of 12 served models leaving beside 5 listed arrivals refuse, and a listed name excuses one row, so a 40-row flood under one name refuses; no count goes negative, the digest and `/v1` are unchanged, and each fix is held by a test that is red at `120bd71` and green at `946a89e`; R28 closed, R27, R29 and R30 stay queued (LOW). The file stays MINOR for the carried M16-M19, M21 and M22; see "Re-verify 2026-11-12 (M25, M26)" at the end. Before it, 2026-11-11, delta 2026-11-11 `5df7fa9..09c8679`: MINOR for the delta, no BLOCKING; M25 and M26 new: an accepted addition holds a surface's model count up while served models leave its ranked list, and one listed name excuses every row it arrives under, both bounded to `computer-use`'s ten listed names until they first publish or 2026-11-25; the `additions` parser fails the night closed on every hostile shape tried; the deploy gate, the serving bounds and `/v1` are unchanged; the App Store listing leaks no secret and its privacy claims match the code; risks R27-R30 queued, all LOW; see "Delta 2026-11-11 (D-251, D-252: run golive-1111)" at the end. The file stays MINOR for the carried M16-M19, M21 and M22 and the new M25 and M26. Before it, 2026-11-10, re-verify 2026-11-10b `acb85a0..5df7fa9`: PASS for the delta, M23 and M24 closed: the LiveBench script pattern is linear (32 MB in 0.13 s) and a DeepSWE version part longer than six digits is never matched, so neither a slow nor an oversized page can end the night; each fix is held by a test that is red at `c70806a` and green at `5df7fa9`. R24 and R25 stay queued, R26 new (LOW). The file stays MINOR for the carried M16-M19, M21 and M22; see "Re-verify 2026-11-10b (acb85a0..5df7fa9)" at the end. Before it, 2026-11-10, delta 2026-11-10b `7a1e6d0..fe703c4`: MINOR for the delta, no BLOCKING; M23 and M24 new, both LOW in impact: a hostile or broken publisher page can make the night's build fail or stall (the build child is killed at 25 minutes), where D-250 clause 4 says it fails the source; the served artifact stays and nothing wrong is published. Risks R24-R25 queued. Every new fetch is bounded (32 MiB, https, the source's own host, redirects checked per hop), and every URL built from page content is built only from digits, dashes, dots and hex, so no page can steer a fetch off its host or to another path; see "Delta 2026-11-10b (D-250, releases followed)" at the end. The file stayed MINOR for the carried M16-M19, M21 and M22 and the new M23 and M24. Before it, 2026-11-10, delta 2026-11-10 `3edb8f3..7a1e6d0`: PASS for the delta, no new BLOCKING or MINOR; risks R20-R23 queued. No path serves or credits a METR number: the nightly's fresh build never carries an undeclared source, the public copy strips a removed source's rows, and the image carries its own derived copy, so the new engine never boots on the old artifact; see "Delta 2026-11-10 (D-249, METR removed)" at the end. The file stays MINOR for the carried M16-M19, M21 and M22. Before it, 2026-11-08, delta 2026-11-08 `5ab9c8b..3edb8f3`: MINOR, M22 new: with the access log off, a rate-limit refusal leaves no line in the service log; `/privacy` passes every middleware and adds no input, script or mutating route; see "Delta 2026-11-08 (D-248, the privacy policy)" at the end. Before it, 2026-11-06, delta 2026-11-06d `6e538d9..5ab9c8b`: MINOR, M21 new on INV-10's per-file `WRITERS`; M14 and M15 closed by the applied guard `b233e259`; R17 closed; see "Delta 2026-11-06d" at the end. Before it, 2026-11-06: the release round v1.0.0 `0c76d5c..3b9b401` is MINOR, and its round 2 `3b9b401..cb1117b` closes M20; see "Release round v1.0.0 (run v100)" and "Round 2 (M20)" at the end.) BLOCKING 0 · MAJOR 0 · MINOR 5 open (M14 and M15 carried, closed in the tree once the owner applies bundle `b233e259`; M17 and M18 on the deploy gate's D-245 reader; M19 on bundle `b233e259`; M20 closed by `a241247`) · NIT 0 · risks queued 7 open (R3, R4, R5, R8, R12, and R15, R16 new; R14 closed by #587). Nothing in the range makes the deploy gate refuse less or `review_need` route less: a differential of the `0c76d5c` reader against the `3b9b401` reader over 19,154 strings from both trees' tests and conformance cases finds no string the base refuses and the head allows, no lost `_runs_deploy` match and no path whose `change_class` drops. Both owner bundles are PASS or MINOR and carry a `**Reviewed patch:**` line above. M20 is closed: `tests/unit/test_nightly_hosted.py:473-481` now allows `continue-on-error` only on the `refresh` job's `silent` step, so the owner's PR applying `9d89f61f` is green. `scripts/owner_bundle.py:110` honours only the first `**Reviewed patch:**` line of a file (R15), so `9d89f61f` is accepted from its own verdict, `docs/reviews/owner-bundle-580-security.md`.
 
 The #588 and run-1102 rounds' verdict, as it read when it closed: MINOR -- (2026-11-04: the #588 round `0238db5..0c76d5c` is PASS, no new finding; the MINOR is M14 and M15, carried; see "Delta round 2026-11-04 #588" at the end.) BLOCKING 0 · MAJOR 0 · MINOR 2 open (M14 and M15, carried: their fix is the owner's #561 guard bundle, reviewed MINOR in `docs/reviews/owner-bundle-561-security.md` and not yet applied; M13 closed by #554, M16 by #562 (D-244)) · NIT 0 · risks queued 6 open (R3, R4, R5, R8, R12, and R14 new; R13 closed by #563). The run-1102 round `1a5fec0..0238db5` (twelve issues merged into `integration/run-1102`, draft PR #564; D-242, D-243, D-244; the release Tester's `0238db5`) found no BLOCKING and nothing that loosens a gate. Every merged branch tip carries the same code as its per-change security verdict's reviewed head, and no merge added a line of code of its own: the only hand-resolved files are `docs/process-log.md` (no entry lost) and `docs/plans/run-1102.md` (only the `running` rows, now `stacked`). `scripts/deploy_gate.py`, edited by five fixes in turn, merged without a combined hunk. #551's review read it after #556, #562, #563 and #553 had merged, and the reader still refuses the union of D-239's old reading, its new one and D-242's. The six changes with no per-change review only tighten (#554, #555, #566), keep test fixtures deterministic (#568, #557), or add an offline record field and a stdlib reader that fail toward telling the owner (#552's refresh half). The Tester's 24 cases each assert the strict side, and no test in the range lost an assertion. `make deploy-check` at `0d053c4` fails for one reason only: this verdict's old head `1a5fec0`. The policy, the D-239 workflows line (37 run commands, no unread start) and the Tester's verdict at `0238db5` all pass. With #552's owner bundle applied in a scratch clone, the final gate passes the patched nightly too. R14: `scripts/prune_merged.py:33` still reads the default branch by short name, the class #554 and #566 closed elsewhere. `git branch -d`'s own merged check bounds it.
 
@@ -1646,3 +1646,326 @@ I judged the riskiest change of the range to be the gate as the night runs it on
   - It keeps them for a day, and past a day while the engine cannot be reached.
   - This ends at the next successful fetch. It matters only for TestFlight installs before the submission.
 - Unchanged: R3, R4, R5, R8, R12, R15, R16, R18, R19.
+
+## Delta 2026-11-10b (D-250, releases followed)
+
+**Reviewer:** Security-Reviewer subagent, dispatched for the deploy delta since the last reviewed head. The range turns two fixed source addresses into addresses built each night from the publisher's own page, so it adds a parser of untrusted input on the build path.
+**Independent:** yes. I wrote none of the range's code, tests or records, and none of the D-250 Tester's rounds. The record's frontmatter keeps `seat: independent`.
+**Range:** `7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733..fe703c48bffb4bbbcfd185de831a46f7bed91ad0`: `9d36887` and `70bd9b4` (the D-249 verdicts, docs only), `32a58b0` (ADR D-250), `fe276e9` (red test and recorded fixtures), `bce930e` (the change), `53b16b8` (clause 3's numeric-version test, the Tester's delta and the process log), `fe703c4` (the Tester's re-verify, docs only). Code: `src/app/clients/livebench.py`, `src/app/clients/datacurve.py`, and the credit and citation strings in `board_tables.py`, `rank.py` and `sources.py`. No dependency, lock, workflow, guard, gate, `Dockerfile` or `fly.toml` change.
+**Reviewed head:** fe703c48bffb4bbbcfd185de831a46f7bed91ad0.
+**Risk tier:** LOW by the brief (no HIGH path declared). I read it at MEDIUM depth because it adds a parser of untrusted input whose output becomes a URL. No auth, PII, payment or migration path, so the §11 trigger does not fire.
+**Seat:** `seat: independent`. A detached worktree at `fe703c4` under the session scratchpad, with its own `.venv` from `make install` (`requirements/dev.lock`; `app.__file__` resolves into the worktree). Probes ran from scripts outside the tree. The only network calls were read-only GETs to `livebench.ai` and `deepswe.datacurve.ai`. I made no edit in the main checkout except this file, and I did not touch launchd, Fly or GitHub.
+
+**Verdict of this round:** MINOR. BLOCKING 0 · MAJOR 0 · MINOR 2 new (M23, M24) · risks queued 2 new (R24, R25), all LOW.
+
+- **No page can steer a fetch to another host or to an unexpected path.** I checked each URL that is built from page content:
+  - **LiveBench script:** `SITE_URL + found.group(1)` (`src/app/clients/livebench.py:83`). The group is `static/js/main\.[0-9a-f]+\.js` (`:43`): letters, hex and dots only. It cannot hold `..`, `//`, `@`, `?`, `#` or a scheme.
+  - **LiveBench release:** `release_url` (`:48`) interpolates the value that `newest_release` returns (`:53-66`). That value is `date.isoformat()` of an `strptime("%Y%m%d")` parse: digits and dashes only, and always a real calendar date.
+  - **DeepSWE version:** `leaderboard_url` (`src/app/clients/datacurve.py:44`) joins a tuple of `int`s with dots, so `/`, `%` and letters cannot appear. A leading zero is normalised (`v01.1` is fetched as `v1.1`), which is harmless.
+  - **The bounds apply to all six new fetches.** Each one (`livebench.py:78`, `:83`, `:85`, `:86`; `datacurve.py:68`, `:70`) goes through `fetch_bounded` with `hosts=self.hosts`, the source's one exact host. So each gets the 32 MiB cap counted at the socket (`protocols.py:45`, `_read`), `https` only, at most 5 redirects, and the host check on the first URL and on every hop (`protocols.py:105`, `:148`). That includes the page and the ~388 KB script.
+  - Every fixed prefix is a hard-coded `https://<host>/` literal.
+  - `test_a_page_redirected_off_the_site_fails_livebench` (`tests/unit/test_follow_releases.py:92`) holds the off-host redirect for the page. The hop check is shared code with its own tests (`tests/unit/test_fetch_bounds.py`).
+  - **Live run:** both real clients ran against the live sites with these host lists. LiveBench read release 2026-11-06 (33 rows, weights `Long Agentic 2.0, Coding 1.5, Design 1.5`) and DeepSWE read 70 rows, with no refused hop. The page is 889 bytes and the script path `static/js/main.c61c63f5.js`; DeepSWE's page is 268,973 bytes.
+- **Regex cost.** I timed each new pattern on hostile inputs in the seat.
+  - **`_RELEASES` (`livebench.py:45`):** linear. On 8 MB it takes 0.05-0.09 s, for an unclosed list, repeated `[ ` and repeated quoted dates.
+  - **`_LEADERBOARD_PATH` (`datacurve.py:37`):** linear, because a dot separates its parts. 8 MB takes 0.03-0.19 s.
+  - **`_SCRIPT` (`livebench.py:43`):** quadratic. See M23.
+- **Weights.** `_weights` (`livebench.py:117`) accepts only a map of named categories to finite numbers above zero. It refuses a bool, text, zero, a negative, infinity and an unknown category (`tests/unit/test_follow_releases.py:126`).
+  - **A finite weighted mean cannot leave its range.** It always lies between the smallest and the largest category average, so within [0, 100]. A weight of 1e300 makes the overall equal to one category's average (probed: `m1` 80.0, `m2` 20.0). That is the publisher's weighting, read as the page reads it, and it moves at most one optional board of `everyday`.
+  - **Overflow fails the source, not the night.** A weight of 1e307 overflows the numerator to `inf`, and two weights of 1e308 give `nan` (probed). Both are refused at store by `_store_scores`'s finite check (`src/app/workflows/ingest.py:119`) as a `SourceError`. The source fails and is carried (D-156).
+  - See R24 for a plausibility bound.
+- **Integrity of a far-future release or a huge version.**
+  - **Nothing is persisted between nights.** `newest_release` and `newest_leaderboard` keep no state: each night reads the page afresh. One hostile night cannot ratchet the release forward for later nights. The floors (`RELEASE_FLOOR`, `livebench.py:38`; `VERSION_FLOOR`, `datacurve.py:34`) only stop a step backwards.
+  - **A version or release whose files do not exist** (`v999`, or `99991231` before its files exist) gets a 404. That is a `SourceError`, so the source fails and is carried by D-156 and named after 7 nights by D-243. Probed: a 40-digit version fails the source and the build goes on.
+  - **A far-future release whose files do exist** is read and dated by its release. See R25.
+  - **A version past 4,300 digits** escapes as a `ValueError`. See M24.
+  - **The carry age is unaffected.** It is measured from the refresh's arrival record and the rows' `observed_at`, not from `run_date` (`build.py`, `Carry._age`/`age_days`). A future-dated freshness entry already reads as stale (`src/app/adapter/main.py:1005`, `:1036`).
+- **Credits and citations** drop the release from the visible strings only. The attribution is still enforced by source name (`rank.py`), and `tests/unit/test_follow_releases.py:192` holds that the new strings name the board.
+
+### Findings
+- BLOCKING: none.
+- **M23** (MINOR; availability of the nightly; OWASP A05/ReDoS class) `src/app/clients/livebench.py:43`, `:79`: `_SCRIPT` is quadratic on a hostile page, and it runs outside every time bound. A broken or compromised `livebench.ai` can therefore stall the whole night's build, where D-250 clause 4 and D-121 promise that the source fails alone.
+  - **Why it is quadratic.** `<script[^>]*\ssrc="` restarts at each `<script`, and each start scans to the next `>`. Measured in the seat on a page of repeated `<script ` with no `>`: 20 KB took 0.16 s, 40 KB 0.62 s and 80 KB 2.49 s. Each doubling costs 4x. Extrapolated, 1 MiB takes about 7 minutes and about 2.5 MiB passes the build child's 25-minute kill (`refresh.py:115`, `build_in_child` at `:1662`). The fetch admits up to 32 MiB.
+  - **Why nothing stops it.** The fetch deadline ends when the body is read. The regex runs afterwards, in the build's own thread, with no deadline.
+  - **Impact.** The child is killed, and the night is lost for every source, not only LiveBench. The served artifact stays, nothing wrong is published, and D-223's progress record names `livebench` as the source that never finished. Each night repeats it while the page stays hostile.
+  - **Why only MINOR.** It needs control of the publisher's host or a broken page.
+  - **Remedy, either of:**
+    - drop the `<script[^>]*` prefix and match `\ssrc="(?:\./|/)?(static/js/main\.[0-9a-f]+\.js)"`. That is linear: 0.0003 s on the same 80 KB, and it finds the same path on the live tag;
+    - or fetch the page with a small `limit=` through `fetch_bounded_bytes` (the live page is 889 bytes, so 1 MiB is ample).
+  - Add a test that times a hostile page.
+- **M24** (MINOR; availability of the nightly) `src/app/clients/datacurve.py:51`: a version with more than 4,300 digits makes `int(part)` raise `ValueError` (Python's integer-string limit). That is not a `SourceError`.
+  - **What escapes.** `_ingest_sources` catches only `(SourceError, BuildError)` (`src/app/workflows/build.py:700`), so the error ends the build and the night fails for every source.
+  - **Probed** through `_ingest_sources` with the real `datacurve_deepswe` source and a stubbed page: a 40-digit version fails the source and the build goes on (`missing` names it), while a 4,301-digit version escapes as `ValueError`.
+  - **Why only MINOR.** The same trust boundary as M23 applies: only the publisher's page can carry it. The served artifact stays.
+  - **Remedy.** Bound the part in the pattern (`\d{1,6}`), or turn `ValueError` into a `SourceError` in `newest_leaderboard`, the way `newest_release` already skips a bad date (`livebench.py:56-62`). Add a test with an oversized version.
+- Carried, unchanged: M16, M17, M18, M19, M21, M22. The range touches none of their files.
+
+### PASS (with evidence)
+- Every URL built from fetched content is built only from a hex hash, a re-serialised calendar date, or integers joined by dots (`livebench.py:43`, `:48-66`, `:83`; `datacurve.py:44-56`). No path traversal, no host injection.
+- The bounded-fetch control is unchanged and applies to every new fetch, each one pinned to one exact host (`livebench.py:75`, `datacurve.py:65`, `hosts`).
+- Malformed weights fail closed (`livebench.py:117-134`, `tests/unit/test_follow_releases.py:126`), and a weights overflow is refused at store (`ingest.py:119`, probed).
+- No secret, token or PII in the range: the fixtures are a recorded public HTML page, a script excerpt and a `categories.json`. No credential or header is sent; both sources stay anonymous.
+
+### Gates passed (delta)
+- [x] `make secrets` at `fe703c4`: `no leaks found` (~24.76 MB scanned).
+- [x] `make deps` at `fe703c4`: `No known vulnerabilities found`. No lock or `pyproject.toml` change.
+- [x] `make slopsquat` at `fe703c4`: `slopsquat PASS: 20 declared dependency(ies), 0 suspect`. The new imports are standard library only (`re` and `datetime`).
+- [x] `conformance` at `fe703c4`: `conformance PASS: 51 test(s) derived from conformance/, 0 failing, 0 caller-liveness finding(s)`.
+- [x] Default-deny preserved: no route, CORS, Host-list or limiter change. `/v1` changes only in the credit strings.
+- [x] Permission matrix: no `.github/`, `.claude/`, `.githooks/`, `Dockerfile` or `fly.toml` change.
+- [x] Base-pinned policy: the profile, the matrix and the brief are unchanged in the range.
+- [x] Prompt-injection hygiene: the fetched page is read only by fixed regexes into dates or integers. No text from it reaches an LLM, `eval` or a shell.
+- [x] Auth/PII: not applicable.
+- [x] SAST: `bandit` is not in the dev lock, so I read the diff by hand and timed the regexes (above). No subprocess, `eval`, `exec`, file access or SQL is added.
+
+### Acceptance criteria evidence (delta)
+- D-250 clause 1 (LiveBench takes the newest release at or past the floor; rows dated by it): `tests/unit/test_follow_releases.py:54`, `:72`, `:133`; `src/app/clients/livebench.py:53-66`, `:105-114`.
+- D-250 clause 2 (the overall is weighted by the release's own weights; any other shape fails): `test_follow_releases.py:106`, `:113`, `:126`; `livebench.py:117-134`, `:200`.
+- D-250 clause 3 (DeepSWE takes the newest version the page loads, numerically, never below v1.1): `test_follow_releases.py:143`, `:153`, `:165`, `:180`; `src/app/clients/datacurve.py:49-56`.
+- D-250 clause 4 (a release that cannot be found fails the source, including an off-host redirect): `test_follow_releases.py:72`, `:84`, `:92`, `:180`. The two exceptions are M23 (a slow page) and M24 (an oversized version).
+- D-250 clause 5 (the credit and citation name the board): `test_follow_releases.py:192`.
+- D-250 clause 6 (ARC-AGI-2 stays pinned): no code change in the range.
+- In this seat: `test_follow_releases`, `test_livebench`, `test_datacurve`, `test_credits`, `test_credits_cover_citations`, `test_attribution_terms`, `test_sources` and `tests/integration/test_scores_contract.py`: 133 passed, 8 skipped. The contract tests need `RUN_CONTRACT_TESTS=1`; the live run above stands in for them.
+
+### Risks queued (delta)
+- **R24** (LOW) `src/app/clients/livebench.py:117-134`: no plausibility bound on a weight. Weights of 1e300 or 5e-324 are accepted as the page's own.
+  - The result is always finite and within [0, 100], or refused at store. But a weighting far from the page's 1-2 range would pass as a normal night and quietly reorder the board.
+  - Remedy: refuse a weight above a stated ceiling (say 10) as a changed format. That is the same fail-the-source rule clause 2 already applies to other shapes.
+- **R25** (LOW) `src/app/clients/livebench.py:53-66`: the newest release has a floor but no ceiling. A page that names a release dated after the night, with its files present, is read.
+  - Its rows are dated in the future, and `/v1/boards` publishes that as the board's `evidence_date` (`src/app/workflows/standings.py:133`).
+  - A release named before its files are up fails the source each night until they are. That is fail-safe, but a silent stall.
+  - Nothing persists to the next night, and the carry age does not read `run_date`.
+  - Remedy: skip releases dated after the night's UTC date plus one day.
+- Unchanged: R3, R4, R5, R8, R12, R15, R16, R18, R19, R20, R21, R22, R23.
+
+### Re-verify 2026-11-10b (acb85a0..5df7fa9)
+
+**Reviewer:** Security-Reviewer subagent, the same seat as the delta above, re-verifying its own MINORs M23 and M24.
+**Independent:** yes. I wrote neither the red tests nor the fix. The record's frontmatter keeps `seat: independent`.
+**Range:** `acb85a0..5df7fa928a6d70260c7a94211a316214dc917cc2`: `acb85a0` (my delta record, docs only), `c70806a` (two red tests in `tests/unit/test_follow_releases.py`), `5df7fa9` (the fix: one pattern each in `src/app/clients/livebench.py` and `src/app/clients/datacurve.py`). No dependency, lock, workflow, guard, gate, `Dockerfile` or `fly.toml` change.
+**Reviewed head:** 5df7fa928a6d70260c7a94211a316214dc917cc2.
+**Seat:**
+- A fresh detached worktree at `5df7fa9` under the session scratchpad, with its own `.venv` from `make install` (`app.__file__` resolves into the worktree), removed after.
+- The red run used a `git archive` export of `c70806a`, with `PYTHONPATH` on its `src` (`app.__file__` resolves into the export).
+- The only network calls were read-only GETs to the two sites. I did not touch launchd, Fly or GitHub.
+
+**Verdict of this round:** PASS. M23 and M24 are closed. BLOCKING 0 · MINOR 0 new · R26 new (LOW).
+
+- **M23 is closed.** `_SCRIPT` is now `\ssrc="(?:\./|/)?(static/js/main\.[0-9a-f]+\.js)"` (`src/app/clients/livebench.py:44`).
+  - **Re-timed** on the delta's hostile inputs: repeated `<script ` (no `>`) took 0.0003 s at 80 KB, 0.004 s at 1 MB, 0.031 s at 8 MB and 0.127 s at 32 MB, the fetch's cap. The same 80 KB took 2.49 s with the old pattern.
+  - The new pattern's own worst cases are also linear: about 0.05-0.07 s at 8 MB for each of repeated ` src="`, a hex run with no `.js`, repeated unfinished paths, and whitespace alone.
+  - **Red and green:** `test_a_hostile_page_fails_livebench_in_linear_time` (`tests/unit/test_follow_releases.py:204`) fails at `c70806a` on its time bound and passes at `5df7fa9`.
+- **M24 is closed.** `_LEADERBOARD_PATH` is now `/artifacts/v(\d{1,6}(?:\.\d{1,6}){0,3})/leaderboard-live\.json` (`src/app/clients/datacurve.py:38`).
+  - A 5,000-digit version is not matched, because the literal `/artifacts/v` anchors it and the seventh digit fails, so no suffix of the digits matches either. The page then names no usable leaderboard, and `newest_leaderboard` raises `SourceError`.
+  - A 7-digit part and a 5-part version also fail the source. `v999999.999999.999999.999999` is the largest that parses, and its URL is about 100 characters.
+  - A page that names both a 5,000-digit version and `v1.1` reads `v1.1`.
+  - **Re-timed:** 8 MB of digits after `/artifacts/v` took 0.002 s, and repeated `/artifacts/v1.` took 0.03 s.
+  - **Red and green:** `test_a_version_past_any_real_length_fails_deepswe_not_the_night` (`tests/unit/test_follow_releases.py:218`) raises `ValueError` at `c70806a` ("Exceeds the limit (4300 digits)") and passes at `5df7fa9`. It also asserts that no `/artifacts/` URL is requested.
+- **No new pattern edge.** Every input either fails the source or yields a path on the same host made only of a hex hash or integers:
+  - **`src=` with no whitespace before it**, at the very start of the page: not matched, so the source fails. The live page has `defer="defer" src=`.
+  - **A newline before `src`:** matched (`\s`).
+  - **`data-src=`:** not matched, because it has no whitespace before `src`.
+  - **Single quotes or upper-case hex:** not matched, so the source fails, as before the fix.
+  - **A path named twice, or first inside an HTML comment:** the first is taken, as the old pattern did. Both are `static/js/main.<hex>.js` on `livebench.ai`. A dead first script names no release list, or answers 404, and either way the source fails.
+  - **Dropping the `<script` prefix** means a `src=` on another element (an `<img>`) could now match. That is still a hex path on the same host, so it is harmless.
+  - **An absolute or protocol-relative `src`** (`https://evil.example/...`, `//evil.example/...`): not matched.
+  - **`..` in the path:** not matched.
+  - **A digit run glued to an earlier `/artifacts/v`** (`/artifacts/v99999999/artifacts/v1.2/...`): reads `v1.2` on the same host.
+- **Live pages still resolve, read-only.** LiveBench read release 2026-11-06, 33 rows, 0 skipped. DeepSWE read 70 rows, 0 skipped. No hop was refused.
+
+#### Findings
+- BLOCKING: none.
+- MINOR: none new. M23 and M24 are closed.
+- Carried, unchanged: M16, M17, M18, M19, M21, M22.
+
+#### Gates passed (re-verify)
+- [x] `make secrets` at `5df7fa9`: `no leaks found`.
+- [x] `make deps` at `5df7fa9`: `No known vulnerabilities found`.
+- [x] `make slopsquat` at `5df7fa9`: `slopsquat PASS: 20 declared dependency(ies), 0 suspect`. No import changes.
+- [x] `conformance` at `5df7fa9`: `conformance PASS: 51 test(s) derived from conformance/, 0 failing, 0 caller-liveness finding(s)`.
+- [x] Tests at `5df7fa9`: `test_follow_releases`, `test_livebench`, `test_datacurve`, `test_fetch_bounds` and `test_sources`, 107 passed.
+- [x] Default-deny, the permission matrix and base-pinned policy: unchanged in the range.
+
+#### Acceptance criteria evidence (re-verify)
+- M23 (a hostile LiveBench page fails the source in linear time): `tests/unit/test_follow_releases.py:204`; `src/app/clients/livebench.py:44`.
+- M24 (an oversized DeepSWE version fails the source as `SourceError`, with no fetch): `tests/unit/test_follow_releases.py:218`; `src/app/clients/datacurve.py:38`.
+
+#### Risks queued (re-verify)
+- **R26** (LOW) `tests/unit/test_follow_releases.py:204`: the M23 test's margin is narrow. The old pattern took about 3.6 s on its 12,000 openings, against a 2.0 s bound.
+  - On a machine about twice as fast, a return of the quadratic prefix would pass the test.
+  - Remedy: raise the input to about 50,000 openings (400 KB). The old pattern would then take about 60 s and the new one under 1 ms, so the same 2 s bound discriminates on any machine.
+- Unchanged: R24, R25 (noted, the owner's rule for LOW), and R3, R4, R5, R8, R12, R15, R16, R18-R23.
+
+## Delta 2026-11-11 (D-251, D-252: run golive-1111)
+
+**Reviewer:** Security-Reviewer subagent, dispatched by run golive-1111 for release v1.1.0 (light mode, Stage 5.1 delta). The owner's rule for this release: the review runs once, LOW items are noted here and not filed. The range adds an exception to a product safety guard (`additions` in `data/accepted-cuts.yaml`, an EXCEPTION_FILES path) and the App Store listing the owner pastes into App Store Connect.
+**Independent:** yes. I wrote none of the range's code, tests or records, and none of the release Tester's rounds. The record's frontmatter keeps `seat: independent`.
+**Range:** `5df7fa928a6d70260c7a94211a316214dc917cc2..09c86791f9786a455183cf2eca39b08879817632` on `integration/run-golive-1111` (draft PR #608), 17 commits: `0f78328` and `601faf0` (the D-250 verdicts, docs only), `f72f7d0` (#603's merge), `bd1a992`, `3ef0ab3`, `953c6ae` (the run file), `420490b` (ADRs D-251, D-252), `cb31a8e` (#604's merge), `11988ef` (red test), `b123a29` (the change), `22b8712` (#609's merge), `86cc942` (v1.1.0: version, build 9, the listing, the release record, the owner's rows), `e854b57` (#606's merge), `ac15329` (the Tester's two tests), `2fb0a95`, `cceb216` (the Tester's verdict), `09c8679` (its merge). Code, as `make deploy-check` names it: `.language-allow`, `data/accepted-cuts.yaml`, `ios/ModelRanking.xcodeproj/project.pbxproj`, `pyproject.toml`, `src/app/adapter/main.py`, `src/app/workflows/refresh.py`, `tests/conftest.py`, `tests/unit/test_accepted_additions.py`. No dependency, lock, `.deps-accept`, workflow, guard, gate, `Dockerfile` or `fly.toml` change.
+**Reviewed head:** 09c86791f9786a455183cf2eca39b08879817632. I added no test, so no code follows it on my branch.
+**Risk tier:** LOW by the brief (no HIGH path declared). I read it at MEDIUM depth because it widens what a policy file can excuse in the night's growth guards. No auth, PII, payment or migration path, so the §11 trigger does not fire.
+**Seat:** `seat: independent`. A worktree on `review/golive-1111-security` at `09c8679` under `$TMPDIR`. Tests and probes ran with the main clone's `.venv` interpreter, `PYTHONPATH` on the worktree's `src` and `PYTHONDONTWRITEBYTECODE=1`; `app.__file__` resolves into the worktree. Probe test files lived in the worktree only while they ran and were deleted; parser probes ran from a script under `$TMPDIR`. No network call except `pip-audit`'s and `slopsquat`'s read-only index queries. I made no edit in the main checkout and touched nothing on Fly, GitHub or launchd.
+
+**Verdict of this round:** MINOR. BLOCKING 0 · MAJOR 0 · MINOR 2 new (M25, M26) · risks queued 4 new (R27-R30), all LOW. Nothing in the range changes the deploy gate, the serving bounds or `/v1`. The `additions` parser fails the night closed on every hostile shape I tried. But an accepted addition can do two things D-251 does not intend. It can hold a surface's model count up while served models leave its ranked list (M25), and one listed name excuses every row it arrives under (M26). Both are bounded to `computer-use`, to the ten listed names, and to the nights before the names first publish (at the latest 2026-11-25). Each needs an upstream fault on the same night to matter, and nothing outside the artifact's published numbers is reachable. They do not block tomorrow's deploy. I recommend fixing M25 before the entry is used again or renewed.
+
+- **The parser fails closed.** `parse_accepted_additions` and `_checked_addition` (`src/app/workflows/refresh.py:494-525`) reuse the cut's terms (`_check_terms`, `:353-366`; `_check_cut_adr`, `:579-591`) and the bounded YAML loader with `unique_keys=True` (`:328`). I fed 20 hostile documents through the parser at `09c8679`, and every one raised `AcceptedCutError`:
+  - a key repeated inside an entry, and `additions` named twice at the top;
+  - a superseded ADR, and an ADR that names the board only inside a fenced block;
+  - `until:` as a datetime or an integer, past, or 31 or more days out (the last is the suite's `too far`);
+  - a list, a mapping or `null` as `board`;
+  - a float, a nested list or a mapping among `names`, and a name with no letter or digit;
+  - a blank reason, `D-0251`, a file without `cuts`, a top-level list, an empty document;
+  - a 3 MB list of 200,000 names (`MAX_YAML_BYTES`);
+  - a `!!python/object/apply` tag, and a YAML merge key.
+- **A broken file fails the whole night.** `load_accepted_additions()` runs on every cycle (`:1943`), before the quiet path and before any refusal is judged. Its error is not caught in `_cycle`: `refresh()` records the crash and re-raises (`:1476`), `main` returns `EXIT_FAILED` (`:2080-2085`), and the `finally` deletes the candidate (`:2039`). The suite holds this through the real entry point (`tests/unit/test_accepted_additions.py:258`).
+  - L3 of the Tester's delta (the cuts and respellings parsers ignore `additions`) is therefore not a gap: the night parses all three lists, and each fails closed.
+  - `_accepted_doc` (`:325-336`) still requires `cuts` and refuses any key other than `cuts`, `respellings` and `additions`. The cuts and respellings parsers read only their own lists, so the widened file shape adds nothing they accept.
+- **The questions asked, one by one.**
+  - **Another board:** an addition applies only to the board it names (`added`, `:554-559`; test `:78`). No surface name equals a declared board's source today (checked: the intersection is empty), so one entry cannot reach both subjects.
+  - **A served row:** never removed. Linked rows leave only for models the served board does not hold (`:564-565`), and unlinked rows only for keys the served board does not hold (`:562`). Test `:312`.
+  - **A loss of board rows:** not excusable. `_mostly_lost` counts `was - candidate`, and `added` removes only rows absent from `was` (test `:109`). A ranked-model loss is a different matter: see M25.
+  - **A model by one of its names:** not excused. Every name the model has on that board must be listed (`raws <= names`, `:565`; tests `:91`, `:99`).
+  - **The median-price guard:** untouched. `added` replaces only `board`, `boards` and `models` (`:571`). `median_price`, `surfaces`, `eligible`, `accessible` and the digest stay the candidate's, so the median guard reads the candidate as built.
+  - **A returning board:** left as it is (`:557-559`; test `:116`). It passes as returning, exactly as without the addition.
+  - **An `until:` beyond 30 days:** refused (`MAX_CUT_DAYS`, `:575`; the suite's `too far` case). From 2026-11-26 the committed entry fails every night (see R29).
+- **The growth guard still fails closed, with two exceptions.** Without the file, or with no `additions`, `added` returns the candidate's own rows (`:530-531`, `:554`). The suite's control refuses (`:66`, `:248`, the `no-file` case). A name not listed counts as before (`:83`). The exceptions are M25 and M26: a candidate that refused before, because of listed growth, can now publish a loss of ranked models (M25), or a flood of rows under a listed name (M26).
+- **Deploy gate, serving bounds, `/v1`: unchanged.** The range touches no file under `scripts/`, no `serving_bounds.py`, no `Dockerfile`, `fly.toml` or `.github/`.
+  - `src/app/adapter/main.py` changes only `APP_VERSION` (`:83`).
+  - `egress_problems` still runs first in `_reason_to_refuse`, on the candidate file as built (`:1521-1523`).
+  - `data/accepted-cuts.yaml` is code to the deploy gate (`scripts/deploy_gate.py:257`) and routed to security (`scripts/review_need.py:110`).
+- **The App Store listing** (`docs/app-store-listing.md`, `docs/app-store-listing.tr.md`) holds no secret and no personal data beyond what the owner chose: his name in the copyright line, and the repository's issues URL that `/privacy` already names (D-248). The App Review contact stays in App Store Connect, uncommitted (`docs/app-store-listing.md:83`).
+  - **Its privacy claims match the code.** "No question leaves the device; the app only downloads public ranking data" (`:49`, `:93`):
+    - the app's only host is `https://model-ranking.fly.dev` (`ios/ModelRanking/Engine/EngineClient.swift`, the only `https://` literal under `ios/ModelRanking`);
+    - its one parameterised request carries `task` and `budget` only (`EngineClient.swift:268-275`), as `/privacy` says (`src/app/adapter/main.py:1442-1450`);
+    - the engine runs with the access log off (D-248, the 2026-11-08 delta);
+    - no analytics, advertising or crash-reporting SDK, and no other model provider's host, is in `ios/ModelRanking`.
+  - "Data Not Collected" is consistent with that and with the 2026-11-08 delta's reading. The Turkish text says the same as the English.
+- **The owner's rows** (`docs/owner-actions.md`, the four 2026-11-12 rows and the edited 2026-11-08 row) are safe and do what they say.
+  - Row 2 chains every step with `&&` behind `make deploy-check`, so a stale verdict stops it before the tag. It tags `HEAD` of a freshly pulled `main`, pushes only that tag, and has no force and no secret.
+  - The 2026-11-08 check is now a GET that prints the status and content type, because a `HEAD` gets 405. It is read-only.
+  - Rows 1, 3 and 4 are the owner's own clicks.
+- **`.language-allow:161`** exempts one file, with its reason. **`project.pbxproj`** changes only `CURRENT_PROJECT_VERSION` (9) and `MARKETING_VERSION` (1.1.0) in its four configurations (`:239`, `:246`, `:260`, `:267`, `:280`, `:282`, `:296`, `:298`). `Info.plist` and `PrivacyInfo.xcprivacy` are unchanged.
+
+### Findings
+- BLOCKING: none.
+- **M25** (MINOR; integrity of the night's safety guard, a loss guard failing open under a growth exception) `src/app/workflows/refresh.py:569-571` with `:815-825`. An accepted addition can mask a loss of a surface's ranked models, which `added`'s own docstring rules out ("an addition cannot excuse a loss").
+  - **Why.** `degradations` judges a surface's ranked models only by their count, `surfaces` (`:815-825`). Before D-251, a night whose served models left the ranked list while new ones arrived was refused by the growth guard on `models` (`upward_anomalies`, `_mostly_new`). `added` takes the listed models out of `models` (`:570`), so that guard no longer sees them, but leaves them in `surfaces` (`:571`), where they hold the count up. The `eligible` budget axis (`:861`) is held up the same way.
+  - **Measured** with the Tester's priced-arrival fixture (`_arrive_ranked`, `tests/unit/test_accepted_additions.py:267`). `coding` serves 12 ranked models; the candidate takes away the price of N served models, so they leave the ranked list but keep their board rows. Each line is what `degradations` + `upward_anomalies` return:
+    - N=3, no arrivals: `coding would lose 3 of 12 models (25%, at or over the 25% limit)`.
+    - N=3, 5 unlisted arrivals: refused, `coding would be 5 of 14 models this artifact has never seen (36%, ...)`.
+    - N=3, the same 5 arrivals listed: `[]`, publishes.
+    - N=7, no arrivals: `coding would lose 7 of 12 models (58%, ...)`.
+    - N=7, the 5 arrivals listed: `[]`, publishes.
+  - **In scope.** `computer-use` served 21 ranked models (`src/app/workflows/categories.py:213`), and the committed entry brings 10 (D-251: "10 of 31"). On the night the names arrive, between 6 and 15 of the 21 served models can leave the ranked list without a refusal; on an ordinary night 6 refuse.
+  - **Why only MINOR.** It needs an upstream fault on the same night that strips `computer-use`'s ranked models without taking their board rows. A price-feed fault would hit every surface, and the other surfaces' guards would refuse the night. The exposure ends once the names publish (they are then served) or on 2026-11-25. The served artifact is the worst case: a published list missing models for a night. Nothing outside the published numbers is reachable.
+  - **Remedy.** In `added`, take each model removed from `ranked[name]` out of `surfaces[name]` as well, so the count guard reads only models already seen. If `eligible` cannot be adjusted model by model, compare ranked-model identity (`live.models[name] - judged.models[name]`) against `MAX_SURFACE_LOSS` instead of the count. Add a test with N=7 and the 5 listed arrivals that refuses on `would lose`. The real night still publishes: 21 served + 10 listed - 10 = 21, no loss.
+- **M26** (MINOR; the exception excuses more rows than were looked at) `src/app/workflows/refresh.py:562-568`. One listed name excuses every row it arrives under: every copy of a leaving model, and every unlinked row of a listed key.
+  - **Measured** on `SLICE`'s board: 40 rows of one new model under the one listed name `Fresh 0` (40 harnesses). Without the addition: `board arena_agent would be 40 of 52 rows this artifact has never seen (77%, ...)`. With it: `[]`. 40 unlinked rows under that one name: `[]` as well.
+  - **Why it matters.** D-159 counts every row so that "a board flooded with spellings ... must still read as new rows" (`:241-243`). D-251's rationale is that "a named list ... keeps the acceptance to the rows looked at", and that raising the limit "would accept the next batch unseen". Within the window, a later batch of submissions under a listed name (Terminal-Bench takes community submissions per model and agent) is accepted unseen.
+  - **Why only MINOR.** It is one board and ten names, and only until the names first publish or 2026-11-25. After that a listed model is served, and its further copies count again. The median-price, loss and bound guards still read the candidate as built.
+  - **Remedy.** Excuse at most as many rows as the owner measured. For example, for a linked model only `copy < len(raws)`, and for an unlinked key only as many copies as listed names carry that key. Or let an entry state a row count. D-251's night still publishes under a one-row-per-name cap: at most 1 of 32 rows stays new (3%).
+- Carried, unchanged: M16, M17, M18, M19, M21, M22. The range touches none of their files.
+
+### PASS (with evidence)
+- Every hostile `additions` document fails the night closed (20 shapes, above), through the shared terms and the bounded loader (`refresh.py:325-336`, `:353-366`, `:494-525`, `:579-591`).
+- Served rows, losses of board rows, other boards, a model by one of its names, a returning board and a first artifact are all untouched by `added` (`:551-571`; tests `:78`, `:91`, `:109`, `:116`, `:130`, `:312`). The Tester's L1 and L2 stand as that delta judged them.
+- The suite reads no committed addition by default (`tests/conftest.py:321`; test `:211`), and the night reads the committed file by default (test `:205`), so the probe policy cannot leak into production or production's into the suite.
+- No secret, token or PII in the range, and no AI attribution in any commit or file. Every agent commit carries `GP-Agent` and `GP-Task`.
+
+### Gates passed (delta)
+- [x] `make secrets` at `09c8679` (`scripts/secrets_scan.py`): `no leaks found` (~24.84 MB scanned). `gitleaks git` over the range's 12 non-merge-base commits: `no leaks found`.
+- [x] `make deps` at `09c8679` (the target's `pip_audit --strict --disable-pip` over the four locks; `.deps-accept` empty and unchanged): `No known vulnerabilities found`. No lock change.
+- [x] `make slopsquat` at `09c8679`: `slopsquat PASS: 20 declared dependency(ies), 0 suspect`. The range adds no import.
+- [x] `conformance` at `09c8679`: `conformance PASS: 51 test(s) derived from conformance/, 0 failing, 0 caller-liveness finding(s)`.
+- [x] Tests at `09c8679`: `tests/unit/test_accepted_additions.py` and `tests/unit/test_accepted_cuts.py`, 93 passed.
+- [x] Default-deny preserved: no route, CORS, Host-list, limiter or bound change. `/v1` changes only in `/health`'s version string.
+- [x] Permission matrix: no `.github/`, `.claude/`, `.githooks/`, `Dockerfile` or `fly.toml` change; no destructive command in any commit.
+- [x] Base-pinned policy: the profile, the matrix and the brief are unchanged in the range.
+- [x] Prompt-injection hygiene: no fetched text reaches an LLM, `eval` or a shell. The policy file is owner-written and reviewed by route.
+- [x] Auth/PII: not applicable. The listing's privacy answers were checked against the code (above).
+- [x] SAST: `bandit` is not in the dev lock. I read the diff by hand: it adds no subprocess, `eval`, `exec`, SQL or file write.
+
+### Acceptance criteria evidence (delta)
+- D-251 clause 1 (an optional `additions` list under a cut's terms; a listed name is judged as already seen on that board only; an unlisted name counts; an expired entry fails the refresh):
+  - parser: `src/app/workflows/refresh.py:490-536`; tests `tests/unit/test_accepted_additions.py:145`, `:151`, `:155`, `:178`, `:183`;
+  - judgement: `refresh.py:539-571`; tests `:73`, `:78`, `:83`, `:91`, `:99`, `:283`, `:303`, `:312`;
+  - the exceptions are M25 and M26.
+- D-251 clause 2 (one entry, the 2026-11-11 names, `until: 2026-11-25`): `data/accepted-cuts.yaml:28-45`; test `:189`. The entry names the surface `computer-use`, not `terminalbench_4` (R28).
+- D-251 clause 3 (the real `refresh()` publishes with the entry and refuses without it): tests `:248` (both cases) and `:258`.
+- D-252 clause 1 (1.1.0, build 9): `pyproject.toml:9`; `src/app/adapter/main.py:83`; `ios/ModelRanking.xcodeproj/project.pbxproj:239`, `:246`, `:260`, `:267`, `:280`, `:282`, `:296`, `:298`.
+- D-252 clause 3 (the listing in English and Turkish, the Turkish file allowed with its reason): `docs/app-store-listing.md`, `docs/app-store-listing.tr.md`, `.language-allow:161`.
+
+### Risks queued (delta)
+- **R27** (LOW) `src/app/workflows/refresh.py:562`: unlinked rows are excused by spelling key, linked rows by exact raw name.
+  - Listing `Fresh 0` excused new unlinked rows spelled `FRESH-0`, `fresh_0`, `F.r.e.s.h 0`, `fresh0` and `Fresh 0!` (probed: `[]`).
+  - This is how the guard itself identifies an unlinked row (D-220 clause 1), so in its terms they are one name. D-251 says "exactly the raw names". Noted, not worked.
+- **R28** (LOW) `docs/decisions.md`, D-251 clauses 1 and 2: the ADR says each entry names "one declared board", and that the entry is `terminalbench_4`.
+  - `terminalbench_4` is `computer-use`'s primary source, not a declared board (`src/app/workflows/categories.py:211`). The parser also accepts a surface (`refresh.py:504`), and the committed entry names `computer-use`.
+  - Taken literally, the ADR's entry fails closed as an unknown board. So the code is wider than clause 1, and the file is right.
+  - The ADR (11 of 32 rows, run 42938869001) and the entry's reason (10 of 31, run 42751550585) also cite different measurements.
+  - Remedy: say so in the retiring PR's ADR. ADRs are append-only.
+- **R29** (LOW, availability) `src/app/workflows/refresh.py:1943`: from 2026-11-26 every night fails, an unchanged one included, until the entry is removed. The served artifact stays, so the data goes stale.
+  - D-251 clause 3 says a PR retires the entry once a night has published the names. But no row in `docs/owner-actions.md` and no run-file line tracks that.
+  - Remedy: one row for the retirement after the first publishing night, before 2026-11-25.
+- **R30** (LOW, hygiene) `docs/releases/v1.1.0.md`, `## Verdicts`: it still reads "Filled by the release review at the integration head (#606)".
+  - The owner's row 2 publishes this file as the GitHub release notes (`gh release create --notes-file`).
+  - Remedy: fill it with the two verdicts before the tag.
+- Unchanged: R3, R4, R5, R8, R12, R15, R16, R18-R26.
+
+### Re-verify 2026-11-12 (M25, M26)
+
+**Reviewer:** Security-Reviewer subagent, the same seat as the delta above, re-verifying its own MINORs M25 and M26.
+**Independent:** yes. I wrote neither the red tests nor the fix. The record's frontmatter keeps `seat: independent`.
+**Range:** `09c86791f9786a455183cf2eca39b08879817632..946a89ec493c085929c09cb12e707d0a1353b7ff`: `f6cdabc` and `dd7e889` (my delta record and its merge, docs only), `120bd71` (red tests in `tests/unit/test_accepted_additions.py`), `459fa2e` (the fix in `src/app/workflows/refresh.py`; D-251's text; the process log), `946a89e` (its merge). No dependency, lock, workflow, guard, gate, adapter, `Dockerfile`, `fly.toml` or `data/` change.
+**Reviewed head:** 946a89ec493c085929c09cb12e707d0a1353b7ff.
+**Seat:** the same worktree, fast-forwarded to `946a89e` (`app.__file__` resolves into it). The red run used a `git archive` export of `120bd71` (`app.__file__` resolves into the export), and the digest comparison used an export of `09c8679`'s `src`, both under `$TMPDIR`. Probe test files lived in the worktree only while they ran and were deleted. No network call. I did not touch Fly, GitHub or launchd.
+
+**Verdict of this round:** PASS. M25 and M26 are closed. BLOCKING 0 · MINOR 0 new · no new risk. R28 is closed by D-251's new text. R27, R29 and R30 stay queued (LOW).
+
+- **M25 is closed.** `added` now takes each accepted arrival it removes from a surface's ranked models (`gone`, `refresh.py:577`) out of `surfaces` (`:579`). It also takes them out of each budget's `eligible` count, using the new `ServingSummary.eligible_models` (`:580-582`, filled at `:1063-1067`).
+  - **Measured.** Each case is `coding` serving 12 ranked models, with 5 listed arrivals and N served models unpriced:
+    - N=7: `coding would lose 7 of 12 models (58%, ...)`. Judged count 5. Before the fix this published.
+    - N=3: `coding would lose 3 of 12 models (25%, ...)`. Judged count 9. Before the fix this published.
+    - N=2: `[]`, judged count 10. The same loss alone also passes, so nothing that should publish is refused.
+  - The budget half is held by `test_m25_an_accepted_addition_does_not_hide_a_budget_emptying` (`tests/unit/test_accepted_additions.py:358`).
+- **M26 is closed.** A leaving model's rows are excused only while `copy < len(raws)`, its number of listed names (`refresh.py:570-574`). An unlinked key's rows are excused only while `copy <` the number of listed names with that key (`:568`, `:575`).
+  - **Measured.** 40 rows under `Fresh 0`, linked or unlinked: refused, `39 of 51 rows` (test `:381`).
+  - Two listed names with one key (`Fresh 0`, `fresh-0`) over 5 or 6 unlinked rows excuse exactly 2 rows: 3 of 15 and 4 of 16 stay counted, both under the quarter.
+- **Red and green.** At the `120bd71` export the four M25/M26 tests fail:
+  - `test_m25_an_accepted_addition_does_not_hide_a_loss_of_ranked_models` (`:351`);
+  - `..._budget_emptying` (`:358`);
+  - `test_m26_one_listed_name_excuses_one_row_not_a_flood[copies-of-one-model]` and `[unlinked]` (`:381`).
+  - A fifth failure there, `test_the_committed_terminal_bench_addition_parses_until_its_expiry`, is the export's own: it carries no `data/` or `docs/`.
+  - At `946a89e`, `test_accepted_additions`, `test_accepted_cuts`, `test_refresh_board_ids` and `test_refresh`: 210 passed.
+- **The coordinator's adversarial questions.**
+  - **Can a count go negative?** No.
+    - `gone` is a subset of the candidate's ranked models, minus those the served surface ranked (`:577`), and `surfaces` is the number of ranked rows (`:1063`).
+    - On the 2026-11-10 artifact each surface has exactly one ranked row per model (computer-use 21 and 21; every surface equal). The size of each budget's `eligible_models` set equals its `eligible` count on every surface and budget.
+    - Probes on every shape below: no judged `surfaces` or `eligible` value below zero.
+  - **A model with two listed names** (three rows: two under one name, one under the other): two rows excused, one counted. Ranked once, it leaves the count once: judged 12 of 17. Published.
+  - **A model with only one of its two names listed:** not excused (`raws <= names`), counted as one new ranked model of 13. Published, under the quarter.
+  - **Models new to the board but unranked on the candidate:** their board rows are excused, and `surfaces` and `eligible` are untouched (12, 12, 12). `gone` takes only ranked models.
+  - **A night that should publish:** the existing control `test_m25_an_addition_with_no_loss_still_publishes` (`:365`), and N=2 above. Once arrivals are taken out, only a loss that would refuse on its own refuses. I did not re-run the real `refresh --fetch-epoch` on the 2026-11-10 copy; I rely on the coordinator's report that it publishes (19 surfaces, largest board change 1 of 12).
+- **`eligible_models` changes neither the digest nor `/v1`.**
+  - It is not hashed: `serving_summary`'s `digest.update` lines are unchanged.
+  - On the 2026-11-10 `advisor.db`, `fingerprint_of` at `09c8679` and at `946a89e` gives the same digest, `surfaces`, `eligible` and `answering`. `len(ids)` over the same row objects equals the old `len(eligible_for(...))`.
+  - No module outside `refresh.py` reads `ServingSummary`, `serving_summary`, `fingerprint_of` or `eligible_models`, and `src/app/adapter/` is not in the range.
+  - Every probe kept the judged digest equal to the candidate's.
+- **No shape I measured is still open.** The 40-row flood, linked and unlinked, refuses. The 7-of-12 and 3-of-12 swaps refuse. The parser and the other "cannot excuse" properties are unchanged by the fix: the parser is untouched, and served rows, other boards and returning boards follow the same code paths (`:562-567`). R27 (key-equal spellings) is how the guard identifies an unlinked row, and the cap now limits it to one row per listed name.
+- **D-251's text** (`docs/decisions.md:7004`) now names `computer-use`, what each name excuses, and the night's 11th row, so R28 is closed. The ADR was edited in place, but it is not on `main` yet: it rides the same integration PR, before the owner's merge accepts it. That is not a reversal of an accepted decision.
+
+#### Findings
+- BLOCKING: none.
+- MINOR: none new. M25 and M26 are closed.
+- Carried, unchanged: M16, M17, M18, M19, M21, M22.
+
+#### Gates passed (re-verify)
+- [x] Tests at `946a89e`: 210 passed (above). The four M25/M26 tests are red at `120bd71` and green at `946a89e`.
+- [x] No dependency, lock, import, workflow, guard, gate or serving change in the range (`git diff --stat 09c8679..946a89e` over `src/app/adapter`, `scripts`, `Dockerfile`, `fly.toml`, `.github`, `data`, `requirements`, `pyproject.toml`: empty). The secrets, deps, slopsquat and conformance results of the delta above stand. The fix adds only `collections.Counter`, already imported in `refresh.py`.
+- [x] Digest and `/v1` unchanged (above).
+
+#### Acceptance criteria evidence (re-verify)
+- M25 (an accepted arrival does not hold up the loss counts): `tests/unit/test_accepted_additions.py:345`, `:351`, `:358`, `:365`; `src/app/workflows/refresh.py:576-582`, `:1063-1067`.
+- M26 (a listed name excuses one row): `tests/unit/test_accepted_additions.py:381`, `:389`; `src/app/workflows/refresh.py:568-575`.
+
+#### Risks queued (re-verify)
+- R28 is closed. Unchanged: R27, R29 and R30 (noted, the owner's rule for LOW), and R3, R4, R5, R8, R12, R15, R16, R18-R26.

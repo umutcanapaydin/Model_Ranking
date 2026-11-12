@@ -312,7 +312,7 @@ REMOTE_SOURCES: tuple[RemoteSource, ...] = (
         required=False,
     ),
     # D-249: METR's time horizons (`metr_time_horizons`) left with `long-tasks`: its page reserves all rights.
-    # #379 (D-219): LiveBench 2.0's own release files, a board of `everyday`: 49 models in release 2026-10-14.
+    # #379 (D-219): LiveBench 2.0, a board of `everyday`: 49 models in release 2026-10-14; D-250: the newest release.
     # OPTIONAL (D-121): a night the site fails is carried (D-156), and the surface answers from its primary.
     RemoteSource(
         name="livebench",

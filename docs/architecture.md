@@ -83,11 +83,13 @@ both derive from that list:
   refresh, as for every source (D-156).
 - **#379's boards (D-219), each from its publisher's own host, optional and read with no token:**
   `osworld_verified` (OSWorld-Verified's workbook, CC BY-SA 4.0 as its site states, read with the standard library;
-  `src/app/clients/osworld.py`) in `computer-use`'s family; `livebench` (LiveBench 2.0's pinned release;
+  `src/app/clients/osworld.py`) in `computer-use`'s family; `livebench` (LiveBench 2.0's newest release, as its page names it, D-250;
   `src/app/clients/livebench.py`) and `simplebench` (`src/app/clients/simplebench.py`) in `everyday`'s. The
   last two publish no licence and are used with attribution under D-215. METR's time horizons, served from
   D-219 as `long-tasks`'s only board, were removed with that surface by D-249: METR's page reserves all rights.
   A removed source's rows never reach the public copy (`board_tables.REMOVED_SOURCES`, `app.workflows.public`).
+  LiveBench and Datacurve's DeepSWE follow the release each site's own page names, each night (D-250); ARC-AGI-2
+  stays at its committed revision, and the weekly contract run fails when its dataset moves.
 - **Arena's category slices** (text and vision) and the Agent Arena boards are read from one parquet
   file per config (`src/app/clients/arena_slices.py`). Each slice is a board of its own (D-164).
 - **The Epoch AI bundle.** The refresh downloads it and the build only reads the unpacked

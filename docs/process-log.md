@@ -1980,3 +1980,38 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The live artifact the older release built holds METR's rows until a night publishes a new one, so removal is not only a code delete: `board_tables.REMOVED_SOURCES` names the source, the public copy drops its rows, and the refresh record forgets its last arrival so D-243's notice does not name it silent from the eighth night.
 - The local `advisor.db` held 26 METR rows the new code refused ("metric 'minutes' has no declared direction"); backed up to the session's scratchpad and the rows deleted, the same state the next built artifact has.
 - Lesson: removing a source is a data migration as well as a code delete; ask what the live artifact, the public copy and the run record still hold, and test each.
+
+## 2026-11-10 · enhancement/follow-releases — LiveBench and DeepSWE follow the release their site names each night (D-250)
+
+- The owner asked for every source to stay current. Three were pinned: LiveBench (2026-10-14), DeepSWE (`v1.1`) and ARC-AGI-2 (a committed derivation). Reading LiveBench's page script showed two newer releases already out (2026-10-25, 2026-11-06), so the app was two behind without anyone being told.
+- Each site names its current data on its own page, so the clients now read that page each night and take the newest release, never older than the last one read by hand; a page that names none fails the source and the refresh carries the last good rows (D-156, D-243).
+- The newer LiveBench releases weight the overall (`_overall_weights`), which the parser refused; it now computes the page's weighted mean, checked against the site's own release note (84.88 against "84.9"). The newest release ranks 33 models, against 49 in the pinned one.
+- ARC-AGI-2 stays pinned: its derivation reads about 4,300 files, and the weekly contract test already fails when its dataset moves.
+- Lesson: a pinned source goes stale without anyone being told; follow the release the publisher's own page names, and have the parser refuse an unknown format so the night is carried, not wrong.
+
+## 2026-11-11 · fix/issue-605-accept-growth — an addition the owner accepted, name by name, is not growth (D-251)
+
+- The hosted night of 2026-11-11 refused (run 42938869001). Terminal-Bench 4.0, `computer-use`'s own board, took 10 names the served artifact never held: a batch of submission files its publisher merged at once. Every night would refuse the same way, and D-249's METR removal could not deploy.
+- `data/accepted-cuts.yaml` could excuse a loss (D-220) or a re-spelling (D-228), never growth. It now has an `additions` list under a cut's terms (ADR, reason, `until:` at most 30 days out). A listed name's new rows leave the growth count on that board alone, and on a surface's own board its model leaves the ranked count too. A model is excused only when every name it has on the board is listed (#478), and rows the served board holds are never touched, so an addition cannot hide a loss.
+- The entry names the 10 raw names, measured against the served state of 2026-11-10 (run 42751550585's `hosted-state`), until 2026-11-25. The 11th new row is a second `glm-5.3-flash` submission (1 of 32), which the guard passes as ordinary growth.
+- Proof on real data: the real `python -m app.workflows.refresh --fetch-epoch` on a copy of that served state, with this code, published. 19 surfaces answer (`long-tasks` gone), Terminal-Bench 32 rows, every source fetched, and the largest board change was 1 of 12.
+- Lesson: a guard that says "published by hand" needs the hand's path written down before the first night it fires. Otherwise the refusal blocks every release behind it.
+
+## 2026-11-11 · fix/issue-605-security-m25-m26 — an accepted addition is one row, and never stands in for a loss
+
+- The release security delta of run golive-1111 (`docs/reviews/release-security.md`, M25, M26) found two ways the D-251 exception excused more than the owner looked at.
+- M25: `added` took the listed models out of the growth count, but not out of `surfaces` and `eligible`, the only counts the loss guards read. So 7 of 12 served models leaving the ranking published when 5 listed models arrived.
+- M26: one listed name excused every row it arrived under, so a flood of 40 rows under one name published.
+- Fix: the serving summary keeps the ids each budget offers, so `added` takes the accepted arrivals out of all three counts. A listed name now excuses one row.
+- Red tests first: 4 red, then 43 green. The real refresh on the served copy of 2026-11-10 still publishes. D-251's text now names the board the file names, `computer-use` (R28).
+- Lesson: an exception to a guard has to be subtracted from every count that guard family reads, not only from the one that refused.
+
+## 2026-11-12 · integration/run-golive-1111 — run golive-1111: the go-live night, one PR (D-251, D-252)
+
+- The owner asked on the evening of 2026-11-11 (*translated*): "let's set up a night run, we finish everything tonight and go live tomorrow morning". Six questions were asked once, and every answer took its default (D-251, D-252).
+- The night of 2026-11-11 had refused, so nothing merged after 2026-11-10 could deploy, METR's removal included. #605's fix makes the night publish again, measured by the real refresh on a copy of the served state.
+- The release review ran once, at the integration head.
+  - The Tester's delta found two untested judgements and closed them with its own tests.
+  - The Security-Reviewer's delta found M25 and M26 in the new exception, fixed red→green the same night and re-verified PASS by the same seat; the Tester's delta of the fix PASSed. `make deploy-check` PASS at `946a89e`.
+- The release (#610) carries the version and build 9, the App Store listing in English and Turkish, the owner's four go-live rows, and the release record. #611 retires D-251's entry before it expires.
+- Lesson: when a night is refused, measure the source the guard names before anything else. One fetch and one parse showed a genuine upstream batch, so the decision the owner had to make was clear in minutes.
