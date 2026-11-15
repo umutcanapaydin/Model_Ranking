@@ -179,6 +179,9 @@ class RefreshOutcome:
     #: then board rows re-spelled while their model did not (#100, D-179), `old -> new on <board>`.
     #: Information, never a reason to refuse.
     renamed: tuple[str, ...] = ()
+    #: D-253 (#613): the arrivals a submission board's growth guards set aside, `<name> on <board>`. Information:
+    #: what the night published without a ruling, so a reader of the record sees each one.
+    admitted: tuple[str, ...] = ()
     #: #230: the board that changed most against the live artifact, as `largest_board_change` reads it.
     largest_board_change: dict[str, object] | None = None
     #: #426: each source's seconds in the build, `None` for one it started and never finished.
@@ -195,6 +198,7 @@ class RefreshOutcome:
                 # #230: the service log keeps only this line, and the record is rewritten each night,
                 # so what a release's simulated first nights predict is read from here.
                 "renamed_count": len(self.renamed),
+                "admitted_count": len(self.admitted),
                 "largest_board_change": self.largest_board_change,
             }
         )
@@ -226,6 +230,22 @@ MAX_SURFACE_LOSS = 0.25
 #: is the product freezing while every check reports healthy.
 MAX_SURFACE_GAIN = 0.25
 MAX_MEDIAN_PRICE_MOVE = 0.25
+
+#: D-253 (#613): the own boards that grow by submission files their publisher merges in batches, source -> why.
+#: A named entry with its reason (AGENTS.md 3.5); `submission_surfaces` fails closed on one no surface ranks on.
+#: Their arrivals are computed (`arrivals`) and set aside as D-251's listed additions are.
+SUBMISSION_BOARDS: dict[str, str] = {
+    "terminalbench_4": (
+        "Terminal-Bench 4.0's leaderboard is the submission files in its publisher's repository "
+        "(harbor-framework/terminal-bench, leaderboard/submissions), merged in batches: 21 rows on 2026-09-29, "
+        "32 on 2026-11-11, 46 on 2026-11-15, with every served row kept (#605, #613)"
+    ),
+}
+
+#: D-253 clause 2: the share of a submission board's candidate rows its computed arrivals may be. The worst gap
+#: measured against a served artifact was 11 of 32 rows (34%, 2026-11-11); a board that more than doubles
+#: between two publishes is judged as before, and published by hand.
+MAX_SUBMISSION_GAIN = 0.5
 
 #: How the board guards name a surface's own board (D-159) and a declared board (D-164), in their
 #: reasons and in the night's record of re-spellings (#100).
@@ -548,7 +568,7 @@ def added(
     excuses two of its rows, and the rest of a flood under one name stays counted (the release security
     delta's M26; D-159's flood rule). On a surface's own board its model leaves the surface's ranked models
     too, and the counts the loss guards read (`surfaces`, `eligible`) with it, so an accepted arrival cannot
-    stand in for a served model that left (M25). A board the served artifact does not hold is returning and
+    stand in for a served model that left (M25), and from its median price (D-253 clause 3). A board the served artifact does not hold is returning and
     passes already; it is left as it is. Rows the served board holds are never touched, so an addition cannot
     excuse a loss. The digest is the candidate's: what is published is unchanged. A first artifact has
     nothing to add to."""
@@ -556,6 +576,7 @@ def added(
         return candidate
     board, boards, models = dict(candidate.board), dict(candidate.boards), dict(candidate.models)
     surfaces = dict(candidate.surfaces)
+    median_price = dict(candidate.median_price)
     eligible = {name: dict(counts) for name, counts in candidate.eligible.items()}
     for name, names in sorted(accepted.items()):
         for subject, rows_by, served_by, ranked in ((OWN_BOARD, board, live.board, models),
@@ -580,8 +601,64 @@ def added(
                 offered = candidate.eligible_models.get(name, {})
                 for budget, count in eligible.get(name, {}).items():
                     eligible[name][budget] = count - len(gone & offered.get(budget, frozenset()))
+                if gone and name in median_price:
+                    # D-253 clause 3: an arrival's price is not a price change. The median is the served
+                    # models' again, so a feed moving their prices still trips the guard.
+                    kept = [price for model, price in candidate.model_prices.get(name, ()) if model not in gone]
+                    median_price[name] = statistics.median(kept) if kept else 0.0
     return dataclasses.replace(candidate, board=board, boards=boards, models=models, surfaces=surfaces,
-                               eligible=eligible)
+                               eligible=eligible, median_price=median_price)
+
+
+def submission_surfaces(boards: Mapping[str, str] | None = None) -> tuple[str, ...]:
+    """The surfaces whose own board `SUBMISSION_BOARDS` names (D-253 clause 1). Fails closed: an empty set, or a
+    source no surface ranks on, is a ValueError, never a set that computes nothing."""
+    boards = SUBMISSION_BOARDS if boards is None else boards
+    surfaces = tuple(sorted(name for name, spec in CATEGORIES.items() if spec.primary_source in boards))
+    ranked_on = {CATEGORIES[name].primary_source for name in surfaces}
+    missing = sorted(set(boards) - ranked_on)
+    if not boards or missing:
+        msg = f"submission boards: {missing or 'none'} is a surface's own board nowhere (D-253 clause 1)"
+        raise ValueError(msg)
+    return surfaces
+
+
+def arrivals(
+    candidate: ServingSummary, live: ServingSummary | None, surfaces: Iterable[str]
+) -> dict[str, frozenset[str]]:
+    """Each submission surface's arrivals on its own board, as `added` takes listed names (D-253 clause 2).
+
+    The names of the models the served board does not hold, and the keys of unlinked rows it does not hold. Only
+    while every served row is still on the board (an append-only board keeps its rows; a parser or alias break
+    loses them), and while the rows these names excuse, one a name (M26), are at most `MAX_SUBMISSION_GAIN` of
+    the board. A board failing either is absent, and the guards judge it as before. A first artifact has none."""
+    if live is None:
+        return {}
+    computed: dict[str, frozenset[str]] = {}
+    for name in sorted(surfaces):
+        served, now = live.board.get(name), candidate.board.get(name)
+        if not served or not now or not served <= now:
+            continue
+        served_models = {row.model for row in served if isinstance(row, LinkedRow)}
+        served_keys = {row.key for row in served if isinstance(row, UnlinkedRow)}
+        spellings = candidate.spellings.get(OWN_BOARD.format(name=name), {})
+        new_models = {model: raws for model, raws in spellings.items() if model not in served_models and raws}
+        names = frozenset().union(*new_models.values()) if new_models else frozenset()
+        new_keys = frozenset(row.key for row in now if isinstance(row, UnlinkedRow) and row.key not in served_keys)
+        excused = sum(1 for row in now
+                      if (isinstance(row, LinkedRow) and row.copy < len(new_models.get(row.model, ())))
+                      or (isinstance(row, UnlinkedRow) and row.key in new_keys and row.copy == 0))
+        if (names or new_keys) and excused <= len(now) * MAX_SUBMISSION_GAIN:
+            computed[name] = names | new_keys
+    return computed
+
+
+def merged_additions(
+    accepted: Mapping[str, frozenset[str]], computed: Mapping[str, frozenset[str]]
+) -> dict[str, frozenset[str]]:
+    """The owner's listed additions and the computed arrivals, board by board (D-253 clause 2)."""
+    return {name: accepted.get(name, frozenset()) | computed.get(name, frozenset())
+            for name in sorted(set(accepted) | set(computed))}
 
 
 #: D-223 clause 2 (#429): a cut is a short exception; renewing it past this takes a new ADR.
@@ -994,6 +1071,9 @@ class ServingSummary:
     #: surface -> budget -> the ids of the models `eligible` counts, so an accepted addition is taken out of
     #: the loss counts as it is out of the growth count (D-251; the release security delta's M25).
     eligible_models: dict[str, dict[str, frozenset[str]]] = dataclasses.field(default_factory=dict)
+    #: surface -> (model id, published price) for each priced ranked row, the values `median_price` is the
+    #: median of, so an addition's arrivals leave the median as they leave the roster (D-253 clause 3).
+    model_prices: dict[str, tuple[tuple[str, float], ...]] = dataclasses.field(default_factory=dict)
 
     @property
     def answering(self) -> int:
@@ -1035,6 +1115,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
     eligible_models: dict[str, dict[str, frozenset[str]]] = {}
     names: dict[str, frozenset[str]] = {}
     prices: dict[str, float] = {}
+    model_prices: dict[str, tuple[tuple[str, float], ...]] = {}
     boards: dict[str, frozenset[BoardRow]] = {}
     spellings: dict[str, Spellings] = {}
     displays: dict[str, str] = {}
@@ -1073,6 +1154,8 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         priced = [row.blended_per_m for row in rows if row.blended_per_m is not None]
         if spec.priced:
             prices[name] = statistics.median(priced) if priced else 0.0
+            model_prices[name] = tuple((model_id, row.blended_per_m) for model_id, row in ranked
+                                       if row.blended_per_m is not None)
         for row in rows:
             digest.update(_row_digest(row).encode())
     # D-164: a board is published content (W4 serves the standings, D-160). Every row's name, the
@@ -1104,6 +1187,7 @@ def serving_summary(conn: sqlite3.Connection) -> ServingSummary:
         displays=displays,
         accessible=len(accessibility_of),
         eligible_models=eligible_models,
+        model_prices=model_prices,
     )
 
 
@@ -1407,6 +1491,8 @@ def write_status(target: Path, outcome: RefreshOutcome, code: int, *, at: float)
         "unmatched": list(outcome.unmatched) if served else _listed(previous, "unmatched"),
         #: #39: what this cycle found re-spelled (information; a refused night lists it too).
         "renamed": list(outcome.renamed),
+        #: D-253 (#613): what this cycle admitted on a submission board without a ruling (a refused night lists it too).
+        "admitted": list(outcome.admitted),
         #: #198: the build that ran this cycle, and the build that made the artifact served now.
         "built_by": built_by,
         "served_built_by": served_built_by,
@@ -1960,8 +2046,12 @@ def _cycle(
             return record(outcome, EXIT_FAILED)
         # D-228 (#475): a re-spelling the owner accepted is judged as the rows it was. The digest stays.
         fresh = respelled(fresh, live, load_accepted_respellings())
-        # D-251 (#605): an addition the owner accepted, name by name, is not counted as growth. The digest stays.
-        fresh = added(fresh, live, load_accepted_additions())
+        # D-251 (#605): an addition the owner accepted, name by name, is not counted as growth; D-253 (#613): nor is a
+        # submission board's arrival, computed. The digest stays.
+        computed = arrivals(fresh, live, submission_surfaces())
+        fresh = added(fresh, live, merged_additions(load_accepted_additions(), computed))
+        admitted = tuple(f"{raw} on {OWN_BOARD.format(name=name)}"
+                         for name, names in sorted(computed.items()) for raw in sorted(names))
 
         baseline = _served_without(target, set(expired)) if expired and live else live
         renamed = tuple(display_changes(live, fresh) + board_respellings(live, fresh)) if live is not None else ()
@@ -2006,6 +2096,7 @@ def _cycle(
                     derived=derived,
                     unmatched=unmatched,
                     renamed=renamed,
+                    admitted=admitted,
                     largest_board_change=largest,
                 ),
                 EXIT_REFUSED,
@@ -2049,6 +2140,7 @@ def _cycle(
                 derived=derived,
                 unmatched=unmatched,
                 renamed=renamed,
+                admitted=admitted,
                 largest_board_change=largest,
             ),
             EXIT_PUBLISHED,

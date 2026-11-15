@@ -104,9 +104,10 @@ def test_a_lost_served_row_turns_the_computed_arrivals_off(tmp_path: Path) -> No
 
 
 def test_a_flood_under_one_new_name_excuses_one_row(tmp_path: Path) -> None:
-    """M26 holds for computed arrivals: 10 rows under the one new name `Fresh 0`, 9 of 22 still new."""
+    """M26 holds for computed arrivals: 10 rows under the one new name `Fresh 0`: one excused, 9 of
+    the 21 judged rows still new."""
     reasons = _judged(tmp_path, _arrive_priced(1, rows=10))
-    assert any(r.startswith(f"{OWN}'s board would be 9 of 22 rows") for r in reasons), reasons
+    assert any(r.startswith(f"{OWN}'s board would be 9 of 21 rows") for r in reasons), reasons
 
 
 def test_a_board_not_named_a_submission_board_is_judged_as_before(tmp_path: Path) -> None:
