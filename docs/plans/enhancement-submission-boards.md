@@ -48,7 +48,7 @@ more than doubles between two publishes, and a price change on the models alread
    - the night's record lists the admitted names;
    - the submission set names only surfaces' own boards.
    *Acceptance:* the commit is red on exactly these tests.
-2. **The change** in `src/app/workflows/refresh.py`; D-251's entry retired in `data/accepted-cuts.yaml`; D-253.
+2. **The change** in `src/app/workflows/refresh.py`, under D-253 (committed before it); D-251's entry retired in `data/accepted-cuts.yaml`.
    *Acceptance:* the tests green; `make check` green; the real refresh on a copy of the served state of
    2026-11-12 publishes.
 3. **Security review** (`make review-need-branch`), then `/pre-merge`.

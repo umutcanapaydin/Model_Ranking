@@ -7060,3 +7060,51 @@ caught by App Review or by the owner pasting it; the listing file is the one pla
 
 **Revisit when:** a publisher answers no (that source leaves, as D-249 did METR's), or App Review asks for a
 support contact that needs no account (an email goes on `/privacy` and in the listing).
+
+## D-253 — A board that grows by merged submissions publishes its arrivals without a ruling per batch
+
+**Owner ruling:** 2026-11-15, in chat: the permanent fix, now, rather than another name list.
+
+**Context.** Three hosted nights refused, 2026-11-13 to 2026-11-15 (runs 43349447021, 43541954428, 43662201978, #613),
+four days after D-251's ruling. Terminal-Bench 4.0 (`terminalbench_4`), `computer-use`'s own board, took 13 more
+submission files from its publisher. Measured against the served artifact of 2026-11-12: 46 rows, all 33 served rows
+kept. The surface was 11 of 43 models new, its board 12 of 45 rows (D-132, D-159). On the two nights before, priced
+newcomers moved the surface's median price down 30% while no price changed. D-251's listed additions did not reach the
+median guard. D-132's quarter was measured on rosters that do not move ("0% new names on all nine surfaces",
+2026-08-22). This board has grown 21, 32, 46 rows since 2026-09-29. Each batch needs a ruling, and each refused night
+lets the arrivals pile up against the last served artifact.
+
+**Decision.**
+1. `app.workflows.refresh.SUBMISSION_BOARDS` names, each with its reason, the own boards that grow by submission
+   files their publisher merges. One entry: `terminalbench_4`. `submission_surfaces` fails closed on an empty set or
+   a source no surface ranks on.
+2. On such a board, the night computes the arrivals (`arrivals`): the names of the models the served board does not
+   hold, and unlinked rows' keys it does not hold. It sets them aside exactly as D-251's listed additions are set
+   aside (`added`): one row a name (M26), and out of the loss counts too (M25). None are computed when either fails:
+   - every served row of that board is still on it;
+   - the rows they excuse are at most half of the candidate board (`MAX_SUBMISSION_GAIN`, 0.5; the worst gap
+     measured was 34%).
+
+   Then the guards judge the night as before. The night's record lists each admitted name (`admitted`).
+3. The median-price guard leaves out every arrival an addition sets aside, listed or computed. The median is the
+   served models', so a feed moving their prices still trips it, on every board.
+4. D-251's entry is retired: the night of 2026-11-12 published its names (#611).
+
+**Rationale.** The guard exists to catch a feed or a parser going wrong, and an injected set (W-049). An append-only
+board that keeps every served row, one row per new name, is what a publisher merging submissions looks like. Such a
+board doubling overnight is not, and a lost row is not either. A newcomer's price is not a price change. A
+ruling per batch would keep the product frozen on every merge, and reviewing every batch's names adds nothing the
+three conditions do not check.
+
+**Mitigation if violated:** `tests/unit/test_submission_boards.py` fails for any of these:
+- arrivals computed for a board not in the set;
+- arrivals over half the board;
+- arrivals beside a lost served row;
+- a flood under one name;
+- a median that counts set-aside arrivals, or misses a served price change.
+
+The real refresh on a copy of the served state of 2026-11-12 publishes, and its record names the 13 arrivals.
+
+**Revisit when:** a second board grows by submissions (it gets its own entry and reason), Terminal-Bench 4.0
+removes a served row (its nights are then judged as before, and refused at over a quarter), or a night publishes an
+arrival later shown not to be the publisher's.
