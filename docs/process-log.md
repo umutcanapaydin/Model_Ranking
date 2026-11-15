@@ -2015,3 +2015,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   - The Security-Reviewer's delta found M25 and M26 in the new exception, fixed red→green the same night and re-verified PASS by the same seat; the Tester's delta of the fix PASSed. `make deploy-check` PASS at `946a89e`.
 - The release (#610) carries the version and build 9, the App Store listing in English and Turkish, the owner's four go-live rows, and the release record. #611 retires D-251's entry before it expires.
 - Lesson: when a night is refused, measure the source the guard names before anything else. One fetch and one parse showed a genuine upstream batch, so the decision the owner had to make was clear in minutes.
+
+## 2026-11-16 · fix/issue-614-listing-screenshots — the listing names its screenshots; the go-live rows are done (#614)
+
+- The owner reported *(translated)* that build 9 was uploaded, the listing (EN + TR) filled, and 1.1.0 submitted for review. The four go-live morning rows in `docs/owner-actions.md` are marked done.
+- `docs/app-store-listing.md` had no word on screenshots. App Store Connect refused the 1320 × 2868 captures and took them resized to 1206 × 2622. The capture ran only with the simulator booted first and `,OS=26.5` in the destination. The new Screenshots section records the size, the sets and the three commands.
+- Documentation only: no test, as `/fix-issue` allows for a change with no behaviour.
+- Lesson: when the owner finishes a manual step and reports the workaround that made it work, write it into the doc for that step the same day. The next version needs it, and the build folder it lives in is gitignored.
