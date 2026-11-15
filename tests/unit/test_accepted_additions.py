@@ -186,20 +186,13 @@ def test_the_adr_must_name_the_board() -> None:
         refresh.parse_accepted_additions(_file(), today=TODAY, decisions=log)
 
 
-def test_the_committed_terminal_bench_addition_parses_until_its_expiry() -> None:
-    """D-251 clause 2: `computer-use`'s board, Terminal-Bench 4.0's ten names of 2026-11-11, until 2026-11-25."""
+def test_the_committed_terminal_bench_addition_is_retired() -> None:
+    """D-251 clause 3 (#611): the hosted night of 2026-11-12 (run 43179964312) published the ten names, so the
+    entry was inert, and D-253 computes Terminal-Bench 4.0's arrivals since. The file holds no addition, and it
+    still parses on the day the entry would have failed every night."""
     raw = refresh.ACCEPTED_CUTS_PATH.read_text(encoding="utf-8")
     decisions = refresh.DECISIONS_PATH.read_text(encoding="utf-8")
-    accepted = refresh.parse_accepted_additions(raw, today=TODAY, decisions=decisions)
-    assert set(accepted) == {"computer-use"}
-    assert accepted["computer-use"] == frozenset({
-        "anthropic/claude-haiku-5-5", "meta/muse-wonder-1.0", "moonshotai/kimi-k3.1-pro", "openai/gpt-5.4-mini",
-        "openai/gpt-6.1-terra", "openrouter/mistralai/mistral-large-4-0", "openrouter/nvidia/nemotron-3.5-super-vl",
-        "openrouter/reflection/beam-1.0-501b-a23b", "openrouter/thinkingmachines/inkling",
-        "openrouter/thinkingmachines/inkling-small",
-    })
-    with pytest.raises(refresh.AcceptedCutError, match="past"):
-        refresh.parse_accepted_additions(raw, today=dt.date(2026, 11, 26), decisions=decisions)
+    assert refresh.parse_accepted_additions(raw, today=dt.date(2026, 11, 26), decisions=decisions) == {}
 
 
 def test_the_night_reads_the_committed_file_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
