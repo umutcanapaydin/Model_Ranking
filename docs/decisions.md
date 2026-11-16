@@ -7082,8 +7082,8 @@ lets the arrivals pile up against the last served artifact.
    hold, and unlinked rows' keys it does not hold. It sets them aside exactly as D-251's listed additions are set
    aside (`added`): one row a name (M26), and out of the loss counts too (M25). None are computed when either fails:
    - every served row of that board is still on it;
-   - the rows they excuse are at most half of the candidate board (`MAX_SUBMISSION_GAIN`, 0.5; the worst gap
-     measured was 34%).
+   - the board's new rows, excused or not, are at most half of the candidate board (`MAX_SUBMISSION_GAIN`, 0.5;
+     the worst gap measured was 34%). A linked spelling excuses linked rows only, never an unlinked twin.
 
    Then the guards judge the night as before. The night's record lists each admitted name (`admitted`).
 3. The median-price guard leaves out every arrival an addition sets aside, listed or computed. The median is the
