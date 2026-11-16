@@ -2035,3 +2035,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The gate caught an ADR first written in the code commit, before the commit was pushed. It was split: the decision first, then the code.
 - The security review found that a linked name's spelling key excused unlinked twins, so the cap counted fewer rows than were new (B1, BLOCKING). Now a linked spelling excuses linked rows only, and the cap reads every new row, excused or not. Red first (3 of 8 new tests).
 - Lesson: a growth guard calibrated on boards that do not move needs a way to learn that a board grows. Otherwise every batch becomes an owner ruling, and every refused night makes the next one harder to pass.
+
+## 2026-11-16 · release/v1.1.0-delta-1116 — the release verdicts' delta over #617 (946a89e..e24838e), so the night deploys D-253
+- #617 merged as `e24838e`. The owner ran the hosted night by hand (run 43878396483): the refresh published, and `deploy-check` refused the deploy, since 7 files had changed after both release verdicts' reviewed head `946a89e` (D-217).
+- The release Tester's delta: PASS. 22 mutants of `refresh.py`, all red; a real refresh on the served copy of 2026-11-12 published with `admitted_count` 13.
+- The release Security-Reviewer's delta, at the same head: MINOR. The night's own artifact replayed under this head's guards; the serve lock moves `opentelemetry-api` only, its hashes matching PyPI. M27 filed as #623.
+- Both reviewers found the hosted artifact serving two Qwen models under raw ids, older than this range: #624.
+- `make deploy-check` PASS on this branch.
+- Lesson: a merge that changes code past the release verdicts' reviewed head owes `/going-live`'s delta before any night deploys. Name that step beside the merge command in the owner's list, never only after the night refuses.
