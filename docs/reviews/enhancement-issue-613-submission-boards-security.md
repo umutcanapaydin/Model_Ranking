@@ -16,13 +16,95 @@ source mutants of `src/app/workflows/refresh.py` and 12 probe tests, all in a sc
 re-ran the real `refresh()` on a copy of the 2026-11-12 served state, with the guards instrumented. I also checked the
 lock's hashes against PyPI's JSON API.
 **Date:** 2026-11-16
-**Release range:** `bb00c1b..bd551d5`
-**Reviewed head:** bd551d559888cd407aea5d72ddf5d5e45e21034e
+**Release range:** `bb00c1b..bd551d5` (round 1); `bd551d5..8feaabf` (round 2: 5 commits, including the merge of
+round 1's verdict)
+**Reviewed head:** 8feaabf9443f3c4ed7c1f2bfe7036a3533e1c52e
 **Risk tier:** MEDIUM. The brief declares no HIGH paths. The change relaxes a data-integrity guard (W-049, D-132,
 D-159). It touches no auth, PII, payment or migration path, so §11's senior-review trigger does not fire.
 
 ## Verdict
-BLOCKING
+MINOR
+
+### Round 2 — re-verification at `8feaabf` (2026-11-16)
+
+**Counts.** B1 closed (round 2 of 3 on that finding). M1 and M2 closed. One new MINOR, M3; it was already in round 1's
+code and I missed it then. R1-R4 are unchanged.
+
+**Method.** I moved the same seat's worktree to `8feaabf` by fast-forwarding `review/issue-613-security`, since round
+1's commit is an ancestor, and re-ran `make install` in its own venv. The enhancement branch and the main checkout
+were not touched. I read `git diff bd551d5..8feaabf`. Probes and mutants ran in a fresh scratch copy outside the
+worktree.
+
+**B1: closed.** Two changes close it:
+- In `added`, a linked spelling no longer contributes a key (`refresh.py:592-593`, `names - linked`).
+- The cap now reads every new row, excused or not (`refresh.py:653`,
+  `len(now - served) <= len(now) * MAX_SUBMISSION_GAIN`). `added` removes only rows outside `served`, both for
+  linked models (`leaving` skips served models) and for unlinked keys (`keys` skips served keys). So what it excuses
+  is a subset of `now - served`, which is now at most half the board, whatever the names.
+
+Re-run of the round-1 probes:
+- P2: 5 new rows, 2 excused (`Fresh 0`, linked, and key `fresh0` copy 0), and copies 1-3 counted. Round 1: 3 excused.
+- P2c: 18 new rows of 30. No arrivals are computed and the night refuses, "18 of 30 rows ... 60%". In round 1 it
+  published.
+- P2b: 12 distinct names, 12 rows, on a 24-row board. Admitted, at the cap.
+
+**M2: closed.** Eight new tests at `tests/unit/test_submission_boards.py:222-276`. The round-1 survivors are now red:
+- M9: unlinked keys dropped from the condition;
+- M9b: unlinked keys not admitted;
+- M10′: every copy of a new key excused (the round-1 M10 and M2b no longer apply, as the code they mutated is gone).
+
+**Mutants of the fix itself, all red:**
+- B1a: `names - linked` reverted to `names`;
+- B1b: the round-1 excused-count cap restored;
+- B1c: the cap counting new linked rows only;
+- M13b: `admitted` dropped from the refused night.
+
+The 16 round-1 mutants that still apply are red too (the 22 above, in total, include them). None stays green.
+
+**M1: closed.** The `admitted` comment (`refresh.py:182-184`) now says what the record holds: names set aside, each
+excusing at most one row, listed on a refused night too. `test_m1_a_refused_night_records_what_the_guards_set_aside`
+(`:276`) pins it, as M13b shows. With B1 fixed, "at most one row" holds:
+- P8: a model linked at one effort and unlinked at two others under the same raw name gives 2 names and 2 excused
+  rows; the third row is counted.
+
+**New in this round's fix: no defect.** Two checks:
+- `linked` is every linked spelling on the candidate board, served models' spellings included. An unlinked key or a
+  listed name that equals one of them now excuses nothing. That is the strict direction, and it fails closed.
+- The new cap is stricter than round 1's on every input: new rows are at least the rows excused.
+
+**Real data.** I re-ran the real `refresh()` on a fresh copy of the 2026-11-12 state, instrumented:
+- `computer-use` went from 33 to 46 rows: 13 new, which is 28%, under the cap, and 13 excused, 0 still new;
+- the judged median was $3.00;
+- it published 19 surfaces with `admitted_count` 13, matching the coordinator's evidence.
+
+**Lock.** `requirements/` and `pyproject.toml` did not change in `bd551d5..8feaabf`, so round 1's hash check stands.
+
+**MINOR (round 2).**
+- **M3** `src/app/workflows/refresh.py:650` (`new_keys`) and `:593`: an unlinked row spelled like a SERVED model is
+  computed as an arrival.
+  - The defect: `new_keys` holds every unlinked key the served board's unlinked rows lack. It never checks the served
+    board's linked spellings.
+  - What the fix does and does not cover: it stops a linked spelling from excusing an unlinked twin when the twin's
+    key is listed, but not when the twin's key arrives through `new_keys`.
+  - P9: every one of the 12 served models gains an unlinked duplicate under its own served spelling (`Probe 00` and
+    the rest; a link break, or a new-effort submission that does not link). The board goes from 12 to 24 rows, and
+    all 12 duplicates are excused. The night has no reasons and publishes. The control, with no submission board,
+    refuses: "12 of 24 rows ... 50%".
+  - Failure scenario: duplicated rows of served models, the shape D-159's floor guard exists for, double the board in
+    one night with no ruling.
+  - Why it is MINOR, not BLOCKING: the cap bounds it to half the board. Unlinked rows enter neither the ranked roster
+    nor the median, so only the floor moves. The same row can also be a genuine new submission of a served model.
+  - Remedy: leave out of `new_keys` any key equal to `spelling_key` of a spelling in
+    `live.spellings[OWN_BOARD.format(name=name)]`, and add a red test for P9. Such a row is then counted, and judged
+    as before.
+
+**Gates (round 2).** These are the coordinator's `make gate` lines at `8feaabf`, not re-run: gitleaks no leaks,
+`deps` no known vulnerabilities, `slopsquat` PASS, conformance PASS. I ran the 80 tests in `test_submission_boards.py`,
+`test_accepted_additions.py` and my probe file with the worktree's venv, in the scratch copy, and they pass.
+
+### Round 1 — at `bd551d5`
+
+BLOCKING 1 · MINOR 2 · risks queued 4.
 
 ## Findings
 
