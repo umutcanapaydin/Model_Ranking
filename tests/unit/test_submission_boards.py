@@ -203,3 +203,87 @@ def test_the_night_without_the_submission_board_refuses(tmp_path: Path, monkeypa
     assert code == refresh.EXIT_REFUSED
     assert "would be 5 of 17" in outcome.reason
     assert outcome.admitted == ()
+
+
+# --- The security review, round 1 (`docs/reviews/enhancement-issue-613-submission-boards-security.md`): B1 and M2.
+
+def _unlinked(*names: str, effort: str = "low") -> Change:
+    """Rows on `coding`'s board the reconcile linked to no model, one per raw name given (a name given twice is two
+    rows of one key). The reconcile links per (raw name, effort), so a new model's name can arrive linked at one
+    effort and unlinked at another."""
+    def change(conn: sqlite3.Connection) -> None:
+        conn.executemany(
+            "INSERT INTO scores (model_id, raw_name, source, benchmark, metric, score, harness, effort,"
+            " source_url, observed_at) VALUES (NULL, ?, 'swebench', 'SWE-bench Verified', '% resolved', 50, ?, ?,"
+            " 'fixture://x', 't')", [(raw, f"harness-u{i}", effort) for i, raw in enumerate(names)])
+    return change
+
+
+def test_b1_a_linked_name_does_not_excuse_an_unlinked_twin(tmp_path: Path) -> None:
+    """P2: one new linked model `Fresh 0` and 4 unlinked `fresh 0` rows. The two names excuse a row each: the linked
+    row and one unlinked copy. 3 of the 15 judged rows stay new, under the quarter, and no third row is excused."""
+    live = fingerprint_of(_boards(tmp_path / "live.db"))
+    candidate = fingerprint_of(_boards(tmp_path / "candidate.db",
+                                       _both(_arrive_priced(1), _unlinked(*["fresh 0"] * 4))))
+    assert live is not None and candidate is not None
+    judged = refresh.added(candidate, live, refresh.arrivals(candidate, live, SUBMITTED))
+    assert len(candidate.board[OWN]) - len(judged.board[OWN]) == 2
+
+
+def test_b1_twin_keys_cannot_carry_a_board_past_half(tmp_path: Path) -> None:
+    """P2c: 6 new linked models, each with 2 unlinked twin rows under its spelling key. The board grows 12 to 30, and
+    the 18 new rows are 60% of it, over the cap: the arrivals are not computed, and the night is refused."""
+    twins = [f"fresh {i}" for i in range(6) for _ in range(2)]
+    reasons = _judged(tmp_path, _both(_arrive_priced(6), _unlinked(*twins)))
+    assert any(r.startswith(f"{OWN}'s board would be 18 of 30 rows") for r in reasons), reasons
+
+
+def test_listed_linked_names_excuse_no_unlinked_twin(tmp_path: Path) -> None:
+    """The same rule on D-251's listed path: a listed name that is a linked spelling excuses linked rows only."""
+    live = fingerprint_of(_boards(tmp_path / "live.db"))
+    candidate = fingerprint_of(_boards(tmp_path / "candidate.db", _both(_arrive_priced(1), _unlinked("Fresh 0"))))
+    assert live is not None and candidate is not None
+    judged = refresh.added(candidate, live, {OWN: _names(0)})
+    assert len(candidate.board[OWN]) - len(judged.board[OWN]) == 1
+
+
+def test_m2_unlinked_arrivals_are_computed_by_key_and_publish(tmp_path: Path) -> None:
+    live = fingerprint_of(_boards(tmp_path / "live.db"))
+    candidate = fingerprint_of(_boards(tmp_path / "candidate.db", _unlinked("New A", "New B", "New C", "New D")))
+    assert live is not None and candidate is not None
+    assert refresh.arrivals(candidate, live, SUBMITTED) == {OWN: frozenset({"newa", "newb", "newc", "newd"})}
+    (tmp_path / "j").mkdir()
+    assert _judged(tmp_path / "j", _unlinked("New A", "New B", "New C", "New D")) == []
+
+
+def test_m2_unlinked_arrivals_alone_are_refused_without_the_submission_board(tmp_path: Path) -> None:
+    reasons = _judged(tmp_path, _unlinked("New A", "New B", "New C", "New D", "New E"), submitted=())
+    assert any(r.startswith(f"{OWN}'s board would be 5 of 17 rows") for r in reasons), reasons
+
+
+def test_m2_an_unlinked_flood_under_one_key_excuses_one_row(tmp_path: Path) -> None:
+    """10 unlinked rows under one new key: one excused, 9 of the 21 judged rows new, refused."""
+    reasons = _judged(tmp_path, _unlinked(*["New A"] * 10))
+    assert any(r.startswith(f"{OWN}'s board would be 9 of 21 rows") for r in reasons), reasons
+
+
+def test_m2_unlinked_arrivals_over_half_the_board_are_judged_as_before(tmp_path: Path) -> None:
+    """13 unlinked new keys of 25 rows (52%)."""
+    reasons = _judged(tmp_path, _unlinked(*[f"New {i}" for i in range(13)]))
+    assert any(r.startswith(f"{OWN}'s board would be 13 of 25 rows") for r in reasons), reasons
+
+
+def test_m1_a_refused_night_records_what_the_guards_set_aside(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`admitted` is what the growth guards set aside, published or not: here a price change on the served models
+    refuses the night, and the record still names the five arrivals the guards did not count."""
+    monkeypatch.setattr(refresh, "SUBMISSION_BOARDS", {"swebench": "the probe's submission board"})
+    live = _boards(tmp_path / "advisor.db")
+
+    def build(argv: list[str]) -> int:
+        _boards(Path(argv[argv.index("--db") + 1]), _both(_reprice_served, _arrive_priced(5)))
+        return 0
+
+    outcome, code = refresh.refresh(live, builder=build)
+    assert code == refresh.EXIT_REFUSED
+    assert "median price" in outcome.reason
+    assert list(outcome.admitted) == [f"Fresh {i} on {OWN}'s board" for i in range(5)]
