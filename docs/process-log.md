@@ -2033,4 +2033,5 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Red first (19 tests). The real refresh on the served copy of 2026-11-12 publishes, its record admitting the 13 names. D-251's entry is retired (#611).
 - Riding on it: the listing's screenshots and the done go-live rows (#614), and the `opentelemetry-api` CVE, which turned the gate red mid-change (#616). For that, the one pin moved, not a full `make lock`, which would also have moved fastapi on the serving image.
 - The gate caught an ADR first written in the code commit, before the commit was pushed. It was split: the decision first, then the code.
+- The security review found that a linked name's spelling key excused unlinked twins, so the cap counted fewer rows than were new (B1, BLOCKING). Now a linked spelling excuses linked rows only, and the cap reads every new row, excused or not. Red first (3 of 8 new tests).
 - Lesson: a growth guard calibrated on boards that do not move needs a way to learn that a board grows. Otherwise every batch becomes an owner ruling, and every refused night makes the next one harder to pass.
