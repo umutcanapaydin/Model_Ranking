@@ -179,8 +179,8 @@ class RefreshOutcome:
     #: then board rows re-spelled while their model did not (#100, D-179), `old -> new on <board>`.
     #: Information, never a reason to refuse.
     renamed: tuple[str, ...] = ()
-    #: D-253 (#613): the arrivals a submission board's growth guards set aside, `<name> on <board>`. Information:
-    #: what the night published without a ruling, so a reader of the record sees each one.
+    #: D-253 (#613): the names a submission board's growth guards set aside without a ruling, `<name> on <board>`,
+    #: each excusing at most one row; a refused night lists them too (the #613 security review's M1). Information.
     admitted: tuple[str, ...] = ()
     #: #230: the board that changed most against the live artifact, as `largest_board_change` reads it.
     largest_board_change: dict[str, object] | None = None
@@ -242,7 +242,7 @@ SUBMISSION_BOARDS: dict[str, str] = {
     ),
 }
 
-#: D-253 clause 2: the share of a submission board's candidate rows its computed arrivals may be. The worst gap
+#: D-253 clause 2: the share of a submission board's candidate rows that may be new for its arrivals to be computed. The worst gap
 #: measured against a served artifact was 11 of 32 rows (34%, 2026-11-11); a board that more than doubles
 #: between two publishes is judged as before, and published by hand.
 MAX_SUBMISSION_GAIN = 0.5
@@ -586,8 +586,11 @@ def added(
                 continue
             served_models = {row.model for row in served if isinstance(row, LinkedRow)}
             served_keys = {row.key for row in served if isinstance(row, UnlinkedRow)}
-            keys = Counter(key for key in map(spelling_key, names) if key not in served_keys)
             spellings = candidate.spellings.get(subject.format(name=name), {})
+            # A linked spelling excuses linked rows only (the #613 security review's B1): as a key it would also
+            # excuse an unlinked twin, a second row under one name.
+            linked = frozenset().union(*spellings.values()) if spellings else frozenset()
+            keys = Counter(key for key in map(spelling_key, names - linked) if key not in served_keys)
             leaving = {model: len(raws) for model, raws in spellings.items()
                        if model not in served_models and raws and raws <= names}
             rows_by[name] = frozenset(
@@ -630,8 +633,8 @@ def arrivals(
 
     The names of the models the served board does not hold, and the keys of unlinked rows it does not hold. Only
     while every served row is still on the board (an append-only board keeps its rows; a parser or alias break
-    loses them), and while the rows these names excuse, one a name (M26), are at most `MAX_SUBMISSION_GAIN` of
-    the board. A board failing either is absent, and the guards judge it as before. A first artifact has none."""
+    loses them), and while the board's new rows, excused or not, are at most `MAX_SUBMISSION_GAIN` of it.
+    `added` excuses one row a name (M26). A board failing either is absent, and the guards judge it as before. A first artifact has none."""
     if live is None:
         return {}
     computed: dict[str, frozenset[str]] = {}
@@ -645,10 +648,9 @@ def arrivals(
         new_models = {model: raws for model, raws in spellings.items() if model not in served_models and raws}
         names = frozenset().union(*new_models.values()) if new_models else frozenset()
         new_keys = frozenset(row.key for row in now if isinstance(row, UnlinkedRow) and row.key not in served_keys)
-        excused = sum(1 for row in now
-                      if (isinstance(row, LinkedRow) and row.copy < len(new_models.get(row.model, ())))
-                      or (isinstance(row, UnlinkedRow) and row.key in new_keys and row.copy == 0))
-        if (names or new_keys) and excused <= len(now) * MAX_SUBMISSION_GAIN:
+        # The cap reads the board's new rows, whatever excuses them (the #613 security review's B1): a board more
+        # than half new since the served artifact is judged as before.
+        if (names or new_keys) and len(now - served) <= len(now) * MAX_SUBMISSION_GAIN:
             computed[name] = names | new_keys
     return computed
 
