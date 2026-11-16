@@ -65,6 +65,34 @@ AI,LLM,benchmark,leaderboard,ranking,compare,model,coding,chatbot,price,budget,e
 
 **What's New:** not shown for a first version.
 
+## Screenshots
+
+**Accepted size: 1206 × 2622** (iPhone 6.3" display). In the owner's 1.1.0 submission, App Store Connect refused
+the simulator's 1320 × 2868 captures (iPhone 6.9"), and took the same shots resized to 1206 × 2622.
+
+The sets uploaded for 1.1.0 are in `build/appstore-shots/upload/`. That folder is gitignored, so a new version
+captures them again:
+
+| Localisation | Folder | Shots, in order |
+|---|---|---|
+| English | `en-6.3` | `1-en-home-0`, `2-en-home-1`, `3-en-evidence-0` |
+| Turkish | `tr-6.3` | `1-tr-home-0`, `2-tr-ask-web-1`, `3-tr-ranking-0`, `4-tr-chooser-0`, `5-tr-evidence-0` |
+
+**Capturing them.** `ScreenAuditTests` captures every flow in both languages, against a local engine
+(`scripts/ui_test.sh`). Two things made the capture run (the owner's 1.1.0 run):
+- boot the simulator first with `bootstatus -b`;
+- append `,OS=26.5` to the device name, so the destination names one runtime.
+
+```
+xcrun simctl bootstatus "iPhone 17 Pro Max" -b
+UI_TEST_DEVICE="iPhone 17 Pro Max,OS=26.5" UI_TEST_ONLY=ScreenAuditTests MODEL_RANKING_DB=<a served artifact> make ui-test
+xcrun xcresulttool export attachments --path build/ui-test/only.xcresult --output-path build/appstore-shots
+```
+
+Then pick the shots from `build/appstore-shots` by the attachment names in the manifest the export writes beside them, and resize each one to
+1206 × 2622, for example with `sips -z 2622 1206 <in>.png --out <out>.png`. Upload the English set under the
+English localisation and the Turkish set under Turkish.
+
 ## App Privacy
 
 - **Privacy Policy URL:** `https://model-ranking.fly.dev/privacy`

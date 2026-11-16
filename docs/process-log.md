@@ -2015,3 +2015,23 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
   - The Security-Reviewer's delta found M25 and M26 in the new exception, fixed red→green the same night and re-verified PASS by the same seat; the Tester's delta of the fix PASSed. `make deploy-check` PASS at `946a89e`.
 - The release (#610) carries the version and build 9, the App Store listing in English and Turkish, the owner's four go-live rows, and the release record. #611 retires D-251's entry before it expires.
 - Lesson: when a night is refused, measure the source the guard names before anything else. One fetch and one parse showed a genuine upstream batch, so the decision the owner had to make was clear in minutes.
+
+## 2026-11-16 · fix/issue-614-listing-screenshots — the listing names its screenshots; the go-live rows are done (#614)
+
+- The owner reported *(translated)* that build 9 was uploaded, the listing (EN + TR) filled, and 1.1.0 submitted for review. The four go-live morning rows in `docs/owner-actions.md` are marked done.
+- `docs/app-store-listing.md` had no word on screenshots. App Store Connect refused the 1320 × 2868 captures and took them resized to 1206 × 2622. The capture ran only with the simulator booted first and `,OS=26.5` in the destination. The new Screenshots section records the size, the sets and the three commands.
+- Documentation only: no test, as `/fix-issue` allows for a change with no behaviour.
+- Lesson: when the owner finishes a manual step and reports the workaround that made it work, write it into the doc for that step the same day. The next version needs it, and the build folder it lives in is gitignored.
+
+## 2026-11-16 · enhancement/issue-613-submission-boards — Terminal-Bench 4.0's arrivals publish without a ruling per batch (D-253; #613, #611, #614, #616)
+
+- The three nights after the go-live, 2026-11-13 to 11-15, refused. Terminal-Bench 4.0 took 13 more submissions in four days, with every served row kept. Priced newcomers had moved the median price by 30% while no price changed, and D-251's listed additions did not reach the median guard. The owner chose the permanent fix over another name list.
+- D-253:
+  - a named submission board's arrivals are computed and set aside as listed additions are: one row a name, out of the loss counts;
+  - this holds only while every served row is kept and the arrivals are at most half the board;
+  - no addition moves the median.
+- Red first (19 tests). The real refresh on the served copy of 2026-11-12 publishes, its record admitting the 13 names. D-251's entry is retired (#611).
+- Riding on it: the listing's screenshots and the done go-live rows (#614), and the `opentelemetry-api` CVE, which turned the gate red mid-change (#616). For that, the one pin moved, not a full `make lock`, which would also have moved fastapi on the serving image.
+- The gate caught an ADR first written in the code commit, before the commit was pushed. It was split: the decision first, then the code.
+- The security review found that a linked name's spelling key excused unlinked twins, so the cap counted fewer rows than were new (B1, BLOCKING). Now a linked spelling excuses linked rows only, and the cap reads every new row, excused or not. Red first (3 of 8 new tests).
+- Lesson: a growth guard calibrated on boards that do not move needs a way to learn that a board grows. Otherwise every batch becomes an owner ruling, and every refused night makes the next one harder to pass.
