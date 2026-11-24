@@ -194,6 +194,17 @@ TEXT_IDS_ON_2026_10_30 = {
 }
 
 
+#: #624: the hosted artifact of 2026-11-24 (run 45333569828) served these two under their raw id. Epoch's
+#: boards (`epoch_aime`, `epoch_gpqa`, `epoch_frontiermath`, `epoch_mystery`) give only the id, with or
+#: without its `_none` effort; each is named as `qwen3.5-flash` is: the family and version as Qwen writes
+#: them, then the size or tier as a spaced word.
+EPOCH_IDS_ON_2026_11_24 = {
+    "qwen3.5-4b_none": "Qwen3.5 4B",
+    "qwen3.7-flash": "Qwen3.7 Flash",
+    "qwen3.7-flash_none": "Qwen3.7 Flash",
+}
+
+
 def _named(spelling: str, *, media: bool) -> str:
     identity = registry.derive_identity(spelling, media=media)
     assert identity is not None, spelling
@@ -208,6 +219,12 @@ def test_a_media_board_that_gives_only_the_id_is_named_from_its_words(spelling: 
 
 @pytest.mark.parametrize(("spelling", "name"), sorted(TEXT_IDS_ON_2026_10_30.items()))
 def test_a_text_board_that_gives_only_the_id_is_named_by_the_table(spelling: str, name: str) -> None:
+    assert _named(spelling, media=False) == name
+
+
+@pytest.mark.parametrize(("spelling", "name"), sorted(EPOCH_IDS_ON_2026_11_24.items()))
+def test_an_epoch_board_that_gives_only_the_qwen_id_is_named_by_the_table(spelling: str, name: str) -> None:
+    """#624: `qwen3.5-4b` and `qwen3.7-flash` reached the app under their raw id."""
     assert _named(spelling, media=False) == name
 
 
