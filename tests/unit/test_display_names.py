@@ -203,6 +203,20 @@ EPOCH_IDS_ON_2026_11_24 = {
     "qwen3.7-flash": "Qwen3.7 Flash",
     "qwen3.7-flash_none": "Qwen3.7 Flash",
 }
+#: #624's remainder: the same artifact served these under a lower-case spelling of their id, the next
+#: assertion of the artifact test once the two raw ids were named. Each spelling is the source's own
+#: (Epoch's with its effort, Terminal-Bench 4.0's with its route), named as the table's nearest
+#: precedent is: `gpt-5.2-codex`, `muse-wonder1.0`, `doubao-seed-code`, and a snapshot's date in
+#: brackets as `command-a03-2025`'s.
+LOWER_CASE_ON_2026_11_24 = {
+    "doubao-seed-2.0-lite-260428_high": "Doubao Seed 2.0 Lite (260428)",     # epoch_gpqa
+    "doubao-seed-2.1-pro-260628_high": "Doubao Seed 2.1 Pro (260628)",       # epoch_gpqa
+    "doubao-seed-2.1-turbo-260628_high": "Doubao Seed 2.1 Turbo (260628)",   # epoch_gpqa
+    "openrouter/fireworks/ember-1": "Ember 1",                               # terminalbench_4
+    "gpt-5.3-codex_high": "GPT-5.3 Codex",                                   # epoch_swe_bench_verified
+    "meta/muse-ember-1.0": "Muse Ember 1.0",                                 # terminalbench_4
+    "openrouter/nvidia/nemotron-3.5-super-vl": "Nemotron 3.5 Super VL",      # terminalbench_4
+}
 
 
 def _named(spelling: str, *, media: bool) -> str:
@@ -225,6 +239,12 @@ def test_a_text_board_that_gives_only_the_id_is_named_by_the_table(spelling: str
 @pytest.mark.parametrize(("spelling", "name"), sorted(EPOCH_IDS_ON_2026_11_24.items()))
 def test_an_epoch_board_that_gives_only_the_qwen_id_is_named_by_the_table(spelling: str, name: str) -> None:
     """#624: `qwen3.5-4b` and `qwen3.7-flash` reached the app under their raw id."""
+    assert _named(spelling, media=False) == name
+
+
+@pytest.mark.parametrize(("spelling", "name"), sorted(LOWER_CASE_ON_2026_11_24.items()))
+def test_a_board_that_gives_only_a_lower_case_id_is_named_by_the_table(spelling: str, name: str) -> None:
+    """#624's remainder: the artifact test's lower-case assertion, red on the 2026-11-24 artifact."""
     assert _named(spelling, media=False) == name
 
 
