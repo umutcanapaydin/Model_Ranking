@@ -761,6 +761,17 @@ DISPLAY_NAMES: dict[str, str] = {
     "qwen3-235b-a22b-instruct2507": "Qwen3 235B A22B Instruct 2507",  # #265: ranked by ARC-AGI-2 since D-194
     "qwen3.5-flash": "Qwen3.5 Flash",  # #265: priced by models.dev since D-194, so served
     "qwen3.5-plus": "Qwen3.5 Plus",
+    "qwen3.5-4b": "Qwen3.5 4B",        # #624: Epoch's boards give only the id; as `qwen3-4b` is named
+    "qwen3.7-flash": "Qwen3.7 Flash",  # #624: Epoch's boards give only the id; as `qwen3.5-flash` is named
+    # #624's remainder: served under a lower-case spelling of the id on the 2026-11-24 artifact. Each
+    # source gives only the id; named as the nearest precedent is, a snapshot's date in brackets.
+    "doubao-seed2.0-lite260428": "Doubao Seed 2.0 Lite (260428)",    # Epoch; as `doubao-seed-code`
+    "doubao-seed2.1-pro260628": "Doubao Seed 2.1 Pro (260628)",      # Epoch
+    "doubao-seed2.1-turbo260628": "Doubao Seed 2.1 Turbo (260628)",  # Epoch
+    "ember1": "Ember 1",                                             # Terminal-Bench 4.0 `fireworks/ember-1`
+    "gpt5.3-codex": "GPT-5.3 Codex",                                 # Epoch; as `gpt-5.2-codex` is named
+    "muse-ember1.0": "Muse Ember 1.0",                               # Epoch, TB 4.0; as `muse-wonder1.0`
+    "nemotron3.5-super-vl": "Nemotron 3.5 Super VL",                 # Terminal-Bench 4.0 `nvidia/...`
     "qwq-plus": "QwQ Plus",
     "trinity-large-thinking": "Trinity Large Thinking",
     # #112's remainder (M19-W1): served under a lower-case spelling of the id. Each name is its maker's,
