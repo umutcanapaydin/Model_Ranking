@@ -7,10 +7,10 @@ enum ModelFamilies {
     /// Every family word the registry names a ranked model by, in plain lower case: what a comparison of
     /// model names reads (`CategoryHints.comparesModelsOnly`, #206).
     static let words: Set<String> = [
-        "aya", "claude", "code", "codestral", "command", "dbrx", "deepseek", "devstral", "doubao", "ernie",
-        "gemini", "gemma", "glm", "gpt", "granite", "grok", "hunyuan", "hy4", "jamba", "kimi", "llama",
-        "magistral", "mercury", "mimo", "minimax", "ministral", "mistral", "mixtral", "muse", "nemotron",
-        "nous", "nova", "nvidia", "o1", "o3", "o4", "palmyra", "phi", "pixtral", "qwen", "qwq", "step",
-        "titan", "trinity", "zephyr",
+        "aya", "claude", "code", "codestral", "command", "dbrx", "deepseek", "devstral", "doubao", "ember",
+        "ernie", "gemini", "gemma", "glm", "gpt", "granite", "grok", "hunyuan", "hy4", "jamba", "kimi",
+        "llama", "magistral", "mercury", "mimo", "minimax", "ministral", "mistral", "mixtral", "muse",
+        "nemotron", "nous", "nova", "nvidia", "o1", "o3", "o4", "palmyra", "phi", "pixtral", "qwen", "qwq",
+        "step", "titan", "trinity", "zephyr",
     ]
 }

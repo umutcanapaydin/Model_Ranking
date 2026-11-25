@@ -2043,3 +2043,11 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - Both reviewers found the hosted artifact serving two Qwen models under raw ids, older than this range: #624.
 - `make deploy-check` PASS on this branch.
 - Lesson: a merge that changes code past the release verdicts' reviewed head owes `/going-live`'s delta before any night deploys. Name that step beside the merge command in the owner's list, never only after the night refuses.
+
+## 2026-11-24 · fix/issue-624-qwen-display-names — nine models the hosted artifact served under their id, named (#624)
+- The hosted artifact of 2026-11-24 (run 45333569828) served `qwen3.5-4b` and `qwen3.7-flash` under their raw id: Epoch's boards give only the id.
+- Red first, from the source's own spellings (`qwen3.5-4b_none`, `qwen3.7-flash`). With those two named, the same artifact test's next assertion was red too: seven more models served under a lower-case spelling of their id (three Doubao Seed snapshots, `gpt-5.3-codex`, Ember 1, Muse Ember 1.0, Nemotron 3.5 Super VL). They are the issue's reported symptom, the test red on the hosted artifact, so they are fixed here, red first in a commit of their own.
+- Each name follows the table's nearest precedent (`qwen3.5-flash`, `gpt-5.2-codex`, `muse-wonder1.0`, `command-a03-2025`'s bracketed date). The display-name tests pass on the 2026-11-24 artifact. A changed name never refuses a night (`display_changes`, D-173).
+- `ModelFamilies.swift` regenerated: the phone's family words gain `ember`. It reaches the phone only with a new build.
+- review-need: none.
+- Lesson: when a test stops at its first failing assertion, run it again on the same data after the fix. One red assertion can hide the next, and the reported symptom is the test being red, not the one line it printed.
