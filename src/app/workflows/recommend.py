@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -748,6 +749,15 @@ def _no_eligible_payload(
     return payload
 
 
+def _say_if_plans_frozen(conn: sqlite3.Connection) -> None:
+    """D-256: print first, on stderr, that the plan data is frozen; a database built before the column says nothing."""
+    if "frozen_on" not in {row[1] for row in conn.execute("PRAGMA table_info(plan_config)")}:
+        return
+    row = conn.execute("SELECT frozen_on FROM plan_config WHERE id = 1").fetchone()
+    if row is not None and row[0] is not None:
+        print(f"plan data frozen on {row[0]}, not current (D-256)", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point (V4C-50: tests enter HERE, not a unit shim)."""
     parser = argparse.ArgumentParser(prog="recommend", description=__doc__)
@@ -781,6 +791,7 @@ def main(argv: list[str] | None = None) -> int:
         shutout: BudgetShutout | None = None
         evidence: dict[str, object] | None = None
         if args.subscription:
+            _say_if_plans_frozen(conn)
             rec = recommend_subscription(conn, args.budget, args.task)
             if rec is None:
                 shutout = budget_shutout(conn, args.budget, args.task)

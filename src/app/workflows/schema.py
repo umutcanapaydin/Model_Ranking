@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS plan_config (
     -- `roster_staleness_days()` is where the absence is resolved, loudly.
     roster_staleness_days INTEGER CHECK (roster_staleness_days IS NULL OR roster_staleness_days > 0),
     cap_dusuk      REAL NOT NULL CHECK (cap_dusuk > 0),  -- monthly-USD budget caps (data, not code)
-    cap_orta       REAL NOT NULL CHECK (cap_orta > cap_dusuk)
+    cap_orta       REAL NOT NULL CHECK (cap_orta > cap_dusuk),
+    frozen_on      TEXT   -- D-256: the date the plan table was frozen; NULL while it is maintained
 );
 CREATE TABLE IF NOT EXISTS plan_models (
     plan_id       TEXT NOT NULL,
@@ -175,6 +176,8 @@ _MIGRATIONS: tuple[tuple[str, str, str], ...] = (
     # database a roster policy nobody set, which is the shape of the defect this column exists to
     # remove. An unmigrated row reads as "unset" and `roster_staleness_days()` says so.
     ("plan_config", "roster_staleness_days", "INTEGER"),
+    # D-256 (#633): the date the plan table was frozen, which `recommend --subscription` prints first.
+    ("plan_config", "frozen_on", "TEXT"),
 )
 
 EFFORT_UNSPECIFIED = "unspecified"

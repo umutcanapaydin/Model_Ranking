@@ -37,6 +37,26 @@ def _fail(msg: str) -> SourceError:
     return SourceError(f"{SOURCE_NAME}: {msg}")
 
 
+#: D-256 (#633): the plan table and its rosters are frozen. `/v1` and the app never show a plan, so
+#: no one re-verifies them by hand; a `frozen:` date says so, and the staleness checks only warn.
+FREEZE_ADR = "D-256"
+
+
+def frozen_on(doc: dict[str, Any], source: str) -> str | None:
+    """The document's top-level `frozen:` date as YYYY-MM-DD, None when absent; anything else fails."""
+    if "frozen" not in doc:
+        return None
+    value = doc["frozen"]
+    if isinstance(value, dt.date) and not isinstance(value, dt.datetime):
+        return value.isoformat()
+    if isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        try:
+            return dt.date.fromisoformat(value).isoformat()
+        except ValueError:
+            pass
+    raise SourceError(f"{source}: frozen must be a YYYY-MM-DD date ({FREEZE_ADR}), got {value!r}")
+
+
 def _validate_plan(entry: Any, seen_ids: set[str]) -> PlanRow:  # noqa: C901
     # (complexity waiver: one loud gate per field is the design — curated data fails loud)
     if not isinstance(entry, dict):
@@ -102,6 +122,7 @@ class PlansDoc:
     cap_dusuk: float  # monthly-USD budget caps for --subscription (owner-tunable data)
     cap_orta: float
     rows: tuple[PlanRow, ...]
+    frozen: str | None = None  # D-256: the date the table stopped being re-verified
 
 
 def _validate_caps(caps: Any) -> tuple[float, float]:
@@ -157,6 +178,7 @@ def parse_plans_doc(raw: str) -> PlansDoc:
         cap_dusuk=float(cap_dusuk),
         cap_orta=float(cap_orta),
         rows=tuple(rows),
+        frozen=frozen_on(doc, SOURCE_NAME),
     )
 
 
@@ -179,9 +201,9 @@ def ingest_plans(conn: sqlite3.Connection, raw: str, run: RunContext) -> SourceR
             conn.execute("DELETE FROM plan_models")
             conn.execute("DELETE FROM plans")
             conn.execute(
-                "INSERT OR REPLACE INTO plan_config (id, staleness_days, cap_dusuk, cap_orta)"
-                " VALUES (1, ?, ?, ?)",
-                (doc.staleness_days, doc.cap_dusuk, doc.cap_orta),
+                "INSERT OR REPLACE INTO plan_config (id, staleness_days, cap_dusuk, cap_orta, frozen_on)"
+                " VALUES (1, ?, ?, ?, ?)",
+                (doc.staleness_days, doc.cap_dusuk, doc.cap_orta, doc.frozen),
             )
             conn.executemany(
                 "INSERT INTO plans (id, provider, name, monthly_usd, currency, region,"
@@ -298,10 +320,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: --today is not YYYY-MM-DD: {args.today!r}", file=sys.stderr)
         return 2
     try:
-        msgs = check_staleness(path.read_text(encoding="utf-8"), today)
+        raw = path.read_text(encoding="utf-8")
+        frozen = parse_plans_doc(raw).frozen
+        msgs = check_staleness(raw, today)
     except SourceError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    if frozen is not None:
+        print(f"FROZEN on {frozen} ({FREEZE_ADR}): the plan table is not re-verified;"
+              f" {len(msgs)} row(s) are older than the window on {today.isoformat()}, which is not a failure.")
+        return 0
     for msg in msgs:
         print(f"STALE: {msg}")
     if msgs:
