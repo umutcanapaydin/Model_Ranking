@@ -7132,7 +7132,7 @@ requirement.
 ## D-255 — No new iOS build while 1.1.0 (9) is in App Review; the next app changes ship as 1.2
 
 **Owner ruling:** 2026-11-25, in chat: 1.1.0 (build 9) still reads "Waiting for Review" on its tenth day, with no
-rejection and no message from Apple. A status question went to Apple on 2026-11-24 (case 103023381420).
+rejection and no message from Apple. A status question went to Apple on 2026-11-24.
 
 **Decision:**
 1. While 1.1.0 (9) is in App Review, no new iOS build is uploaded and neither the version nor the build number is
