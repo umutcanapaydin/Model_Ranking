@@ -2074,7 +2074,7 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The live contract (`tests/integration/test_scores_contract.py`) asked `skipped == 0`, but `skipped` also counts a model's weaker rerun: on 2026-11-25 the board held 75 files, 2 nameless and 21 superseded regrades. It now parses each file alone and names any file the parser cannot read; run live, it passes.
 - Lesson: a contract that asserts a count read it for one meaning; when the source starts producing the other kind (regrades), the count goes red for a reason that is not a defect. Assert the property, not the tally.
 
-## 2026-11-25 · fix/issue-633-plans-frozen — the subscription plan table is frozen (D-256)
+## 2026-11-25 · fix/issue-633-table-frozen — the subscription plan table is frozen (D-256)
 - #633: the plan table's thirty-day window closed again, and seven of its ten prices needed the owner's browser. No user sees a plan: the public artifact deletes them (`src/app/workflows/public.py:42-47`), and no `/v1` route or app screen reads one.
 - The owner froze the table (D-256). Red at the test commit (`tests/unit/test_plans_frozen.py`), green at the fix: a top-level `frozen:` date in `data/plans.yaml` and `data/rosters.yaml` makes both staleness CLIs warn and exit 0, so CI's `plan-staleness` turns green with no workflow change. `recommend --subscription` prints `plan data frozen on <date>, not current (D-256)` first, on stderr.
 - That day's re-verification was dropped, not applied, and #633-#637 close as not planned. REQ-SUB-004 is superseded. AGENTS.md carries the owner's data rule: the owner is never asked to verify data.
