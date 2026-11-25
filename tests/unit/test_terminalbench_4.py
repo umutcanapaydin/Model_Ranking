@@ -121,6 +121,18 @@ def test_a_submission_with_no_model_name_and_no_usable_label_is_still_skipped(di
     assert [r.raw_name for r in rows] == ["anthropic/claude-opus-5-5"] and skipped == 1
 
 
+@pytest.mark.parametrize("model_name", ["", "  "])
+def test_a_blank_model_name_is_not_replaced_by_the_display_label(model_name: str) -> None:
+    """covers REQ-SRC-012 (#612): the label names a row only when `model_name` is null or absent; a model_name the
+    file gives but leaves blank is a malformed file, skipped, never silently renamed (the review's fault F2)."""
+    blank = _submission("x", "claude-code", "max", "max", 40.0, "2026-10-31", 12.0)
+    blank["source_filter"]["model_name"] = model_name  # type: ignore[index]
+    blank["metadata"]["model_display"] = {"label": "DeepSeek V4.1 Flash 1017"}  # type: ignore[index]
+    rows, skipped = _tb().parse_terminalbench_4(_raw({"blank.json": blank, "ok.json": OPUS}),
+                                                source="terminalbench_4", source_url=LISTING)
+    assert [r.raw_name for r in rows] == ["anthropic/claude-opus-5-5"] and skipped == 1
+
+
 @respx.mock
 def test_the_client_reads_every_submission_file_the_listing_names_from_the_repository() -> None:
     """covers REQ-SRC-012: GitHub's contents API lists the files; each is read from the repository's own
