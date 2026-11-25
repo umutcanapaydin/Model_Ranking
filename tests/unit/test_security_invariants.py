@@ -726,3 +726,21 @@ def test_a_pointer_to_another_row_does_not_answer_the_phrase() -> None:
              "see INV-63 in `docs/security-invariants.md`.\n")
     assert phrase_problems({"docs/architecture.md": wrong}, {})
     assert phrase_problems({}, {"probe.py": '"""The client performs no arithmetic (INV-62)."""\n'})
+
+
+#: The growth guards' two exceptions (#623): D-251's listed additions and D-253's computed arrivals on a submission
+#: board set rows aside before INV-52's and INV-54's guards count them. Each row names both and cites their tests.
+GROWTH_EXCEPTIONS = {
+    52: ("D-251", "D-253", "tests/unit/test_accepted_additions.py", "tests/unit/test_submission_boards.py"),
+    54: ("D-251", "D-253", "tests/unit/test_accepted_additions.py", "tests/unit/test_submission_boards.py"),
+}
+
+
+def test_the_growth_guard_rows_name_their_exceptions() -> None:
+    """#623 (the release security delta of 2026-11-16, M27): INV-52 and INV-54 said every new name counts, while
+    D-251 and D-253 set arrivals aside; the cited tests ran on other surfaces, so the list could not see it."""
+    lines = {int(m.group(1)): line for line in section(LIST.read_text(encoding="utf-8"), "The list").splitlines()
+             if (m := ROW.match(line.rstrip()))}
+    missing = [f"INV-{n} lacks {word}" for n, words in GROWTH_EXCEPTIONS.items() for word in words
+               if word not in lines[n]]
+    assert not missing, missing
