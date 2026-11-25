@@ -92,6 +92,47 @@ def test_two_runs_of_one_model_agent_and_effort_keep_the_better() -> None:
     assert [(r.raw_name, r.score) for r in rows] == [("anthropic/claude-opus-5-5", 64.85)] and skipped == 1
 
 
+
+def test_a_submission_without_a_model_name_is_named_by_its_display_label() -> None:
+    """covers REQ-SRC-012 (#612): TB 4.0's file `2026-10-31-deepseek-v4-1-flash-1017-max-claude-code.json` has
+    `source_filter.model_name: null` and names its model only in `metadata.model_display.label`. The label names
+    the row, and only when `model_name` is missing."""
+    nameless = _submission("x", "claude-code", "max", "max", 40.0, "2026-10-31", 12.0)
+    nameless["source_filter"]["model_name"] = None  # type: ignore[index]
+    nameless["metadata"]["model_display"] = {"label": "DeepSeek V4.1 Flash 1017",  # type: ignore[index]
+                                             "url": "https://openrouter.ai/deepseek/deepseek-v4.1-flash-1017"}
+    rows, skipped = _tb().parse_terminalbench_4(_raw({"nameless.json": nameless, "ok.json": OPUS}),
+                                                source="terminalbench_4", source_url=LISTING)
+    assert skipped == 0
+    by_name = {r.raw_name: r for r in rows}
+    row = by_name["DeepSeek V4.1 Flash 1017"]
+    assert (row.score, row.harness, row.effort, row.run_date) == (40.0, "claude-code", "max", "2026-10-31")
+    assert by_name["anthropic/claude-opus-5-5"].raw_name == "anthropic/claude-opus-5-5"  # model_name still wins
+
+
+@pytest.mark.parametrize("display", [None, {}, {"label": None}, {"label": "  "}, {"label": 7}, "DeepSeek"])
+def test_a_submission_with_no_model_name_and_no_usable_label_is_still_skipped(display: object) -> None:
+    """covers REQ-SRC-012 (#612): the label is a fallback, never a guess; without one the file is skipped."""
+    nameless = _submission("x", "claude-code", "max", "max", 40.0, "2026-10-31", 12.0)
+    nameless["source_filter"]["model_name"] = None  # type: ignore[index]
+    nameless["metadata"]["model_display"] = display  # type: ignore[index]
+    rows, skipped = _tb().parse_terminalbench_4(_raw({"nameless.json": nameless, "ok.json": OPUS}),
+                                                source="terminalbench_4", source_url=LISTING)
+    assert [r.raw_name for r in rows] == ["anthropic/claude-opus-5-5"] and skipped == 1
+
+
+@pytest.mark.parametrize("model_name", ["", "  "])
+def test_a_blank_model_name_is_not_replaced_by_the_display_label(model_name: str) -> None:
+    """covers REQ-SRC-012 (#612): the label names a row only when `model_name` is null or absent; a model_name the
+    file gives but leaves blank is a malformed file, skipped, never silently renamed (the review's fault F2)."""
+    blank = _submission("x", "claude-code", "max", "max", 40.0, "2026-10-31", 12.0)
+    blank["source_filter"]["model_name"] = model_name  # type: ignore[index]
+    blank["metadata"]["model_display"] = {"label": "DeepSeek V4.1 Flash 1017"}  # type: ignore[index]
+    rows, skipped = _tb().parse_terminalbench_4(_raw({"blank.json": blank, "ok.json": OPUS}),
+                                                source="terminalbench_4", source_url=LISTING)
+    assert [r.raw_name for r in rows] == ["anthropic/claude-opus-5-5"] and skipped == 1
+
+
 @respx.mock
 def test_the_client_reads_every_submission_file_the_listing_names_from_the_repository() -> None:
     """covers REQ-SRC-012: GitHub's contents API lists the files; each is read from the repository's own

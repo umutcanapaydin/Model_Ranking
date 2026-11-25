@@ -101,6 +101,9 @@ def _row(submission: object, *, source: str, source_url: str) -> ScoreRow | None
     if not isinstance(run, dict) or not isinstance(about, dict) or not isinstance(metrics, dict):
         return None
     model, agent = run.get("model_name"), run.get("agent")
+    if model is None:  # #612: a file that names its model only in its display label
+        display = about.get("model_display")
+        model = display.get("label") if isinstance(display, dict) else None
     score = _accuracy(metrics.get("accuracy"))
     if not isinstance(model, str) or not model.strip() or not isinstance(agent, str) or not agent.strip():
         return None

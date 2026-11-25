@@ -2067,3 +2067,9 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - D-255, the owner's ruling: no new iOS build while 1.1.0 (9) is in App Review; app-side changes (#626's `ember`, #615, #627) wait for 1.2. The 2026-11-24 merge row is done (night 45568359207 deployed `d78924a`); a new open row watches App Review and Apple's answer to the owner's support case.
 - review-need: see the PR body.
 - Lesson: a list held by a test of its own shape cannot see an ADR that carves an exception into one of its rows. The exception's ADR names the row it amends, or the row drifts silently.
+
+## 2026-11-25 · fix/issue-612-tb4-null-model-name — a TB 4.0 submission with a null model_name is named by its label
+- #612: TB 4.0's submission file for DeepSeek V4.1 Flash 1017 (2026-10-31) and its regrade carry `source_filter.model_name: null`; the parser skipped both, so `computer-use`'s board missed DeepSeek V4.1 Flash 1017 (40%).
+- Red at `1ec3a78`, green at the fix: when `model_name` is null, `metadata.model_display.label` names the row; a missing, empty or non-string label still skips it. The label and the OpenRouter slug derive the same id (`deepseek-v4.1-flash1017`).
+- The live contract (`tests/integration/test_scores_contract.py`) asked `skipped == 0`, but `skipped` also counts a model's weaker rerun: on 2026-11-25 the board held 75 files, 2 nameless and 21 superseded regrades. It now parses each file alone and names any file the parser cannot read; run live, it passes.
+- Lesson: a contract that asserts a count read it for one meaning; when the source starts producing the other kind (regrades), the count goes red for a reason that is not a defect. Assert the property, not the tally.
