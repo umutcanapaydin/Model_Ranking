@@ -133,3 +133,14 @@ def test_a_database_built_before_the_freeze_still_answers(tmp_path, capsys) -> N
     code = recommend_main(["--db", db, "--budget", "unlimited", "--task", "coding", "--subscription"])
     assert code in (0, 1)
     assert "frozen" not in capsys.readouterr().err
+
+
+def test_the_frozen_line_stays_off_stdout_so_the_json_still_parses(tmp_path, capsys) -> None:
+    """D-256 criterion 5: the line goes to stderr; stdout stays one JSON document a caller can parse."""
+    import json
+
+    db = _plans_db(tmp_path, _frozen(PLANS))
+    recommend_main(["--db", db, "--budget", "unlimited", "--task", "coding", "--subscription"])
+    captured = capsys.readouterr()
+    assert "frozen" not in captured.out
+    assert isinstance(json.loads(captured.out), dict)
