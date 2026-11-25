@@ -7108,3 +7108,23 @@ The real refresh on a copy of the served state of 2026-11-12 publishes, and its 
 **Revisit when:** a second board grows by submissions (it gets its own entry and reason), Terminal-Bench 4.0
 removes a served row (its nights are then judged as before, and refused at over a quarter), or a night publishes an
 arrival later shown not to be the publisher's.
+
+## D-254 — v1.1.0 is offered in every App Store territory but mainland China
+
+**Owner ruling:** 2026-11-24, in chat: mainland China removed from the app's availability in App Store Connect
+(175 to 174 countries and regions).
+
+**Decision:** The app is free in every App Store territory except mainland China. `docs/app-store-listing.md`
+says so. D-252's listing is otherwise unchanged: its body set the price, not the territories, so nothing in it is
+superseded.
+
+**Rationale:** For mainland China, App Store Connect asks for a Security Assessment and an AIGC (generated AI content)
+filing. Both read "Missing Info" in the 1.1.0 submission. The app answers questions with an on-device or hosted
+model (Golden Rule 2), which is the kind of app those filings are for. Neither filing is in reach for a one-person,
+non-trader app. Leaving them missing risks App Review holding the whole version, not only that one territory.
+
+**Mitigation if violated:** If the listing doc and App Store Connect disagree, App Review or the owner pasting the
+fields catches it. The listing file is the one place the territory set is written.
+
+**Revisit when:** someone asks for the app in mainland China and both filings can be made, or Apple drops either
+requirement.

@@ -15,7 +15,7 @@ each field below is within its limit.
 | Secondary category | Productivity |
 | Content rights | Does not contain, show or access third-party content it lacks the rights to: every number is a published measurement shown with its publisher's credit, under an open licence or terms that do not forbid it (D-215, D-252 clause 2) |
 | Age rating | 4+ (every questionnaire answer: None / No) |
-| Price | Free, every territory |
+| Price | Free, every territory but mainland China (174 of 175; D-254) |
 
 **Age rating questionnaire:** every content descriptor is **None**. Unrestricted web access: **No** (the app opens no web page; the Credits screen shows each publisher's link as text). Gambling, contests, user-generated content, messaging: **No**.
 

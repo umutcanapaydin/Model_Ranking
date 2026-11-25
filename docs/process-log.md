@@ -2051,3 +2051,12 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - `ModelFamilies.swift` regenerated: the phone's family words gain `ember`. It reaches the phone only with a new build.
 - review-need: none.
 - Lesson: when a test stops at its first failing assertion, run it again on the same data after the fix. One red assertion can hide the next, and the reported symptom is the test being red, not the one line it printed.
+
+## 2026-11-24 · release/v1.1.0-delta-1124 — the release verdicts' delta over #626 (e24838e..9ce8ede), D-254, and the owner's App Store rows
+- Stacked on #626 (#624, nine display names), so that #626's merge and this one leave `deploy-check` passing and the night deploys once.
+- The release Tester's delta: PASS. Red to green per commit; on the 2026-11-24 hosted artifact the whole suite passes (5697), the artifact test red at `e24838e` and green at `9ce8ede`.
+- The release Security-Reviewer's delta: PASS. The artifact replayed under this head differs from the served one by the nine names only, and no guard refuses them. R33 and R34, both LOW, filed as #627.
+- D-254: mainland China left out of the App Store territories (Apple's Security Assessment and AIGC filing). The listing says so. The owner's 2026-11-08 and 2026-11-10 rows are done, and so are the App Store Connect steps. iOS 1.1.0 is in App Review, not on the store.
+- The Tester's seat ran in a worktree under `.claude/worktrees/`. The conformance scan read that tree and refused every commit in the main checkout until it left, and the seat's own commit failed there too. The Security seat ran in a worktree under the temp directory and committed cleanly.
+- `make deploy-check` PASS on this branch.
+- Lesson: start a review seat's worktree outside the repository, never with the agent tool's in-repo worktree isolation. A tree nested in the checkout is scanned as the checkout's own files.
