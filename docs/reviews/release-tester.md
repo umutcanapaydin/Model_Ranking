@@ -18,7 +18,7 @@ M3 by `1b926e7` (the docstring cites D-220 clause 3).
 `main`). I had fresh eyes and wrote none of the range's code or tests. The only tests I wrote are the commits
 listed under "Tests added this review", each on a review branch of my own, after the range it reviewed.
 **Independent:** yes
-**Date:** 2026-11-24 (the delta 2026-11-24 `e24838e..9ce8ede`, #624; before it the delta 2026-11-16 `946a89e..e24838e`, D-253; before it 2026-11-12 (the delta 2026-11-12 `ac15329..946a89e`; before it the delta 2026-11-11 `5df7fa9..ac15329`, D-251 and D-252, run golive-1111; before it the delta 2026-11-10c `53b16b8..5df7fa9`, M23 and M24; the re-verify 2026-11-10b `bce930e..53b16b8`; the delta 2026-11-10b `7a1e6d0..bce930e`, D-250 releases followed; the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
+**Date:** 2026-11-25 (the delta 2026-11-25 `9ce8ede..cef08d1`, #623; before it the delta 2026-11-24 `e24838e..9ce8ede`, #624; before it the delta 2026-11-16 `946a89e..e24838e`, D-253; before it 2026-11-12 (the delta 2026-11-12 `ac15329..946a89e`; before it the delta 2026-11-11 `5df7fa9..ac15329`, D-251 and D-252, run golive-1111; before it the delta 2026-11-10c `53b16b8..5df7fa9`, M23 and M24; the re-verify 2026-11-10b `bce930e..53b16b8`; the delta 2026-11-10b `7a1e6d0..bce930e`, D-250 releases followed; the re-verify `30c1aeb..7a1e6d0` and the delta `bd843fd..32d7d70`, D-249; before them the delta round 2026-11-08, `2a218b5..bd843fd`, D-248; the release round v1.0.0, run v100, `a937ff9..b7bdb38`; the #588 delta round 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round 2026-11-03, `1a5fec0..970ffea`; the upgrade delta round 2026-11-01b, `918c227..7fad073`, DevFlow v7.2 to v7.3.1; the delta round
 2026-11-01, `6e6f5be..eaee56b`; the delta round 2026-10-31b, `ed18de5..243d115`,
 and before it the delta round of run 1030 and the fixes before it, 2026-10-31; the night-1028 delta round was 2026-10-29,
 the night-1027 and the launchd-guard and build-6 delta rounds were
@@ -2457,3 +2457,43 @@ Sensible: `qwen3.5-4b_none` to Qwen3.5 4B, `qwen3.7-flash(_none)` to Qwen3.7 Fla
 - **L7 (LOW, not filed).** The table is an enumeration the artifact test keeps current only after a night serves a new raw id; the next new model will turn the artifact test red the same way (as L6 of the 2026-11-16 delta said). That is the test working, not a defect of this range. L6 is closed by this range.
 - **L8 (LOW, environment, not this range's).** In a worktree under `.claude/worktrees/`, `make check-fast`'s conformance leg fails 2 tests (`conformance/test-bash-guard.py`, 4 wrong verdicts, and `test-hook-claims.py`), because the Bash guard refuses on the path containing `.claude/`. The code under review does not touch either; the same legs run in the owner's checkout.
 - Standing and filed elsewhere: the run-1102 round's M1; the enhancement security review's M3 (#620) and R3 (#621); M10, M11, M12, L1 to L5.
+
+## Delta 2026-11-25 (#623, INV-52 and INV-54) (9ce8ede..cef08d1)
+
+**Range:** `9ce8ede..cef08d1` (`fix/issue-623-inv-52-54-exceptions`; `main`'s #626 and #628 in between are docs and review files only). The only non-doc file in the range is `tests/unit/test_security_invariants.py` (+18). **Independent:** yes (`seat: independent`); I wrote none of it.
+**Verdict: PASS**, 0 BLOCKING, 0 new findings above LOW. I added no test, so the reviewed head is the branch tip.
+Reviewed head (full): cef08d14da6b1ab6b91efa913038d9514a6da740
+**Seat:** worktree `tester-wt-1125` (branch `review/tester-delta-1125`) at `cef08d1`, read-only use of the owner's venv as interpreter.
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family available. Fresh context.
+**Mutation runner:** none wired; hand fault injection below.
+
+### Acceptance criterion (#623)
+
+Each of INV-52 and INV-54 names its exception (D-251, D-253) and cites its tests.
+- `tests/unit/test_security_invariants.py:742` (`test_the_growth_guard_rows_name_their_exceptions`, table `GROWTH_EXCEPTIONS` at `:733`): for both rows, `D-251`, `D-253` and the two test files must appear in the row. GREEN at `35b41e2` and `cef08d1`.
+- The prose is true against the code. INV-52: the `additions:` entry of `data/accepted-cuts.yaml` is `parse_accepted_additions` / `added` (`src/app/workflows/refresh.py:514`, `:560`); the computed arrivals exist only on a board `SUBMISSION_BOARDS` names (`:237`, `submission_surfaces` `:616`), "only while every served row is kept" is `served <= now` (`arrivals`, `:645`), "at most half" is `MAX_SUBMISSION_GAIN = 0.5` (`:248`, `:653`), "neither excuses a loss" is `added` never touching served rows and taking arrivals out of the loss counts (docstring `:562-575`, D-253 clause 2). INV-54: "one row a name", "a linked name never excusing an unlinked twin" (`:589-590`) and "no arrivals on a board not named or past half new" all match `added`/`arrivals` and D-253 clause 2. The ADR text (`docs/decisions.md:7064-7091`) says the same.
+- Each newly cited test, read: `test_accepted_additions.py:83` (a name no addition lists still counts: 6 of 18 refused), `:344` (M25: listed arrivals do not hide a 7 of 12 loss), `:78` (additions on one board excuse nothing on another), `:109` (a listed name already served or lost changes nothing: 3 of 12 loss refused); `test_submission_boards.py:99` (a lost served row turns the computed arrivals off), `:156` (a price change on the served models still trips beside arrivals), `:93` (over half new judged as before), `:106` (a flood under one new name excuses one row), `:113` (a board not named is judged as before), `:222` (a linked name does not excuse an unlinked twin). Each asserts on the refusal reason with literal counts, so each proves the sentence it is cited under.
+
+### Red to green
+
+- `15e015f` touches only `tests/unit/test_security_invariants.py` (+18): at its commit `1 failed, 16 passed`; the one failure is `test_the_growth_guard_rows_name_their_exceptions`, the reported reason (rows lack the exception words).
+- `35b41e2` (the fix, `docs/security-invariants.md` rows INV-52 and INV-54): `test_security_invariants.py` 17 passed. `tests/unit/test_security_invariants.py tests/unit/test_submission_boards.py tests/unit/test_accepted_additions.py` together: **86 passed**. The existing gate (`test_the_list_holds_together`) reads every new citation as an existing declared test, so a wrong name would be red there.
+
+### Test integrity
+
+`git diff 9ce8ede cef08d1 -- tests`: 18 lines added, none removed or changed; nothing skipped, weakened or deleted. No new integration, no mock, no contract test owed. A full-suite run was not repeated: the range changes no `src/`.
+
+### Fault injection
+
+Three faults, each one atomic sequence, `md5` of `docs/security-invariants.md` equal to the pre-injection hash after each revert and `git status` clean afterwards:
+1. A cited name broken (`test_an_addition_never_excuses_a_loss` to `..._lossX`): `test_the_list_holds_together` RED (killed).
+2. Before it, the two `test_submission_boards.py` citations removed from INV-52: `test_the_growth_guard_rows_name_their_exceptions` RED (killed).
+3. `D-253` dropped from INV-54's Source cell only: suite stays GREEN (17 passed). It stays green because the same row's Invariant cell also says "D-253"; the test reads the whole row. See L9.
+
+My first restore of fault 2 put the removed text after the row's closing pipe and broke the row; I rewrote the row by exact string replace, and `git diff` against `HEAD` was empty (md5 equal to the committed file) before I ran anything further.
+
+### Findings
+
+- **L9 (LOW, not filed).** `test_the_growth_guard_rows_name_their_exceptions` reads the whole row, not the Source cell, so the `D-251; D-253 (#623)` entry in Source can be dropped while the test stays green (the prose names both ADRs in the Invariant cell). The criterion ("names its exception and cites its tests") is met; the Source column is a convention the test does not hold. Not worth a gate on its own.
+- **L10 (LOW, not filed).** The test hard-codes the same four words for INV-52 and INV-54, so a future third growth guard row needs its entry added by hand. A named enumeration with its reason in the comment (`GROWTH_EXCEPTIONS`, `:731`); acceptable under AGENTS.md 3.5.
+- Standing and filed elsewhere: L7, L8 of the 2026-11-24 delta; the run-1102 round's M1; M3 (#620) and R3 (#621); M10, M11, M12, L1 to L5.
