@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 pytestmark = pytest.mark.needs("contract")  # #137: RUN_CONTRACT_TESTS=1 and the network
@@ -31,9 +33,16 @@ def test_real_terminalbench_4_submissions_satisfy_parser_contract() -> None:
     from app.clients.terminalbench import TerminalBench4Client, parse_terminalbench_4
 
     client = TerminalBench4Client()
-    rows, skipped = parse_terminalbench_4(client.fetch_raw(), source=client.name, source_url=client.url)
+    raw = client.fetch_raw()
+    rows, skipped = parse_terminalbench_4(raw, source=client.name, source_url=client.url)
     assert len(rows) >= 10, f"only {len(rows)} TB 4.0 rows (skipped={skipped})"
-    assert skipped == 0 and all(0 <= r.score <= 100 for r in rows)
+    assert all(0 <= r.score <= 100 for r in rows)
+    # Every file is a submission the parser reads (#612). `skipped` also counts a model's weaker rerun, which the
+    # board keeps by design (one row per model, agent and effort; 21 regrades on 2026-11-25), so each file is
+    # parsed alone: a file the parser cannot read is skipped on its own.
+    unread = [entry["file"] for entry in json.loads(raw)
+              if parse_terminalbench_4(json.dumps([entry]), source=client.name, source_url=client.url)[1]]
+    assert not unread, unread
 
 
 def test_real_datacurve_leaderboard_satisfies_parser_contract() -> None:
