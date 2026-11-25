@@ -2060,3 +2060,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The Tester's seat ran in a worktree under `.claude/worktrees/`. The conformance scan read that tree and refused every commit in the main checkout until it left, and the seat's own commit failed there too. The Security seat ran in a worktree under the temp directory and committed cleanly.
 - `make deploy-check` PASS on this branch.
 - Lesson: start a review seat's worktree outside the repository, never with the agent tool's in-repo worktree isolation. A tree nested in the checkout is scanned as the checkout's own files.
+
+## 2026-11-25 · fix/issue-623-inv-52-54-exceptions — INV-52 and INV-54 name D-251's and D-253's exceptions; D-255
+- #623 (the 2026-11-16 security delta's M27): the two growth-guard rows said every new name counts, while D-251's listed additions and D-253's computed arrivals set names aside. The INV-cited tests ran on other surfaces, so the list's own gate could not see it.
+- Red at `15e015f` (`test_the_growth_guard_rows_name_their_exceptions`), green at `35b41e2`: each row names both ADRs, states their terms and cites ten of their tests.
+- D-255, the owner's ruling: no new iOS build while 1.1.0 (9) is in App Review; app-side changes (#626's `ember`, #615, #627) wait for 1.2. The 2026-11-24 merge row is done (night 45568359207 deployed `d78924a`); a new open row watches App Review and Apple case 103023381420.
+- review-need: see the PR body.
+- Lesson: a list held by a test of its own shape cannot see an ADR that carves an exception into one of its rows. The exception's ADR names the row it amends, or the row drifts silently.

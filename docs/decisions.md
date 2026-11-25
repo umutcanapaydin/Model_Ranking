@@ -7128,3 +7128,25 @@ fields catches it. The listing file is the one place the territory set is writte
 
 **Revisit when:** someone asks for the app in mainland China and both filings can be made, or Apple drops either
 requirement.
+
+## D-255 — No new iOS build while 1.1.0 (9) is in App Review; the next app changes ship as 1.2
+
+**Owner ruling:** 2026-11-25, in chat: 1.1.0 (build 9) still reads "Waiting for Review" on its tenth day, with no
+rejection and no message from Apple. A status question went to Apple on 2026-11-24 (case 103023381420).
+
+**Decision:**
+1. While 1.1.0 (9) is in App Review, no new iOS build is uploaded and neither the version nor the build number is
+   raised. The submission is not withdrawn.
+2. App-side changes merged meanwhile wait for 1.2: `ModelFamilies.swift`'s `ember` word (#626), METR's time
+   horizons (#615), and #627, which the owner tied to the same version.
+3. Server-side work goes on as before: a night deploys the hosted engine, which the app in review already reads.
+
+**Rationale:** Withdrawing a submission to replace its build sends the version to the back of the review queue.
+Nothing merged since build 9 fixes a defect a reviewer would meet. The hosted engine changes without a new build,
+so the display names of #624 already reach build 9.
+
+**Mitigation if violated:** A raised version or a new upload shows in App Store Connect as a new build beside
+1.1.0 (9). The owner, who alone uploads builds (`docs/release-testflight.md`), is the check.
+
+**Revisit when:** App Review answers, approves or rejects 1.1.0 (9), or a defect a reviewer would meet needs a new
+build.
