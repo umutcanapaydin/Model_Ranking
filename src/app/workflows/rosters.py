@@ -23,6 +23,7 @@ import yaml
 
 from app.clients.protocols import SourceError
 from app.workflows.ingest import RunContext, SourceReport
+from app.workflows.plans import FREEZE_ADR, frozen_on
 from app.workflows.yaml_guard import safe_load_bounded
 
 SOURCE_NAME = "rosters-curated"
@@ -51,6 +52,7 @@ class RosterRow:
 class RostersDoc:
     staleness_days: int
     rows: tuple[RosterRow, ...]
+    frozen: str | None = None  # D-256: the date the rosters stopped being re-verified
 
 
 def _validate(entry: Any, seen: set[str]) -> RosterRow:  # noqa: C901
@@ -114,7 +116,7 @@ def parse_rosters(raw: str) -> RostersDoc:
         row = _validate(entry, seen)
         seen.add(row.plan_id)
         rows.append(row)
-    return RostersDoc(staleness_days=staleness, rows=tuple(rows))
+    return RostersDoc(staleness_days=staleness, rows=tuple(rows), frozen=frozen_on(doc, SOURCE_NAME))
 
 
 def ingest_rosters(conn: sqlite3.Connection, raw: str, run: RunContext) -> SourceReport:
@@ -210,10 +212,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: --today is not YYYY-MM-DD: {args.today!r}", file=sys.stderr)
         return 2
     try:
-        msgs = stale_rosters(path.read_text(encoding="utf-8"), today)
+        raw = path.read_text(encoding="utf-8")
+        frozen = parse_rosters(raw).frozen
+        msgs = stale_rosters(raw, today)
     except SourceError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    if frozen is not None:
+        print(f"FROZEN on {frozen} ({FREEZE_ADR}): the rosters are not re-verified;"
+              f" {len(msgs)} roster(s) are older than the window on {today.isoformat()}, which is not a failure.")
+        return 0
     for msg in msgs:
         print(f"STALE: {msg}")
     if msgs:

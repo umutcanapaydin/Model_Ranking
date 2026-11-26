@@ -7150,3 +7150,34 @@ so the display names of #624 already reach build 9.
 
 **Revisit when:** App Review answers, approves or rejects 1.1.0 (9), or a defect a reviewer would meet needs a new
 build.
+
+## D-256 — The subscription plan table is frozen; data with no automatic source is read by the agent or left out
+
+**Owner ruling:** 2026-11-25, in chat, after #633: the plan table's thirty-day window closed again, and seven of its
+ten prices needed the owner's browser.
+
+**Decision:**
+1. `data/plans.yaml` and `data/rosters.yaml` are frozen on 2026-11-25. Each carries a top-level `frozen:` date. While
+   it is there, `python -m app.workflows.plans --check-staleness` and `python -m app.workflows.rosters
+   --check-staleness` print a `FROZEN on <date>` warning and exit 0, so the CI `plan-staleness` job stays green
+   without a workflow change. A table without the flag is checked as before.
+2. `recommend --subscription` keeps working, and prints `plan data frozen on <date>, not current (D-256)` first,
+   on stderr, so its JSON on stdout still parses. The date comes from `plan_config.frozen_on`, written at ingest.
+3. No one re-verifies the frozen table. Its rows keep the dates and prices they had on 2026-11-25. The re-verification
+   of that day (Claude's new Ultra card, Google's Gemini 4 names, Perplexity's 2026-11-19 roster) is not applied.
+4. #633, #634, #635, #636 and #637 are closed as not planned under this ADR. REQ-SUB-004 is superseded.
+5. A standing rule for every agent: the owner is not asked to verify data. Data with no automatic source is either
+   read by the agent from its published page or kept out of the product.
+
+**Rationale:** No user sees a plan. The hosted engine's artifact deletes `plans` and `plan_models`
+(`src/app/workflows/public.py:42-47`, held by `test_public_artifact.py::test_the_public_artifact_carries_no_vendor_plan`),
+no `/v1` route reads them (`src/app/adapter/main.py:1384-1700`), and the app has no plan field. Perplexity's terms
+keep its plans from public display. The table's only readers are the operator CLI and the coverage metric, and a
+monthly browser pass by the owner for data no user sees is work that serves no golden rule (D-210, rule 4).
+
+**Mitigation if violated:** A plan shown to users from this table would show prices up to a year old. Nothing ships
+one today: the public artifact test fails if a plan reaches it. The stderr line marks every subscription answer as
+not current.
+
+**Revisit when:** plans are to be shown to users. Then an automatic source is found for them first (a published
+feed or a page the agent can read on its own). Manual verification by the owner does not come back.

@@ -62,6 +62,7 @@
 
 schema: 1
 staleness_days: 30   # owner Q3 (2026-08-15): a row older than this is disclosed as stale
+frozen: 2026-11-25   # D-256 (#633): /v1 and the app show no plan, so this table is not re-verified; staleness only warns
 budget_caps_usd:     # monthly-USD tiers for --subscription (first calibration, M3-W3; data, not code)
   low: 10          # covers the $8 entry tier
   medium: 25           # covers the $19.99-20 flagship tiers

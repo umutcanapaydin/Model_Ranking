@@ -262,7 +262,7 @@ the plan's; where the rule has moved since, the row says so.
 ### REQ-SUB-004 — Re-verification cadence
 
 **Statement:** a weekly scheduled CI job (owner Q4) fails/reminds when any plan row exceeds the staleness window.
-**Status:** **MET.** Evidence: test_plans_staleness.py::test_cli_exit_codes_through_real_entrypoint; `.github/workflows/contract-tests.yml:17` (weekly cron), `:89` (plans check). No test asserts that the workflow runs the **plans** check. Epoch's step was removed from CI by D-158 clause 4, and test_epoch_staleness.py::test_ci_no_longer_ages_the_epoch_bundle holds that it stays removed.
+**Status:** **SUPERSEDED** by D-256 (2026-11-25): the plan table and its rosters are frozen, and the check only warns while they carry `frozen:` (test_plans_frozen.py::test_a_frozen_table_warns_and_passes_its_staleness_check, ::test_a_table_that_is_not_frozen_still_fails_when_stale). Before it, **MET.** Evidence: test_plans_staleness.py::test_cli_exit_codes_through_real_entrypoint; `.github/workflows/contract-tests.yml:17` (weekly cron), `:89` (plans check). No test asserts that the workflow runs the **plans** check. Epoch's step was removed from CI by D-158 clause 4, and test_epoch_staleness.py::test_ci_no_longer_ages_the_epoch_bundle holds that it stays removed.
 
 ### REQ-REC-007 — Subscription recommendation
 

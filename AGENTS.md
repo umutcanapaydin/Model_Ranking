@@ -14,6 +14,8 @@
 3. **The most correct list for every question:** from our boards, and where no board ranks it, a list the app composes itself with an LLM. The list is composed only from our boards: every number comes from a board, never from the model (D-104).
 4. **No empty work:** every task serves 1-3 or the v1 order. v1 order: open issues closed → source permissions → Apple Intelligence + understanding together → routing → composing lists (last).
 
+**Data rule (D-256, the owner's):** never ask the owner to verify data. Data with no automatic source is either read by the agent from its published page, or it is not in the product; a row the agent cannot read is marked unverified and not shown.
+
 ## 1. Project context
 
 - **Project name:** model_ranking

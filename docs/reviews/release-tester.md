@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 7f9a650647fb98e1bb722bd641901a3abc85ba83 (the delta 2026-11-25b, `cef08d1..8930261`, #612 TB 4.0 null model_name, my one test commit `7f9a650` on top of the branch tip `8930261`; before it cef08d14da6b1ab6b91efa913038d9514a6da740: the delta 2026-11-25, `9ce8ede..cef08d1`, #623 INV-52 and INV-54, no test added; before it 9ce8ede587141e88f48c1bb15411da8ccb49123f: the delta 2026-11-24, `e24838e..9ce8ede`, #624 display names, no test added; before it e24838efec3a97a8c17fea9ab33572c39f8fe167: the delta 2026-11-16, `946a89e..e24838e`, D-253 and #613, no test added; before it 946a89ec493c085929c09cb12e707d0a1353b7ff: the delta 2026-11-12, `ac15329..946a89e`, M25 and M26 fixes, no test added; before it ac15329e3ea34977ce27846c116d5e29141eaa44: the delta 2026-11-11, `5df7fa9..ac15329`, D-251 and D-252, my test commit on `e854b57`; before it 5df7fa928a6d70260c7a94211a316214dc917cc2: the delta 2026-11-10c, `53b16b8..5df7fa9`; before it 53b16b811196ea444e07193f797a56ea090062cd: the re-verify 2026-11-10b, `bce930e..53b16b8`; before it bce930e6dd68027bb85d562b8f71f9409f3cad5e: the delta 2026-11-10b, `7a1e6d0..bce930e`, D-250 releases followed; before it 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733: the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** 683cfc132ff8b2030dde378649e4e4040290f0e3 (the delta 2026-11-26, `7f9a650..352b994`, #633 D-256 plan table frozen, my one test commit `683cfc1` on top of the branch tip `352b994`; before it 7f9a650647fb98e1bb722bd641901a3abc85ba83: the delta 2026-11-25b, `cef08d1..8930261`, #612 TB 4.0 null model_name, my one test commit `7f9a650` on top of the branch tip `8930261`; before it cef08d14da6b1ab6b91efa913038d9514a6da740: the delta 2026-11-25, `9ce8ede..cef08d1`, #623 INV-52 and INV-54, no test added; before it 9ce8ede587141e88f48c1bb15411da8ccb49123f: the delta 2026-11-24, `e24838e..9ce8ede`, #624 display names, no test added; before it e24838efec3a97a8c17fea9ab33572c39f8fe167: the delta 2026-11-16, `946a89e..e24838e`, D-253 and #613, no test added; before it 946a89ec493c085929c09cb12e707d0a1353b7ff: the delta 2026-11-12, `ac15329..946a89e`, M25 and M26 fixes, no test added; before it ac15329e3ea34977ce27846c116d5e29141eaa44: the delta 2026-11-11, `5df7fa9..ac15329`, D-251 and D-252, my test commit on `e854b57`; before it 5df7fa928a6d70260c7a94211a316214dc917cc2: the delta 2026-11-10c, `53b16b8..5df7fa9`; before it 53b16b811196ea444e07193f797a56ea090062cd: the re-verify 2026-11-10b, `bce930e..53b16b8`; before it bce930e6dd68027bb85d562b8f71f9409f3cad5e: the delta 2026-11-10b, `7a1e6d0..bce930e`, D-250 releases followed; before it 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733: the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2553,3 +2553,79 @@ My first script restored the file wrongly (it truncated the file before reading 
 ### Tests added this review
 
 - `tests/unit/test_terminalbench_4.py` `test_a_blank_model_name_is_not_replaced_by_the_display_label` (commit `7f9a650`), proves "and only then" of #612 against a blank `model_name`.
+
+
+## Delta 2026-11-26 (#633, D-256 plan table frozen) (7f9a650..352b994)
+
+**Range:** `7f9a650..352b994` (`fix/issue-633-table-frozen`, three commits on `bc15177`: `ea2e81e` the ADR alone, `79825e6` the red test, `352b994` the fix; `main`'s #632 (`bc15177`) is records only past `7f9a650`). Code: `src/app/workflows/plans.py` (+31 -5), `rosters.py` (+10 -2), `schema.py` (+3 -1), `recommend.py` (+11), `data/plans.yaml` and `data/rosters.yaml` (+1 each), `tests/unit/test_plans_frozen.py` (+135). **Independent:** yes (`seat: independent`); I wrote none of it.
+**Verdict: PASS**, 0 BLOCKING, 0 findings above LOW. I added one test commit (`683cfc1`), so the reviewed head is that commit, one test commit over the branch tip `352b994`.
+Reviewed head (full): 683cfc132ff8b2030dde378649e4e4040290f0e3
+**Seat:** worktree `seat-633t-tester` (branch `review/633-table-frozen-tester`), the owner's venv as interpreter with `PYTHONPATH=src`; `app.__file__` resolves into the worktree (`.../seat-633t-tester/src/app/__init__.py`).
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family available. Fresh context.
+**Mutation runner:** none wired; hand fault injection below.
+
+### Acceptance criteria (D-256)
+
+1. Frozen table warns and exits 0, for both CLIs. Code: `plans.py:323-336` (the branch at `:329`) (`frozen = parse_plans_doc(raw).frozen`, then the `FROZEN on` print and `return 0` before any `STALE:` line), `rosters.py:215-227` (the branch at `:221`) (the same). Proof: `tests/unit/test_plans_frozen.py:67` `test_a_frozen_table_warns_and_passes_its_staleness_check` (both modules; exit 0 with `--today 2030-01-01`, `FROZEN on 2026-11-25` and `D-256` in stdout, no `STALE:`), and `:90` `test_the_shipped_plan_and_roster_files_are_frozen` (the real `data/plans.yaml:65` and `data/rosters.yaml:37`, `frozen: 2026-11-25`). GREEN.
+2. A table without the flag is checked as before. `:77` `test_a_table_that_is_not_frozen_still_fails_when_stale` (both; exit 1). The existing `test_plans_staleness.py::test_cli_exit_codes_through_real_entrypoint` is unchanged and green. GREEN.
+3. A malformed flag is refused with exit 2. `frozen_on` at `plans.py:45-57`; `main` catches `SourceError` and returns 2. Proof: `:84` `test_a_frozen_value_that_is_not_a_date_is_refused` (`soon`, `'2026-13-01'`, `true`, `20261125`, `''`; both modules; 10 cases, all exit 2). GREEN.
+4. `.github/workflows/**` untouched: `git diff bc15177 352b994 --stat -- .github` is empty. (`contract-tests.yml:89` still runs the plans check; with the flag it now exits 0, which is the point.)
+5. `recommend --subscription`. Code: `recommend.py:752-759` (`_say_if_plans_frozen`, called at `:794` only inside `if args.subscription:`, before `recommend_subscription`), to `sys.stderr`. Proof: `:105` the first stderr line is exactly `plan data frozen on 2026-11-25, not current (D-256)`; `:112` an unfrozen table prints none; `:118` a model answer (no `--subscription`) prints none; `:124` a database whose `plan_config` has the column dropped still answers (exit 0 or 1, no line); and mine, `:138` `test_the_frozen_line_stays_off_stdout_so_the_json_still_parses` (stdout has no `frozen`, and `json.loads(stdout)` is a dict). The stdout-parses half of the criterion had no test; I checked it by hand first (exit 1 with a JSON error payload, line on stderr) and then added the test. GREEN.
+
+### Red to green
+
+At `bc15177`'s source (a scratch export of that tree, with `data/plans.yaml`, `data/rosters.yaml` and the new test copied in, so `pyproject`'s `pythonpath` could not pick the fixed files): **15 failed, 5 passed**. The 15: both frozen-warns tests (the old CLI returns 1 on a stale table), all ten malformed-flag cases (the old parser ignores the key, so exit 1, not 2), both shipped-file tests and the subscription line (`IndexError`: stderr empty). The 5 that pass are the controls by design (not-frozen still fails x2, no line when unfrozen, no line on a model answer, the old-database case). At `352b994`: **20 passed**; at `683cfc1`: **21 passed**.
+
+### Suite
+
+- `tests/unit` (the whole directory, `-n6 --no-cov`, at `683cfc1`'s source): **5717 passed, 9 skipped** (the skips are owner-fetched bundles and the network-namespace test, all named in the output). I did not run `tests/integration` (live contract tests need `RUN_CONTRACT_TESTS`); the first, full run was stopped for its length and replaced by this one plus the targeted set below.
+- Targeted, at `352b994`: `test_schema`, `test_plans_ingest`, `test_roster_window`, `test_subscribe`, `test_public_artifact`, `test_effort`, `test_media_surfaces`, `test_plans_frozen`: **164 passed, 1 skipped**.
+- Lint: `ruff check` on the test file is clean. `black --check` would reformat the red test file `79825e6` (long parametrize lines, 100-column limit); it is the author's file and `black` is not part of the gate I was asked to prove (L14).
+
+### Test integrity
+
+`git diff bc15177 352b994 -- tests`: one new file only (`test_plans_frozen.py`), nothing else touched. Nothing skipped, weakened or deleted. No mock added (the file builds its database through `ingest_plans` and the real `recommend.main`). No new integration, so no contract test owed.
+
+### The migration and the old database
+
+- `frozen_on` is in `_MIGRATIONS` (`schema.py:180`) and in the DDL (`:100`). On a hand-built old `plan_config` (four columns): `connect()` migrated it to `[..., roster_staleness_days, frozen_on]` and kept the row (`(1, 30, 10.0, 25.0, None, None)`).
+- `open_readonly` runs no migration and left the old table at four columns, as expected. `_say_if_plans_frozen` (`recommend.py:753-759`) asks `PRAGMA table_info(plan_config)` for `frozen_on` first and returns silently when it is absent, so the read-only CLI does not break on an old database; `test_a_database_built_before_the_freeze_still_answers` pins that.
+- `schema.py:379` (`for table, column, _ in _MIGRATIONS`, the migrated-column check) passes with the new row (`test_schema.py` green).
+
+### The night and the public artifact
+
+- `public.py` does not carry plans: it deletes `plan_models` and `plans` (`public.py:45-46`) and never names `plan_config`; `test_public_artifact.py` is green. `plan_config` therefore reaches `/v1` neither with the old shape nor the new column.
+- Every reader of `plan_config` in `src` names its columns: `subscribe.py:158` (`cap_dusuk, cap_orta`), `subscribe.py:320` (`SELECT 1`), `rosters.py:143` (an `UPDATE`), `:250` and `schema.py:360` (`roster_staleness_days`), `recommend.py:756` (`frozen_on`). None uses `SELECT *` or a column count. The tests that read it (`test_roster_window.py:143` and others) also name columns, and `test_effort.py:102` inserts four named columns, which still works because `frozen_on` is nullable.
+- The night's refresh builds the live database with `connect()`, so it migrates and `ingest_plans` writes `frozen_on` (`plans.py:204-206`); writing the date is by `INSERT OR REPLACE`, so a later unfreeze (the key removed) writes NULL.
+
+### `frozen_on()` edge cases (run by hand)
+
+A YAML date: `2026-11-25`. A quoted valid date: `2026-11-25`. Absent: `None`. A datetime (`frozen: 2026-11-25 10:00:00`, which YAML loads as `datetime`): refused. `null` (`frozen:` with no value): refused. A string with surrounding blanks or a trailing newline: refused. All refusals are `SourceError`, exit 2 on the CLI. Two of these are strict by choice and untested (L15).
+
+### Fault injection
+
+Each as one sequence (inject by exact string replace, run `test_plans_frozen.py`, restore by exact string replace). After the last restore the `md5` of `plans.py`, `recommend.py` and `rosters.py` equalled the pre-injection hashes (`2cb3389c7546a0b98c005560bcc4bc50`, `f091ebe98fcbd88d611345ebbd2e1b5d`, `1f079e1cada8a2299dd206765c946ca8`) and `git status` was clean.
+1. The plans CLI ignores the flag (`if frozen is not None:` to `if False:`): **RED** (2 failed), killed.
+2. The rosters CLI ignores the flag: **RED** (2 failed), killed.
+3. The stderr print dropped (`pass` in its place): **RED** (1 failed), killed.
+4. The print moved to stdout (mine, after adding the stdout test): **RED** (2 failed: the stderr test and the stdout test), killed.
+5. A non-date accepted (`return str(value)` before the `raise`): **RED** (10 failed), killed.
+6. An impossible date string accepted (`except ValueError: return value`): **RED** (2 failed: `'2026-13-01'` in both modules), killed.
+7. `ingest_plans` writes NULL instead of the date: **RED** (1 failed), killed.
+
+Nothing stayed green.
+
+### Night's effect
+
+None to a deploy path: the change adds one nullable column, one stderr line on a CLI the app does not call (`recommend --subscription` is the CLI's own mode), and two yaml keys. `/v1`, the artifact and the refresh read nothing the change altered. The weekly `contract-tests.yml` plans check now exits 0 while frozen (criterion 1), so it stops being red for a stale table, which is the reported symptom.
+
+### Findings
+
+- **L14 (LOW, not filed).** `black --check` would reformat `tests/unit/test_plans_frozen.py` (the author's long parametrize lines, 100-column limit); `ruff` is clean. Does not affect behaviour.
+- **L15 (LOW, not filed).** `frozen_on` refuses `null`, a datetime and a padded string, and no test covers those three (the five malformed cases are `soon`, an impossible date, `true`, `20261125`, `''`). Behaviour is right and strict; it means an owner who blanks the value (`frozen:`) to unfreeze gets exit 2 until the key is removed, which the ADR's wording should be read as ("remove the key").
+- **L16 (LOW, not filed).** The three CLI/ingest paths each call `parse_*` before `check_*staleness`, so a doc is parsed twice per CLI run. Cost nil; noted only.
+- Standing and filed elsewhere: L11 to L13 of the previous delta; L9, L10 earlier; M3 (#620) and R3 (#621); M10, M11, M12, L1 to L5.
+
+### Tests added this review
+
+- `tests/unit/test_plans_frozen.py:138` `test_the_frozen_line_stays_off_stdout_so_the_json_still_parses` (commit `683cfc1`), proves D-256 criterion 5's "its stdout JSON still parses".

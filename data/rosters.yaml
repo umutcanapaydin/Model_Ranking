@@ -34,6 +34,7 @@
 
 schema: 1
 staleness_days: 30   # same window as the plan table (owner Q3, 2026-08-15)
+frozen: 2026-11-25   # D-256 (#633): /v1 and the app show no plan, so this table is not re-verified; staleness only warns
 
 rosters:
   - plan_id: perplexity-pro
