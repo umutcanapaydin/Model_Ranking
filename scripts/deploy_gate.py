@@ -116,7 +116,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 from urllib.parse import unquote
 
@@ -291,6 +291,41 @@ def register_tests(text: str) -> list[str]:
     return sorted(_cited(text))
 
 
+#: A Python module a test imports: `from .x import`, `from ..x import`, or `from tests.x.y import` (Security M31).
+_TEST_IMPORT = re.compile(r"^\s*from\s+(\.+|tests\.)([\w.]+)\s+import\b", re.M)
+
+
+def _imported_tests(path: str, body: str) -> list[str]:
+    """The repository paths of the modules under `tests/` that the test at `path` imports."""
+    out: list[str] = []
+    for m in _TEST_IMPORT.finditer(body):
+        lead, module = m.group(1), m.group(2).replace(".", "/")
+        if lead == "tests.":
+            out.append(f"tests/{module}.py")
+            continue
+        parent = PurePosixPath(path).parent
+        for _ in range(len(lead) - 1):
+            parent = parent.parent
+        rel = f"{parent}/{module}.py"
+        if rel.startswith("tests/"):
+            out.append(rel)
+    return out
+
+
+def _with_imports(cited: list[str], read: Callable[[str], bytes | None]) -> list[str]:
+    """The cited files and, transitively, every test module a cited Python test imports: a change to one can change
+    what the cited test runs, so it stays code (Security M31 on #639)."""
+    out, todo = list(cited), [c for c in cited if c.endswith(".py")]
+    while todo:
+        path = todo.pop()
+        body = read(path)
+        for rel in _imported_tests(path, body.decode("utf-8", "replace") if body else ""):
+            if rel not in out:
+                out.append(rel)
+                todo.append(rel)
+    return out
+
+
 def expand_invariants(named: list[str], read: Callable[[str], bytes | None]) -> list[str] | None:
     """The line's entries with each register replaced by itself and the test files it cites, in its order (D-257
     clause 2) -- the register is code, and so is every test it cites. None when a register cannot be read or cites
@@ -304,7 +339,7 @@ def expand_invariants(named: list[str], read: Callable[[str], bytes | None]) -> 
         cited = _cited(body.decode("utf-8", "replace")) if body else []
         if not cited:
             return None
-        out += [entry, *cited]
+        out += [entry, *_with_imports(cited, read)]
     return list(dict.fromkeys(out))
 
 
