@@ -12,7 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from .test_deploy_gate_d257 import GATE
+from .test_deploy_gate_731_tester import _brief, _commit, _gate, _git, _write
+from .test_deploy_gate_d257 import CITING, GATE, _edit
+from .test_deploy_gate_d257 import _repo as _gate_repo
 from .test_findings_later import LATER, WAVE, _check, _repo
 
 
@@ -50,3 +52,36 @@ def test_wave_check_reads_the_later_file_of_the_working_tree(tmp_path: Path, mon
     assert WAVE.later_keys() == {"fix-issue-12-security.md r1"}
     assert WAVE.later_problem(WAVE.later_keys(), "fix-issue-12-security.md", "security", "R1") is None
     assert "docs/later.md" in (WAVE.later_problem(set(), "fix-issue-12-security.md", "security", "R1") or "")
+
+
+def test_a_parent_relative_import_resolves_one_directory_up_per_extra_dot() -> None:
+    # covers D-257 (Security M31 on #639)
+    assert GATE._imported_tests("tests/unit/test_a.py", "from ..sub.h import y\n") == ["tests/sub/h.py"]
+    assert GATE._imported_tests("tests/unit/test_a.py", "from .h import y\n") == ["tests/unit/h.py"]
+    assert GATE._imported_tests("tests/unit/test_a.py", "from ...x import y\n") == []  # leaves tests/
+
+
+@pytest.mark.parametrize("reason", ["LARGE: a big one", "LATER", "L", "MEDIUM, user-visible"])
+def test_only_a_reason_that_starts_low_makes_a_later_key(reason: str) -> None:
+    # covers D-257 (Security M32 on #639)
+    table = "| finding | what | why |\n|---|---|---|\n"
+    assert WAVE.later_rows(table + f"| `a.md R1` | x | {reason} |\n") == set()
+
+
+def test_one_base_without_the_register_keeps_the_form_off(tmp_path: Path) -> None:
+    # covers D-257 (Security M30 on #639): the form is on only when EVERY protected base names a register.
+    from .test_d257_security_findings import GLOB_LINE
+
+    root, env = _gate_repo(tmp_path, CITING)
+    _git(root, env, "checkout", "-q", "main")
+    _write(root, "docs/project-brief.md", _brief("- **Deploy commands:** `./deploy.sh prod`", GLOB_LINE))
+    tip = _commit(root, env, "docs: main's tip names globs only")
+    _write(root, "docs/reviews/release-security.md",
+           f"# v\n**Independent:** yes\n\n## Verdict\nPASS\n\n**Reviewed head:** {tip}\n")
+    _write(root, "docs/reviews/release-tester.md",
+           f"# v\n**Independent:** yes\n\n## Verdict\nPASS\n\n**Reviewed head:** {tip}\n")
+    _commit(root, env, "docs: the verdicts at main's tip")
+    _git(root, env, "checkout", "-q", "change")
+    _edit(root, env, "tests/test_app.py")
+    rc, out = _gate(root, env, "--check")
+    assert rc == 1 and "tests/test_app.py" in out, out
