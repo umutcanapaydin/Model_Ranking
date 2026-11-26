@@ -66,3 +66,19 @@ def test_a_blocking_finding_cannot_be_answered_later() -> None:
     assert rows == {"fix-issue-9-security.md b1"}
     why = WAVE.later_problem(rows, "fix-issue-9-security.md", "security", "B1")
     assert why and "BLOCKING" in why
+
+
+def test_a_test_module_a_cited_test_imports_is_code_too() -> None:
+    files = {
+        "r.md": b"| INV-1 | x | D-1 | `tests/unit/test_scope.py::test_a` |",
+        "tests/unit/test_scope.py": b"from .test_api_v1 import client\nfrom tests.unit.test_build import built\n",
+        "tests/unit/test_api_v1.py": b"from .test_router_hints import hints\n",
+        "tests/unit/test_build.py": b"import os\n",
+        "tests/unit/test_router_hints.py": b"x = 1\n",
+    }
+    expanded = GATE.expand_invariants(["r.md"], files.get)
+    assert expanded is not None
+    for rel in ("tests/unit/test_api_v1.py", "tests/unit/test_build.py", "tests/unit/test_router_hints.py"):
+        assert rel in expanded, expanded
+        assert GATE.change_class(rel, expanded) == "code"
+    assert GATE.change_class("tests/unit/test_other.py", expanded) == "record"
