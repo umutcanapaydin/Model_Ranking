@@ -14,3 +14,7 @@ an issue. Only a row whose reason starts `LOW` answers `later`, and a BLOCKING f
 | `release-tester.md L18` | `wave_check.py`'s `later` branch has no end-to-end test; its helpers are pinned | LOW: heavy mode only, no user sees it |
 | `release-tester.md L19` | `REGISTER_CITE` accepts a `tests/../..` path | LOW: it can only widen the code list, never open the gate |
 | `release-security.md R40` | Nothing checks why a row leaves this file | LOW: a row leaving shows in the PR diff the owner merges |
+| `release-tester.md L20` | `_imported_tests` does not follow `from . import x`, `import tests.x` or `from tests import x` | LOW: no cited test, or module one imports, uses those forms; adding one changes a cited test, which re-opens the verdicts |
+| `release-tester.md L21` | `from .. import c` yields a junk path, a directory with an empty module name | LOW: harmless, it names no file |
+| `release-security.md R41` | An uncited test runs in the cited tests' pytest process (and an uncited `*Tests.swift` in their Swift module), so its import-time code can patch what they use | LOW: D-257's mitigation accepts it; CI still runs the change |
+| `release-security.md R42` | The `LOW` reason check is a plain prefix, so `low-ish but MEDIUM` passes; the fix is `LOW\b` | LOW: the row and its reason are in the PR diff the owner merges |
