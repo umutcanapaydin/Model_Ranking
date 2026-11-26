@@ -28,7 +28,7 @@ rest.
 | Security-Reviewer, per change | a change touching the brief's declared HIGH paths; its other signals wait for the release review | none — each range's signals are printed for the milestone review |
 | Security-Reviewer, per milestone | — | once, on the plan's last wave, over the whole milestone (`docs/reviews/m<N>-security.md`) |
 | milestone Tester | once per milestone, closed before a release, on everything merged since its last verdict (`docs/reviews/release-tester.md`) | once, on the plan's last wave (`docs/reviews/m<N>-tester.md`) |
-| release and deploy | the Security-Reviewer on the whole release (`/going-live`); before every deploy, a delta since each verdict's reviewed head (the deploy gate) | the same; a current milestone security verdict stands for the release's |
+| release and deploy | the Security-Reviewer on the whole release (`/going-live`); before every deploy, a delta since each verdict's reviewed head (the deploy gate) -- owed only for user-facing code: docs, records and the tests `docs/security-invariants.md` does not cite re-open no verdict (D-257) | the same; a current milestone security verdict stands for the release's |
 
 **A run**, in either mode, is the owner's unattended lane, opened only by the owner: `/plan-run`.
 
@@ -40,7 +40,7 @@ them is a queue, because no lane reads them.
 | Found | Goes | Skill |
 |---|---|---|
 | in the wave's own code, fixed before the wave closes | nowhere else — the wave fixes it | `/close-wave` |
-| in a review, not fixed in the wave or the fix (MINOR, K.9, a queued risk) | an issue: `bug` + severity, or `enhancement` | `/close-wave` or `/fix-issue`, step 6 → `/file-issue` |
+| in a review, not fixed in the wave or the fix (MINOR, K.9, a queued risk) | LOW: a row in `docs/later.md`, answered `later` in the findings table; above LOW, or any finding a user can see (at least MEDIUM): an issue, `bug` + severity, or `enhancement` (D-257) | `/close-wave` or `/fix-issue`, step 6 → `/file-issue` |
 | outside what you are doing, any time | an issue | `/file-issue` |
 | a failure still red after three attempts | a `bug` listing the three attempts | `.agents/rules/practices.md` → `/file-issue` |
 | a finding still BLOCKING after the reviewer's third round | a `bug` for the reverted slice (wave), or the issue back to triage as `work-issue` (fix); the owner answers with an ADR or a `docs/refusals.md` row | `/close-wave` step 3 · `/fix-issue` step 6 |
