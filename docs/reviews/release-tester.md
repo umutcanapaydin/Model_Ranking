@@ -34,7 +34,7 @@ D-231); the full round `0bdf2eb2fa3f92439b29e6b58a71948b9722e15d..b4dd4f1a0da43b
 `integration/run-v020` (draft PR #432): #418, #427, #411, #412, #417, #426, #419, #403, #404, #413, #429, #410, #401,
 #408, #396, #447 and #450, plus the owner's #424 CI change (`15e5c9e`, `697f758`). 86 files, 83 commits. Rulings:
 D-221, D-222, D-223, D-224.
-**Reviewed head:** 683cfc132ff8b2030dde378649e4e4040290f0e3 (the delta 2026-11-26, `7f9a650..352b994`, #633 D-256 plan table frozen, my one test commit `683cfc1` on top of the branch tip `352b994`; before it 7f9a650647fb98e1bb722bd641901a3abc85ba83: the delta 2026-11-25b, `cef08d1..8930261`, #612 TB 4.0 null model_name, my one test commit `7f9a650` on top of the branch tip `8930261`; before it cef08d14da6b1ab6b91efa913038d9514a6da740: the delta 2026-11-25, `9ce8ede..cef08d1`, #623 INV-52 and INV-54, no test added; before it 9ce8ede587141e88f48c1bb15411da8ccb49123f: the delta 2026-11-24, `e24838e..9ce8ede`, #624 display names, no test added; before it e24838efec3a97a8c17fea9ab33572c39f8fe167: the delta 2026-11-16, `946a89e..e24838e`, D-253 and #613, no test added; before it 946a89ec493c085929c09cb12e707d0a1353b7ff: the delta 2026-11-12, `ac15329..946a89e`, M25 and M26 fixes, no test added; before it ac15329e3ea34977ce27846c116d5e29141eaa44: the delta 2026-11-11, `5df7fa9..ac15329`, D-251 and D-252, my test commit on `e854b57`; before it 5df7fa928a6d70260c7a94211a316214dc917cc2: the delta 2026-11-10c, `53b16b8..5df7fa9`; before it 53b16b811196ea444e07193f797a56ea090062cd: the re-verify 2026-11-10b, `bce930e..53b16b8`; before it bce930e6dd68027bb85d562b8f71f9409f3cad5e: the delta 2026-11-10b, `7a1e6d0..bce930e`, D-250 releases followed; before it 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733: the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
+**Reviewed head:** 10fe73e41f10bc78c8296c1494d499198a21bc3a (the delta 2026-11-26b, `683cfc1..dcea4bc`, #639 D-257 lighter process, my one test commit on top of the branch tip `dcea4bc`; before it 683cfc132ff8b2030dde378649e4e4040290f0e3 (the delta 2026-11-26, `7f9a650..352b994`, #633 D-256 plan table frozen, my one test commit `683cfc1` on top of the branch tip `352b994`; before it 7f9a650647fb98e1bb722bd641901a3abc85ba83: the delta 2026-11-25b, `cef08d1..8930261`, #612 TB 4.0 null model_name, my one test commit `7f9a650` on top of the branch tip `8930261`; before it cef08d14da6b1ab6b91efa913038d9514a6da740: the delta 2026-11-25, `9ce8ede..cef08d1`, #623 INV-52 and INV-54, no test added; before it 9ce8ede587141e88f48c1bb15411da8ccb49123f: the delta 2026-11-24, `e24838e..9ce8ede`, #624 display names, no test added; before it e24838efec3a97a8c17fea9ab33572c39f8fe167: the delta 2026-11-16, `946a89e..e24838e`, D-253 and #613, no test added; before it 946a89ec493c085929c09cb12e707d0a1353b7ff: the delta 2026-11-12, `ac15329..946a89e`, M25 and M26 fixes, no test added; before it ac15329e3ea34977ce27846c116d5e29141eaa44: the delta 2026-11-11, `5df7fa9..ac15329`, D-251 and D-252, my test commit on `e854b57`; before it 5df7fa928a6d70260c7a94211a316214dc917cc2: the delta 2026-11-10c, `53b16b8..5df7fa9`; before it 53b16b811196ea444e07193f797a56ea090062cd: the re-verify 2026-11-10b, `bce930e..53b16b8`; before it bce930e6dd68027bb85d562b8f71f9409f3cad5e: the delta 2026-11-10b, `7a1e6d0..bce930e`, D-250 releases followed; before it 7a1e6d0fd2c36e1fb1ab41d81a4da34c7cab9733: the re-verify 2026-11-10, `30c1aeb..7a1e6d0`; before it 32d7d70f3ebc7cb53c2b603cf7dbbe8d9a3327e4: the delta 2026-11-10, `bd843fd..32d7d70`, D-249 METR removed; the earlier head was bd843fd1492568281290aa8650201be6fd8ff86d: the re-verify 2026-11-08, `541d9ae..bd843fd`; before it 541d9ae55eecddd74414e8d56435f6b8a2e2b54e: the delta 2026-11-08, `2a218b5..541d9ae`, D-248 the privacy policy; the earlier head was a1cfb8f84743665d6b06b49cf18b63a5e6ab4521: the delta 2026-11-06d, `be48109..a1cfb8f`, the owner's bundles and D-247 retired; the earlier head was be481092081db1d9c027166b935033a15f9f0114: the D-247 re-spelling delta 2026-11-06c, `ec4d855..be48109`; the M20 delta's head was a2412472a801bd910ea4c8a81392e5db9103542f: the M20 delta 2026-11-06b, `5566380..a241247`; the version-bump delta's head was 797e73770571593ba5101e50af9027cf00ae067d: the version-bump delta 2026-11-06, `dd34695`; the release round v1.0.0's head was b7bdb38d32314daea4b4a6de501b7542be454632: release round v1.0.0, run v100, `a937ff9..b7bdb38`, no test added; the #588 delta round's head was a937ff95e686d1c13cc9b673d8f47657a8af3fc1, `0238db5..a937ff9`; before it 2026-11-04, `0238db5..a937ff9`; the run-1102 delta round's head was 0238db51c6e93f67757e15ae8b22afb85f1f29ad; that round: the run-1102 delta round 2026-11-03, `1a5fec0..970ffea` plus this round's tests at `0238db5`; the upgrade delta round 2026-11-01b's head was 1a5fec01cfe562b10f7a6040d45b121a60426bb7, `918c227..7fad073`, `918c227..7fad073`,
 the head of `upgrade/devflow-7.3.1`, plus this round's tests and the prune-merged fix committed at `1a5fec0` on
 `review/upgrade-731-tester`; the delta round 2026-11-01's head was `918c227`; the delta round 2026-10-31b's head was `6e6f5be`; the 2026-10-31 delta round's head was `ed18de5`; the night-1028 re-check's head was `3cddbdd`, the night-1028 delta round's `e00c516`,
 the night-1027 delta round's `07a7fc6`, the 2026-10-27 delta
@@ -2629,3 +2629,84 @@ None to a deploy path: the change adds one nullable column, one stderr line on a
 ### Tests added this review
 
 - `tests/unit/test_plans_frozen.py:138` `test_the_frozen_line_stays_off_stdout_so_the_json_still_parses` (commit `683cfc1`), proves D-256 criterion 5's "its stdout JSON still parses".
+
+
+## Delta 2026-11-26b (#639, D-257 lighter process) (683cfc1..10fe73e41f10bc78c8296c1494d499198a21bc3a)
+
+**Range:** `683cfc1..dcea4bc` (`enhancement/issue-639-process-light`, PR #640: red tests `2a22cbc`, `b4c6c5f`, then `99a9cb5`, `e4af737`, `dcea4bc`), plus my one test commit on top. Code: `scripts/deploy_gate.py` (+88), `scripts/wave_check.py` (+42), `scripts/pr_check.py` (+29), `scripts/brief_fields.py` (docstring), `docs/project-brief.md` (the `Security-invariant tests:` line); rules text and records otherwise.
+**Verdict: PASS**, 0 BLOCKING, 0 findings above LOW. I added one test file, so the reviewed head is that commit (`10fe73e`), one test commit over the branch tip `dcea4bc`.
+**Independent:** yes
+**Seat:** worktree `seat-639-tester` (branch `review/639-process-light-tester`), its own `.venv`; `advisor.db` copied read-only from the owner's checkout (gitignored) because `make test` sets `MODEL_RANKING_REQUIRE_ARTIFACT=1` and a fresh worktree has none (the first `check-fast` there failed on exactly that, W-108, not on code).
+**Cross-model routing:** author family Claude / reviewer family Claude; no second family available. Fresh context.
+**Mutation runner:** none wired; hand fault injection below.
+
+### Acceptance criteria (D-257, the two code-bearing clauses)
+
+Clause 2, the deploy gate (a test re-opens no verdict unless the register cites it; derived at the tree and every protected base, union; empty or unreadable register fails closed; the register is code; `.language-allow` and `.skill-refs-allow` are records; the glob form keeps its meaning; `src/` and `scripts/` stay code):
+- Derivation: `deploy_gate.py:272-310` (`REGISTER_CITE`, `register_tests`, `expand_invariants`). Proof: `tests/unit/test_deploy_gate_d257.py:45` (only cited test files come out), `:50` (the register expands to itself and its citations).
+- Fail closed: `expand_invariants` returns None on no citation (`:297`). Proof: `:56` (both "cites no test" and "unreadable"), `:137` (through the real `--check` entry point: a register citing no test, none at base, and the line only in the change each leave a test change refused).
+- A test the register does not cite is a record; a cited one, the register, policy tests, `src/`, `scripts/` stay code: `change_class` `:376-386`. Proof: `:62`, `:68`, and `:113` (through `--check`, CI red, an uncited test change passes; `:120` a cited one is refused).
+- A change can add a citation, never drop one: `policy_invariant_tests` `:325-346`, union over tree and bases. Proof: `:127` (the register edited to cite nothing, the formerly cited test changed: refused).
+- Allow-lists are records: `CHECK_ALLOW_LISTS` `:187`, `is_deploy_record`. Proof: `:81` (both names, with and without the line).
+- Glob form keeps v7.3 meaning, `conformance/` stays test-and-CI: `:72`.
+- Takes effect only when main's brief has the line: `:137` case `line-only-in-the-change`; `policy_invariant_tests` returns None unless the tree's brief and every base's carry the line.
+
+Clause 4, `later` needs a row of `docs/later.md`:
+- Grammar: `wave_check.py:82-117` (`DISPOSITION`, `LATER`, `later_rows`, `later_keys`, `later_problem`). Proof: `tests/unit/test_findings_later.py:43` (`later` is a disposition, `laterally` is not), `:49` (first cells are the keys).
+- `pr_check findings`, through the real entry point: `pr_check.py:205-215`. Proof: `test_findings_later.py:94` (row present, PASS), `:101` (no file, no row: FAIL naming the id and the file).
+- `wave_check.main`'s branch (`wave_check.py:1364`) has no end-to-end test; see L18.
+
+### The real register resolves
+
+`register_tests(docs/security-invariants.md)` yields 68 test files (tests/, ios/, conformance/); every one exists in the tree (`Path.is_file()` for all 68). The bare spellings left in prose (`test_router_hints.py`, `test_ios_client_contract.py`, `test_readonly_uri.py`, `test_board_standings.py::...`) each also appear once with the full path, so nothing the register relies on is missed. `docs/project-brief.md:112` carries the line; main's brief does not yet, so nothing changes until it merges (as the ADR says).
+
+### Edge cases (run by hand, then pinned)
+
+- A citation with `::test_name`, with a class path (`::TestC::test_d`), or with `:12`: the file is yielded once, no suffix.
+- A directory citation (`tests/`), a `make` target, a bare file name: not yielded.
+- `tests/../../etc/x.py` in a register is yielded as a path (harmless: it only makes that spelling "code"; L19). A leading `/abs/...` is not (the regex needs `tests|ios|conformance` first).
+- `_tree_file`: a symlinked register, a `../` path and an absolute path each return None (the register is then "unreadable" and fails closed). Pinned by my test below.
+- A non-existent cited test: yielded (it only widens "code"); no failure, no gate hole.
+- The brief line present only in the change: ignored (`:137`).
+- No protected base at all: `_policy` returns None, the gate falls back to "every test is code" (fail closed).
+
+### Suite
+
+- `tests/unit/test_deploy_gate_d257.py` and `tests/unit/test_findings_later.py`: **29 passed** (22 s); with my file: **33 passed**.
+- The other `test_deploy_gate_*.py` files were started serially and ran over the seat's patience; the ones that touch the changed code path (`_573`, `_731_tester`, `_base_policy`, `_509`, `_517`, `_dispatch`) are exercised by `make check-fast` below.
+- `make check-fast`: **PASS** in 782.9 s at the test commit's tree (lint, typecheck, swift-test 176 s, records, client-decls, test: all PASS). The first run in the fresh worktree failed the `test` leg only because `advisor.db` was absent (W-108), not on any assertion.
+
+### Fault injection
+
+Each as one sequence (inject by exact string replace, run the two new files, restore by exact string replace, compare `md5` to the pre-injection hash; every file restored byte-identical, `git status` clean afterwards).
+1. `expand_invariants` returns `[]` instead of None on an uncited register: **RED**, killed.
+2. The base's empty derivation no longer fails closed (`if False:`): **RED** (1 failed of 22), killed.
+3. `change_class` treats a cited test as record (the first branch off): **RED**, killed.
+4a. `REGISTER_CITE` drops `ios/`: **RED**, killed.
+4b. `REGISTER_CITE` drops `conformance/`: **stayed GREEN** (29 passed). Closed by `test_a_register_citing_a_conformance_test_makes_it_code`.
+5. The `len(bases) != len(policies)` guard dropped: stayed green; **equivalent**, `_policy` builds `policies` from `bases` one for one (`deploy_gate.py:417`), so the lengths cannot differ, and with no base `_policy` is None.
+6. `_tree_file` follows a symlink: **stayed GREEN**. Closed by `test_the_tree_reader_refuses_a_symlink_a_parent_path_and_an_absolute_path`.
+7. `_tree_file` accepts `..` and absolute paths: **stayed GREEN**. Same test.
+8. A derived, uncited test class is `test-and-ci` again: **RED**, killed.
+9. `.skill-refs-allow` dropped from `CHECK_ALLOW_LISTS`: **RED**, killed.
+10. Tree/base fail-closed inverted (`not at_base`): **RED**, killed.
+11. `later_problem` always None: **RED**, killed.
+12. `pr_check` reads `docs/later.md` from the working tree instead of the range's end: **stayed GREEN** (the red test's file is committed, so tree and range end agree). Closed by `test_a_later_row_only_in_the_working_tree_does_not_answer_a_finding` (untracked row, FAIL expected).
+13. `wave_check.main`'s `later` branch removed: **stayed GREEN**; the branch is only reachable through a full checklist run, which no test drives (L18). The helpers it calls are now pinned by `test_wave_check_reads_the_later_file_of_the_working_tree`.
+
+After my tests, faults 4b, 6, 7, 12 are RED; 13 and the equivalent 5 remain.
+
+### Test integrity
+
+`git diff 683cfc1..dcea4bc -- tests`: two new files only; nothing deleted, skipped or weakened. Both tests drive the real gate or `pr_check.py` as a subprocess through a throwaway git repository; the `gh` double is the file's own shell stub (the same pattern as `test_deploy_gate_731_tester`), not a new mock of an integration. `black --check` would reformat the author's two files and mine (project line length 100 against their longer lines; `ruff` is clean), as in L14.
+
+### Findings
+
+- **L17 (LOW, closed by my tests).** Faults 4b, 6, 7 and 12 stayed green: `conformance/` citations, the symlink and parent-path refusals of `_tree_file`, and the range-end read of `later.md` were unpinned. Closed in the test commit named below.
+- **L18 (LOW, not filed; a row for `docs/later.md` if the owner wants it).** `wave_check.main`'s `later` branch (`wave_check.py:1364`) has no end-to-end test (fault 13 survives); heavy mode only, and no wave runs in this project's light mode. Not user-visible.
+- **L19 (LOW, not filed).** `REGISTER_CITE` accepts a path with `..` inside (`tests/../../etc/x.py`). It can only add a spelling to the "code" list, never remove one, so it cannot open the gate; it is noted for the day someone reads the derived list as a set of real files.
+- Standing and filed elsewhere: L14 to L16 of the previous delta; L11 to L13; L9, L10; M3 (#620) and R3 (#621); M10, M11, M12, L1 to L5. Clause 4 makes none of these a user-visible finding.
+
+### Tests added this review
+
+- `tests/unit/test_deploy_gate_d257_tester.py` (commit `10fe73e`): `test_a_register_citing_a_conformance_test_makes_it_code`, `test_the_tree_reader_refuses_a_symlink_a_parent_path_and_an_absolute_path`, `test_a_later_row_only_in_the_working_tree_does_not_answer_a_finding`, `test_wave_check_reads_the_later_file_of_the_working_tree`. Each is RED against its injected fault above and GREEN on `dcea4bc`'s source.
