@@ -8,7 +8,8 @@ here and nowhere else:
   Deploy commands:                 none | a comma-separated list the deploy gate guards
   Deploy targets:                  none | comma-separated `<class>: <command>` (v7.3; the class decides the verdicts)
   Paths that make a change HIGH:   none | comma-separated globs (a change touching one needs security)
-  Security-invariant tests:        none | comma-separated globs (v7.3; absent: every test is code to the gate)
+  Security-invariant tests:        none | comma-separated globs (v7.3; absent: every test is code to the gate),
+                                   or a Markdown register whose cited tests the gate derives (D-257)
   QA verification:                 off | on        (unset: off -- a bug closes when its fix merges)
   Sibling repositories:            none | comma-separated paths (v7.3; session-check reads a marker there)
 
