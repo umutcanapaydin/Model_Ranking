@@ -188,6 +188,9 @@ CHECK_ALLOW_LISTS = {".language-allow", ".skill-refs-allow"}
 #: The test-path set, ONE definition: `change_class` reads it here, and `make review-need` as git pathspecs for
 #: its parser scan (`*` crosses `/`, so each pair covers the top level and any depth).
 TEST_PATH = re.compile(r"(^|/)(tests/|test_[^/]*$|[^/]*_test\.[^/]+$|[^/]*Tests/)")
+#: D-257 (Security M31 on #639): under the register form only a test FILE is a record. A conftest, `tests/skips.py`,
+#: a package `__init__`, a helper module or a fixture stays code: it can drop or change what a cited test runs.
+TEST_FILE = re.compile(r"(?:^|/)(?:test_[^/]*\.py|[^/]*_test\.py|[^/]*Tests\.swift)$")
 TEST_PATHSPECS = [":(exclude)tests/*", ":(exclude)*/tests/*", ":(exclude)test_*", ":(exclude)*/test_*",
                   ":(exclude)*_test.*", ":(exclude)*Tests/*"]
 #: The brief line naming the security-invariant tests, which stay code (harvest Q2).
@@ -326,7 +329,8 @@ def policy_invariant_tests(root: Path) -> list[str] | None:
     D-257 clause 2 (#639): a register on the line is read where its brief was -- the tree's from the tree, each
     base's at that base, verified -- and each derivation joins the union. A base's that yields nothing fails closed;
     the tree's then keeps the register itself as code, since the bases' citations still hold (a change can add a
-    citation, never drop one)."""
+    citation, never drop one). The form is in force only when every base names a register: a change cannot turn
+    it on for itself (Security M30)."""
     policies, _, _ = _policy(root)
     if policies is None:
         return None
@@ -335,11 +339,15 @@ def policy_invariant_tests(root: Path) -> list[str] | None:
         return None
     readers: list[tuple[Path, Callable[[str], bytes | None]]] = [(root, lambda rel: _tree_file(root, rel))]
     readers += [(brief_root, _base_reader(root, base)) for brief_root, base in zip(policies, bases, strict=True)]
+    lines = [invariant_tests(brief_root) for brief_root, _ in readers]
+    if any(named is None for named in lines):
+        return None
+    # The register form relaxes the gate, so only the protected bases switch it on: a register the tree alone
+    # names is dropped, never expanded (Security M30 on #639).
+    in_force = all(any(is_register(g) for g in named or []) for named in lines[1:])
     globs: list[str] = []
-    for at_base, (brief_root, read) in enumerate(readers):
-        named = invariant_tests(brief_root)
-        if named is None:
-            return None
+    for at_base, ((_, read), line) in enumerate(zip(readers, lines, strict=True)):
+        named = [g for g in line or [] if in_force or not is_register(g)]
         expanded = expand_invariants(named, read)
         if expanded is None and at_base:
             return None
@@ -383,7 +391,9 @@ def change_class(path: str, invariants: list[str] | None = None) -> str:
     if path.startswith("conformance/"):
         return "test-and-ci"
     if TEST_PATH.search(path) and not (path in CODE_FILES or path.startswith(CODE_DIRS)):
-        return "record" if derived else "test-and-ci"
+        if not derived:
+            return "test-and-ci"
+        return "record" if TEST_FILE.search(path) else "code"
     return "code"
 
 

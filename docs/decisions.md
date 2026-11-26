@@ -7206,7 +7206,8 @@ MEDIUM; a review at 1.2).
    The rule that an ADR lands before the code it governs (`wave_check.py`, #201) stands.
 4. **Findings.** A finding a user can see is at least MEDIUM, whatever its reviewer wrote, and is an issue. A LOW
    finding is a row in `docs/later.md`, not an issue; a findings table answers it `later`, and the gates accept
-   that only for an id the file holds. The open LOW issues (#619, #622, #629, #631) move there and close.
+   that only for an id the file holds. The open LOW issues no user can see (#619, #622, #629) move there and close; #631 is one a user would see, so it
+   stays an issue at MEDIUM.
 5. **Scope until App Review.** Until Apple's review of iOS 1.1.0 is resolved (D-255), only user-visible bugs and
    release blockers are worked.
 6. **Reports.** The end-of-session report is at most ten lines: what changed, what is red (every red check,

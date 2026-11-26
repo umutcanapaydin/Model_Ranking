@@ -89,14 +89,16 @@ LATER_KEY = re.compile(r"\S+\.md [a-z]{1,3}\d+")
 
 
 def later_rows(text: str) -> set[str]:
-    """The `<verdict file> <id>` keys the later file's table rows name in their first cell, lower-cased."""
+    """The `<verdict file> <id>` keys the later file's table rows name in their first cell, lower-cased -- only a
+    row whose last cell, its reason, starts `LOW` (Security M32 on #639: a finding above LOW stays an issue)."""
     keys: set[str] = set()
     for line in text.splitlines():
         s = line.strip()
         if not s.startswith("|"):
             continue
-        first = " ".join(s.strip("|").split("|")[0].replace("`", "").lower().split())
-        if LATER_KEY.fullmatch(first):
+        cells = s.strip("|").split("|")
+        first = " ".join(cells[0].replace("`", "").lower().split())
+        if LATER_KEY.fullmatch(first) and cells[-1].strip().upper().startswith("LOW"):
             keys.add(first)
     return keys
 
@@ -111,10 +113,12 @@ def later_keys() -> set[str]:
 
 def later_problem(rows: set[str], verdict: str, kind: str, fid: str) -> str | None:
     """Why a `later` answer to finding `fid` of `verdict` does not hold, or None when the later file holds it."""
+    if fid.upper().startswith("B"):
+        return f"finding `{kind} {fid}` is BLOCKING and cannot be `later` -- fix it (D-257)"
     if f"{verdict} {fid}".lower() in rows:
         return None
-    return (f"finding `{kind} {fid}` is `later`, and {LATER_FILE} holds no row `{verdict} {fid}` -- add the row "
-            "(D-257), or fix, file or refuse it")
+    return (f"finding `{kind} {fid}` is `later`, and {LATER_FILE} holds no LOW row `{verdict} {fid}` -- add the "
+            "row with a reason starting `LOW` (D-257), or fix, file or refuse it")
 
 
 def deferrable_findings(body: str, sections: re.Pattern = DEFERRABLE) -> tuple[list[str], int]:

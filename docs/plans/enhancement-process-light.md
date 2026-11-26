@@ -43,6 +43,6 @@ this PR merges.
    that the new later file (docs, phase 4) holds.
    *Acceptance:* the new tests green; `make findings-check` refuses `later` for an id the file does not hold.
 4. **Rule text.** `AGENTS.md`, `.agents/rules/issues.md`, `.agents/rules/practices.md`, the new later file (docs, phase 4) with the
-   open LOW issues (#619, #622, #629, #631), and the watch-list rows.
+   open LOW issues (#619, #622, #629; #631 is user-visible, MEDIUM), and the watch-list rows.
    *Acceptance:* `make check` green; the AGENTS.md cap holds.
 5. **Reviews under the old rules.** The Security-Reviewer (a policy edit) and the Tester delta.
