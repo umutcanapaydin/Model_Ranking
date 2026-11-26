@@ -49,7 +49,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from deploy_gate import INDEPENDENT, VERDICT  # noqa: E402
 from review_need import default_range  # noqa: E402
-from wave_check import DISPOSITION, deferrable_findings, findings_table  # noqa: E402
+from wave_check import (  # noqa: E402
+    DISPOSITION,
+    LATER,
+    LATER_FILE,
+    deferrable_findings,
+    findings_table,
+    later_problem,
+    later_rows,
+)
 
 #: The verdicts `findings` reads: a fix's and an enhancement's (the owner's ruling). A wave's are wave-check's.
 VERDICT_FILE = re.compile(r"^docs/reviews/(?:fix-issue|enhancement)-[^/]+\.md$")
@@ -83,6 +91,15 @@ def git(*args: str) -> str:
     if r.returncode:
         raise CannotRun(f"git {' '.join(args)}: {(r.stderr.strip().splitlines() or ['failed'])[0]}")
     return r.stdout
+
+
+
+def git_or_empty(*args: str) -> str:
+    """`git(*args)`, or "" when git refuses (a file the commit does not hold): an absent later file holds no row."""
+    try:
+        return git(*args)
+    except CannotRun:
+        return ""
 
 
 def resolve(rng: str | None) -> tuple[str, str]:
@@ -180,6 +197,7 @@ def findings(rng: str, end: str, pr: str | None) -> int:
               "in the PR body by hand")
     if owed:
         table = findings_table(str(pr_view(pr, "body").get("body") or ""))
+        later: set[str] | None = None
         for name, kind, fid in owed:
             d = table.get(f"{kind} {fid.lower()}")
             if d is None:
@@ -187,7 +205,14 @@ def findings(rng: str, end: str, pr: str | None) -> int:
                            f"(`| {kind} {fid} | fixed <sha> |`, `#<n>` or `refused — <why>`)")
             elif not DISPOSITION.match(d):
                 bad.append(f"finding `{kind} {fid}` has disposition `{d[:40]}` -- write fixed `<sha>`, `#<issue>`, "
-                           "or `refused — <why the finding is wrong>`")
+                           "`refused — <why the finding is wrong>`, or `later`")
+            elif LATER.match(d):
+                # D-257 clause 4: the later file as the range's end holds it.
+                if later is None:
+                    later = later_rows(git_or_empty("show", f"{end}:./{LATER_FILE}"))
+                why = later_problem(later, name, kind, fid)
+                if why:
+                    bad.append(why)
             else:
                 sha = re.match(r"fixed\s+`?([0-9a-fA-F]{7,40})", d, re.I)
                 if sha and subprocess.run(["git", "rev-parse", "-q", "--verify", f"{sha.group(1).lower()}^{{commit}}"],

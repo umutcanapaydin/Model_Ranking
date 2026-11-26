@@ -79,8 +79,42 @@ SKIP_THRESHOLD = 3
 # verdict cannot close a wave at all.
 DEFERRABLE = re.compile(r"MINOR|K\.9|Risks queued", re.I)
 FINDING_ID = re.compile(r"^\s*[-*]\s+\*\*([A-Z]{1,3}\d+)\*\*")
-# fixed `<sha>` · #<n> · refused — <a reason of a sentence>
-DISPOSITION = re.compile(r"^(?:fixed\s+`?[0-9a-f]{7,40}`?|#\d+|refused\b\W+\w.{10,})", re.I)
+# fixed `<sha>` · #<n> · refused — <a reason of a sentence> · later (D-257: a row of docs/later.md)
+DISPOSITION = re.compile(r"^(?:fixed\s+`?[0-9a-f]{7,40}`?|#\d+|refused\b\W+\w.{10,}|later\b)", re.I)
+#: D-257 clause 4 (#639): a LOW finding is a row of this file, not an issue. `later` answers a finding only when
+#: the file's table has a row whose first cell names the verdict file and the id (`fix-issue-12-security.md R1`).
+LATER_FILE = "docs/later.md"
+LATER = re.compile(r"^later\b", re.I)
+LATER_KEY = re.compile(r"\S+\.md [a-z]{1,3}\d+")
+
+
+def later_rows(text: str) -> set[str]:
+    """The `<verdict file> <id>` keys the later file's table rows name in their first cell, lower-cased."""
+    keys: set[str] = set()
+    for line in text.splitlines():
+        s = line.strip()
+        if not s.startswith("|"):
+            continue
+        first = " ".join(s.strip("|").split("|")[0].replace("`", "").lower().split())
+        if LATER_KEY.fullmatch(first):
+            keys.add(first)
+    return keys
+
+
+def later_keys() -> set[str]:
+    """The later file's keys as the working tree holds it; none when it is absent."""
+    try:
+        return later_rows(pathlib.Path(LATER_FILE).read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        return set()
+
+
+def later_problem(rows: set[str], verdict: str, kind: str, fid: str) -> str | None:
+    """Why a `later` answer to finding `fid` of `verdict` does not hold, or None when the later file holds it."""
+    if f"{verdict} {fid}".lower() in rows:
+        return None
+    return (f"finding `{kind} {fid}` is `later`, and {LATER_FILE} holds no row `{verdict} {fid}` -- add the row "
+            "(D-257), or fix, file or refuse it")
 
 
 def deferrable_findings(body: str, sections: re.Pattern = DEFERRABLE) -> tuple[list[str], int]:
@@ -1327,7 +1361,9 @@ def main(argv: list[str]) -> int:
                                    "the commit, or /file-issue it and cite the number")
                     elif not DISPOSITION.match(d):
                         bad.append(f"finding `{kind} {fid}` has disposition `{d[:40]}` -- write fixed "
-                                   "`<sha>`, `#<issue>`, or `refused — <why the finding is wrong>`")
+                                   "`<sha>`, `#<issue>`, `refused — <why the finding is wrong>`, or `later`")
+                    elif LATER.match(d) and (later_why := later_problem(later_keys(), f.name, kind, fid)):
+                        bad.append(later_why)
 
     for b in bad:
         print(f"FAIL [wave-check]: {b}")
