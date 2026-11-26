@@ -116,7 +116,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 from urllib.parse import unquote
 
@@ -183,9 +183,14 @@ MILESTONE_SECURITY = re.compile(r"^m(\d+)-security\.md$")
 #: Code whatever the extension: what guards and gates the tree is part of what ships.
 CODE_DIRS = (".claude/", ".githooks/", "scripts/", "conformance/", ".github/")
 CODE_FILES = {"Makefile"}
+#: D-257 clause 2 (#639): the English rule's and the skill-reference check's allow-lists, records to the gate.
+CHECK_ALLOW_LISTS = {".language-allow", ".skill-refs-allow"}
 #: The test-path set, ONE definition: `change_class` reads it here, and `make review-need` as git pathspecs for
 #: its parser scan (`*` crosses `/`, so each pair covers the top level and any depth).
 TEST_PATH = re.compile(r"(^|/)(tests/|test_[^/]*$|[^/]*_test\.[^/]+$|[^/]*Tests/)")
+#: D-257 (Security M31 on #639): under the register form only a test FILE is a record. A conftest, `tests/skips.py`,
+#: a package `__init__`, a helper module or a fixture stays code: it can drop or change what a cited test runs.
+TEST_FILE = re.compile(r"(?:^|/)(?:test_[^/]*\.py|[^/]*_test\.py|[^/]*Tests\.swift)$")
 TEST_PATHSPECS = [":(exclude)tests/*", ":(exclude)*/tests/*", ":(exclude)test_*", ":(exclude)*/test_*",
                   ":(exclude)*_test.*", ":(exclude)*Tests/*"]
 #: The brief line naming the security-invariant tests, which stay code (harvest Q2).
@@ -256,7 +261,9 @@ def is_deploy_record(path: str) -> bool:
     # `.gp/installed` is the install's measurement (`make install` writes it), not the product. #562 (M16):
     # `.deps-accept` waives a dependency advisory, so it is code here, as `data/accepted-cuts.yaml` is -- v7.3's trim
     # made it a record, and an agent's waiver then reached a deploy with no review.
-    return path.startswith("docs/") or path.endswith(".md") or path == ".gp/installed"
+    # D-257 clause 2 (#639): the two check allow-lists say which files a check reads, never what ships.
+    return (path.startswith("docs/") or path.endswith(".md") or path == ".gp/installed"
+            or path in CHECK_ALLOW_LISTS)
 
 
 def invariant_tests(root: Path | str) -> list[str] | None:
@@ -265,19 +272,121 @@ def invariant_tests(root: Path | str) -> list[str] | None:
     return None if field(INVARIANT_TESTS, root) is None else listing(INVARIANT_TESTS, root)
 
 
+#: D-257 clause 2 (#639): a test file a security-invariant register cites -- a backticked path under `tests/`,
+#: `conformance/` or `ios/`, alone or followed by `::<test name>`. A `make` target or a prose mention is not one.
+REGISTER_CITE = re.compile(r"`((?:tests|conformance|ios)/[^`\s:]+\.(?:py|swift))(?:::[^`]*)?`")
+
+
+def is_register(entry: str) -> bool:
+    """D-257: an entry on the `Security-invariant tests:` line that names a Markdown register, not a glob."""
+    return entry.endswith(".md")
+
+
+def _cited(text: str) -> list[str]:
+    return list(dict.fromkeys(m.group(1) for m in REGISTER_CITE.finditer(text)))
+
+
+def register_tests(text: str) -> list[str]:
+    """The test files a security-invariant register cites, each once, sorted."""
+    return sorted(_cited(text))
+
+
+#: A Python module a test imports: `from .x import`, `from ..x import`, or `from tests.x.y import` (Security M31).
+_TEST_IMPORT = re.compile(r"^\s*from\s+(\.+|tests\.)([\w.]+)\s+import\b", re.M)
+
+
+def _imported_tests(path: str, body: str) -> list[str]:
+    """The repository paths of the modules under `tests/` that the test at `path` imports."""
+    out: list[str] = []
+    for m in _TEST_IMPORT.finditer(body):
+        lead, module = m.group(1), m.group(2).replace(".", "/")
+        if lead == "tests.":
+            out.append(f"tests/{module}.py")
+            continue
+        parent = PurePosixPath(path).parent
+        for _ in range(len(lead) - 1):
+            parent = parent.parent
+        rel = f"{parent}/{module}.py"
+        if rel.startswith("tests/"):
+            out.append(rel)
+    return out
+
+
+def _with_imports(cited: list[str], read: Callable[[str], bytes | None]) -> list[str]:
+    """The cited files and, transitively, every test module a cited Python test imports: a change to one can change
+    what the cited test runs, so it stays code (Security M31 on #639)."""
+    out, todo = list(cited), [c for c in cited if c.endswith(".py")]
+    while todo:
+        path = todo.pop()
+        body = read(path)
+        for rel in _imported_tests(path, body.decode("utf-8", "replace") if body else ""):
+            if rel not in out:
+                out.append(rel)
+                todo.append(rel)
+    return out
+
+
+def expand_invariants(named: list[str], read: Callable[[str], bytes | None]) -> list[str] | None:
+    """The line's entries with each register replaced by itself and the test files it cites, in its order (D-257
+    clause 2) -- the register is code, and so is every test it cites. None when a register cannot be read or cites
+    no test: an empty derivation fails closed, and every test stays code."""
+    out: list[str] = []
+    for entry in named:
+        if not is_register(entry):
+            out.append(entry)
+            continue
+        body = read(entry)
+        cited = _cited(body.decode("utf-8", "replace")) if body else []
+        if not cited:
+            return None
+        out += [entry, *_with_imports(cited, read)]
+    return list(dict.fromkeys(out))
+
+
+def _tree_file(root: Path, rel: str) -> bytes | None:
+    """A file of the tree about to ship, by a repository-relative path that stays inside it; None otherwise."""
+    if rel.startswith("/") or ".." in Path(rel).parts:
+        return None
+    path = root / rel
+    return path.read_bytes() if path.is_file() and not path.is_symlink() else None
+
+
+def _base_reader(root: Path, base: str) -> Callable[[str], bytes | None]:
+    """A reader of files as the protected base `base` holds them, each object verified (#509)."""
+    return lambda rel: verified_blob(root, base, rel)
+
+
 def policy_invariant_tests(root: Path) -> list[str] | None:
     """model_ranking (#283, base-pinned policy): the security-invariant globs the deploy gate reads -- None (every
     test is code) unless the tree's brief AND every protected base's carry the line, which no change can then add
-    for itself; else every glob any of them names, so a change can name one more but cannot drop one."""
+    for itself; else every glob any of them names, so a change can name one more but cannot drop one.
+
+    D-257 clause 2 (#639): a register on the line is read where its brief was -- the tree's from the tree, each
+    base's at that base, verified -- and each derivation joins the union. A base's that yields nothing fails closed;
+    the tree's then keeps the register itself as code, since the bases' citations still hold (a change can add a
+    citation, never drop one). The form is in force only when every base names a register: a change cannot turn
+    it on for itself (Security M30)."""
     policies, _, _ = _policy(root)
     if policies is None:
         return None
+    bases = protected_bases(root)
+    if len(bases) != len(policies):
+        return None
+    readers: list[tuple[Path, Callable[[str], bytes | None]]] = [(root, lambda rel: _tree_file(root, rel))]
+    readers += [(brief_root, _base_reader(root, base)) for brief_root, base in zip(policies, bases, strict=True)]
+    lines = [invariant_tests(brief_root) for brief_root, _ in readers]
+    if any(named is None for named in lines):
+        return None
+    # The register form relaxes the gate, so only the protected bases switch it on: a register the tree alone
+    # names is dropped, never expanded (Security M30 on #639).
+    in_force = all(any(is_register(g) for g in named or []) for named in lines[1:])
     globs: list[str] = []
-    for brief_root in (root, *policies):
-        named = invariant_tests(brief_root)
-        if named is None:
+    for at_base, ((_, read), line) in enumerate(zip(readers, lines, strict=True)):
+        named = [g for g in line or [] if in_force or not is_register(g)]
+        expanded = expand_invariants(named, read)
+        if expanded is None and at_base:
             return None
-        globs += [g for g in named if g not in globs]
+        globs += [g for g in (expanded or named) if g not in globs]
     return globs
 
 
@@ -302,14 +411,24 @@ def change_class(path: str, invariants: list[str] | None = None) -> str:
     `is_deploy_record`'s. Test-and-CI is a test outside the tooling directories, or `conformance/`: the checks
     CI runs that the agent may edit (a workflow is the owner's and stays code). A security-invariant test the
     brief names is code, and so is every test while `invariants` is None (a brief without the line), and a
-    test of a policy module always (#573)."""
+    test of a policy module always (#573).
+
+    D-257 clause 2 (#639): when the line names a register (`expand_invariants`), the register and every test it
+    cites are code, and any other test is a record -- it re-opens no verdict, CI green or not. `conformance/`
+    stays test-and-CI. The glob form keeps its v7.3 meaning."""
+    derived = invariants is not None and any(is_register(g) for g in invariants)
+    if derived and invariant_hit(path, invariants or []):
+        return "code"
     if is_deploy_record(path):
         return "record"
     if invariants is None or invariant_hit(path, invariants) or _POLICY_TEST.search(path):
         return "code"
-    if path.startswith("conformance/") or (
-            TEST_PATH.search(path) and not (path in CODE_FILES or path.startswith(CODE_DIRS))):
+    if path.startswith("conformance/"):
         return "test-and-ci"
+    if TEST_PATH.search(path) and not (path in CODE_FILES or path.startswith(CODE_DIRS)):
+        if not derived:
+            return "test-and-ci"
+        return "record" if TEST_FILE.search(path) else "code"
     return "code"
 
 

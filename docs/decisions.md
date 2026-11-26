@@ -7181,3 +7181,49 @@ not current.
 
 **Revisit when:** plans are to be shown to users. Then an automatic source is found for them first (a published
 feed or a page the agent can read on its own). Manual verification by the owner does not come back.
+
+## D-257 — A lighter process: reviews and deploy deltas for user-facing code, ADRs for costly decisions, LOW findings in one file, short reports
+
+**Owner ruling:** 2026-11-26, in chat, on #639: the process is too heavy. The owner approved the agent's plan for
+rules 1-5 and 7, with the agent's three exceptions, and added two clauses (a finding a user can see is at least
+MEDIUM; a review at 1.2).
+
+**Decision:**
+1. **Reviews.** The Tester and the Security-Reviewer review only user-facing code: `src/`, `ios/`, the data the
+   night publishes, and the deploy gate and the files that feed it (`scripts/deploy_gate.py`, `brief_fields.py`,
+   `review_need.py`, `nightly_hosted.sh`, `deploy_hosted_engine.sh`, `scripts/ci/`, `data/accepted-cuts.yaml`,
+   `.deps-accept`). Docs, tests and records get no review. Light mode already routes no per-change review outside
+   policy edits; what changes is clause 2.
+2. **The deploy gate.** A test no longer re-opens a deploy verdict, unless `docs/security-invariants.md` cites it.
+   The brief's `Security-invariant tests:` line names that register; the gate derives the cited test files from it
+   at the tree and at every protected base and takes their union, so a change can add a citation but not drop one.
+   A register that cites no test, or cannot be read, fails closed: every test is code, as before. The register is
+   code itself. `.language-allow` and `.skill-refs-allow` are records. A brief whose line names globs keeps the
+   v7.3 meaning (test-and-CI, CI green). `src/` stays code as a whole, and so does `scripts/`: both decide what
+   ships, and splitting either would be a hand-kept list (AGENTS.md section 3.5).
+3. **ADRs.** An ADR only for a decision that is expensive to reverse: a data source, a licence, the architecture,
+   the release or version policy, or relaxing a control. Every other choice is written in its PR's description.
+   The rule that an ADR lands before the code it governs (`wave_check.py`, #201) stands.
+4. **Findings.** A finding a user can see is at least MEDIUM, whatever its reviewer wrote, and is an issue. A LOW
+   finding is a row in `docs/later.md`, not an issue; a findings table answers it `later`, and the gates accept
+   that only for an id the file holds. The open LOW issues no user can see (#619, #622, #629) move there and close; #631 is one a user would see, so it
+   stays an issue at MEDIUM.
+5. **Scope until App Review.** Until Apple's review of iOS 1.1.0 is resolved (D-255), only user-visible bugs and
+   release blockers are worked.
+6. **Reports.** The end-of-session report is at most ten lines: what changed, what is red (every red check,
+   required or not), and what is expected from the owner. A PR body keeps its findings table and its Risks.
+7. **Review at 1.2.** When 1.2 ships, the agent reports the number of reviews per PR since this ADR and whether any
+   defect escaped under these rules (found after a merge in a path these rules exempted).
+
+**Rationale:** The real catches all came from reviews of `src/` and `ios/` (the release deltas' B5, M1-M4, M11,
+M23-M26; the Tester's privacy-page M4/M5). No review of docs alone found a defect. One test-only change did weaken
+a security invariant (`d8710b5`, INV-10, caught as Tester M2 and Security M21), so the invariant tests stay code.
+Of 157 ADRs, about 43 are the costly kind. Of 101 closed LOW issues, about 62 were fixes to gates, guards and flaky
+tests; the about 20 that a user could see are MEDIUM under clause 4.
+
+**Mitigation if violated:** A test-only change that weakens a check guarding something the register does not cite
+deploys unreviewed. The register's own test (`tests/unit/test_security_invariants.py`) keeps every row cited; the
+review at 1.2 (clause 7) counts what escaped.
+
+**Revisit when:** clause 7's report shows a defect that escaped through an exempted path, or 1.2 ships, whichever is
+first.

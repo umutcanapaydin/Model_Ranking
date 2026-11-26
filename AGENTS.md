@@ -16,6 +16,8 @@
 
 **Data rule (D-256, the owner's):** never ask the owner to verify data. Data with no automatic source is either read by the agent from its published page, or it is not in the product; a row the agent cannot read is marked unverified and not shown.
 
+**Scope rule (D-257, the owner's):** until Apple's review of iOS 1.1.0 is resolved (D-255), only user-visible bugs and release blockers are worked.
+
 ## 1. Project context
 
 - **Project name:** model_ranking
@@ -73,7 +75,7 @@ Heavy: a milestone starts with `/plan-milestone`: the plan, its waves, and one i
 - Every `import X` matched by `X>=N` in `pyproject.toml` (seed C.6)
 
 ### 3.4 Decision log discipline
-Non-trivial choices → new ADR in `docs/decisions.md`. Use `/log-decision` skill. To reverse: mark old `superseded by D-NNN`; never edit in place (B.2).
+An ADR (`docs/decisions.md`, `/log-decision`) only for a decision that is expensive to reverse: a data source, a licence, the architecture, the release or version policy, or relaxing a control (D-257). Every other choice goes in its PR's description. To reverse: mark old `superseded by D-NNN`; never edit in place (B.2).
 
 ### 3.5 Derive, don't enumerate
 Writing or changing anything that CHECKS something — a gate, a lint, a CI step, a validator, a hook, a prose rule that bans a shape — goes through `/writing-a-control`: does it fail when it should, can it fail at all, does it read the tree you think it reads.
@@ -87,7 +89,7 @@ Where one fact appears in two or more artefacts, generate one from the other (or
 ## 4. Subagent dispatch (K.4 + K.6 + K.7 + K.8)
 - **K.4** — parallel waves of independent scope; one worktree per writing agent, owning the files its dispatch lists · **K.6** — bar explicit, ≤5 min scope, discretion ok within bounds
 - **Dev-test loop** — Stage 2: each agent runs a loop on its slice (implement→test→self-review→fix). **Three failed attempts at one failure, then stop:** file it as a `bug` and move on (`.agents/rules/practices.md`). A wave fixes the findings it can and files the rest (`/close-wave` step 6).
-- **Reviews follow the change, computed by `make review-need`, never chosen by the author** (the table: `.agents/rules/issues.md`, "Two working modes"). A BLOCKING goes back to the same reviewer to re-verify, not to a new one; the third BLOCKING on one finding ends the loop (`/close-wave` step 3, `/fix-issue` step 6). **Seats run one after another, each in its own `git worktree` at the commit under review, with its own venv** (D-174, #52): two seats in one tree each saw the other's mutants, and one seat's probe once reached the owner's launchd service.
+- **Reviews follow the change, computed by `make review-need`, never chosen by the author** (the table: `.agents/rules/issues.md`, "Two working modes"). The Tester and the Security-Reviewer review user-facing code only: `src/`, `ios/`, the published data, and the deploy gate with the files that feed it; never docs, records, or a test `docs/security-invariants.md` does not cite (D-257). A BLOCKING goes back to the same reviewer to re-verify, not to a new one; the third BLOCKING on one finding ends the loop (`/close-wave` step 3, `/fix-issue` step 6). **Seats run one after another, each in its own `git worktree` at the commit under review, with its own venv** (D-174, #52): two seats in one tree each saw the other's mutants, and one seat's probe once reached the owner's launchd service.
 - **Keep sessions lean** (one field project hit its account limit): never resume an implementer to finish another task; never reply only to say you are waiting — a subagent's result arrives on its own; start a fresh session for a new milestone (inside a run the run file carries the state across sessions and compactions); reviewers run on the model setup question 12 set (`model:` in `.claude/agents/*.md`; D-241: `sonnet` for the Code-Reviewer and the Tester).
 - **K.7** — fresh eyes: a reviewer never authored the code it reviews, and each verdict declares `**Independent:** yes`; in this project the review is also a FILE declaring `seat: independent` (`scripts/wave_check.py::review_seat_problems`; why: `.agents/rules/review-seats.md`) · **K.8** — shared contracts grep-verified in the plan (paste `grep -n` output); a plan that builds a SCREEN maps each fact to the published field it comes from (D-150 clause 2)
 - **Context hygiene:** one task per session; compact at wave boundaries (state lives in FILES, re-read them); repo exploration goes to the read-only **Explorer** profile (≤2k-token summary), never inline.
@@ -125,7 +127,7 @@ Walk `docs/closure-checklist.md`. **Nothing deploys at a milestone close**, and 
 - **Stage 6 — post-deploy fixes:** `/fix-issue` in either mode, a planned wave in heavy for work of several slices (red-test intake); one fix ships as a hotfix (`/going-live`, "A hotfix": the deploy gate's deltas); more than one fix together, or a fix on a HIGH path, ships via `docs/fixpack-{N}.md`. A failed deploy: the brief's `Rollback command:`, then an issue. Every release leaves `docs/releases/<version>.md` on `release/<version>`.
 
 ## 7. Final reply (Done Evidence template)
-End every task with: files changed · tests run + outcomes · assumptions made · new ADRs (D-IDs) · risks, each fixed or filed as an issue (`#<n>`) · three hand-off lines: **Blocked on** (needs the owner) · **Waits only for a merge** · **Next without the owner**.
+End every task with at most ten lines (D-257): what changed · what is red (every red check, required or not) · what is expected from the owner. A PR body keeps its findings table and its Risks.
 
 PASS verdicts MUST cite `file:line` evidence per acceptance criterion (otherwise BLOCKING per permission-matrix §11). **Detail:** `docs/tool-suitability.md` (task-fit matrix) · `.agents/rules/environment.md` (your machine; gitignored, copied from its template by `/start-session` the first time).
 

@@ -143,7 +143,7 @@ working.*
 - **Open the capture file BEFORE the work starts**, not after (G.1). *(3)*
 - **process-log per pull request** — three to ten lines on the PR's branch, ending with a `Lesson:`
   tag, headed by date and branch, never a number (`/pre-merge`). *(3)*
-- **Capture every assumption as an ADR** (seed B.1) — use the `log-decision` skill. *(2)*
+- **An ADR only for a decision that is expensive to reverse** (D-257: a data source, a licence, the architecture, the release or version policy, or relaxing a control) — use the `log-decision` skill; every other assumption goes in the PR's description. *(2)*
 - **Supersede, never edit** (seed B.2) — the old ADR keeps its body and is marked
   `superseded by D-NNN`. *Below the bar (0 projects); kept because every governance record depends
   on it, and `make check-records` reads it.*
@@ -188,11 +188,9 @@ working.*
 Moved here from `AGENTS.md` §7 at the M13 closure diet check (that file had reached 156 lines against
 its 150-line cap, since M11-W1). `AGENTS.md` keeps a one-line pointer and the PASS rule.
 
-End every task with:
-- Files changed
-- Tests run + outcomes
-- Assumptions made
-- New ADRs (D-IDs)
-- Risks queued to next milestone
+End every task with at most ten lines (D-257, the owner's ruling of 2026-11-26):
+- What changed
+- What is red: every red check, required or not
+- What is expected from the owner
 
 PASS verdicts MUST cite `file:line` evidence per acceptance criterion (otherwise BLOCKING per permission-matrix §11).
