@@ -2086,3 +2086,10 @@ taken out, and its failures as the ones to avoid; a search of the decisions woul
 - The rule text follows: reviews for user-facing code only, ADRs for costly decisions, a user-visible finding is at least MEDIUM, scope limited until App Review, a report of ten lines. #619, #622 and #629 move to `docs/later.md`; #620 and #631 are MEDIUM. The skill and agent texts follow as the owner's bundle.
 - Reviewed once under the old rules: the release Tester (PASS, L17-L22) and the Security-Reviewer (MINOR, M30-M33, then PASS on re-verify). M30: a change could switch the register form on by naming it on its own brief line, now only the bases do. M31: a conftest, fixture or a test module a cited test imports was a record, now code (71 files). M32: `later` took a BLOCKING or non-LOW row, now refused.
 - Lesson: relaxing a control needs the one case it caught; here a test-only commit once widened INV-10, so the invariant tests stay code while the rest go.
+
+## 2026-11-28 · enhancement/issue-639-claude-bundle — the D-257 `.claude/` bundle
+- The skill and agent texts follow D-257: LOW findings no user can see go to `docs/later.md` (`later`), a user-visible one is at least MEDIUM, an ADR only for a decision expensive to reverse, a ten-line report, and the deploy delta owed for what the gate counts as code.
+- Nine files, 14 edits; the owner applies the patch (`owner_bundle.py apply`), since the agent may not write `.claude/`.
+- The Security-Reviewer read the patch: MINOR (M1: the delta wording was looser than `change_class`; M2: the report rule lost "every red check"), then PASS on the rebuilt patch.
+- `.claude/` is code to the deploy gate, so both deploy deltas run on this branch after the apply, before the merge; otherwise every night's deploy stops.
+- Lesson: a prose rule that describes a gate must say what the gate does, not what the ADR meant; let the gate's own check (`make deploy-check`) decide in the text.
